@@ -4,7 +4,7 @@ import { parseMarkdown } from './markdown';
 
 /** Renders the report Markdown subset as plain DOM (text nodes only, never HTML from the text). */
 @Component({
-  selector: 'imt-markdown-view',
+  selector: 'debrief-markdown-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-template #inl let-items>

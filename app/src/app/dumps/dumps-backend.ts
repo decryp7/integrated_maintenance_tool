@@ -27,7 +27,7 @@ import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
 
 /** Emitted to the window when the symbols of one of its dumps changed (PDBs arrived or the download ended): `{ id }`. */
-export const DUMP_SYMBOLS_EVENT = 'imt://dump-symbols';
+export const DUMP_SYMBOLS_EVENT = 'debrief://dump-symbols';
 
 /**
  * The dump engine as the UI sees it (commands in `app/src-tauri/src/dumps.rs`, ADR 0023). The engine reads,

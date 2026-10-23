@@ -1,8 +1,8 @@
 //! The wire types of the parser library (ADR 0026; camelCase JSON, generated into
 //! `app/src/app/core/generated/parsers.ts` and re-exported by `api.types.ts`).
 
-use imt_core::parser::library::{Origin, Relation};
-use imt_core::parser::ParserError;
+use debrief_core::parser::library::{Origin, Relation};
+use debrief_core::parser::ParserError;
 use serde::{Deserialize, Serialize};
 
 /// Where a parser of the library comes from.
@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ParserOrigin {
-    /// Shipped with IMT (read-only; can be disabled).
+    /// Shipped with Debrief (read-only; can be disabled).
     Builtin,
     /// A parser file of the user's.
     User,
@@ -186,9 +186,9 @@ pub struct ParserDraftRequest {
     pub parser_override: Option<String>,
 }
 
-impl From<ParserDraftRequest> for imt_core::parser::draft::DraftRequest {
+impl From<ParserDraftRequest> for debrief_core::parser::draft::DraftRequest {
     fn from(r: ParserDraftRequest) -> Self {
-        imt_core::parser::draft::DraftRequest {
+        debrief_core::parser::draft::DraftRequest {
             file_name: r.file_name,
             base: r.base,
             regex: r.regex,

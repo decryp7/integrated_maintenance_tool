@@ -35,11 +35,12 @@ import {
   TimelineRequest,
   WorkspaceSummary,
 } from '../api.types';
-import type { ImtBackend } from '../backend';
+import type { DebriefBackend } from '../backend';
 import { ProfileModel } from '../profile.model';
 import { DEMO_START, generateDemo, generateExtraSource, MockDataset, MockRecord } from './mock-data';
 import { mockAnnotations } from './mock-annotations';
 import { mockPreviewSpans, mockQueryRuns, mockRunAnnotations, RunContext, spanRules } from './mock-runs';
+import { WatchedFolderInfo } from '../api.types';
 import { RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest } from '../api.types';
 import { MockEngine, safeRegex } from './mock-engine';
 import { MOCK_PLUGIN_KINDS, MOCK_WINDOWS_PLUGIN, MockPluginKind } from './mock-plugin-markers';
@@ -53,10 +54,11 @@ import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveConfig, MockLiveSim, 
 import { validateLiveSection } from './mock-live-profile';
 import { BUILTIN_ICONS } from '../../markers/builtin-icons';
 import { mockDashboards, mockDashboardsError } from '../../share/mock/mock-dashboards';
+import { mockLenses } from './mock-lenses';
 import { mockRedactCfg, MockRedactor } from '../../share/mock/mock-redact';
 import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from '../api.types';
 import { CmdError } from '../cmd-error';
-import { mockSuggest, recordKey, resolveOffset, shiftSource } from './mock-skew';
+import { mockSuggest, resolveOffset, shiftSource } from './mock-skew';
 import { FileOpened, ImportProgress, OpenFileRequest, ProfileVersionInfo } from '../api.types';
 import { mockFileKind, mockOpenSourceFile } from './mock-files';
 import { mockNotifications } from '../../notifications/mock-notifications';
@@ -90,7 +92,7 @@ export interface MockBackendOptions {
   liveRotateMs?: number;
   /** With `liveRate`: raise a live alert every this many ms (default 10000; 0 = never). */
   liveAlertMs?: number;
-  /** Publish the `setLive` calls as `globalThis.__imtMockLiveCalls` (end-to-end tests spy on them). */
+  /** Publish the `setLive` calls as `globalThis.__debriefMockLiveCalls` (end-to-end tests spy on them). */
   exposeLiveCalls?: boolean;
   /** Marker kinds contributed by (mock) plugins (default: the Windows plugin's; `[]` = none, like safe mode). */
   pluginMarkerKinds?: readonly MockPluginKind[];
@@ -107,7 +109,7 @@ export interface MockLiveCall {
 }
 
 /** In-browser stand-in for the Rust backend (used by `ng serve`). */
-export class MockBackend implements ImtBackend {
+export class MockBackend implements DebriefBackend {
   private dataset: MockDataset;
   private profileToml = MOCK_PROFILE_TOML;
   private profile: ProfileModel;
@@ -155,7 +157,7 @@ export class MockBackend implements ImtBackend {
     this.profile = parse(this.profileToml) as ProfileModel;
     this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
     this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock) : null;
-    if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__imtMockLiveCalls'] = this.liveCalls;
+    if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__debriefMockLiveCalls'] = this.liveCalls;
     this.apply();
   }
 
@@ -294,6 +296,7 @@ export class MockBackend implements ImtBackend {
       exporters: MOCK_EXPORTERS,
       pipeline: e.pipelineStats,
       dashboards: mockDashboards(this.profile),
+      lenses: mockLenses(this.profile),
       redactedView: this.redactor !== null,
       untimed: synthetic !== null ? 0 : e.records.filter((r) => r.ts === null).length,
     };
@@ -689,6 +692,60 @@ export class MockBackend implements ImtBackend {
     return this.delay(() => this.mutes.unmute(target), 5);
   }
 
+  /** The window the last import was asked to read (tests); null: everything. */
+  importWindow: { from: number | null; to: number | null } | null = null;
+  private watched: WatchedFolderInfo[] = [];
+  private readonly watchedHandlers = new Set<(files: number) => void>();
+
+  setImportWindow(from: number | null, to: number | null): Promise<void> {
+    return this.delay(() => {
+      if (from !== null && to !== null && to < from) throw new Error('the end of the import window is before its start');
+      this.importWindow = from === null && to === null ? null : { from, to };
+    }, 5);
+  }
+
+  watchedFolders(): Promise<WatchedFolderInfo[]> {
+    return this.delay(() => this.watched.map((w) => ({ ...w })), 5);
+  }
+
+  addWatchedFolder(path: string): Promise<WatchedFolderInfo[]> {
+    return this.delay(() => {
+      if (this.watched.some((w) => w.path === path)) return this.watched.map((w) => ({ ...w }));
+      if (this.watched.length >= 8) throw new Error('at most 8 folders can be watched in a window; remove one first');
+      this.watched.push({ path, enabled: true, importedFiles: 0, pending: 1, message: '' });
+      // A file settles in the folder a moment later and is imported, like the engine's poller does.
+      this.clock.setTimeout(() => {
+        const w = this.watched.find((x) => x.path === path);
+        if (!w?.enabled) return;
+        this.addExtra(`${path.replace(/[\\/]+$/, '')}/dropped.log`);
+        this.apply();
+        w.importedFiles++;
+        w.pending = 0;
+        for (const h of this.watchedHandlers) h(1);
+      }, 400);
+      return this.watched.map((w) => ({ ...w }));
+    }, 5);
+  }
+
+  removeWatchedFolder(path: string): Promise<WatchedFolderInfo[]> {
+    return this.delay(() => {
+      this.watched = this.watched.filter((w) => w.path !== path);
+      return this.watched.map((w) => ({ ...w }));
+    }, 5);
+  }
+
+  setWatchedFolderEnabled(path: string, enabled: boolean): Promise<WatchedFolderInfo[]> {
+    return this.delay(() => {
+      for (const w of this.watched) if (w.path === path) w.enabled = enabled;
+      return this.watched.map((w) => ({ ...w }));
+    }, 5);
+  }
+
+  onWatchedImported(handler: (files: number) => void): Promise<() => void> {
+    this.watchedHandlers.add(handler);
+    return Promise.resolve(() => void this.watchedHandlers.delete(handler));
+  }
+
   openPathsLive(paths: string[], startAtEnd: boolean): Promise<WorkspaceSummary> {
     if (!startAtEnd) return this.openPaths(paths);
     return this.delay(() => {
@@ -890,8 +947,8 @@ const MOCK_PLUGINS: PluginInfo[] = [
 ];
 /** Event-bus counters the demo reports (delivered grows with live tail). */
 const MOCK_EVENT_METRICS: SubscriberMetrics[] = [
-  { id: 1, plugin: MOCK_WINDOWS_PLUGIN, event: 'imt_core::events::RecordsAppended', delivered: 3, dropped: 0, failures: 0, skipped: 0, queued: 0 },
-  { id: 2, plugin: 'net.decryptology.web', event: 'imt_core::events::ProfileChanged', delivered: 1, dropped: 0, failures: 1, skipped: 0, queued: 0 },
+  { id: 1, plugin: MOCK_WINDOWS_PLUGIN, event: 'debrief_core::events::RecordsAppended', delivered: 3, dropped: 0, failures: 0, skipped: 0, queued: 0 },
+  { id: 2, plugin: 'net.decryptology.web', event: 'debrief_core::events::ProfileChanged', delivered: 1, dropped: 0, failures: 1, skipped: 0, queued: 0 },
 ];
 /** What `readFileHead` returns for any file in the browser demo. */
 const SAMPLE_HEAD = [

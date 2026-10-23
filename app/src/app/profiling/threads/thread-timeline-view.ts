@@ -58,12 +58,12 @@ interface EventVm {
  * range (or typing it) sets the shared profile range, which re-queries every profiling view.
  */
 @Component({
-  selector: 'imt-thread-timeline-view',
+  selector: 'debrief-thread-timeline-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileBar, NoCapture],
   template: `
     @if (active.profile(); as p) {
-      <imt-profile-bar [showMetric]="false" />
+      <debrief-profile-bar [showMetric]="false" />
       <div class="bar">
         <span class="section-title" i18n="@@profiling.threads.title">Thread timeline</span>
         <div class="kinds" role="group" aria-label="Event kinds" i18n-aria-label="@@profiling.threads.kinds">
@@ -85,7 +85,7 @@ interface EventVm {
       @if (!p.hasTime) {
         <div class="state" role="status" i18n="@@profiling.threads.noTimestamps">This capture has no timestamps (e.g. folded stacks), so there is no timeline.</div>
       } @else {
-        <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.threads?.length === 0" emptyText="No thread activity in this range." i18n-emptyText="@@profiling.threads.empty" (retry)="res.retry()">
+        <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.threads?.length === 0" emptyText="No thread activity in this range." i18n-emptyText="@@profiling.threads.empty" (retry)="res.retry()">
           @if (res.data(); as t) {
             <div class="axis mono" aria-hidden="true">
               <span [style.left.px]="labelW">{{ axisLabel(t, t.fromNs) }}</span>
@@ -124,10 +124,10 @@ interface EventVm {
               </table>
             </details>
           }
-        </imt-analysis-state>
+        </debrief-analysis-state>
       }
     } @else {
-      <imt-no-capture text="Open a performance capture with timestamps to see its threads over time." i18n-text="@@profiling.threads.noCapture" />
+      <debrief-no-capture text="Open a performance capture with timestamps to see its threads over time." i18n-text="@@profiling.threads.noCapture" />
     }
   `,
   styles: [

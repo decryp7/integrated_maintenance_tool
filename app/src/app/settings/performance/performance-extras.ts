@@ -10,7 +10,7 @@ import { Environment, PERFORMANCE_SECTION, Preset, Proposal } from './performanc
  * Apply, so the engine validates the values like any edit.
  */
 @Component({
-  selector: 'imt-performance-extras',
+  selector: 'debrief-performance-extras',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">

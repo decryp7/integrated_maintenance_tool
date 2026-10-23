@@ -27,14 +27,14 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
  * tells whether its values are sampled estimates (≈) or exact (=).
  */
 @Component({
-  selector: 'imt-hotspots-view',
+  selector: 'debrief-hotspots-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileBar, MeasurementTag, MeasurementLegend, CaptureNotes, NoCapture],
   providers: [HotspotsStore],
   template: `
     @if (active.profile(); as p) {
-      <imt-profile-bar />
-      <imt-capture-notes [notes]="p.notes" [name]="p.name" />
+      <debrief-profile-bar />
+      <debrief-capture-notes [notes]="p.notes" [name]="p.name" />
       <div class="bar">
         <span class="section-title" i18n="@@profiling.hotspots.title">Hotspots</span>
         <label class="inline"><ng-container i18n="@@profiling.hotspots.groupBy">Group by</ng-container>&ngsp;
@@ -47,9 +47,9 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
           <span class="muted" data-testid="hotspots-count">{{ countText(m.totalRows, m.samplesInView) }}</span>
         }
         <span class="spacer"></span>
-        <imt-measurement-legend />
+        <debrief-measurement-legend />
       </div>
-      <imt-analysis-state [loading]="store.loading()" [error]="store.error()" [hasData]="!!store.meta()" [empty]="store.meta()?.totalRows === 0" emptyText="No samples match this view (range, threads or search)." i18n-emptyText="@@profiling.hotspots.empty" (retry)="store.retry()">
+      <debrief-analysis-state [loading]="store.loading()" [error]="store.error()" [hasData]="!!store.meta()" [empty]="store.meta()?.totalRows === 0" emptyText="No samples match this view (range, threads or search)." i18n-emptyText="@@profiling.hotspots.empty" (retry)="store.retry()">
         <div class="viewport" #viewport tabindex="0" role="region" aria-label="Hotspot rows" i18n-aria-label="@@profiling.hotspots.rowsRegion" (scroll)="onScroll($event)">
           <table class="grid" [attr.aria-rowcount]="(store.meta()?.totalRows ?? 0) + 1" aria-label="Hotspots" i18n-aria-label="@@profiling.hotspots.tableLabel">
             <thead>
@@ -61,7 +61,7 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
                     } @else {
                       <span>{{ c.label }}</span>
                     }
-                    @if (c.measurement; as m) { <imt-measurement [m]="m" /> }
+                    @if (c.measurement; as m) { <debrief-measurement [m]="m" /> }
                   </th>
                 }
                 <th scope="col"><span class="sr" i18n="@@profiling.hotspots.actions">Actions</span></th>
@@ -101,9 +101,9 @@ export function rowWindow(total: number, scrollTop: number, height: number, rowH
             </tbody>
           </table>
         </div>
-      </imt-analysis-state>
+      </debrief-analysis-state>
     } @else {
-      <imt-no-capture text="Open a performance capture to see its hotspots." i18n-text="@@profiling.hotspots.noCapture" />
+      <debrief-no-capture text="Open a performance capture to see its hotspots." i18n-text="@@profiling.hotspots.noCapture" />
     }
   `,
   styles: [

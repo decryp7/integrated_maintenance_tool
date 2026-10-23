@@ -1,6 +1,6 @@
 import { ApplicationRef, ChangeDetectionStrategy, Component, effect, EnvironmentInjector, ErrorHandler, inject, OnDestroy, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import type { DockviewApi, SerializedDockview } from 'dockview';
+import type { SerializedDockview } from 'dockview';
 import { MemoryLogger, provideDockTesting, settle, testLogger, tinyDataset } from '../../testing/helpers';
 import { FailureReporter } from '../core/failure-reporter';
 import { Logger } from '../core/logger';
@@ -8,7 +8,7 @@ import { MockBackend } from '../core/mock/mock-backend';
 import { MockDataset } from '../core/mock/mock-data';
 import { WorkspaceStore } from '../core/workspace.store';
 import { REGISTRY_PLUGIN } from '../plugins/registry/registry.plugin';
-import { ImtPlugin, ImtView, provideImtPlugin } from '../extensions';
+import { DebriefPlugin, DebriefView, provideDebriefPlugin } from '../extensions';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { PANEL_VISIBLE } from '../core/panel-visibility';
 import { DockHost } from './dock-host';
@@ -25,11 +25,11 @@ import { labelTabOverflow, overflowLabel } from './dock-dom';
 // dockview is loaded on demand (see dockview-loader); load it once so attach() is synchronous here.
 beforeAll(() => loadDockview());
 
-@Component({ selector: 'imt-test-query', template: 'stub' })
+@Component({ selector: 'debrief-test-query', template: 'stub' })
 class ToolStub {}
 
 /** Stand-in for a conditional bottom (analysis) view that opens by itself, plus a right-hand tool window opened on demand. */
-const BOTTOM_PLUGIN: ImtPlugin = {
+const BOTTOM_PLUGIN: DebriefPlugin = {
   views: [
     { id: 'test-bottom', title: 'Bottom', icon: 'search', defaultPosition: 'bottom', component: async () => ToolStub, when: (s) => s.total > 0, autoOpen: true },
     { id: 'test-tool', title: 'Tool', icon: 'panel', defaultPosition: 'right', component: async () => ToolStub },
@@ -37,12 +37,12 @@ const BOTTOM_PLUGIN: ImtPlugin = {
 };
 
 /** One view of every home area, to test where `DockPlacement.addView` puts a view: documents, analysis, side and status tools. */
-const AREA_PLUGIN: ImtPlugin = {
+const AREA_PLUGIN: DebriefPlugin = {
   views: [
-    ...['test-doc-1', 'test-doc-2'].map((id): ImtView => ({ id, title: id, icon: 'panel', defaultPosition: 'center', area: 'document', component: async () => ToolStub })),
-    ...Array.from({ length: 10 }, (_, i): ImtView => ({ id: `test-an-${i + 1}`, title: `an${i + 1}`, icon: 'panel', defaultPosition: 'center', area: 'analysis', component: async () => ToolStub })),
-    ...['test-side-1', 'test-side-2'].map((id): ImtView => ({ id, title: id, icon: 'panel', defaultPosition: 'right', area: 'side', component: async () => ToolStub })),
-    ...['test-status-1', 'test-status-2'].map((id): ImtView => ({ id, title: id, icon: 'panel', defaultPosition: 'bottom', area: 'status', component: async () => ToolStub })),
+    ...['test-doc-1', 'test-doc-2'].map((id): DebriefView => ({ id, title: id, icon: 'panel', defaultPosition: 'center', area: 'document', component: async () => ToolStub })),
+    ...Array.from({ length: 10 }, (_, i): DebriefView => ({ id: `test-an-${i + 1}`, title: `an${i + 1}`, icon: 'panel', defaultPosition: 'center', area: 'analysis', component: async () => ToolStub })),
+    ...['test-side-1', 'test-side-2'].map((id): DebriefView => ({ id, title: id, icon: 'panel', defaultPosition: 'right', area: 'side', component: async () => ToolStub })),
+    ...['test-status-1', 'test-status-2'].map((id): DebriefView => ({ id, title: id, icon: 'panel', defaultPosition: 'bottom', area: 'status', component: async () => ToolStub })),
   ],
 };
 
@@ -112,7 +112,7 @@ describe('LocalStorageLayoutStore', () => {
 });
 
 describe('AngularContentRenderer', () => {
-  @Component({ selector: 'imt-probe', template: 'probe-content' })
+  @Component({ selector: 'debrief-probe', template: 'probe-content' })
   class Probe implements OnDestroy {
     static destroyed = 0;
     ngOnDestroy() {
@@ -188,21 +188,21 @@ describe('AngularContentRenderer', () => {
   });
 });
 
-@Component({ selector: 'imt-boom-ctor', template: 'never' })
+@Component({ selector: 'debrief-boom-ctor', template: 'never' })
 class BoomCtor {
   constructor() {
     throw new Error('constructor boom');
   }
 }
 
-@Component({ selector: 'imt-boom-render', template: '{{ boom() }}' })
+@Component({ selector: 'debrief-boom-render', template: '{{ boom() }}' })
 class BoomRender {
   boom(): string {
     throw new Error('render boom');
   }
 }
 
-@Component({ selector: 'imt-boom-later', changeDetection: ChangeDetectionStrategy.OnPush, template: '{{ show() ? boom() : "fine" }}' })
+@Component({ selector: 'debrief-boom-later', changeDetection: ChangeDetectionStrategy.OnPush, template: '{{ show() ? boom() : "fine" }}' })
 class BoomLater {
   static current: BoomLater | null = null;
   readonly show = signal(false);
@@ -214,7 +214,7 @@ class BoomLater {
   }
 }
 
-@Component({ selector: 'imt-boom-effect', template: 'effect panel' })
+@Component({ selector: 'debrief-boom-effect', template: 'effect panel' })
 class BoomEffect {
   constructor() {
     effect(() => {
@@ -223,7 +223,7 @@ class BoomEffect {
   }
 }
 
-@Component({ selector: 'imt-counter', changeDetection: ChangeDetectionStrategy.OnPush, template: '<span class="n">{{ n() }}</span>' })
+@Component({ selector: 'debrief-counter', changeDetection: ChangeDetectionStrategy.OnPush, template: '<span class="n">{{ n() }}</span>' })
 class Counter {
   static current: Counter | null = null;
   readonly n = signal(0);
@@ -234,7 +234,7 @@ class Counter {
 
 /** A panel that counts how often Angular checks its host binding and runs its template. */
 @Component({
-  selector: 'imt-check-probe',
+  selector: 'debrief-check-probe',
   host: { '[attr.data-host-checks]': 'hostCheck()' },
   template: '<span class="v">{{ render() }}</span>',
 })
@@ -366,7 +366,7 @@ describe('Panel error boundary', () => {
     return new AngularContentRenderer(async () => type as never, TestBed.inject(ApplicationRef), TestBed.inject(EnvironmentInjector), label);
   }
 
-  const card = (r: AngularContentRenderer) => r.element.querySelector<HTMLElement>('.imt-panel-failed');
+  const card = (r: AngularContentRenderer) => r.element.querySelector<HTMLElement>('.debrief-panel-failed');
   const failed = async (r: AngularContentRenderer, message: string) => {
     r.init({} as never);
     await vi.waitFor(() => expect(card(r)?.textContent).toContain(`This panel failed: ${message}`));
@@ -404,7 +404,7 @@ describe('Panel error boundary', () => {
     await vi.waitFor(() => expect(r.element.textContent).toBe('fine'));
     BoomLater.current!.show.set(true);
     await vi.waitFor(() => expect(card(r)?.textContent).toContain('later boom'));
-    expect(r.element.querySelector('imt-boom-later')).toBeNull();
+    expect(r.element.querySelector('debrief-boom-later')).toBeNull();
     r.dispose();
   });
 
@@ -481,7 +481,7 @@ describe('Panel error boundary', () => {
   });
 
   it('describes errors that are not Error objects', async () => {
-    @Component({ selector: 'imt-boom-string', template: '{{ boom() }}' })
+    @Component({ selector: 'debrief-boom-string', template: '{{ boom() }}' })
     class BoomString {
       boom(): string {
         throw 'plain string';
@@ -493,7 +493,7 @@ describe('Panel error boundary', () => {
   });
 
   it('routes errors the framework reports through ErrorHandler to the panel', async () => {
-    @Component({ selector: 'imt-reports', template: 'reports' })
+    @Component({ selector: 'debrief-reports', template: 'reports' })
     class Reports {
       constructor() {
         const handler = inject(ErrorHandler);
@@ -530,7 +530,7 @@ describe('PanelTab', () => {
     expect(tab.element.textContent).toContain('Timeline');
     rename({ title: 'Renamed' });
     expect(tab.element.textContent).toContain('Renamed');
-    const x = tab.element.querySelector<HTMLElement>('.imt-tab-close')!;
+    const x = tab.element.querySelector<HTMLElement>('.debrief-tab-close')!;
     expect(x.getAttribute('aria-hidden')).toBe('true');
     x.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
     x.click();
@@ -542,7 +542,7 @@ describe('PanelTab', () => {
 
   it('finds the panel id of the tab an event came from', () => {
     const host = document.createElement('div');
-    host.innerHTML = '<div role="tab"><div class="imt-tab" data-panel-id="p1"><span id="inner"></span></div></div><div id="other"></div>';
+    host.innerHTML = '<div role="tab"><div class="debrief-tab" data-panel-id="p1"><span id="inner"></span></div></div><div id="other"></div>';
     expect(tabPanelId(host.querySelector('#inner'))).toBe('p1');
     expect(tabPanelId(host.querySelector('#other'))).toBeNull();
     expect(tabPanelId(null)).toBeNull();
@@ -570,7 +570,7 @@ describe('DockService with dockview', () => {
       },
     };
     TestBed.configureTestingModule({
-      providers: [provideDockTesting(opts.backend), { provide: LAYOUT_STORE, useValue: layoutStore }, ...(opts.plugin ? [provideImtPlugin(REGISTRY_PLUGIN)] : []), ...(opts.bottom ? [provideImtPlugin(BOTTOM_PLUGIN)] : []), ...(opts.areas ? [provideImtPlugin(AREA_PLUGIN)] : [])],
+      providers: [provideDockTesting(opts.backend), { provide: LAYOUT_STORE, useValue: layoutStore }, ...(opts.plugin ? [provideDebriefPlugin(REGISTRY_PLUGIN)] : []), ...(opts.bottom ? [provideDebriefPlugin(BOTTOM_PLUGIN)] : []), ...(opts.areas ? [provideDebriefPlugin(AREA_PLUGIN)] : [])],
     });
     container = document.createElement('div');
     document.body.appendChild(container);
@@ -733,7 +733,7 @@ describe('DockService with dockview', () => {
     const { dock } = setup();
     dock.attach(container);
     withPanels(dock);
-    const header = container.querySelector('.imt-dock-actions')!;
+    const header = container.querySelector('.debrief-dock-actions')!;
     expect([...header.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Panel menu', 'Maximize panel']);
     expect(header.querySelector('button')!.getAttribute('aria-haspopup')).toBe('menu');
   });

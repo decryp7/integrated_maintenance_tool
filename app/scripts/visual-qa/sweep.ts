@@ -10,10 +10,10 @@ import { layoutProblems, LayoutProblem } from './layout-check';
  * menu, every view (maximised in its dock group) and the main dialogs, and writes the layout problems found in each
  * state to report.json next to the images.
  */
-const OUT = resolve(process.cwd(), process.env['IMT_QA_OUT'] ?? '../target/visual-qa');
-const SIZES = (process.env['IMT_QA_SIZES'] ?? '1600x1000,1024x700').split(',').map((s) => s.split('x').map(Number) as [number, number]);
-const THEMES = (process.env['IMT_QA_THEMES'] ?? 'dark,light').split(',') as ('dark' | 'light')[];
-const ONLY = process.env['IMT_QA_ONLY']?.toLowerCase();
+const OUT = resolve(process.cwd(), process.env['DEBRIEF_QA_OUT'] ?? '../target/visual-qa');
+const SIZES = (process.env['DEBRIEF_QA_SIZES'] ?? '1600x1000,1024x700').split(',').map((s) => s.split('x').map(Number) as [number, number]);
+const THEMES = (process.env['DEBRIEF_QA_THEMES'] ?? 'dark,light').split(',') as ('dark' | 'light')[];
+const ONLY = process.env['DEBRIEF_QA_ONLY']?.toLowerCase();
 
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 

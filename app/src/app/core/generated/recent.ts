@@ -1,5 +1,5 @@
-// Generated from the Rust wire types by `cargo test -p imt-app --lib generated_types` (ts-rs; ADR 0016).
-// Do not edit: change the Rust type and run the test with IMT_WRITE_TYPES=1.
+// Generated from the Rust wire types by `cargo test -p debrief-app --lib generated_types` (ts-rs; ADR 0016).
+// Do not edit: change the Rust type and run the test with DEBRIEF_WRITE_TYPES=1.
 
 export type RecentFile = { path: string, 
 /**

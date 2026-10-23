@@ -1,7 +1,7 @@
 [workspace]
-members = ["crates/imt-core", "crates/imt-alloc", "crates/imt-plugin-api", "crates/imt-batch", "crates/imt-plugin-registry", "crates/imt-plugin-windows", "crates/imt-plugin-web", "crates/imt-plugin-formats", "crates/imt-plugin-otel", "crates/imt-plugin-syslog", "crates/imt-plugin-tools", "crates/imt-monitor", "crates/imt-collect", "crates/imt-pdf", "crates/imt-agent", "crates/imt-profile", "crates/imt-plugin-profiling", "crates/imt-plugin-dotnet", "crates/imt-etw", "crates/imt-symbols", "crates/imt-plugin-native", "crates/imt-dump", "crates/imt-plugin-dumps", "crates/imt-ai", "crates/imt-ai-worker", "crates/imt-ipc", "crates/imt-plugin-host", "crates/imt-plugins", "crates/imt-plugin-package", "crates/imt-plugin-test", "examples/plugins/*", "crates/cargo-imt-plugin", "crates/imt-plugin-e2e", "app/src-tauri", "xtask", "crates/imt-store-duck", "crates/imt-store-client", "crates/imt-store-worker", "crates/imt-notes", "crates/imt-video", "crates/chromium-driver"]
-# The store crates (imt-store-duck, imt-store-worker) link the official prebuilt libduckdb: every build needs
-# `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR` from `crates/imt-store-duck/scripts/fetch-libduckdb.sh` (docs/development.md).
+members = ["crates/debrief-core", "crates/debrief-alloc", "crates/debrief-plugin-api", "crates/debrief-batch", "crates/debrief-plugin-registry", "crates/debrief-plugin-windows", "crates/debrief-plugin-web", "crates/debrief-plugin-formats", "crates/debrief-plugin-otel", "crates/debrief-plugin-syslog", "crates/debrief-plugin-tools", "crates/debrief-monitor", "crates/debrief-collect", "crates/debrief-pdf", "crates/debrief-agent", "crates/debrief-cli", "crates/debrief-profile", "crates/debrief-plugin-profiling", "crates/debrief-plugin-dotnet", "crates/debrief-etw", "crates/debrief-symbols", "crates/debrief-plugin-native", "crates/debrief-dump", "crates/debrief-plugin-dumps", "crates/debrief-ai", "crates/debrief-ai-worker", "crates/debrief-ipc", "crates/debrief-plugin-host", "crates/debrief-plugins", "crates/debrief-plugin-package", "crates/debrief-plugin-test", "examples/plugins/*", "crates/cargo-debrief-plugin", "crates/debrief-plugin-e2e", "app/src-tauri", "xtask", "crates/debrief-store-duck", "crates/debrief-store-client", "crates/debrief-store-worker", "crates/debrief-notes", "crates/debrief-video", "crates/chromium-driver"]
+# The store crates (debrief-store-duck, debrief-store-worker) link the official prebuilt libduckdb: every build needs
+# `DUCKDB_LIB_DIR`/`DUCKDB_INCLUDE_DIR` from `crates/debrief-store-duck/scripts/fetch-libduckdb.sh` (docs/development.md).
 resolver = "2"
 
 # Shared by every member: `edition.workspace = true` etc.
@@ -10,7 +10,7 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 # The newest rust-version among the dependencies (sysinfo 0.39); CI builds with stable.
 rust-version = "1.95"
-repository = "https://dev.decryptology.net/decryp7/integrated_maintenance_tool"
+repository = "https://dev.decryptology.net/decryp7/debrief"
 
 # Versions of the dependencies that two or more members use, so they stay on one version. Members inherit with
 # `name.workspace = true` and add the features they need (features are additive). Crates with
@@ -18,7 +18,7 @@ repository = "https://dev.decryptology.net/decryp7/integrated_maintenance_tool"
 [workspace.dependencies]
 anyhow = "1.0"
 # Arrow 58: the version duckdb-rs 1.10506 (DuckDB 1.5.6) links, so event batches reach the store without a
-# conversion; `arrow-ipc` carries batches between the store worker and IMT (ADR 0014 6c).
+# conversion; `arrow-ipc` carries batches between the store worker and Debrief (ADR 0014 6c).
 arrow-array = { version = "58", default-features = false }
 arrow-buffer = { version = "58", default-features = false }
 arrow-ipc = { version = "58", default-features = false }
@@ -41,7 +41,7 @@ memory-stats = "1.2"
 # Event segments of the store: zstd Parquet (Apache-2.0), the Arrow version of duckdb-rs.
 parquet = { version = "58", default-features = false }
 # The global allocator of the binaries that parse and analyse (MIT), v3 (user decision 2026-10-21): through
-# `imt-alloc`, which also tunes it; measurements in ADR 0014's performance notes.
+# `debrief-alloc`, which also tunes it; measurements in ADR 0014's performance notes.
 mimalloc = { version = "0.1", default-features = false }
 # The frame codec of every IPC connection (ADR 0017): serde, compact, no schema compiler.
 postcard = { version = "1.1", default-features = false, features = ["use-std"] }

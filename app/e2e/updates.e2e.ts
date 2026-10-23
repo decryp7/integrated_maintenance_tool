@@ -15,7 +15,7 @@ test.describe('Updates', () => {
   test('check, see notes and size, download with progress, restart to update', async ({ page }) => {
     await openApp(page);
     const dialog = await checkForUpdates(page);
-    await expect(dialog.getByTestId('updates-available')).toHaveText('IMT 0.2.0 is available.');
+    await expect(dialog.getByTestId('updates-available')).toHaveText('Debrief 0.2.0 is available.');
     // Notes are plain text: the markup in them is shown, never rendered.
     const notes = dialog.getByRole('region', { name: 'Release notes' });
     await expect(notes).toContainText('<b>Faster</b> grid scrolling');
@@ -28,10 +28,10 @@ test.describe('Updates', () => {
     await expect(dialog.getByRole('button', { name: 'Cancel' })).toBeVisible();
     await expect(dialog.getByTestId('updates-ready')).toContainText('signature verified');
 
-    await dialog.getByLabel('Install when IMT quits instead').check();
-    await expect(dialog.getByLabel('Install when IMT quits instead')).toBeChecked();
+    await dialog.getByLabel('Install when Debrief quits instead').check();
+    await expect(dialog.getByLabel('Install when Debrief quits instead')).toBeChecked();
     await dialog.getByRole('button', { name: 'Restart to update' }).click();
-    await expect(dialog).toContainText('Restarting to install IMT 0.2.0');
+    await expect(dialog).toContainText('Restarting to install Debrief 0.2.0');
   });
 
   test('a download can be cancelled and the update stays available', async ({ page }) => {
@@ -47,7 +47,7 @@ test.describe('Updates', () => {
     const dialog = await checkForUpdates(page);
     const error = dialog.getByRole('alert');
     await expect(error).toHaveAttribute('data-kind', 'offline');
-    await expect(error).toContainText('IMT could not reach the network.');
+    await expect(error).toContainText('Debrief could not reach the network.');
     await expect(error).toContainText('Check your internet connection');
     await expect(dialog.getByRole('button', { name: 'Check again' })).toBeVisible();
     await expect(dialog.getByRole('button', { name: 'Open releases page' })).toBeVisible();
@@ -89,6 +89,6 @@ test.describe('Updates', () => {
   test('up to date', async ({ page }) => {
     await openAppWith(page, '?mockUpdate=upToDate');
     const dialog = await checkForUpdates(page);
-    await expect(dialog.getByTestId('updates-up-to-date')).toHaveText('IMT is up to date.');
+    await expect(dialog.getByTestId('updates-up-to-date')).toHaveText('Debrief is up to date.');
   });
 });

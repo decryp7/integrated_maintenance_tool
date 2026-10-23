@@ -1,6 +1,7 @@
 import { invoke } from './activity/ipc';
 import { inject, Provider } from '@angular/core';
 import {
+  WatchedFolderInfo,
   AlertTarget,
   AnnotationDto,
   AnnotationsRequest,
@@ -42,7 +43,7 @@ import { listenHere } from '../windowing/window-events';
 import { browserMocks } from './mock-registry';
 
 /** Everything the UI can ask the backend. Injected as a class token. */
-export abstract class ImtBackend {
+export abstract class DebriefBackend {
   abstract workspaceSummary(): Promise<WorkspaceSummary>;
   abstract openPaths(paths: string[]): Promise<WorkspaceSummary>;
   abstract removeSource(sourceId: number): Promise<WorkspaceSummary>;
@@ -90,6 +91,15 @@ export abstract class ImtBackend {
   abstract unmuteAlerts(target: AlertTarget): Promise<void>;
   /** Opens files and folders; with `startAtEnd`, text files are tailed from their current end (only new lines). */
   abstract openPathsLive(paths: string[], startAtEnd: boolean): Promise<WorkspaceSummary>;
+  /** Limits the next imports to a time range (epoch ms; both null: everything). The engine refuses an end before the start. */
+  abstract setImportWindow(from: number | null, to: number | null): Promise<void>;
+  /** The folders this window watches for new files. */
+  abstract watchedFolders(): Promise<WatchedFolderInfo[]>;
+  abstract addWatchedFolder(path: string): Promise<WatchedFolderInfo[]>;
+  abstract removeWatchedFolder(path: string): Promise<WatchedFolderInfo[]>;
+  abstract setWatchedFolderEnabled(path: string, enabled: boolean): Promise<WatchedFolderInfo[]>;
+  /** Called after watched folders imported files (the payload is the number of files). Returns the unsubscribe. */
+  abstract onWatchedImported(handler: (files: number) => void): Promise<() => void>;
   /** Infers a regex with named, typed groups from example lines (rejects for no lines). */
   abstract inferRegex(lines: string[]): Promise<InferredRegex>;
   /** Explains a regex in plain English as an indented outline (rejects for an invalid regex). */
@@ -101,10 +111,12 @@ export abstract class ImtBackend {
 }
 
 /** Tauri event emitted by the engine after live tail re-imported changed files. */
-export const WORKSPACE_CHANGED_EVENT = 'imt://workspace-changed';
+export const WORKSPACE_CHANGED_EVENT = 'debrief://workspace-changed';
+/** Tauri event emitted after a watched folder imported files. */
+export const WATCHED_IMPORTED_EVENT = 'debrief://watched-imported';
 
 /** Talks to the Rust core through Tauri commands. */
-export class TauriBackend extends ImtBackend {
+export class TauriBackend extends DebriefBackend {
   /** `call` is Tauri's `invoke`; tests pass a fake. */
   constructor(
     private readonly call: typeof invoke = invoke,
@@ -199,6 +211,24 @@ export class TauriBackend extends ImtBackend {
   openPathsLive(paths: string[], startAtEnd: boolean) {
     return this.call<WorkspaceSummary>('open_paths_live', { paths, startAtEnd });
   }
+  setImportWindow(from: number | null, to: number | null) {
+    return this.call<void>('set_import_window', { from, to });
+  }
+  watchedFolders() {
+    return this.call<WatchedFolderInfo[]>('watched_folders');
+  }
+  addWatchedFolder(path: string) {
+    return this.call<WatchedFolderInfo[]>('add_watched_folder', { path });
+  }
+  removeWatchedFolder(path: string) {
+    return this.call<WatchedFolderInfo[]>('remove_watched_folder', { path });
+  }
+  setWatchedFolderEnabled(path: string, enabled: boolean) {
+    return this.call<WatchedFolderInfo[]>('set_watched_folder_enabled', { path, enabled });
+  }
+  onWatchedImported(handler: (files: number) => void) {
+    return this.subscribe(WATCHED_IMPORTED_EVENT, (payload) => handler(typeof payload === 'number' ? payload : 0));
+  }
   inferRegex(lines: string[]) {
     return this.call<InferredRegex>('infer_regex', { lines });
   }
@@ -257,9 +287,9 @@ export function isLiveAlert(payload: unknown): payload is LiveAlert {
  */
 export function provideBackend(): Provider {
   return {
-    provide: ImtBackend,
+    provide: DebriefBackend,
     useFactory: () =>
-      withFailureLogging<ImtBackend>(isTauri() ? new TauriBackend() : new (browserMocks().MockBackend)(browserMocks().mockOptionsFromSearch(window.location.search)), inject(Logger), {
+      withFailureLogging<DebriefBackend>(isTauri() ? new TauriBackend() : new (browserMocks().MockBackend)(browserMocks().mockOptionsFromSearch(window.location.search)), inject(Logger), {
         onFailure: reportBackendFailures(),
       }),
   };

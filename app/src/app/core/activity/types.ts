@@ -48,11 +48,11 @@ export interface Breadcrumb {
 }
 
 /** `SourceContext` of every activity entry. */
-export const ACTIVITY_CONTEXT = 'IMT.Activity';
+export const ACTIVITY_CONTEXT = 'Debrief.Activity';
 /** The message template of user operations. */
 export const USER_TEMPLATE = 'User {Operation} via {Trigger}';
 /** IPC header carrying the operation id (Rust: `activity::OP_HEADER`). */
-export const OP_HEADER = 'imt-op-id';
+export const OP_HEADER = 'debrief-op-id';
 /** Entries kept per window. */
 export const RING_SIZE = 200;
 /** Entries attached to an error. */

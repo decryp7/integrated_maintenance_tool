@@ -69,12 +69,12 @@ export const SYNC_START_TIMEOUT_MS = 5000;
  * resolve to the host's workspace in Rust), and closes itself when the host goes away.
  */
 @Component({
-  selector: 'imt-popout-shell',
+  selector: 'debrief-popout-shell',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CommandPalette, ContextMenuHost, DialogHost, PopoutTitleBar],
   host: { '(document:keydown)': 'onKey($event)' },
   template: `
-    <imt-popout-title-bar [title]="title()" [host]="state.hostTitle()" [onTop]="state.keepOnTop()" (dockBack)="dockBack()" (toggleOnTop)="toggleOnTop()" />
+    <debrief-popout-title-bar [title]="title()" [host]="state.hostTitle()" [onTop]="state.keepOnTop()" (dockBack)="dockBack()" (toggleOnTop)="toggleOnTop()" />
     <main #viewHost class="view" [attr.aria-label]="title()" [attr.aria-busy]="!mounted()">
       <p class="connecting" i18n="@@popout.shell.connecting">Connecting to the main window…</p>
     </main>
@@ -84,14 +84,14 @@ export const SYNC_START_TIMEOUT_MS = 5000;
         <button type="button" class="btn" (click)="store.dismissError()" i18n="@@popout.shell.dismiss">Dismiss</button>
       </div>
     }
-    <imt-command-palette />
-    <imt-dialog-host />
-    <imt-context-menu-host />
+    <debrief-command-palette />
+    <debrief-dialog-host />
+    <debrief-context-menu-host />
   `,
   styles: `
     :host { display: flex; flex-direction: column; height: 100vh; background: var(--bg-1); color: var(--text); }
     .view { flex: 1; min-height: 0; display: flex; }
-    .view > .imt-panel { flex: 1; }
+    .view > .debrief-panel { flex: 1; }
     .connecting { margin: auto; color: var(--muted); font-size: var(--fs-md); }
     .toast {
       position: fixed; inset-inline-end: 12px; bottom: 12px; max-width: 420px; z-index: 100; display: flex; align-items: center; gap: 10px;
@@ -124,7 +124,7 @@ export class PopoutShell {
       if (id !== this.route.view) this.sync.runInHost('showView', id);
     });
     // The window title is the panel's (the project service, which sets it in app windows, must not win here).
-    destroy.onDestroy(pinDocumentTitle(() => `${this.title()} \u2014 ${this.state.hostTitle() || 'IMT'}`, this.injector));
+    destroy.onDestroy(pinDocumentTitle(() => `${this.title()} \u2014 ${this.state.hostTitle() || 'Debrief'}`, this.injector));
     // The view appears once this window caught up with the host (or after a timeout, unsynced), so what the
     // user does in it is never overwritten by the host's snapshot.
     const rendered = new Promise<void>((resolve) => afterNextRender(() => resolve()));

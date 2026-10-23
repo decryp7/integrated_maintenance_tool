@@ -40,22 +40,22 @@ test('settings dialog changes the theme, colour scheme, date format and density,
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'console');
   await expect(page.locator('html')).toHaveAttribute('data-surface', 'cards');
   await dialog.getByRole('button', { name: 'compact' }).click();
-  await expect(page.locator('imt-events-grid')).toHaveCSS('--row-h', '22px');
+  await expect(page.locator('debrief-events-grid')).toHaveCSS('--row-h', '22px');
   await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
-  await expect(page.locator('imt-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
+  await expect(page.locator('debrief-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   // Safari does not focus clicked buttons, so there is nothing to restore focus to there.
   if (browserName === 'chromium') await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
 
   await page.reload();
-  await expect(page.locator('imt-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
+  await expect(page.locator('debrief-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
   await expect(page.locator('html')).toHaveAttribute('data-scheme', 'light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'console');
   expect(csp).toEqual([]);
 });
 
-test('the selected segment of a segmented control is filled with the accent, not only outlined (G3)', async ({ page }) => {
+test('the selected segment of a segmented control is a tint with accent text, never a filled primary (G3)', async ({ page }) => {
   await openApp(page);
   await openWithShortcut(page);
   const dialog = settingsDialog(page);
@@ -64,6 +64,7 @@ test('the selected segment of a segmented control is filled with the accent, not
   await scheme.getByRole('button', { name: 'dark' }).click();
   const selected = scheme.getByRole('button', { name: 'dark' });
   await expect(selected).toHaveAttribute('aria-pressed', 'true');
+  const tint = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--chip-bg').trim());
   const accent = await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--accent').trim());
   const bg = (b: typeof selected) => b.evaluate((el) => getComputedStyle(el).backgroundColor);
   const probe = await page.evaluate((c) => {
@@ -73,8 +74,17 @@ test('the selected segment of a segmented control is filled with the accent, not
     const rgb = getComputedStyle(d).color;
     d.remove();
     return rgb;
+  }, tint);
+  const filled = await page.evaluate((c) => {
+    const d = document.createElement('div');
+    d.style.color = c;
+    document.body.append(d);
+    const rgb = getComputedStyle(d).color;
+    d.remove();
+    return rgb;
   }, accent);
   expect(await bg(selected)).toBe(probe);
+  expect(await bg(selected)).not.toBe(filled);
   expect(await bg(scheme.getByRole('button', { name: 'light' }))).not.toBe(probe);
 });
 
@@ -109,7 +119,7 @@ test('engine settings: shortcut, validation error, automatic apply with Undo, re
   await size.fill('20');
   await expect(dialog.getByText('Must be between 1 MB and 100 MB.')).toHaveCount(0);
   await expect(dialog.getByTestId('settings-notice')).toContainText('Log file size saved.');
-  await expect(dialog.getByTestId('settings-restart-bar')).toContainText('after IMT restarts');
+  await expect(dialog.getByTestId('settings-restart-bar')).toContainText('after Debrief restarts');
   await expect(dialog.getByRole('button', { name: 'Restart now' })).toBeVisible();
 
   // Undo puts the previous value back; Reset to default is an edit like any other; Reset section is immediate.
@@ -119,11 +129,12 @@ test('engine settings: shortcut, validation error, automatic apply with Undo, re
   await expect(dialog.getByTestId('settings-notice')).toContainText('saved');
   await dialog.getByRole('button', { name: 'Reset to default: Log file size' }).click();
   await expect(size).toHaveValue('10');
-  await dialog.getByLabel('Log level', { exact: true }).selectOption('debug');
+  await dialog.getByLabel(/^Log level/).click();
+  await page.getByRole('option', { name: /debug/i }).click();
   await expect(dialog.getByTestId('settings-notice')).toContainText('saved.');
   await dialog.getByRole('button', { name: 'Reset section' }).click();
   await expect(dialog.getByText('Diagnostics reset to defaults.')).toBeVisible();
-  await expect(dialog.getByLabel('Log level', { exact: true })).toHaveValue('info');
+  await expect(dialog.getByLabel(/^Log level/)).toContainText(/info/i);
   await expect(size).toHaveValue('10');
 
   // Advanced settings are hidden until asked for.
@@ -141,7 +152,7 @@ test('engine settings: search, plugin sections and the guard for refused edits',
   // Search matches labels, descriptions and keys across sections.
   await dialog.getByRole('searchbox', { name: 'Search settings' }).fill('relog');
   await expect(dialog.getByRole('heading', { name: 'Windows diagnostics' })).toBeVisible();
-  await expect(dialog.locator('imt-setting-field')).toHaveCount(1);
+  await expect(dialog.locator('debrief-setting-field')).toHaveCount(1);
   await dialog.getByRole('searchbox', { name: 'Search settings' }).fill('liveTailDebounce');
   await expect(dialog.getByLabel('Live tail delay', { exact: true })).toBeVisible();
   await dialog.getByRole('searchbox', { name: 'Search settings' }).fill('');
@@ -209,9 +220,9 @@ test('settings: switches keep their labels beside them, readable and clear of ba
     await expect(dialog.locator('section.content h3').first()).toHaveText(title);
     const problems = await dialog.evaluate((root) => {
       const out: string[] = [];
-      for (const field of root.querySelectorAll('imt-setting-field')) {
+      for (const field of root.querySelectorAll('debrief-setting-field')) {
         const input = field.querySelector('input[role=switch]');
-        const text = field.querySelector('imt-switch .text');
+        const text = field.querySelector('debrief-switch .text');
         if (!input || !text) continue;
         const i = input.getBoundingClientRect();
         const t = text.getBoundingClientRect();
@@ -227,7 +238,7 @@ test('settings: switches keep their labels beside them, readable and clear of ba
       return out;
     });
     expect(problems).toEqual([]);
-    checked += await dialog.locator('imt-setting-field input[role=switch]').count();
+    checked += await dialog.locator('debrief-setting-field input[role=switch]').count();
   }
   expect(checked).toBeGreaterThan(3);
 });

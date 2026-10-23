@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { WorkspaceStore } from '../../core/workspace.store';
-import { ImtCommand } from '../../extensions/tokens';
+import { DebriefCommand } from '../../extensions/tokens';
 import { QuerySession } from '../../analysis/query-session';
 import { NotesStore } from '../../notes/notes.store';
 import { TimelineAnnotations } from '../../timeline/annotations.store';
@@ -25,7 +25,7 @@ export class ReportCommands {
     if (done) ctx.showView('report');
   }
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'report.show', title: $localize`:@@share.reportCommands.show:Show report builder`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, run: (ctx) => ctx.showView('report') },
     {
       id: 'report.new',

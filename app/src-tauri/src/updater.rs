@@ -10,14 +10,14 @@
 //!   [`UpdatePhase::Unavailable`] for good: nothing is checked, nothing unsigned is ever installed.
 //!   `requireSignedVersion` is on, so a signature only counts for the version it was made for
 //!   (GHSA-j38x-g3m3-95fr: without it a crafted `latest.json` could pair a newer version number with an
-//!   older, validly signed build). The plugin must be ≥ 2.12 for that; IMT uses 2.14.
+//!   older, validly signed build). The plugin must be ≥ 2.12 for that; Debrief uses 2.14.
 //! - **Flow** ([`state`]): check → available (version, plain-text notes, size) → download with
-//!   progress and cancel → verified → "Restart to update", or install when IMT quits. Errors are typed
+//!   progress and cancel → verified → "Restart to update", or install when Debrief quits. Errors are typed
 //!   with a next step ([`error`]). Installing happens in [`on_exit`], after windows and plugins shut
 //!   down, so sessions are saved as on any quit.
 //!
 //! Commands: `updates_status`, `updates_check`, `updates_download`, `updates_discard`,
-//! `updates_install_on_quit`, `updates_restart`, `updates_open_releases`. Event: `imt://updates`
+//! `updates_install_on_quit`, `updates_restart`, `updates_open_releases`. Event: `debrief://updates`
 //! (the [`UpdateStatus`], to every window: the updater is app-wide). Wire types:
 //! `app/src/app/updates/updates.types.ts`.
 
@@ -47,9 +47,9 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
 /// The status after every change, to every window.
-pub const STATUS_EVENT: &str = "imt://updates";
+pub const STATUS_EVENT: &str = "debrief://updates";
 /// Where users download installers by hand (the next step of most errors).
-pub const RELEASES_PAGE: &str = "https://dev.decryptology.net/decryp7/integrated_maintenance_tool/releases";
+pub const RELEASES_PAGE: &str = "https://dev.decryptology.net/decryp7/debrief/releases";
 /// The update public key given to this build (CI secret `TAURI_UPDATER_PUBKEY`). Cargo rebuilds when it changes.
 const BUILD_PUBKEY: Option<&str> = option_env!("TAURI_UPDATER_PUBKEY");
 /// Progress is sent to the UI at most this often.
@@ -91,7 +91,7 @@ pub struct UpdateStatus {
     pub download_job: Option<u64>,
 }
 
-/// What happens when IMT exits.
+/// What happens when Debrief exits.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum OnExit {
     Nothing,
@@ -322,7 +322,7 @@ impl Updates {
         Ok(status)
     }
 
-    /// Installs the verified update when IMT quits (or not).
+    /// Installs the verified update when Debrief quits (or not).
     pub fn install_on_quit(&self, enabled: bool) -> Result<UpdateStatus, UpdateError> {
         self.client()?;
         self.apply(Event::InstallOnQuit(enabled), |inner| {
@@ -349,7 +349,7 @@ impl Updates {
             )
     }
 
-    /// Runs at exit: installs the update when asked to. Returns whether IMT should be started again
+    /// Runs at exit: installs the update when asked to. Returns whether Debrief should be started again
     /// (Windows' installer does that itself).
     pub fn install_at_exit(&self) -> bool {
         let (action, version) = {
@@ -439,7 +439,7 @@ fn announce<R: Runtime>(app: &AppHandle<R>, info: &state::UpdateInfo) {
     let notice = NewNotice::new(
         NoticeSource::Update,
         NoticeSeverity::Info,
-        format!("IMT {} is available", info.version),
+        format!("Debrief {} is available", info.version),
         NoticeScope::App,
     )
     .body(format!("You have {}.", info.current_version))
@@ -450,7 +450,7 @@ fn announce<R: Runtime>(app: &AppHandle<R>, info: &state::UpdateInfo) {
 }
 
 fn start_auto_check(updates: Arc<Updates>) {
-    let spawned = std::thread::Builder::new().name("imt-update-check".into()).spawn(move || loop {
+    let spawned = std::thread::Builder::new().name("debrief-update-check".into()).spawn(move || loop {
         std::thread::sleep(Duration::from_secs(60));
         if updates.auto_check_due() {
             let _ = tauri::async_runtime::block_on(updates.check());
@@ -461,18 +461,18 @@ fn start_auto_check(updates: Arc<Updates>) {
     }
 }
 
-/// Called from `RunEvent::Exit`, last: installs a pending update and starts IMT again when asked.
+/// Called from `RunEvent::Exit`, last: installs a pending update and starts Debrief again when asked.
 pub fn on_exit<R: Runtime>(app: &AppHandle<R>) {
     let Some(updates) = app.try_state::<Arc<Updates>>() else { return };
     if updates.install_at_exit() {
         crate::instance::release(app);
         match tauri::process::current_binary(&app.env()) {
             Ok(exe) => {
-                if let Err(e) = imt_core::process::quiet_command(exe).spawn() {
-                    log::error!("Could not start IMT again after the update: {e}");
+                if let Err(e) = debrief_core::process::quiet_command(exe).spawn() {
+                    log::error!("Could not start Debrief again after the update: {e}");
                 }
             }
-            Err(e) => log::error!("Could not start IMT again after the update: {e}"),
+            Err(e) => log::error!("Could not start Debrief again after the update: {e}"),
         }
     }
 }
@@ -506,7 +506,7 @@ pub async fn updates_download<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult
     let controls = crate::jobs::Controls::cancel(move || {
         let _ = stop.cancel();
     });
-    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Download, "Downloading the IMT update");
+    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Download, "Downloading the Debrief update");
     let job = crate::jobs::spawn(&app, spec, controls, move |ctx| {
         // The transfer runs on the async runtime; the job follows its phase.
         while watch.downloading() && !ctx.is_cancelled() {
@@ -547,7 +547,7 @@ pub async fn updates_install_on_quit<R: Runtime>(app: AppHandle<R>, enabled: boo
     Ok(updates_state(&app.try_state::<Arc<Updates>>())?.install_on_quit(enabled)?)
 }
 
-/// Quits IMT, installs the verified update and starts the new version.
+/// Quits Debrief, installs the verified update and starts the new version.
 #[tauri::command]
 pub async fn updates_restart<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult<()> {
     updates_state(&app.try_state::<Arc<Updates>>())?.prepare_restart()?;

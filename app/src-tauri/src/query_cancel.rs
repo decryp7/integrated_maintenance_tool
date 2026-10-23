@@ -10,9 +10,9 @@
 use crate::jobs::{Controls, JobProgress};
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_core::api::QueryRequest;
-use imt_core::ports::StoreError;
-use imt_core::ql::{QlError, QlResult, QueryControl, QueryProgress};
+use debrief_core::api::QueryRequest;
+use debrief_core::ports::StoreError;
+use debrief_core::ql::{QlError, QlResult, QueryControl, QueryProgress};
 use serde::Serialize;
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::Duration;
@@ -39,7 +39,7 @@ struct Ticker(Option<mpsc::Sender<()>>);
 impl Ticker {
     fn start(control: QueryControl, channel: Channel<QueryStreamEvent>) -> Ticker {
         let (stop, stopped) = mpsc::channel::<()>();
-        let spawned = std::thread::Builder::new().name("imt-query-progress".into()).spawn(move || {
+        let spawned = std::thread::Builder::new().name("debrief-query-progress".into()).spawn(move || {
             let mut last = None;
             while let Err(RecvTimeoutError::Timeout) = stopped.recv_timeout(PROGRESS_EVERY) {
                 let now = control.progress();
@@ -161,7 +161,7 @@ mod tests {
     use crate::test_support::Json as _;
     use crate::test_support::Now as _;
     use crate::test_support::{block, main_window, samples, test_app};
-    use imt_core::query::Query;
+    use debrief_core::query::Query;
     use serde_json::{json, Value};
     use std::sync::{Arc, Mutex as StdMutex};
     use tauri::ipc::InvokeResponseBody;
@@ -288,7 +288,7 @@ mod tests {
     #[test]
     fn outcomes_are_typed() {
         assert_eq!(outcome(Err(StoreError::Cancelled)).unwrap().json(), json!({ "cancelled": true }));
-        let e = outcome(Err(StoreError::Query(imt_core::ql::QlError::new("bad", 1, 2))))
+        let e = outcome(Err(StoreError::Query(debrief_core::ql::QlError::new("bad", 1, 2))))
             .unwrap()
             .json();
         assert_eq!(
@@ -304,7 +304,7 @@ mod tests {
         let control = QueryControl::new();
         let (channel, seen) = recorder(|_| {});
         let ticker = Ticker::start(control.clone(), channel);
-        control.begin(imt_core::ql::QueryStage::Matching, 10);
+        control.begin(debrief_core::ql::QueryStage::Matching, 10);
         control.advance(5);
         let start = std::time::Instant::now();
         while seen.lock().unwrap().is_empty() && start.elapsed() < Duration::from_secs(10) {

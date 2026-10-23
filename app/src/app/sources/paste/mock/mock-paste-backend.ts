@@ -1,5 +1,5 @@
 import { WorkspaceSummary } from '../../../core/api.types';
-import type { ImtBackend } from '../../../core/backend';
+import type { DebriefBackend } from '../../../core/backend';
 import { CmdError } from '../../../core/cmd-error';
 import { MockBackend } from '../../../core/mock/mock-backend';
 import type { PasteBackend } from '../paste-backend';
@@ -10,15 +10,15 @@ import { byteLength, overCap, safeLogName, uniqueName } from '../paste-limits';
  * and adds a source with the text's lines as events. Plausible, never the reference: the engine is.
  */
 export class MockPasteBackend implements PasteBackend {
-  constructor(private readonly imt: ImtBackend) {}
+  constructor(private readonly debrief: DebriefBackend) {}
 
   async pasteLog(text: string, name: string | null): Promise<WorkspaceSummary> {
-    if (!(this.imt instanceof MockBackend)) throw new CmdError({ code: 'invalid', message: 'this backend cannot add pasted text', retryable: false });
+    if (!(this.debrief instanceof MockBackend)) throw new CmdError({ code: 'invalid', message: 'this backend cannot add pasted text', retryable: false });
     if (!text.trim()) throw new CmdError({ code: 'invalid', message: 'there is no text to add', retryable: false });
     if (overCap(byteLength(text))) {
       throw new CmdError({ code: 'invalid', message: 'the text is over 8 MiB; save it as a file and open that instead', retryable: false });
     }
-    const taken = new Set((await this.imt.workspaceSummary()).sources.map((s) => s.name.replace(/^pasted\//, '')));
-    return this.imt.addPastedSource(uniqueName(safeLogName(name), taken), text);
+    const taken = new Set((await this.debrief.workspaceSummary()).sources.map((s) => s.name.replace(/^pasted\//, '')));
+    return this.debrief.addPastedSource(uniqueName(safeLogName(name), taken), text);
   }
 }

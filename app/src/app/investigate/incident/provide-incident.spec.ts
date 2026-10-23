@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { CommandContext, IMT_COMMANDS, ImtCommand } from '../../extensions/tokens';
+import { CommandContext, DEBRIEF_COMMANDS, DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 import { provideIncident } from './provide-incident';
 
 function setup() {
   TestBed.configureTestingModule({ providers: [provideIncident()] });
   const dialogs = TestBed.inject(DialogService);
-  const command = TestBed.inject(IMT_COMMANDS).flat().find((c: ImtCommand) => c.id === 'incident.build') as ImtCommand;
+  const command = TestBed.inject(DEBRIEF_COMMANDS).flat().find((c: DebriefCommand) => c.id === 'incident.build') as DebriefCommand;
   return { dialogs, command };
 }
 const ctx = (total: number) => ({ showView: vi.fn(), summary: { total } }) as unknown as CommandContext;

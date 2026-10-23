@@ -1,6 +1,6 @@
 import { DestroyRef, effect, inject, Injectable, signal, Signal, untracked } from '@angular/core';
 import { Query, RecordView } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Condition } from '../core/profile.model';
 import { EMPTY_QUERY } from '../core/workspace.store';
 import { asFilters } from '../context/rule-builders';
@@ -26,7 +26,7 @@ export interface PreviewSpec {
 /** Counts, samples and a time strip of the events matching a rule: read-only queries to the engine. */
 @Injectable({ providedIn: 'root' })
 export class MarkerPreviewService {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
 
   queryFor(spec: PreviewSpec): Query {
     const ql = spec.ql?.trim();

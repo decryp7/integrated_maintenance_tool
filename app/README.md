@@ -1,13 +1,13 @@
-# IMT app
+# Debrief app
 
-The IMT desktop app: an Angular 22 UI (`src/`) in a Tauri 2 shell (`src-tauri/`). The Rust engine, the store, the
+The Debrief desktop app: an Angular 22 UI (`src/`) in a Tauri 2 shell (`src-tauri/`). The Rust engine, the store, the
 plugins and the workers live in [`../crates`](../crates); how the parts fit together is in
 [`../docs/architecture.md`](../docs/architecture.md), and the build, test and CI instructions are in
 [`../docs/development.md`](../docs/development.md). Engineering rules: [`../AGENTS.md`](../AGENTS.md).
 
 | Folder | What it is |
 |---|---|
-| `src/app/` | The UI: standalone components, signals, `@ngrx/signals` stores, dockview panels, ECharts. Components reach the engine only through the `ImtBackend` services injected by DI token (the Tauri backend, or the mock for the browser build and tests). The wire contract is `src/app/core/api.types.ts`. |
+| `src/app/` | The UI: standalone components, signals, `@ngrx/signals` stores, dockview panels, ECharts. Components reach the engine only through the `DebriefBackend` services injected by DI token (the Tauri backend, or the mock for the browser build and tests). The wire contract is `src/app/core/api.types.ts`. |
 | `src-tauri/` | The Tauri shell: the command table, capabilities, windows, tray, jobs, sessions; no business logic. `tauri.sidecars.conf.json` adds the helper processes and libduckdb to the installers. |
 | `e2e/` | Playwright end-to-end flows against the browser build with the mock backend (Chromium and WebKit). |
 | `e2e-tauri/` | WebdriverIO + `tauri-driver` smoke tests of the real app (Windows and Linux), and the live search test. |

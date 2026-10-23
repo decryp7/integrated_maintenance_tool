@@ -13,9 +13,9 @@ export const CAPTURE_TIMEOUT = 15_000;
 export async function openApp(page: Page): Promise<void> {
   await page.goto('/');
   await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
-  await expect(page.locator('imt-status-bar')).toContainText('events');
-  await expect(page.locator('imt-timeline-panel .lane').first()).toBeVisible();
-  await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
+  await expect(page.locator('debrief-status-bar')).toContainText('events');
+  await expect(page.locator('debrief-timeline-panel .lane').first()).toBeVisible();
+  await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible();
 }
 
 /** Parses a count like "40,123" or "40.1k" shown in the UI into a number. */
@@ -33,7 +33,7 @@ export async function initialTotal(page: Page): Promise<string> {
 
 /** Total of matching events as shown in the grid bar. */
 export function gridTotal(page: Page) {
-  return page.locator('imt-events-grid .bar .total');
+  return page.locator('debrief-events-grid .bar .total');
 }
 
 /**
@@ -49,16 +49,16 @@ export async function nextRender(page: Page): Promise<void> {
  * event is selected): slides it out from its side-bar tab and pins it. Does nothing when it is docked already.
  */
 export async function ensureInspector(page: Page): Promise<void> {
-  const tab = page.locator('.imt-ah-tab[data-ah-id="inspector"]');
+  const tab = page.locator('.debrief-ah-tab[data-ah-id="inspector"]');
   if ((await tab.count()) === 0) {
-    await expect(page.locator('imt-inspector')).toBeAttached();
+    await expect(page.locator('debrief-inspector')).toBeAttached();
     return;
   }
-  const pin = page.locator('#imt-ah-flyout').getByRole('button', { name: 'Pin Inspector' });
+  const pin = page.locator('#debrief-ah-flyout').getByRole('button', { name: 'Pin Inspector' });
   if (!(await pin.isVisible())) await tab.click();
   await pin.click();
   await expect(tab).toHaveCount(0);
-  await expect(page.locator('imt-inspector')).toBeVisible();
+  await expect(page.locator('debrief-inspector')).toBeVisible();
 }
 
 /** Views that are not in the default layout, by id, with the activity-bar button that opens them. */
@@ -67,7 +67,7 @@ const VIEW_BUTTONS: Readonly<Record<string, string>> = { metrics: 'Metrics' };
 /** Opens a view that is not part of the minimal default layout (e.g. Metrics) and waits for its tab. */
 export async function openView(page: Page, id: keyof typeof VIEW_BUTTONS | string): Promise<void> {
   const name = VIEW_BUTTONS[id] ?? id;
-  const tab = page.locator('.dv-tab', { has: page.locator(`.imt-tab[data-panel-id="${id}"]`) });
+  const tab = page.locator('.dv-tab', { has: page.locator(`.debrief-tab[data-panel-id="${id}"]`) });
   if ((await tab.count()) === 0) await page.getByRole('button', { name, exact: true }).click();
   await expect(tab).toBeVisible();
 }
@@ -78,7 +78,7 @@ export async function openView(page: Page, id: keyof typeof VIEW_BUTTONS | strin
  */
 export async function hideInspectorFlyout(page: Page): Promise<void> {
   await nextRender(page);
-  const flyout = page.locator('#imt-ah-flyout');
+  const flyout = page.locator('#debrief-ah-flyout');
   if (!(await flyout.isVisible())) return;
   await flyout.getByRole('button', { name: /^Hide / }).click();
   await expect(flyout).toHaveCount(0);
@@ -98,4 +98,17 @@ export async function expandFields(page: Page): Promise<void> {
   const toggle = page.getByTestId('fields-toggle');
   if ((await toggle.getAttribute('aria-expanded')) !== 'true') await toggle.click();
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+}
+
+/** The status bar's Details popover (sources, events, group-by, importers): opened, returned, and closed by `closeStatusDetails`. */
+export async function openStatusDetails(page: Page) {
+  await page.getByTestId('status-details').click();
+  const popover = page.getByTestId('status-details-popover');
+  await expect(popover).toBeVisible();
+  return popover;
+}
+
+export async function closeStatusDetails(page: Page): Promise<void> {
+  await page.keyboard.press('Escape');
+  await expect(page.getByTestId('status-details-popover')).toHaveCount(0);
 }

@@ -6,7 +6,7 @@ export async function runCommand(page: Page, title: string): Promise<void> {
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await expect(input).toBeFocused();
   await input.fill(title);
-  await expect(page.getByRole('option').first()).toContainText(title);
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText(title);
   await page.keyboard.press('Enter');
   await expect(input).toHaveCount(0);
 }

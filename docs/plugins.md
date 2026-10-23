@@ -1,22 +1,22 @@
-# Extending IMT
+# Extending Debrief
 
-IMT can be extended at three levels. Pick the lowest one that does the job:
+Debrief can be extended at three levels. Pick the lowest one that does the job:
 
 | Level | What | Needs | Use it for |
 |---|---|---|---|
 | 1. Profiles | TOML configuration | nothing | new text/JSON/CSV layouts, extracting values, cleaning (pipeline), markers, charts |
-| 2. Plugins | Rust crates on `imt-plugin-api`, each run in its own sandboxed process | a Rust crate (and a rebuild of the plugins binary) | new file formats (text or binary), configuration parsers, custom pipeline steps, marker kinds, annotators, tools, settings |
+| 2. Plugins | Rust crates on `debrief-plugin-api`, each run in its own sandboxed process | a Rust crate (and a rebuild of the plugins binary) | new file formats (text or binary), configuration parsers, custom pipeline steps, marker kinds, annotators, tools, settings |
 | 3. UI plugins | Angular providers | a rebuild of the UI | new views (panels), commands, activity-bar buttons, inspector sections, field formatters |
 
-A plugin (level 2) depends on one small crate, `crates/imt-plugin-api` (not on `imt-core`), and is served by
-the `imt-plugins` binary in a process of its own: a crash, a hang or a memory leak in it cannot take IMT down,
+A plugin (level 2) depends on one small crate, `crates/debrief-plugin-api` (not on `debrief-core`), and is served by
+the `debrief-plugins` binary in a process of its own: a crash, a hang or a memory leak in it cannot take Debrief down,
 and the process runs with the fewest rights the plugin asked for (see
 [How a plugin process runs](#how-a-plugin-process-runs)). Plugins are written in Rust; there is no other
 plugin language, no in-process plugin linking and no plugin protocol to implement by hand
 ([ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md)).
 
-**Writing a plugin outside IMT's repository** (a third-party plugin): start with `cargo imt-plugin new`, test with
-the `imt-plugin-test` harness, ship a signed `.imtplugin` package that users install from the Plugins view. The
+**Writing a plugin outside Debrief's repository** (a third-party plugin): start with `cargo debrief-plugin new`, test with
+the `debrief-plugin-test` harness, ship a signed `.debriefplugin` package that users install from the Plugins view. The
 walkthrough is [plugin-sdk.md](plugin-sdk.md); the design is [ADR 0027](adr/0027-plugin-sdk.md). Third-party
 plugins run contained by the launcher (an AppContainer on Windows) and may ask only for `network` and
 `runPrograms`.
@@ -33,9 +33,9 @@ Every extension point sits on one of these arrows, so a plugin never needs to kn
 
 ## Level 1: parsers and profiles (no code)
 
-A **parser** is a TOML file describing one log format: how IMT recognises its files and how their lines
-become events (ADR 0026). Parsers live in the library (Settings ▸ Parsers), can be shared as files, and IMT
-picks one per file. The built-in `crates/imt-core/parsers/generic.toml` documents every key:
+A **parser** is a TOML file describing one log format: how Debrief recognises its files and how their lines
+become events (ADR 0026). Parsers live in the library (Settings ▸ Parsers), can be shared as files, and Debrief
+picks one per file. The built-in `crates/debrief-core/parsers/generic.toml` documents every key:
 
 ```toml
 schema = 1
@@ -44,14 +44,14 @@ name = "Order service"
 version = "1.0.0"
 [match]
 files = ["orders-*.log"]
-[format]                              # teach IMT a text layout (Serilog outputTemplate or regex)
+[format]                              # teach Debrief a text layout (Serilog outputTemplate or regex)
 kind = "text"
 output_templates = ["{Timestamp:yyyy-MM-dd HH:mm:ss.fff} [{Level:u3}] [{MachineName}] {Message:lj}{NewLine}{Exception}"]
 ```
 
 A **profile** is a TOML file describing how events are analysed and enriched, whatever their format. The
-built-in default, `crates/imt-core/src/default_profile.toml`, documents every key, and
-`samples/profiles/orderservice.imtprofile.toml` is a worked example. In the app, the Profile panel
+built-in default, `crates/debrief-core/src/default_profile.toml`, documents every key, and
+`samples/profiles/orderservice.debriefprofile.toml` is a worked example. In the app, the Profile panel
 edits profiles as a form or TOML, with live previews.
 
 Common tasks:
@@ -85,7 +85,7 @@ when = [{ field = "SourceContext", op = "contains", value = "HealthChecks" }]
 | `settings::Configurable` | `set_settings` | the plugin's section in Settings (see [Plugin settings](#plugin-settings)) |
 | `ProfileImporter` | `add_profile_importer` | read a profile or heap snapshot format (the profiling plugin; see [Profiling](profiling.md)) |
 
-All of them live in `imt_plugin_api` and are bundled by a `Plugin`:
+All of them live in `debrief_plugin_api` and are bundled by a `Plugin`:
 
 ```rust
 pub trait Plugin: Send + Sync + 'static {
@@ -100,30 +100,30 @@ pub trait Plugin: Send + Sync + 'static {
 
 `Contributions::manifest` turns what a plugin registered into its `Manifest` (see
 [Manifests and permissions](#manifests-and-permissions)). The host refuses a plugin built for another
-plugin protocol (`imt_plugin_api::PROTOCOL`, checked in the handshake), with an invalid manifest, or with a duplicate contribution id; a plugin whose `register`
+plugin protocol (`debrief_plugin_api::PROTOCOL`, checked in the handshake), with an invalid manifest, or with a duplicate contribution id; a plugin whose `register`
 fails is listed as inactive with the reason.
 
 Exporters, collectors, workspace hooks, services, events, extension points declared by plugins and plugin
-dependencies exist inside `imt-core` for the engine's own built-in code; they are not part of the plugin
+dependencies exist inside `debrief-core` for the engine's own built-in code; they are not part of the plugin
 contract and a plugin cannot use them.
 
 ### Step by step: a new file format
 
-The complete, real examples are `crates/imt-plugin-syslog` (text) and `crates/imt-plugin-registry`.
+The complete, real examples are `crates/debrief-plugin-syslog` (text) and `crates/debrief-plugin-registry`.
 
 1. **Create a crate** next to the others and add it to the workspace `members` in `Cargo.toml`. It
-   depends on `imt-plugin-api` only:
+   depends on `debrief-plugin-api` only:
 
    ```toml
-   # crates/imt-plugin-acme/Cargo.toml
+   # crates/debrief-plugin-acme/Cargo.toml
    [package]
-   name = "imt-plugin-acme"
+   name = "debrief-plugin-acme"
    version = "0.1.0"
    edition = "2021"
    publish = false
 
    [dependencies]
-   imt-plugin-api = { path = "../imt-plugin-api" }
+   debrief-plugin-api = { path = "../debrief-plugin-api" }
    anyhow = "1.0"
    ```
 
@@ -132,8 +132,8 @@ The complete, real examples are `crates/imt-plugin-syslog` (text) and `crates/im
    only when your format is unambiguous (a magic header, a distinctive first line).
 
    ```rust
-   use imt_plugin_api::importer::{ImportCtx, Imported, TextImporter};
-   use imt_plugin_api::model::{Level, Record};
+   use debrief_plugin_api::importer::{ImportCtx, Imported, TextImporter};
+   use debrief_plugin_api::model::{Level, Record};
 
    pub struct AcmeImporter;
 
@@ -169,7 +169,7 @@ The complete, real examples are `crates/imt-plugin-syslog` (text) and `crates/im
 3. **Bundle it in a plugin**:
 
    ```rust
-   use imt_plugin_api::{Contributions, Plugin};
+   use debrief_plugin_api::{Contributions, Plugin};
 
    pub struct AcmePlugin;
 
@@ -184,21 +184,21 @@ The complete, real examples are `crates/imt-plugin-syslog` (text) and `crates/im
    }
    ```
 
-4. **Add it to the plugins binary**: add the crate to `crates/imt-plugins/Cargo.toml` and one line to
-   `builtins()` in `crates/imt-plugins/src/main.rs`. IMT reads every manifest once at start
-   (`imt-plugins --manifests`) and starts `imt-plugins --plugin com.acme.logs` when the plugin is first needed:
+4. **Add it to the plugins binary**: add the crate to `crates/debrief-plugins/Cargo.toml` and one line to
+   `builtins()` in `crates/debrief-plugins/src/main.rs`. Debrief reads every manifest once at start
+   (`debrief-plugins --manifests`) and starts `debrief-plugins --plugin com.acme.logs` when the plugin is first needed:
 
    ```rust
-   Arc::new(imt_plugin_acme::AcmePlugin),
+   Arc::new(debrief_plugin_acme::AcmePlugin),
    ```
 
    Build the binary for the app with `scripts/build-plugins.sh` (release builds do it through
-   `app/scripts/build-sidecars.mjs`); IMT finds it next to its executable, `IMT_PLUGINS` overrides the path
+   `app/scripts/build-sidecars.mjs`); Debrief finds it next to its executable, `DEBRIEF_PLUGINS` overrides the path
    for development.
 
 5. **Test it**: unit tests per format feature (call the importer directly), sniff positives and negatives
    (your sniffer must not claim the files under `/samples`), a garbage-input loop that must not panic, and a
-   test over the real IPC in `crates/imt-plugins/tests` (see `common::workspace`), where the plugin runs in its
+   test over the real IPC in `crates/debrief-plugins/tests` (see `common::workspace`), where the plugin runs in its
    own process and the file comes through the connection:
 
    ```rust
@@ -211,13 +211,13 @@ The complete, real examples are `crates/imt-plugin-syslog` (text) and `crates/im
 
 Implement `BinaryImporter` instead (`add_binary_importer`); it receives raw bytes (`sniff` gets the first
 bytes). Binary importers are consulted before any text decoding, so a magic-number check is all `sniff`
-needs. Example: the `.evtx` importer in `crates/imt-plugin-windows`.
+needs. Example: the `.evtx` importer in `crates/debrief-plugin-windows`.
 
 ### Pipeline steps (record transforms)
 
 ```rust
-use imt_plugin_api::model::{Level, Record};
-use imt_plugin_api::{Transform, TransformCtx, Verdict};
+use debrief_plugin_api::model::{Level, Record};
+use debrief_plugin_api::{Transform, TransformCtx, Verdict};
 
 pub struct TeamTagger;
 
@@ -248,13 +248,13 @@ that reference a transform only validate where its plugin is installed.
 
 ### Plugin settings
 
-A plugin with user-facing knobs (timeouts, paths, limits) describes them once and IMT does the
+A plugin with user-facing knobs (timeouts, paths, limits) describes them once and Debrief does the
 rest: the Settings screen renders a form from the schema (one control per field kind, with
 units, limits, help text and "Reset to default"), the engine validates every value, stores it in
 `settings.json` in the config folder and hands the plugin only valid values, at startup, after
 every change and after the plugin process restarted.
 
-Settings are a separate, small trait, `imt_plugin_api::settings::Configurable`, registered with
+Settings are a separate, small trait, `debrief_plugin_api::settings::Configurable`, registered with
 `Contributions::set_settings`:
 
 ```rust
@@ -270,10 +270,10 @@ Field kinds: `Bool`, `Int { min, max, step, unit }`, `Float { min, max, step, un
 Mark a field `needs_restart()` when it only takes effect after a restart (the UI then offers
 one) and `as_advanced()` to hide it behind "Show advanced".
 
-Worked example (the real one is `crates/imt-plugin-windows/src/settings.rs`):
+Worked example (the real one is `crates/debrief-plugin-windows/src/settings.rs`):
 
 ```rust
-use imt_plugin_api::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_plugin_api::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -330,8 +330,8 @@ App modules (for example the AI assistant, section id `ai`) register the same tr
 ### Manifests and permissions
 
 `Contributions::manifest(plugin)` builds the `Manifest` the host reads before it runs any plugin code:
-id, name, semver version, `protocol` (`imt_plugin_api::PROTOCOL`, `major.minor`; a plugin built for another
-major or a newer minor is refused with a message saying whether the plugin or IMT needs an update), the permissions it asks for, an optional `memory_limit` (bytes, at most 4 GiB;
+id, name, semver version, `protocol` (`debrief_plugin_api::PROTOCOL`, `major.minor`; a plugin built for another
+major or a newer minor is refused with a message saying whether the plugin or Debrief needs an update), the permissions it asks for, an optional `memory_limit` (bytes, at most 4 GiB;
 default 1 GiB) and the list of its contributions (importers, configuration parsers, marker kinds,
 annotators, transforms, tools, settings, profile importers). `Manifest::check` rejects invalid ids and
 duplicate contributions. Plugins do not depend on each other: a plugin is self-contained.
@@ -348,7 +348,7 @@ A plugin gets a right only when it asked for it **and** it is granted. The built
 what they ask for. A third-party plugin is granted what the user approved when installing it, and the Plugins view
 revokes a permission later (the process restarts with fewer rights); see [plugin-sdk.md](plugin-sdk.md).
 Everything else is locked down. What each one widens in the plugin's sandbox (`sandbox_for` in
-`crates/imt-plugin-host/src/sandbox.rs`):
+`crates/debrief-plugin-host/src/sandbox.rs`):
 
 | Permission | The plugin may | Sandbox change |
 |---|---|---|
@@ -368,7 +368,7 @@ A plugin can contribute marker kinds for the timeline, with default rules in the
 language as a profile's `[[marker]] when`:
 
 ```rust
-use imt_plugin_api::markers::{MarkerRole, PluginMarkerKind};
+use debrief_plugin_api::markers::{MarkerRole, PluginMarkerKind};
 
 c.add_marker_kinds(vec![
     PluginMarkerKind::new("app-crash", "Application crash")
@@ -404,7 +404,7 @@ fn apply(&self, r: &mut Record, ctx: &TransformCtx) -> Verdict {
 
 At most 64 kinds fit in total; extra plugin kinds are dropped with a note. Kinds of a quarantined,
 disabled or inactive plugin are hidden (records keep the bits; they reappear after a reset).
-The Windows plugin (`crates/imt-plugin-windows/src/markers.rs`) is the real example, with the
+The Windows plugin (`crates/debrief-plugin-windows/src/markers.rs`) is the real example, with the
 event ids and their sources documented.
 
 ### Annotators
@@ -412,7 +412,7 @@ event ids and their sources documented.
 Markers are points on one record; an annotator finds ranges (and points) across records:
 
 ```rust
-use imt_plugin_api::annotate::{Annotation, AnnotationView, Annotator, FieldMatch, RecordCursor, Severity, ViewFilter};
+use debrief_plugin_api::annotate::{Annotation, AnnotationView, Annotator, FieldMatch, RecordCursor, Severity, ViewFilter};
 
 impl Annotator for RebootAnnotator {
     fn id(&self) -> &str { "windows.reboots" }
@@ -443,7 +443,7 @@ has two generic commands, `tools_list` and `tool_invoke { tool, op, args }`, so 
 disabled, quarantined and left out in safe mode like any contribution (ADR 0002).
 
 ```rust
-use imt_plugin_api::tools::{OpSpec, PathAccess, PathKind, Platform, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
+use debrief_plugin_api::tools::{OpSpec, PathAccess, PathKind, Platform, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
 
 impl Tool for Sets {
     fn id(&self) -> &str { "perfmon.sets" }
@@ -459,7 +459,7 @@ impl Tool for Sets {
     }
     fn invoke(&self, op: &str, args: Value, ctx: &ToolCtx) -> anyhow::Result<Value> {
         // `args` already matched the op's schema; parse it into your own types.
-        ctx.task_started(ToolTask { id: "perfmon:IMT".into(), label: "PerfMon collection".into(), kind: "perfmon".into(), stoppable: true });
+        ctx.task_started(ToolTask { id: "perfmon:Debrief".into(), label: "PerfMon collection".into(), kind: "perfmon".into(), stoppable: true });
         Ok(Value::Null)
     }
     fn stop(&self, task: &str, ctx: &ToolCtx) -> anyhow::Result<()> { /* stop it */ ctx.task_finished(task); Ok(()) }
@@ -491,7 +491,7 @@ impl Tool for Sets {
 
 The UI reads `tools_list` (`ToolCatalog`): panels and commands of tools that are not listed are
 hidden (safe mode, plugin disabled), and a listed tool whose plugin cannot serve it shows the
-reason (`imt-tool-unavailable`).
+reason (`debrief-tool-unavailable`).
 
 ### Time budgets, the watchdog and supervision
 
@@ -514,10 +514,10 @@ disabling and safe mode work the same for every plugin.
 
 The details are in [ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); what a plugin author needs to know:
 
-- **One loop.** A plugin's `main` is `imt_plugin_api::serve(Arc::new(MyPlugin))`; `imt-plugins` does it for
-  every built-in. The app links no plugin crate; `crates/imt-plugin-host` registers a proxy for each
-  contribution into `imt-core`'s `PluginRegistry`.
-- **Frames.** Host and child talk over `crates/imt-ipc`: frames of a `u32` little-endian length and a
+- **One loop.** A plugin's `main` is `debrief_plugin_api::serve(Arc::new(MyPlugin))`; `debrief-plugins` does it for
+  every built-in. The app links no plugin crate; `crates/debrief-plugin-host` registers a proxy for each
+  contribution into `debrief-core`'s `PluginRegistry`.
+- **Frames.** Host and child talk over `crates/debrief-ipc`: frames of a `u32` little-endian length and a
   postcard payload (`Hello`, `Welcome`, `Call`, `Reply`, `Item`, `Fail`, `Cancel`, `Credit`), at most 16 MiB
   each; streamed answers use credits so a slow reader is never flooded. The host listens on a private
   endpoint and the child connects with a 256-bit token, and the host checks the peer's process id.
@@ -529,7 +529,7 @@ The details are in [ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); what 
   Windows runs it under a job object (CPU and child-process limits) at low integrity; Linux uses
   `RLIMIT_CPU`, landlock and a seccomp filter that denies network sockets and `execve`; macOS uses a sandbox
   profile. Permissions widen it as in the table above. The memory cap (1 GiB unless the manifest asks for more, at most
-  4 GiB) is the same on every platform: a host watcher (`watch_memory` in `crates/imt-ipc/src/process.rs`) reads the
+  4 GiB) is the same on every platform: a host watcher (`watch_memory` in `crates/debrief-ipc/src/process.rs`) reads the
   child's resident memory and stops it over the cap with a message that says so. There are no memory rlimits, because
   they count the address space that allocators such as mimalloc reserve up front. File confinement is kept on all
   platforms: landlock and seccomp on Linux, an AppContainer on Windows, a sandbox profile on macOS.
@@ -541,7 +541,7 @@ The details are in [ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); what 
 - **Elevation.** An elevated operation starts the plugin's second process through the platform's elevation
   (UAC on Windows) with a bootstrap file the child reads and deletes; it serves only the plugin's elevated
   operations.
-- **Other children.** The AI worker (`imt-ai-worker`) and the store worker (`imt-store-worker`) use the same
+- **Other children.** The AI worker (`debrief-ai-worker`) and the store worker (`debrief-store-worker`) use the same
   frames; the profiling plugin's process is the profile worker.
 
 ### Plugin rules
@@ -557,19 +557,19 @@ The details are in [ADR 0017](adr/0017-one-ipc-out-of-process-plugins.md); what 
 ### UI contributions
 
 A UI plugin is a set of contributions registered with one provider call in `app/src/app/app.config.ts`
-(`provideImtPlugin`, public API in `app/src/app/extensions/index.ts`). Built-in features use the same extension
+(`provideDebriefPlugin`, public API in `app/src/app/extensions/index.ts`). Built-in features use the same extension
 points, so whatever a plugin adds behaves like the built-in parts:
 
 | Contribution | Token | What it adds |
 |---|---|---|
-| `ImtView` | `IMT_VIEWS` | a dockable panel, loaded lazily, listed in the View menu under its `category`; its optional `area` (`document`, `analysis`, `side`, `status`) says where it opens, derived from `defaultPosition` when left out ([ADR 0035](adr/0035-view-areas-and-perspectives.md)) |
-| `ImtCommand` | `IMT_COMMANDS` | a palette / menu action with an optional key binding |
-| `ImtActivityItem` | `IMT_ACTIVITY_ITEMS` | a button in the left activity bar |
-| `ImtInspectorSection` | `IMT_INSPECTOR_SECTIONS` | a block in the event inspector |
-| `ImtFieldFormatter` | `IMT_FIELD_FORMATTERS` | display formatting of a field |
+| `DebriefView` | `DEBRIEF_VIEWS` | a dockable panel, loaded lazily, listed in the View menu under its `category`; its optional `area` (`document`, `analysis`, `side`, `status`) says where it opens, derived from `defaultPosition` when left out ([ADR 0035](adr/0035-view-areas-and-perspectives.md)) |
+| `DebriefCommand` | `DEBRIEF_COMMANDS` | a palette / menu action with an optional key binding |
+| `DebriefActivityItem` | `DEBRIEF_ACTIVITY_ITEMS` | a button in the left activity bar |
+| `DebriefInspectorSection` | `DEBRIEF_INSPECTOR_SECTIONS` | a block in the event inspector |
+| `DebriefFieldFormatter` | `DEBRIEF_FIELD_FORMATTERS` | display formatting of a field |
 
 **Activity-bar buttons.** Every button of the left bar (Explorer, Search, Timeline, Analysis, Metrics, Live tail,
-AI, Tools, Profile editor, Settings) is an `ImtActivityItem` contributed by the feature that owns it. An item shows
+AI, Tools, Profile editor, Settings) is an `DebriefActivityItem` contributed by the feature that owns it. An item shows
 a view (`run: { view }`: highlighted while the view is open, hidden while the view is not offered), runs a command
 (`run: { command }`: the tooltip shows the command's key binding), or opens a fly-out menu (`run: { menu }`, built
 on every opening; `viewCategoryMenu('Tools')` lists the offered views of a View-menu category). `order` places it
@@ -583,7 +583,7 @@ just that extra, so a plugin bug never breaks the bar.
 ```ts
 // my-plugin.ts: a panel, a command that opens it, and an activity-bar button between Analysis and Metrics.
 export function provideMyPlugin(): EnvironmentProviders {
-  return provideImtPlugin({
+  return provideDebriefPlugin({
     views: [{ id: 'my-view', title: 'My view', icon: 'puzzle', component: () => import('./my-view').then((m) => m.MyView) }],
     commands: [{ id: 'my.show', title: 'Show my view', keybinding: 'Mod+Alt+M', run: (ctx) => ctx.showView('my-view') }],
     activityItems: [
@@ -595,4 +595,4 @@ export function provideMyPlugin(): EnvironmentProviders {
 ```
 
 A feature whose item reads services (signals for `active` or `badge`) registers a factory instead, one line in its
-`provide…()` function: `{ provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => myItems(inject(MyStore)) }`.
+`provide…()` function: `{ provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: () => myItems(inject(MyStore)) }`.

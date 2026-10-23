@@ -4,11 +4,11 @@ import { formatKeybinding, isMac } from '../extensions/keybinding';
 
 /** Accessible context menu: `role=menu`, arrow keys, Home/End, Escape (focus returns), click outside closes. */
 @Component({
-  selector: 'imt-context-menu-host',
+  selector: 'debrief-context-menu-host',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (service.menu(); as m) {
-      <div class="backdrop" data-imt-overlay (mousedown)="service.close()" (contextmenu)="$event.preventDefault(); service.close()"></div>
+      <div class="backdrop" data-debrief-overlay (mousedown)="service.close()" (contextmenu)="$event.preventDefault(); service.close()"></div>
       <div #box class="menu popover" role="menu" aria-label="Actions" i18n-aria-label="@@ui.contextMenu.actions" [style.left.px]="m.x" [style.top.px]="m.y" (keydown)="onKey($event)">
         @for (item of m.items; track item.label; let i = $index) {
           @if (i > 0 && item.group !== m.items[i - 1]?.group) {

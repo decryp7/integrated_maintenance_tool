@@ -25,7 +25,7 @@ export type MarkerRuleX = MarkerRule & {
   description?: string;
 };
 
-/** A rule in priority order plus whether it is active (disabled rules live in `imt_disabled_markers`). */
+/** A rule in priority order plus whether it is active (disabled rules live in `debrief_disabled_markers`). */
 export interface RuleRow {
   rule: MarkerRuleX;
   enabled: boolean;

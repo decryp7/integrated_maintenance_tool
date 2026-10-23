@@ -1,7 +1,7 @@
 # Nightly: real-world files that cannot be committed, downloaded at test time into a temporary folder.
 # EVTX-ATTACK-SAMPLES (GPL-3.0, LICENSE.GPL; downloaded for the run, never committed; pinned commit and SHA-256) through the Windows plugin's EVTX importer over the
 # real IPC: no panic, no plugin crash or memory-cap stop, events with timestamps. Failures name the file only.
-# See crates/imt-plugins/tests/evtx_corpus.rs. Never runs on push: it needs the network and takes minutes.
+# See crates/debrief-plugins/tests/evtx_corpus.rs. Never runs on push: it needs the network and takes minutes.
 
 name: corpus
 
@@ -13,15 +13,15 @@ on:
 env:
   CARGO_TERM_COLOR: always
   # The test is off unless this is set; the verified archive (about 6 MB, pinned by commit and SHA-256) is cached.
-  IMT_EVTX_CORPUS: "1"
-  IMT_CORPUS_CACHE: ${{ github.workspace }}/.corpus-cache
+  DEBRIEF_EVTX_CORPUS: "1"
+  DEBRIEF_CORPUS_CACHE: ${{ github.workspace }}/.corpus-cache
 
 jobs:
   evtx:
     name: real-world EVTX corpus
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
@@ -44,4 +44,4 @@ jobs:
           key: evtx-attack-samples-4ceed2f4706daf601c212a8f91c113dd85349a2c
 
       - name: EVTX-ATTACK-SAMPLES through the EVTX importer
-        run: cargo test -p imt-plugins --test evtx_corpus
+        run: cargo test -p debrief-plugins --test evtx_corpus

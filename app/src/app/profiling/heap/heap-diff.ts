@@ -17,7 +17,7 @@ export function byTaken(heaps: readonly HeapSummary[]): HeapSummary[] {
 
 /** Two snapshots compared per type, biggest growth first; new and gone types are flagged in words. */
 @Component({
-  selector: 'imt-heap-diff',
+  selector: 'debrief-heap-diff',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState],
   template: `
@@ -44,7 +44,7 @@ export function byTaken(heaps: readonly HeapSummary[]): HeapSummary[] {
     @if (heaps().length < 2) {
       <div class="state" role="status" i18n="@@profiling.heapDiff.openSecond">Open a second heap snapshot to compare.</div>
     } @else {
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" (retry)="res.retry()">
+      <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.totalRows === 0" (retry)="res.retry()">
         <div class="body tight" tabindex="0" role="region" aria-label="Comparison rows" i18n-aria-label="@@profiling.heapDiff.rowsRegion">
           <table class="grid" aria-label="Snapshot comparison, sorted by growth" i18n-aria-label="@@profiling.heapDiff.tableLabel">
             <thead><tr><th scope="col" i18n="@@profiling.heapDiff.col.type">Type</th><th scope="col" i18n="@@profiling.heapDiff.col.status">Status</th><th scope="col" class="num" i18n="@@profiling.heapDiff.col.count">Count</th><th scope="col" class="num" i18n="@@profiling.heapDiff.col.deltaCount">Δ count</th><th scope="col" class="num" i18n="@@profiling.heapDiff.col.bytes">Bytes</th><th scope="col" class="num" i18n="@@profiling.heapDiff.col.deltaBytes">Δ bytes</th></tr></thead>
@@ -62,7 +62,7 @@ export function byTaken(heaps: readonly HeapSummary[]): HeapSummary[] {
             </tbody>
           </table>
         </div>
-      </imt-analysis-state>
+      </debrief-analysis-state>
     }
   `,
   styles: [PROFILING_STYLES, `.tight { padding: 0; } .fn { max-width: 420px; } .state { padding: 24px 12px; color: var(--muted); text-align: center; }`],

@@ -14,7 +14,7 @@ const MAX_LINES = 50;
  * record menu (`highlight`) it is offered as a highlight rule.
  */
 @Component({
-  selector: 'imt-ai-regex-dialog',
+  selector: 'debrief-ai-regex-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiProposalCard, JobWait],
   template: `
@@ -27,13 +27,13 @@ const MAX_LINES = 50;
       <button type="button" class="btn primary" [disabled]="!lineCount() || busy()" (click)="suggest()">{{ suggestLabel() }}</button>
     </div>
     @if (jobId(); as id) {
-      <imt-job-wait [jobId]="id" [busyText]="busyText" />
+      <debrief-job-wait [jobId]="id" [busyText]="busyText" />
     }
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }}</p>
     }
     @if (proposal(); as p) {
-      <imt-ai-proposal-card
+      <debrief-ai-proposal-card
         [proposal]="p"
         [customApply]="!highlight()"
         [applyLabel]="highlight() ? '' : usePatternLabel"

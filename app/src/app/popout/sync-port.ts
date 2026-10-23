@@ -1,7 +1,7 @@
 import { SyncMessage } from './sync-protocol';
 
 /** Event name of UI state sync messages between a host window and its pop-outs (Tauri adapter). */
-export const UI_SYNC_EVENT = 'imt://ui-sync';
+export const UI_SYNC_EVENT = 'debrief://ui-sync';
 
 /**
  * A transport for sync messages within one window group (a host and its pop-outs). Two adapters: Tauri events
@@ -25,7 +25,7 @@ export class BroadcastChannelPort implements SyncPort {
   private readonly channel: BroadcastChannel;
 
   constructor(group: string, create: (name: string) => BroadcastChannel = (n) => new BroadcastChannel(n)) {
-    this.channel = create(`imt-ui-sync:${group}`);
+    this.channel = create(`debrief-ui-sync:${group}`);
   }
 
   post(message: SyncMessage): void {

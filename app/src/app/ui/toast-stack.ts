@@ -4,8 +4,8 @@ import { ApplicationRef, ComponentRef, createComponent, EnvironmentInjector, Typ
 export const MAX_TOASTS = 3;
 /** Marks one toast inside a stacked component (a component may show several, e.g. live alerts). */
 export const TOAST_ATTR = 'data-toast';
-const STACK_ID = 'imt-toast-stack';
-const OVERFLOW_CLASS = 'imt-toast-overflow';
+const STACK_ID = 'debrief-toast-stack';
+const OVERFLOW_CLASS = 'debrief-toast-overflow';
 
 /** Hides every toast but the last `max` in document order (the bottom of the stack is the newest). */
 export function limitToasts(stack: HTMLElement, max = MAX_TOASTS): void {
@@ -16,14 +16,14 @@ export function limitToasts(stack: HTMLElement, max = MAX_TOASTS): void {
 /**
  * The one bottom-right stack every toast of the main window goes into (errors, notices, live alerts, error
  * snapshots), so they sit one above the other with a gap instead of on top of each other. Created on first use;
- * styled in `styles.scss` (`.imt-toast-stack`).
+ * styled in `styles.scss` (`.debrief-toast-stack`).
  */
 export function toastStack(doc: Document = document): HTMLElement {
   let stack = doc.getElementById(STACK_ID);
   if (stack) return stack;
   stack = doc.createElement('div');
   stack.id = STACK_ID;
-  stack.className = 'imt-toast-stack';
+  stack.className = 'debrief-toast-stack';
   doc.body.append(stack);
   const el = stack;
   new MutationObserver(() => limitToasts(el)).observe(el, { childList: true, subtree: true });

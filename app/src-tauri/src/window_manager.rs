@@ -5,8 +5,8 @@
 //!
 //! Commands: `new_window`, `close_window`, `list_windows`, `focus_window`,
 //! `set_window_title`, `resolve_close`, `resolve_open`.
-//! Events: `imt://windows-changed` (all windows), `imt://close-requested`
-//! and `imt://open-ask` (the window concerned).
+//! Events: `debrief://windows-changed` (all windows), `debrief://close-requested`
+//! and `debrief://open-ask` (the window concerned).
 
 use crate::notify::{notify, NotificationKind};
 use crate::panel_windows;
@@ -17,10 +17,10 @@ use serde::{Deserialize, Serialize};
 use std::sync::atomic::Ordering;
 use tauri::{AppHandle, Emitter, Manager, Runtime, WebviewUrl, WebviewWindowBuilder, Window, WindowEvent};
 
-pub const WINDOWS_EVENT: &str = "imt://windows-changed";
-pub const CLOSE_REQUESTED_EVENT: &str = "imt://close-requested";
-pub const OPEN_ASK_EVENT: &str = "imt://open-ask";
-pub const DEFAULT_TITLE: &str = "IMT \u{2014} Integrated Maintenance Tool";
+pub const WINDOWS_EVENT: &str = "debrief://windows-changed";
+pub const CLOSE_REQUESTED_EVENT: &str = "debrief://close-requested";
+pub const OPEN_ASK_EVENT: &str = "debrief://open-ask";
+pub const DEFAULT_TITLE: &str = "Debrief";
 const MAX_TITLE: usize = 200;
 /// More windows than this are refused (each holds a workspace in memory).
 const MAX_WINDOWS: usize = 32;
@@ -39,9 +39,9 @@ pub struct WindowInfo {
 pub enum CloseDecision {
     /// Close it and free its workspace.
     Close,
-    /// Hide it; IMT keeps running in the tray.
+    /// Hide it; Debrief keeps running in the tray.
     Hide,
-    /// Quit IMT.
+    /// Quit Debrief.
     Quit,
     /// Ask the user (the window shows a prompt and calls `resolve_close`).
     Ask,
@@ -49,7 +49,7 @@ pub enum CloseDecision {
 
 /// Closing a window while others are visible just closes it. Closing the last
 /// visible one follows the user's setting; without a tray icon there is
-/// nothing to keep running in, so IMT quits. Closing again while the question
+/// nothing to keep running in, so Debrief quits. Closing again while the question
 /// is open quits (the UI may be stuck).
 pub fn decide_close(pref: OnClose, other_visible: usize, tray_available: bool, already_asked: bool) -> CloseDecision {
     if other_visible > 0 {
@@ -75,7 +75,7 @@ pub fn clean_title(title: &str) -> String {
     }
 }
 
-/// Pop-out panels and the drag ghost belong to an IMT window; they are not
+/// Pop-out panels and the drag ghost belong to a Debrief window; they are not
 /// windows of their own.
 pub fn is_auxiliary(label: &str) -> bool {
     panel_windows::is_popout(label) || label == crate::drag_ghost::GHOST_LABEL
@@ -123,9 +123,11 @@ pub fn changed<R: Runtime>(app: &AppHandle<R>) {
 /// loading on Windows (WebView2 waits for the main thread the command blocks; the window stays white).
 /// `tests/window_commands.rs` enforces this.
 pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow::Result<String> {
-    let windows = app.try_state::<Windows>().ok_or_else(|| anyhow::anyhow!("IMT is not ready yet"))?;
+    let windows = app
+        .try_state::<Windows>()
+        .ok_or_else(|| anyhow::anyhow!("Debrief is not ready yet"))?;
     if app.windows().keys().filter(|l| !is_auxiliary(l)).count() >= MAX_WINDOWS {
-        anyhow::bail!("IMT already has {MAX_WINDOWS} windows open; close one first");
+        anyhow::bail!("Debrief already has {MAX_WINDOWS} windows open; close one first");
     }
     let label = windows.next_label();
     let state = windows.get_or_create(&label)?;
@@ -199,7 +201,7 @@ pub fn ask_open<R: Runtime>(app: &AppHandle<R>, label: &str, paths: Vec<String>)
     }
 }
 
-/// Quits IMT; windows destroyed from now on keep their sessions for recovery.
+/// Quits Debrief; windows destroyed from now on keep their sessions for recovery.
 pub fn quit<R: Runtime>(app: &AppHandle<R>) {
     begin_quit(app);
     app.exit(0);
@@ -340,7 +342,7 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
         CloseDecision::Hide => {
             let _ = window.hide();
             panel_windows::set_visible(app, label, false);
-            log::info!("Last window hidden; IMT keeps running in the tray");
+            log::info!("Last window hidden; Debrief keeps running in the tray");
             changed(app);
         }
         CloseDecision::Quit => quit(app),
@@ -355,7 +357,7 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
 }
 
 /// A window is gone: free its workspace, stop its background work and, unless
-/// IMT is quitting, forget its session (a closed window is not restored).
+/// Debrief is quitting, forget its session (a closed window is not restored).
 pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     if panel_windows::is_popout(label) {
         panel_windows::on_destroyed(app, label);
@@ -394,7 +396,7 @@ pub async fn new_window<R: Runtime>(app: AppHandle<R>) -> CmdResult<WindowInfo> 
         .ok_or_else(|| "the window closed".into())
 }
 
-/// Quits IMT: every window closes at once (File ▸ Exit, IMT ▸ Quit IMT). The UI asks about unsaved work in the
+/// Quits Debrief: every window closes at once (File ▸ Exit, Debrief ▸ Quit Debrief). The UI asks about unsaved work in the
 /// calling window first; other windows keep their autosaved sessions.
 #[tauri::command]
 pub async fn quit_app<R: Runtime>(app: AppHandle<R>) -> CmdResult<()> {
@@ -438,7 +440,7 @@ pub enum CloseChoice {
     Tray,
 }
 
-/// The user's answer to `imt://close-requested`; with `remember` it becomes the setting.
+/// The user's answer to `debrief://close-requested`; with `remember` it becomes the setting.
 #[tauri::command]
 pub async fn resolve_close<R: Runtime>(
     app: AppHandle<R>,
@@ -474,7 +476,7 @@ pub async fn resolve_close<R: Runtime>(
     Ok(())
 }
 
-/// The user's answer to `imt://open-ask`.
+/// The user's answer to `debrief://open-ask`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum OpenChoice {
@@ -485,7 +487,7 @@ pub enum OpenChoice {
     Cancel,
 }
 
-/// The user's answer to `imt://open-ask`: open the waiting files in this window
+/// The user's answer to `debrief://open-ask`: open the waiting files in this window
 /// or a new one, or drop them. The files are taken either way, so a later
 /// answer opens nothing.
 #[tauri::command]
@@ -549,7 +551,7 @@ mod tests {
 
     #[test]
     fn titles_are_cleaned() {
-        assert_eq!(clean_title("  Incident\n — IMT "), "Incident — IMT");
+        assert_eq!(clean_title("  Incident\n — Debrief "), "Incident — Debrief");
         assert_eq!(clean_title("\u{7}"), DEFAULT_TITLE);
         assert_eq!(clean_title(&"x".repeat(500)).len(), MAX_TITLE);
     }
@@ -582,7 +584,7 @@ mod tests {
             h.clone(),
             w2.as_ref().window(),
             CurrentWindow::of(&h, "w-2").unwrap(),
-            "Incident — IMT".into(),
+            "Incident — Debrief".into(),
         )
         .now()
         .unwrap();
@@ -590,11 +592,11 @@ mod tests {
             h.clone(),
             w2.as_ref().window(),
             CurrentWindow::of(&h, "w-2").unwrap(),
-            "Incident — IMT".into(),
+            "Incident — Debrief".into(),
         )
         .now()
         .unwrap();
-        assert!(list(&h).iter().any(|w| w.title == "Incident — IMT"));
+        assert!(list(&h).iter().any(|w| w.title == "Incident — Debrief"));
 
         // Destroying a window frees its state, its tasks and its session.
         let state = app.state::<Windows>().get("w-2").unwrap();
@@ -712,7 +714,7 @@ mod tests {
         assert_eq!(app.state::<Windows>().last_focused().as_deref(), Some(MAIN));
     }
 
-    /// File ▸ Exit and IMT ▸ Quit IMT (`quit_app`): one step quits every window.
+    /// File ▸ Exit and Debrief ▸ Quit Debrief (`quit_app`): one step quits every window.
     #[test]
     fn quitting_keeps_the_sessions_of_the_windows_it_closes() {
         // (The mock runtime cannot exit: `app.exit` is the part not run here.)

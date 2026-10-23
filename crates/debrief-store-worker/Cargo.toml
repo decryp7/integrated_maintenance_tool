@@ -1,0 +1,35 @@
+[package]
+name = "debrief-store-worker"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+description = "Debrief's store worker (ADR 0014): hosts the DuckDB stores and their full-text indexes in a supervised child process (the client is debrief-store-client)"
+
+[lib]
+name = "debrief_store_worker"
+path = "src/lib.rs"
+
+[[bin]]
+name = "debrief-store-worker"
+path = "src/main.rs"
+
+[dependencies]
+debrief-alloc = { path = "../debrief-alloc" }
+debrief-core = { path = "../debrief-core" }
+debrief-ipc = { path = "../debrief-ipc" }
+debrief-store-client = { path = "../debrief-store-client" }
+debrief-store-duck = { path = "../debrief-store-duck" }
+debrief-plugin-host = { path = "../debrief-plugin-host" }
+log.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order", "float_roundtrip"] }
+
+[dev-dependencies]
+getrandom.workspace = true
+chrono.workspace = true
+debrief-plugin-api = { path = "../debrief-plugin-api" }
+tempfile.workspace = true
+sysinfo = { workspace = true, features = ["system"] }

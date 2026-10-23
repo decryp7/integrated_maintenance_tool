@@ -3,7 +3,7 @@ import { Icon } from '../shared/icon';
 
 /** Editable list of strings (globs, templates, regexes, field names). */
 @Component({
-  selector: 'imt-string-list',
+  selector: 'debrief-string-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
@@ -18,7 +18,7 @@ import { Icon } from '../shared/icon';
           (input)="set(i, $any($event.target).value)"
         />
         <button class="icon-btn" [attr.aria-label]="moveUpLabel(i)" [disabled]="i === 0" (click)="move(i, -1)" [attr.title]="moveUpLabel(i)">↑</button>
-        <button class="icon-btn" [attr.aria-label]="removeLabel(i)" (click)="remove(i)" [attr.title]="removeLabel(i)"><imt-icon name="close" [size]="12" /></button>
+        <button class="icon-btn" [attr.aria-label]="removeLabel(i)" (click)="remove(i)" [attr.title]="removeLabel(i)"><debrief-icon name="close" [size]="12" /></button>
       </div>
     }
     <button class="btn dashed add" (click)="add()" i18n="@@profile.stringList.add">+ Add {{ label() }}</button>

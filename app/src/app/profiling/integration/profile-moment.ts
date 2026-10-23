@@ -14,19 +14,19 @@ import { MeasurementTag } from '../profiling-shared';
  * log window lasted, with a link that opens the profile on that range. Hidden without profiles.
  */
 @Component({
-  selector: 'imt-profile-moment',
+  selector: 'debrief-profile-moment',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, MeasurementTag],
   template: `
     @if (backend && (res.loading() || res.error() || res.data()?.length)) {
       <h3 class="sec" i18n="@@profiling.moment.title">Profile samples in this window</h3>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" (retry)="res.retry()">
+      <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" (retry)="res.retry()">
         @for (m of res.data() ?? []; track m.profileId) {
           <section class="card" [attr.aria-label]="profileLabel(m.name)">
             <div class="head">
               <strong class="ellipsis">{{ m.name }}</strong>
               <span class="mono muted" i18n="@@profiling.moment.samples">{{ count(m.samples) // i18n(ph: "samples") }} samples · {{ ns(m.value) // i18n(ph: "value") }}</span>
-              <imt-measurement [m]="m.measurement" />
+              <debrief-measurement [m]="m.measurement" />
               <span class="spacer"></span>
               <button class="btn" type="button" (click)="open(m)" i18n="@@profiling.moment.open">Open capture on this range</button>
             </div>
@@ -37,12 +37,12 @@ import { MeasurementTag } from '../profiling-shared';
             </ol>
           </section>
         }
-      </imt-analysis-state>
+      </debrief-analysis-state>
     }
   `,
   styles: `
     :host { display: block; }
-    h3.sec { margin: 14px 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    h3.sec { margin: 14px 0 6px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
     .card { border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); padding: 8px 10px; margin-bottom: 8px; }
     .head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; color: var(--text); }
     .spacer { flex: 1; }

@@ -13,18 +13,17 @@ import { CoverageNote } from './coverage-note';
 
 /** Exceptions grouped by fingerprint; a group expands into its instances and sample events. */
 @Component({
-  selector: 'imt-exceptions-view',
+  selector: 'debrief-exceptions-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CoverageNote],
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.exceptions.title">Exceptions</span>
       @if (res.result(); as list) { <span class="faint" i18n="@@analysis.exceptions.groups">{{ list.length }} groups</span> }
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.exceptions.refresh">Refresh</button>
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Exception groups" i18n-aria-label="@@analysis.exceptions.listLabel">
         @for (g of res.result() ?? []; track g.fingerprint) {
           <li class="group" [class.selected]="selected() === g.fingerprint" [attr.data-fingerprint]="g.fingerprint">
@@ -55,7 +54,7 @@ import { CoverageNote } from './coverage-note';
           </li>
         }
       </ul>
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,
@@ -66,7 +65,7 @@ import { CoverageNote } from './coverage-note';
       .frame { max-width: 320px; flex: none; font-size: var(--fs-xs); }
       .group { border-bottom: 1px solid var(--border); }
       .head { border-bottom: 0; }
-      .group.selected { background: var(--bg-selected, var(--surface-2)); box-shadow: inset 2px 0 0 var(--accent); }
+      .group.selected { background: var(--bg-sel); box-shadow: inset 2px 0 0 var(--accent); }
       .detail { padding: 0 12px 10px 38px; }
       .inst { display: flex; gap: 12px; padding: 2px 0; max-width: 520px; }
       .inst .ellipsis { flex: 1; }

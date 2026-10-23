@@ -72,10 +72,10 @@ export class DockContext {
   /** Marks the tabs of pinned panels (dockview knows nothing about pinning). */
   markPinnedTabs(): void {
     const pinned = this.pinned();
-    this.container?.querySelectorAll<HTMLElement>('.imt-tab[data-panel-id]').forEach((t) => {
+    this.container?.querySelectorAll<HTMLElement>('.debrief-tab[data-panel-id]').forEach((t) => {
       const on = pinned.has(t.dataset['panelId'] ?? '');
       t.classList.toggle('pinned', on);
-      t.closest('.dv-tab')?.classList.toggle('imt-pinned-tab', on);
+      t.closest('.dv-tab')?.classList.toggle('debrief-pinned-tab', on);
     });
   }
 

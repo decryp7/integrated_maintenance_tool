@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { all, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { Finding, fullCoverage } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
-import { CommandRegistry } from '../extensions/command-registry';
+
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { NotificationsStore } from '../notifications/notifications.store';
 import { headlineOf, HealthHeadline } from '../home/health/health-headline';
@@ -66,7 +66,8 @@ describe('timeline legend', () => {
     const legendButtons = () => all<HTMLButtonElement>(fixture, '.legend .lg:not(.more)');
     expect(legendButtons()).toHaveLength(LEGEND_COLLAPSED);
     const more = el<HTMLButtonElement>(fixture, '[data-testid=legend-more]');
-    expect(more.textContent?.trim()).toBe('+2 more');
+    // The two extra marker kinds, plus the run and annotation kinds the one-line strip keeps in the popover.
+    expect(Number(/\+(\d+) more/.exec(more.textContent ?? '')?.[1])).toBeGreaterThanOrEqual(2);
     expect(more.getAttribute('aria-expanded')).toBe('false');
     expect(el(fixture, '#' + more.getAttribute('aria-controls')).classList.contains('collapsed')).toBe(true);
     more.click();

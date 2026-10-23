@@ -18,7 +18,7 @@ import { JobFollow } from '../../jobs/job-follow';
  * previews what the rules match in the report's own text first.
  */
 @Component({
-  selector: 'imt-report-export-dialog',
+  selector: 'debrief-report-export-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="field">

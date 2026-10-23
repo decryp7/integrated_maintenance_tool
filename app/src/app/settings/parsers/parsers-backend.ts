@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from '../../core/activity/ipc';
 import { ParserDocDto, ParserDraftRequest, ParserImportCheckDto, ParserLibraryDto, ParserValidationDto } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { reportBackendFailures } from '../../core/failure-reporter';
 import { Logger, withFailureLogging } from '../../core/logger';
 import { browserMocks } from '../../core/mock-registry';
@@ -92,6 +92,6 @@ export class TauriParsersBackend extends ParsersBackend {
 }
 
 export function createParsersBackend(): ParsersBackend {
-  const backend: ParsersBackend = isTauri() ? new TauriParsersBackend() : new (browserMocks().MockParsersBackend)(inject(ImtBackend));
+  const backend: ParsersBackend = isTauri() ? new TauriParsersBackend() : new (browserMocks().MockParsersBackend)(inject(DebriefBackend));
   return withFailureLogging<ParsersBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }

@@ -1,5 +1,5 @@
 import { EncodingOption } from '../../../core/api.types';
-import type { ImtBackend } from '../../../core/backend';
+import type { DebriefBackend } from '../../../core/backend';
 import { CmdError } from '../../../core/cmd-error';
 import { MockBackend } from '../../../core/mock/mock-backend';
 import { mockJobs, mockSteps } from '../../../jobs/mock-jobs';
@@ -38,7 +38,7 @@ export class MockEncodingBackend implements EncodingBackend {
   /** The encoding chosen per source id (what the engine would read it with). */
   readonly chosen = new Map<number, string | null>();
 
-  constructor(private readonly imt: ImtBackend) {}
+  constructor(private readonly debrief: DebriefBackend) {}
 
   options(): Promise<EncodingOption[]> {
     return Promise.resolve(MOCK_ENCODINGS.map((o) => ({ ...o })));
@@ -49,12 +49,12 @@ export class MockEncodingBackend implements EncodingBackend {
     return new Promise<number>((resolve, reject) =>
       setTimeout(() => {
         try {
-          if (!(this.imt instanceof MockBackend)) throw new CmdError({ code: 'invalid', message: 'this backend cannot read a file again', retryable: false });
+          if (!(this.debrief instanceof MockBackend)) throw new CmdError({ code: 'invalid', message: 'this backend cannot read a file again', retryable: false });
           const label = encoding === 'auto' ? null : encoding;
           if (label !== null && !MOCK_ENCODINGS.some((o) => o.label === label)) {
             throw new CmdError({ code: 'invalid', message: `unknown encoding "${label}"`, retryable: false });
           }
-          const mock = this.imt;
+          const mock = this.debrief;
           const name = mock.setSourceEncoding(sourceId, label);
           this.chosen.set(sourceId, label);
           const job = mockJobs().start({ kind: 'import', title: `Read ${name} again`, cancellable: false }, async (ctx) => {

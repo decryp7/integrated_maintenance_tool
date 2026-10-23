@@ -6,8 +6,8 @@ use super::hub::BrowserHub;
 use super::{emit, BrowserEvent, BrowserState, ChatStatusDto, SourceInfo};
 use crate::windows::CurrentWindow;
 use crate::{err, CmdResult};
-use imt_ai::browser::draft::without_flagged;
-use imt_ai::browser::{check_store_query, query::search_for_event, small_for_agent, PageReader, QuerySource, SearchEngine, WebUrl};
+use debrief_ai::browser::draft::without_flagged;
+use debrief_ai::browser::{check_store_query, query::search_for_event, small_for_agent, PageReader, QuerySource, SearchEngine, WebUrl};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::{AppHandle, Manager, Runtime};
@@ -18,13 +18,13 @@ const MAX_ID_CHARS: usize = 64;
 fn hub<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Arc<BrowserHub>> {
     app.try_state::<BrowserState>()
         .map(|s| s.0.clone())
-        .ok_or_else(|| "the browser is not available in this build of IMT".into())
+        .ok_or_else(|| "the browser is not available in this build of Debrief".into())
 }
 
 fn approvals<R: Runtime>(app: &AppHandle<R>) -> CmdResult<Arc<Approvals>> {
     app.try_state::<Arc<Approvals>>()
         .map(|s| s.inner().clone())
-        .ok_or_else(|| "the browser is not available in this build of IMT".into())
+        .ok_or_else(|| "the browser is not available in this build of Debrief".into())
 }
 
 /// A chat of the calling window (its id as the UI sent it, checked).
@@ -59,7 +59,7 @@ pub enum OpenTarget {
     Search { query: String, engine: Option<SearchEngine> },
 }
 
-/// Opens the address or the search in the user's default browser (ADR 0043): links never load inside IMT.
+/// Opens the address or the search in the user's default browser (ADR 0043): links never load inside Debrief.
 #[tauri::command]
 pub async fn browser_open<R: Runtime>(app: AppHandle<R>, _win: CurrentWindow, target: OpenTarget) -> CmdResult<String> {
     let hub = hub(&app)?;
@@ -109,7 +109,7 @@ pub async fn browser_event_query<R: Runtime>(app: AppHandle<R>, win: CurrentWind
             return engine();
         }
         let access = crate::ai::commands::WindowStore(w.clone());
-        let checked = check_store_query((&access as &dyn imt_ai::StoreAccess).into(), &drafted.query).map_err(crate::CmdError::from)?;
+        let checked = check_store_query((&access as &dyn debrief_ai::StoreAccess).into(), &drafted.query).map_err(crate::CmdError::from)?;
         match without_flagged(&checked) {
             (query, _) if query.is_empty() => engine(),
             (query, removed) => Ok(EventQueryDto {
@@ -303,7 +303,7 @@ pub async fn browser_open_and_read<R: Runtime>(app: AppHandle<R>, win: CurrentWi
             let page = super::reader_page(&a, &owner)
                 .or_else(|| super::visible_page(&a, &owner))
                 .ok_or_else(|| "the browser could not be started".to_string())?;
-            imt_ai::browser::PageDriver::navigate(&page, &u).map_err(err)?;
+            debrief_ai::browser::PageDriver::navigate(&page, &u).map_err(err)?;
             let capture = page.capture().map_err(err)?;
             let title = capture.title.clone();
             h.attach(&owner, &chat, capture);

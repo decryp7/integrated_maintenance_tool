@@ -5,6 +5,7 @@ import { SOURCE_COLOR_LABELS } from '../sources/source-colors';
 import { resolveTokens } from '../theme/theme-tokens';
 import { BUILT_IN_THEMES } from '../theme/themes';
 import { Density, DENSITIES, SCHEME_MODES, SchemeMode, ThemeId, UI_FONTS, UiFont } from '../theme/theme.types';
+import { THEMED_CONTROLS } from './themed-controls';
 import { HelpHint } from '../ui/help-hint';
 import { SettingsStore, SOURCE_COLOR_MODES } from './settings.store';
 
@@ -16,7 +17,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
  * this user, kept in the browser, applied at once in every window.
  */
 @Component({
-  selector: 'imt-appearance-settings',
+  selector: 'debrief-appearance-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [HelpHint],
   template: `
@@ -24,7 +25,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
       <legend i18n="@@settings.appearance.theme">Theme</legend>
       <div class="themes" role="radiogroup" aria-label="Theme" i18n-aria-label="@@settings.appearance.theme.aria">
         <label class="theme" [class.on]="prefs.theme() === null" data-theme-card="system">
-          <input type="radio" name="imt-theme" [checked]="prefs.theme() === null" (change)="prefs.setTheme(null)" />
+          <input type="radio" name="debrief-theme" [checked]="prefs.theme() === null" (change)="prefs.setTheme(null)" />
           <span class="preview" aria-hidden="true" [style.background]="followed().swatches[0]" [style.border-color]="followed().swatches[1]">
             <span class="panel" [style.background]="followed().swatches[1]">
               <span class="bar" [style.background]="followed().swatches[2]"></span>
@@ -40,7 +41,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
         </label>
         @for (t of themes(); track t.id) {
           <label class="theme" [class.on]="prefs.theme() === t.id" [attr.data-theme-card]="t.id">
-            <input type="radio" name="imt-theme" [value]="t.id" [checked]="prefs.theme() === t.id" (change)="prefs.setTheme(t.id)" />
+            <input type="radio" name="debrief-theme" [value]="t.id" [checked]="prefs.theme() === t.id" (change)="prefs.setTheme(t.id)" />
             <span class="preview" aria-hidden="true" [style.background]="t.swatches[0]" [style.border-color]="t.swatches[1]">
               <span class="panel" [style.background]="t.swatches[1]">
                 <span class="bar" [style.background]="t.swatches[2]"></span>
@@ -66,7 +67,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
       </div>
     </fieldset>
     <fieldset>
-      <legend i18n="@@settings.appearance.uiFont">Interface font <imt-help label="Interface font" text="The font of menus, panels and dialogs. System uses your operating system's font, like other desktop apps; theme uses the theme's own. Log text is always monospaced." i18n-label="@@settings.appearance.uiFont.helpLabel" i18n-text="@@settings.appearance.uiFont.help" /></legend>
+      <legend i18n="@@settings.appearance.uiFont">Interface font <debrief-help label="Interface font" text="The font of menus, panels and dialogs. System uses your operating system's font, like other desktop apps; theme uses the theme's own. Log text is always monospaced." i18n-label="@@settings.appearance.uiFont.helpLabel" i18n-text="@@settings.appearance.uiFont.help" /></legend>
       <div class="seg" data-testid="ui-font-setting">
         @for (f of uiFonts; track f) {
           <button class="btn" type="button" [class.active]="prefs.uiFont() === f" [attr.aria-pressed]="prefs.uiFont() === f" (click)="prefs.setUiFont(f)">{{ uiFontLabels[f] }}</button>
@@ -74,7 +75,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
       </div>
     </fieldset>
     <fieldset>
-      <legend i18n="@@settings.appearance.density">Density <imt-help label="Density" text="Row and lane heights. Compact fits more events and lanes on the screen; comfortable is easier to read and to click." i18n-label="@@settings.appearance.density.helpLabel" i18n-text="@@settings.appearance.density.help" /></legend>
+      <legend i18n="@@settings.appearance.density">Density <debrief-help label="Density" text="Row and lane heights. Compact fits more events and lanes on the screen; comfortable is easier to read and to click." i18n-label="@@settings.appearance.density.helpLabel" i18n-text="@@settings.appearance.density.help" /></legend>
       <div class="seg" data-testid="density-setting">
         @for (d of densities; track d) {
           <button class="btn" type="button" [class.active]="settings.density() === d" [attr.aria-pressed]="settings.density() === d" (click)="settings.setDensity(d)">{{ densityLabels[d] }}</button>
@@ -82,7 +83,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
       </div>
     </fieldset>
     <fieldset>
-      <legend i18n="@@settings.general.sourceColors">Source colours <imt-help label="Source colours" text="A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Off also draws the timeline lanes in neutral grey. Hover a stripe or dot for its name." i18n-label="@@settings.general.sourceColors.helpLabel" i18n-text="@@settings.general.sourceColors.help" /></legend>
+      <legend i18n="@@settings.general.sourceColors">Source colours <debrief-help label="Source colours" text="A coloured stripe at the start of each log line, with matching dots in the Explorer, the inspector and the timeline lanes, tells which file or instance the line came from. Off also draws the timeline lanes in neutral grey. Hover a stripe or dot for its name." i18n-label="@@settings.general.sourceColors.helpLabel" i18n-text="@@settings.general.sourceColors.help" /></legend>
       <div class="seg" data-testid="source-colors">
         @for (m of sourceColorModes; track m) {
           <button class="btn" type="button" [class.active]="settings.sourceColors() === m" [attr.aria-pressed]="settings.sourceColors() === m" (click)="settings.setSourceColors(m)">{{ sourceColorLabels[m] }}</button>
@@ -90,10 +91,12 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
       </div>
     </fieldset>
   `,
-  styles: `
+  styles: [
+    THEMED_CONTROLS,
+    `
     :host { display: flex; flex-direction: column; gap: var(--s-4); }
     fieldset { border: 0; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-    legend { padding: 0 0 6px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    legend { padding: 0 0 6px; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); display: flex; align-items: center; gap: 6px; }
     .seg { display: flex; gap: var(--s-1); flex-wrap: wrap; }
     .seg .btn { text-transform: capitalize; }
         .themes { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--s-3); }
@@ -110,6 +113,7 @@ const PREVIEW = ['bg-0', 'bg-1', 'accent', 'src-1', 'src-2', 'src-3', 'mk-fatal'
     .name { font-weight: 600; color: var(--text); }
     .about { font-size: var(--fs-xs); color: var(--muted); }
   `,
+  ],
 })
 export class AppearanceSettings {
   protected readonly prefs = inject(UiPrefsStore);

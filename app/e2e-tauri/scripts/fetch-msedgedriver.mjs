@@ -97,7 +97,7 @@ if (!res.ok) {
   process.exit(1);
 }
 // Unpack in a fresh, empty folder and copy only the driver out of it.
-const work = mkdtempSync(join(tmpdir(), 'imt-msedgedriver-'));
+const work = mkdtempSync(join(tmpdir(), 'debrief-msedgedriver-'));
 try {
   const zip = join(work, 'edgedriver.zip');
   writeFileSync(zip, bytes);

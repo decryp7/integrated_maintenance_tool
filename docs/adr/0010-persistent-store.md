@@ -38,9 +38,9 @@ Both engines meet the interactive budget at 10M (every measured operation under 
 
 ## Decision
 
-**Adopt DuckDB as the persistent store, running in a separate worker process** (`imt-store-worker`,
+**Adopt DuckDB as the persistent store, running in a separate worker process** (`debrief-store-worker`,
 the worker pattern of ADR 0002), with a Tantivy full-text index in the same worker. A new adapter
-crate (`imt-store-duck`) implements the `LogStore` port in the app by talking to the worker. The
+crate (`debrief-store-duck`) implements the `LogStore` port in the app by talking to the worker. The
 in-memory `Workspace` stays the default for normal sizes.
 
 Why DuckDB:
@@ -61,7 +61,7 @@ Why out of process:
   the store (stores are caches, see step 6).
 - **Bounded memory.** DuckDB's memory limit and caches don't share the UI process's address space;
   when the worker exits the OS reclaims everything.
-- **AGENTS.md.** IMT's own code stays Rust; the worker is a small Rust binary that links the
+- **AGENTS.md.** Debrief's own code stays Rust; the worker is a small Rust binary that links the
   prebuilt library, like `llama-server` runs as a separate process (ADR 0009).
 - **One owner per file.** Only one process can open a DuckDB file read-write, so engine queries and
   the console must share one owner anyway; the worker is that owner.
@@ -75,30 +75,30 @@ The costs we accept:
   DuckDB compression settings and column types before release; stores are caches and can be
   deleted from Settings.
 - **Distribution:** the worker links the official prebuilt libduckdb, fetched at **build time** in
-  CI by `crates/imt-store-duck/scripts/fetch-libduckdb.sh` (and `app/scripts/libduckdb.mjs` for builds) (pinned SHA-256 per platform; never the
+  CI by `crates/debrief-store-duck/scripts/fetch-libduckdb.sh` (and `app/scripts/libduckdb.mjs` for builds) (pinned SHA-256 per platform; never the
   `bundled` C++ build) and shipped next to the worker; on macOS both are signed with the app.
   duckdb-rs is version-locked to the library.
 
 ### Communication
 
-- **Transport:** `imt-ipc`, the existing local gRPC over a private Unix socket or Windows named
+- **Transport:** `debrief-ipc`, the existing local gRPC over a private Unix socket or Windows named
   pipe, with a one-time token per launch handed over on stdin; the worker exits when stdin closes.
   Nothing listens on the network.
-- **Contract:** a new versioned `imt.store.v1` service (protobuf), small and purpose-built: open /
+- **Contract:** a new versioned `debrief.store.v1` service (protobuf), small and purpose-built: open /
   close / ingest (client-streamed Arrow batches with progress) / page / timeline / facet / chart /
   field_stats / search / source_context / sql (console) / cancel / status. Results are Arrow record
-  batches (as `imt.plugin.v1` already uses) converted into the existing DTOs.
+  batches (as `debrief.plugin.v1` already uses) converted into the existing DTOs.
 - **Supervision:** the existing supervisor — health checks, restart on crash with back-off, call
   timeouts, a watchdog. `cancel(query_id)` calls DuckDB's interrupt; if the worker does not answer
   within a grace period it is killed and restarted.
 
 ### Migration plan
 
-1. **Port first.** Add `imt-store-duck` implementing `LogStore` over the worker. The Tauri shell
+1. **Port first.** Add `debrief-store-duck` implementing `LogStore` over the worker. The Tauri shell
    already depends only on the trait (ADR 0001). Start with `open`/`reload`/`clear`/`summary`/`page`/
    `timeline`/`facet`/`chart`/`field_stats`/`source_context`/`state`/`restore`/`progress`. Run every
    other operation (patterns, exceptions, anomalies, traces, compare, moment, exports, bundles,
-   reports) by **streaming record batches from the worker through the existing imt-core analysis
+   reports) by **streaming record batches from the worker through the existing debrief-core analysis
    code**, bounded by the existing result caps. Push operations down one at a time afterwards, with
    equivalence tests.
 2. **Typed columns.**
@@ -120,10 +120,10 @@ The costs we accept:
      only after `user_regex::compile` has validated the pattern (DuckDB uses RE2; differences from
      the Rust `regex` crate are covered by equivalence tests and fall back to a scan in the worker).
    - `Condition` ops on promoted columns → typed comparisons; on residual fields → `map_extract`
-     with imt-core's `value_text` semantics.
+     with debrief-core's `value_text` semantics.
    - QL stages: `where` → `WHERE`, `stats ... by` → `GROUP BY`, `sort` → `ORDER BY`, `head` →
      `LIMIT`, `fields` → projection. Anything not expressible (script steps, future functions) runs
-     on streamed batches in imt-core, so behaviour stays single-sourced.
+     on streamed batches in debrief-core, so behaviour stays single-sourced.
    - Equivalence tests run the same `Query` against `Workspace` and the new store on `/samples` and
      generated data and compare the results, as the spike did by digest.
    - Full-text tokens go to Tantivy; a token query pre-filters with the Tantivy id set (semi-join);
@@ -138,12 +138,12 @@ The costs we accept:
    its own thread (*indexing n%*). Tantivy commits every 2M documents with `indexed_to=<id>`;
    cancel rolls back to the last commit and the next open resumes from there.
 6. **Reopen.** A store lives in `<data>/stores/<hash of roots + profile>/` with a versioned manifest
-   (schema version, profile hash, per-file fingerprints, DuckDB and IMT versions, `indexed_to`).
+   (schema version, profile hash, per-file fingerprints, DuckDB and Debrief versions, `indexed_to`).
    When the fingerprints match, reopen is the manifest plus opening the database (23 ms at 10M).
    Changed or new files are re-imported incrementally. A missing, corrupt or version-mismatched
    store is rebuilt from the sources (degrade, don't fail). Stores are caches: deleting them loses
    nothing.
-7. **When to switch.** The in-memory store stays the default. Before importing, IMT estimates the
+7. **When to switch.** The in-memory store stays the default. Before importing, Debrief estimates the
    footprint from file sizes (≈ 1.9 KB/event in RAM, ≈ 330 bytes/event of CLEF text) and what is
    already loaded. Above a budget (setting, default: the smaller of 25% of physical RAM and 4 GB),
    or when the user chooses *Open as large workspace*, it opens with the persistent store. A project
@@ -164,13 +164,13 @@ stable, alongside a reworked C API, a new storage format and async I/O. When 2.0
 patch release, duckdb-rs (or another maintained Rust client) supports it, and the server mode is
 stable on all three platforms, **migrate to it**:
 
-- Replace the custom worker's engine host with DuckDB's own server process, supervised by IMT like
+- Replace the custom worker's engine host with DuckDB's own server process, supervised by Debrief like
   `llama-server` (ADR 0009): local only, a random port or socket, an access token, external access
-  and extensions disabled. `imt-store-duck` talks to it through the Rust client; IMT keeps its own
+  and extensions disabled. `debrief-store-duck` talks to it through the Rust client; Debrief keeps its own
   query builder, paging, caps and cancel semantics on top. Tantivy moves into a small Rust sidecar
-  or stays in the IMT-side adapter.
+  or stays in the Debrief-side adapter.
 - Re-run the spike's benchmarks on 2.0 first (its claimed speedups and the new storage format may
-  change the disk and filtered-scan numbers) and keep the `imt.store.v1` worker as the fallback until
+  change the disk and filtered-scan numbers) and keep the `debrief.store.v1` worker as the fallback until
   the server mode has proven itself.
 - The `LogStore` port and the equivalence tests make this an adapter change, not an app change.
 
@@ -178,7 +178,7 @@ stable on all three platforms, **migrate to it**:
 
 DuckDB and duckdb-rs are MIT; Tantivy is MIT; Arrow (in the worker and adapter) is Apache-2.0; all
 on `deny.toml`'s allow-list. DataFusion is not adopted. The spike crate was removed on 2026-10-22: the store crates
-(`imt-store-duck`, `imt-store-worker`) carry their own tests and benchmarks (ADR 0014).
+(`debrief-store-duck`, `debrief-store-worker`) carry their own tests and benchmarks (ADR 0014).
 
 ## Consequences
 
@@ -189,7 +189,7 @@ on `deny.toml`'s allow-list. DataFusion is not adopted. The spike crate was remo
 - A second `LogStore` implementation means the Liskov rule bites: every operation must have the
   same semantics and error behaviour in both. The equivalence tests in step 3 are the gate; features
   are not done until they work on both stores.
-- One more supervised process and a new IPC contract (`imt.store.v1`) to version and test, including
+- One more supervised process and a new IPC contract (`debrief.store.v1`) to version and test, including
   crash, hang and restart tests of the worker.
 - A native library per platform to pin, verify and sign (build time only, no runtime download), and
   larger stores on disk than Parquet would give.

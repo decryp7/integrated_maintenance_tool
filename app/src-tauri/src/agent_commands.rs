@@ -1,5 +1,5 @@
 //! Commands of the "Collection schedules" and "Runs" views: load, validate
-//! and save `imt-agent.toml` (validation is the agent library's), the
+//! and save `debrief-agent.toml` (validation is the agent library's), the
 //! editor's schema, the runs in the configured output folder, one run's
 //! manifest, and opening a run's folder in a new window. The logic is in
 //! plain functions over explicit folders so it is testable without Tauri;
@@ -7,17 +7,17 @@
 
 use crate::paths::WindowGrants;
 use crate::{err, CmdResult};
-use imt_agent::config::{describe, MAX_CONFIG_BYTES};
-use imt_agent::run::{is_run_name, list_runs, read_manifest, RunManifest, RunSummary};
-use imt_agent::schema::{schema, AgentSchema};
-use imt_agent::{AgentConfig, AgentConfigFile, Issue};
-use imt_core::overwrite::check_overwrite;
+use debrief_agent::config::{describe, MAX_CONFIG_BYTES};
+use debrief_agent::run::{is_run_name, list_runs, read_manifest, RunManifest, RunSummary};
+use debrief_agent::schema::{schema, AgentSchema};
+use debrief_agent::{AgentConfig, AgentConfigFile, Issue};
+use debrief_core::overwrite::check_overwrite;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Runtime};
 
 /// File name of the config in the app's config folder (the default).
-pub const CONFIG_NAME: &str = "imt-agent.toml";
+pub const CONFIG_NAME: &str = "debrief-agent.toml";
 /// Most runs returned to the UI.
 const MAX_RUNS: usize = 2000;
 
@@ -127,7 +127,7 @@ pub fn save_doc(path: Option<&str>, config: &AgentConfigFile, overwrite: bool, d
 
 /// A new file: a header and every key.
 fn fresh_text(config: &AgentConfigFile) -> CmdResult<String> {
-    let header = "# imt-agent configuration, saved by IMT. See `imt-agent print-example` for every key.\n\n";
+    let header = "# debrief-agent configuration, saved by Debrief. See `debrief-agent print-example` for every key.\n\n";
     Ok(format!("{header}{}", config.to_toml()?))
 }
 
@@ -184,7 +184,7 @@ pub fn manifest(path: Option<&str>, run_id: &str, dirs: &Dirs) -> CmdResult<RunM
     crate::error::lift(read_manifest(&run_dir(path, run_id, dirs)?))
 }
 
-/// The user's config path checked against the window's grants (`None`: the default in IMT's config
+/// The user's config path checked against the window's grants (`None`: the default in Debrief's config
 /// folder, which needs none). Reading accepts a file chosen to open or to save (a new one).
 fn granted(grants: &WindowGrants, path: Option<String>, access: crate::paths::Access) -> CmdResult<Option<String>> {
     let Some(p) = path.filter(|p| !p.trim().is_empty()) else {
@@ -270,7 +270,7 @@ pub async fn agent_run_manifest<R: Runtime>(
         .map_err(err)?
 }
 
-/// Opens a run's folder in a new IMT window (the window manager's usual path).
+/// Opens a run's folder in a new Debrief window (the window manager's usual path).
 #[tauri::command]
 pub async fn agent_open_run<R: Runtime>(
     app: AppHandle<R>,
@@ -288,7 +288,7 @@ mod tests {
     use super::*;
     use crate::test_support::Now as _;
     use crate::test_support::TempDir;
-    use imt_agent::run::{create_run_dir, write_manifest, RunReason};
+    use debrief_agent::run::{create_run_dir, write_manifest, RunReason};
 
     fn dirs_in(t: &TempDir) -> Dirs {
         Dirs {
@@ -309,7 +309,7 @@ mod tests {
         assert!(validate_doc(None, &cfg, &d).unwrap().is_empty());
         assert!(save_doc(None, &cfg, false, &d).unwrap().is_empty());
         let saved = std::fs::read_to_string(d.config.join(CONFIG_NAME)).unwrap();
-        assert!(saved.starts_with("# imt-agent configuration"));
+        assert!(saved.starts_with("# debrief-agent configuration"));
         let doc = load_doc(None, &d).unwrap();
         assert!(doc.exists && doc.issues.is_empty());
         assert_eq!(doc.config.as_ref(), Some(&cfg));
@@ -335,7 +335,7 @@ mod tests {
 
     #[test]
     fn an_existing_config_is_replaced_only_when_confirmed_and_keeps_its_comments() {
-        use imt_core::overwrite::FILE_EXISTS_SUFFIX;
+        use debrief_core::overwrite::FILE_EXISTS_SUFFIX;
         let t = TempDir::new("agent-overwrite");
         let d = dirs_in(&t);
         let file = d.config.join(CONFIG_NAME);
@@ -370,7 +370,7 @@ mod tests {
             std::fs::write(&file, junk).unwrap();
             assert!(save_doc(None, &cfg, true, &d).unwrap().is_empty());
             let saved = std::fs::read_to_string(&file).unwrap();
-            assert!(saved.starts_with("# imt-agent configuration"), "{saved}");
+            assert!(saved.starts_with("# debrief-agent configuration"), "{saved}");
             assert_eq!(load_doc(None, &d).unwrap().config.unwrap(), cfg);
         }
         // A folder in the way cannot be read.
@@ -418,6 +418,6 @@ mod tests {
         // An invalid saved config is reported.
         std::fs::write(d.config.join(CONFIG_NAME), "version = 1").unwrap();
         assert!(runs(None, &d).unwrap_err().contains("agent.outputDir"));
-        assert_eq!(agent_schema().now().version, imt_agent::CONFIG_VERSION);
+        assert_eq!(agent_schema().now().version, debrief_agent::CONFIG_VERSION);
     }
 }

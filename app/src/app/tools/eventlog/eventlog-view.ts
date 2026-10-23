@@ -24,15 +24,15 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
 
 /** Event Log follower: follows Windows event log channels into rolling CLEF files opened with live tail. */
 @Component({
-  selector: 'imt-eventlog-view',
+  selector: 'debrief-eventlog-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, HelpHint, Switch, ToolError, ToolUnavailable],
   template: `
     <div class="scroll" role="region" aria-label="Event Log follower" i18n-aria-label="@@tools.eventlog.region" tabindex="0">
       <p class="intro" i18n="@@tools.eventlog.intro">Follow Windows event log channels as they are written. The events are saved as log files and opened here with live tail, so they show up in the grid, on the timeline and in Metrics.</p>
-      <imt-tool-unavailable tool="event-log-follower" />
+      <debrief-tool-unavailable tool="event-log-follower" />
       @if (store.unsupported(); as reason) { <div class="warn" role="status" data-testid="eventlog-unsupported">{{ reason }}.</div> }
-      <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       @if (store.notice(); as notice) { <div class="note" role="status">{{ notice }}</div> }
 
       <div class="card status" data-testid="eventlog-status" role="status">
@@ -40,7 +40,7 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
         <strong>{{ runLabel() }}</strong>
         @if (store.dir(); as dir) { <span class="faint ellipsis" [title]="dir" i18n="@@tools.eventlog.output">Output: <span class="mono">{{ dir }}</span></span> }
         <span class="spacer"></span>
-        <button type="button" class="icon-btn" aria-label="Refresh status" i18n-aria-label="@@tools.eventlog.refresh.aria" title="Refresh status" i18n-title="@@tools.eventlog.refresh.title" [disabled]="!store.canRun()" (click)="store.poll()"><imt-icon name="refresh" [size]="14" /></button>
+        <button type="button" class="icon-btn" aria-label="Refresh status" i18n-aria-label="@@tools.eventlog.refresh.aria" title="Refresh status" i18n-title="@@tools.eventlog.refresh.title" [disabled]="!store.canRun()" (click)="store.poll()"><debrief-icon name="refresh" [size]="14" /></button>
       </div>
 
       @if (store.run(); as run) {
@@ -86,7 +86,7 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
 
       <fieldset class="form" [disabled]="store.running()" (input)="edited.set(true)" (change)="edited.set(true)">
         <section aria-labelledby="evl-channels">
-          <h2 id="evl-channels" class="section-title" i18n="@@tools.eventlog.channels">Channels <imt-help label="Channels" i18n-label="@@tools.eventlog.channels.helpLabel" text="The classic channels and the Microsoft-Windows-*/Operational channels of this machine. Reading Security needs administrator rights." i18n-text="@@tools.eventlog.channels.helpText" /></h2>
+          <h2 id="evl-channels" class="section-title" i18n="@@tools.eventlog.channels">Channels <debrief-help label="Channels" i18n-label="@@tools.eventlog.channels.helpLabel" text="The classic channels and the Microsoft-Windows-*/Operational channels of this machine. Reading Security needs administrator rights." i18n-text="@@tools.eventlog.channels.helpText" /></h2>
           <div class="inline">
             <input class="input grow" type="search" aria-label="Search channels" i18n-aria-label="@@tools.eventlog.search.aria" placeholder="Search channels" i18n-placeholder="@@tools.eventlog.search.placeholder" [value]="store.search()" (input)="store.setSearch(val($event))" />
             <span class="faint" data-testid="eventlog-selected" i18n="@@tools.eventlog.selected">{{ store.draft().channels.length }} selected</span>
@@ -120,7 +120,7 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
               <label class="check"><input type="checkbox" [checked]="store.draft().levels.includes(l)" (change)="store.toggleLevel(l, checked($event))" /> {{ levelLabel[l] }}</label>
             }
           </div>
-          <label class="lbl"><ng-container i18n="@@tools.eventlog.xpath">XPath filter (optional)</ng-container> <imt-help label="XPath filter" i18n-label="@@tools.eventlog.xpath.helpLabel" text="An Event Log XPath such as *[System[EventID=7036]]. It is combined with the levels and the backfill window; Validate shows the final query." i18n-text="@@tools.eventlog.xpath.helpText" />
+          <label class="lbl"><ng-container i18n="@@tools.eventlog.xpath">XPath filter (optional)</ng-container> <debrief-help label="XPath filter" i18n-label="@@tools.eventlog.xpath.helpLabel" text="An Event Log XPath such as *[System[EventID=7036]]. It is combined with the levels and the backfill window; Validate shows the final query." i18n-text="@@tools.eventlog.xpath.helpText" />
             <textarea class="input mono" rows="2" [value]="store.draft().xpath" placeholder="*[System[Provider[@Name='Service Control Manager']]]" (input)="store.patchDraft({ xpath: val($event) })"></textarea>
           </label>
           <div class="inline">
@@ -133,7 +133,7 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
               @if (v.backfillXpath; as b) { <div i18n="@@tools.eventlog.backfillQuery">Backfill query: <span class="mono">{{ b }}</span></div> }
               <ul class="checks">
                 @for (c of v.channels; track c.name) {
-                  <li [class.bad]="!c.ok"><imt-icon [name]="c.ok ? 'check' : 'alert'" [size]="12" /> <strong>{{ c.name }}</strong> {{ c.ok ? okText : c.error }}</li>
+                  <li [class.bad]="!c.ok"><debrief-icon [name]="c.ok ? 'check' : 'alert'" [size]="12" /> <strong>{{ c.name }}</strong> {{ c.ok ? okText : c.error }}</li>
                 }
               </ul>
             </div>
@@ -148,11 +148,11 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
                 @for (b of backfills; track b) { <option [value]="b">{{ backfillLabel[b] }}</option> }
               </select>
             </label>
-            <label class="lbl"><ng-container i18n="@@tools.eventlog.outputFolder">Output folder (optional, defaults to IMT's data folder)</ng-container>
+            <label class="lbl"><ng-container i18n="@@tools.eventlog.outputFolder">Output folder (optional, defaults to Debrief's data folder)</ng-container>
               <input class="input mono" [value]="store.draft().dir" (input)="store.patchDraft({ dir: val($event) })" />
             </label>
           </div>
-          <imt-switch [checked]="store.draft().resume" (checkedChange)="store.patchDraft({ resume: $event }); edited.set(true)" i18n="@@tools.eventlog.resume">Continue from the last position</imt-switch>
+          <debrief-switch [checked]="store.draft().resume" (checkedChange)="store.patchDraft({ resume: $event }); edited.set(true)" i18n="@@tools.eventlog.resume">Continue from the last position</debrief-switch>
         </section>
       </fieldset>
 
@@ -192,8 +192,8 @@ const STATE_LABEL: Record<EventLogChannelState, string> = {
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row .lbl { flex: 1; min-width: 180px; }
     .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
-    .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); min-width: 0; }
-    .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 4px 12px; max-height: 220px; overflow: auto; padding: 6px 8px; border: 1px solid var(--border-3); border-radius: 6px; background: var(--bg-2); }
+    .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); min-width: 0; min-height: 24px; }
+    .picker { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 0 12px; max-height: 220px; overflow: auto; padding: 6px 8px; border: 1px solid var(--border-3); border-radius: 6px; background: var(--bg-2); }
     .badge { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 8px; border: 1px solid var(--chip-border); background: var(--chip-bg); color: var(--chip-text); }
     .ellipsis { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .problem { color: var(--danger-text); font-size: var(--fs-sm); }

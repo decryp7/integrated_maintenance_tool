@@ -2,8 +2,8 @@
 //! `settings.json`; every change is parsed into [`TrustSettings`] here (a key that is not valid is refused with
 //! the line it is on), and installs read them from [`super::Installed::trust`].
 
-use imt_core::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
-use imt_plugin_package::trust::{TrustSettings, FIRST_PARTY_KEYS, MAX_TRUSTED_KEYS};
+use debrief_core::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_plugin_package::trust::{TrustSettings, FIRST_PARTY_KEYS, MAX_TRUSTED_KEYS};
 use std::sync::{Arc, RwLock};
 
 /// The section's id.
@@ -14,7 +14,7 @@ pub struct TrustSection {
     pub trust: Arc<RwLock<TrustSettings>>,
 }
 
-/// Parses the trusted-key lines (`Name = imt-plugin-public-key ed25519 <hex>`).
+/// Parses the trusted-key lines (`Name = debrief-plugin-public-key ed25519 <hex>`).
 pub fn parse_keys(lines: &[String], developer_mode: bool) -> Result<TrustSettings, String> {
     let mut t = TrustSettings {
         developer_mode,
@@ -26,7 +26,7 @@ pub fn parse_keys(lines: &[String], developer_mode: bool) -> Result<TrustSetting
         }
         let Some((name, key)) = line.rsplit_once('=') else {
             return Err(format!(
-                "trusted key {}: write it as \"Publisher = imt-plugin-public-key ed25519 …\"",
+                "trusted key {}: write it as \"Publisher = debrief-plugin-public-key ed25519 …\"",
                 i + 1
             ));
         };
@@ -40,7 +40,7 @@ impl Configurable for TrustSection {
         let first_party = FIRST_PARTY_KEYS.iter().map(|(n, _)| *n).collect::<Vec<_>>().join(", ");
         SettingsSection::new(TRUST_SECTION, "Plugin trust", SectionOwner::App)
             .describe(format!(
-                "Which third-party plugins IMT installs. A package signed with a trusted publisher key installs normally; {first_party} is always trusted. \
+                "Which third-party plugins Debrief installs. A package signed with a trusted publisher key installs normally; {first_party} is always trusted. \
                  Unsigned packages and unknown keys install only in developer mode."
             ))
             .field(
@@ -58,7 +58,7 @@ impl Configurable for TrustSection {
                     },
                     serde_json::json!([]),
                 )
-                .describe("One per line: the publisher's name, \"=\", and the public key they give you (imt-plugin-public-key ed25519 …)."),
+                .describe("One per line: the publisher's name, \"=\", and the public key they give you (debrief-plugin-public-key ed25519 …)."),
             )
     }
 

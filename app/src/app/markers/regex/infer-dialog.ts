@@ -28,7 +28,7 @@ const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /** "Infer pattern from lines": one regex for several lines, explained, with the group table and follow-up actions. */
 @Component({
-  selector: 'imt-infer-dialog',
+  selector: 'debrief-infer-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [RegexAssist, AiButton],
   template: `
@@ -40,8 +40,8 @@ const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
       <label class="lbl"><ng-container i18n="@@markers.infer.pattern">Pattern (editable)</ng-container>
         <input class="input mono" [value]="pattern()" (input)="pattern.set($any($event.target).value)" />
       </label>
-      <div><imt-ai-button label="Suggest with AI" i18n-label="@@markers.infer.suggestAi" hint="The local model proposes a pattern; the engine checks it against these lines" i18n-hint="@@markers.infer.suggestAiHint" testId="ai-suggest-regex" (pressed)="suggestWithAi()" /></div>
-      <imt-regex-assist [pattern]="pattern()" [preset]="pattern() === r.pattern ? r.explanation : null" />
+      <div><debrief-ai-button label="Suggest with AI" i18n-label="@@markers.infer.suggestAi" hint="The local model proposes a pattern; the engine checks it against these lines" i18n-hint="@@markers.infer.suggestAiHint" testId="ai-suggest-regex" (pressed)="suggestWithAi()" /></div>
+      <debrief-regex-assist [pattern]="pattern()" [preset]="pattern() === r.pattern ? r.explanation : null" />
       <table class="groups" aria-label="Captured groups" i18n-aria-label="@@markers.infer.groups">
         <thead><tr><th scope="col" i18n="@@markers.infer.col.group">Group</th><th scope="col" i18n="@@markers.infer.col.kind">Kind</th><th scope="col" i18n="@@markers.infer.col.examples">Examples</th></tr></thead>
         <tbody>

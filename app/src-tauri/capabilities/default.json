@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "enables the default permissions for the webview of every IMT window (main, and w-2, w-3, ... opened later) and of panels popped out of them (p-main-1, p-w-2-3, ...), scoped by webview label (never by window) so no other webview gets them; the core permissions are the ones the UI uses (events; monitors, bounds and maximised state for pop-out placement; set-fullscreen backs Window > Full screen), listed one by one instead of core:default",
+  "description": "enables the default permissions for the webview of every Debrief window (main, and w-2, w-3, ... opened later) and of panels popped out of them (p-main-1, p-w-2-3, ...), scoped by webview label (never by window) so no other webview gets them; the core permissions are the ones the UI uses (events; monitors, bounds and maximised state for pop-out placement; set-fullscreen backs Window > Full screen), listed one by one instead of core:default",
   "webviews": [
     "main",
     "w-*",

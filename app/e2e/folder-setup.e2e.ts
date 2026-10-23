@@ -9,7 +9,7 @@ import { chooseMenu } from './menu-support';
 test.describe('Folder set-up', () => {
   test('open folder → wizard → select proposals → apply → lanes and markers updated', async ({ page }, testInfo) => {
     await openApp(page);
-    const lanes = page.locator('imt-timeline-panel .lane-label .key');
+    const lanes = page.locator('debrief-timeline-panel .lane-label .key');
     await expect(lanes.first()).toBeVisible();
     const before = await lanes.allInnerTexts();
     expect(before.some((l) => /\d{3,4}$/.test(l))).toBe(true); // lanes include process ids
@@ -18,7 +18,7 @@ test.describe('Folder set-up', () => {
     // Offered in Notifications (the bell), not as a banner over the workspace.
     await expect(page.getByTestId('folder-setup-hint')).toHaveCount(0);
     await page.getByTestId('status-notifications').click();
-    const notices = page.locator('imt-notifications-panel');
+    const notices = page.locator('debrief-notifications-panel');
     // Offered once the folder is imported (the import can take a few seconds while the suite runs).
     await expect(notices).toContainText('New folder? Set up analysis', { timeout: 15_000 });
     await notices.getByRole('button', { name: 'Set up analysis…' }).click();
@@ -48,7 +48,11 @@ test.describe('Folder set-up', () => {
     // One lane per machine now, the proposed marker is in the legend; the wizard opens again from the File menu.
     await expect.poll(async () => (await lanes.allInnerTexts()).some((l) => /\d{3,4}$/.test(l))).toBe(false);
     await expect(lanes.filter({ hasText: 'WEB02' })).toHaveCount(1);
-    await expect(page.locator('imt-timeline-panel').getByRole('group', { name: 'Markers' })).toContainText('Reindex start');
+    // The legend shows what fits on one line; "+N more" opens the rest.
+    const timeline = page.locator('debrief-timeline-panel');
+    await timeline.getByTestId('legend-more').click();
+    await expect(timeline.getByRole('group', { name: 'Markers' })).toContainText('Reindex start');
+    await page.keyboard.press('Escape');
     await chooseMenu(page, 'File', 'Set up analysis for this folder…');
     const again = page.getByRole('dialog', { name: 'Set up analysis for this folder' });
     await expect(again.getByTestId('survey-facts')).toBeVisible();

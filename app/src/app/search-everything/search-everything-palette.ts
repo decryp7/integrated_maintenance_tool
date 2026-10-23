@@ -14,9 +14,9 @@ let nextId = 0;
  * the matched words marked; Enter or a click goes to the result. The engine searches; this only shows and navigates.
  */
 @Component({
-  selector: 'imt-search-everything',
+  selector: 'debrief-search-everything',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { 'data-activity-trigger': 'palette', class: 'imt-search-everything' },
+  host: { 'data-activity-trigger': 'palette', class: 'debrief-search-everything' },
   template: `
     <input
       class="input"
@@ -83,7 +83,7 @@ let nextId = 0;
     .muted { color: var(--muted); padding: 2px 4px; }
     .err { color: var(--danger-text); padding: 2px 4px; }
     .list { overflow: auto; display: flex; flex-direction: column; gap: 4px; min-height: 0; }
-    .head { display: flex; align-items: baseline; gap: 6px; padding: 6px 10px 2px; color: var(--muted); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; }
+    .head { display: flex; align-items: baseline; gap: 6px; padding: 6px 10px 2px; color: var(--muted); font-size: var(--fs-xs); }
     .count { font-variant-numeric: tabular-nums; }
     .notice { padding: 0 10px 2px; color: var(--muted); font-size: var(--fs-sm); font-style: italic; }
     .opt { display: flex; align-items: center; gap: 8px; min-height: 30px; padding: 2px 10px; border-radius: 6px; color: var(--text-2); cursor: pointer; }
@@ -102,7 +102,7 @@ export class SearchEverythingPalette {
   private readonly dialog = inject(DialogRef, { optional: true });
   private readonly injector = inject(Injector);
 
-  protected readonly listId = `imt-search-everything-${nextId++}`;
+  protected readonly listId = `debrief-search-everything-${nextId++}`;
   /** The highlighted result (CDK ActiveDescendantKeyManager; focus stays in the input). */
   protected readonly nav = new ActiveDescendantNavigation(
     computed(() => this.store.rows().length),

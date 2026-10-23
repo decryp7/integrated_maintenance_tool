@@ -4,7 +4,7 @@ import { all, buttonByText, el, settle, text } from '../../../testing/helpers';
 import { at, must } from '../../../testing/must';
 import { ChartData, WorkspaceSummary } from '../../core/api.types';
 import { WorkspaceStore } from '../../core/workspace.store';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { ChartTheme, ChartTokens } from '../../metrics/chart-theme';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { mockTools, provideToolsTesting } from '../mock/test-support';
@@ -169,7 +169,7 @@ describe('monitor charts model', () => {
     expect(series.every((s) => s['lineStyle']?.['type'] === undefined)).toBe(true);
     expect(at(series, 0)['endLabel']['show']).toBe(true);
     expect(at(series, 0)['endLabel']['formatter']).toBe('c');
-    expect(at(series, 0)['labelLayout']).toEqual({ moveOverlap: 'shiftY' });
+    expect(at(series, 0)['labelLayout']).toEqual({ moveOverlap: 'shiftY', hideOverlap: true });
     expect(o['legend']['show']).toBe(false);
     expect(o['legend']['selected']).toEqual({ c: true, a: false, b: true });
     expect(o['tooltip']['trigger']).toBe('axis');
@@ -447,7 +447,7 @@ describe('MONITOR_CHARTS', () => {
 
     (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'] = {};
     TestBed.configureTestingModule({ providers: provideToolsTesting() });
-    const engine = TestBed.inject(ImtBackend);
+    const engine = TestBed.inject(DebriefBackend);
     const spy = vi.spyOn(engine, 'queryChart');
     const request = { query: monitorQuery([], 5), def: monitorChartDef(at(MONITOR_METRICS, 0)), chartId: null, buckets: 10 };
     const port = TestBed.inject(MONITOR_CHARTS);

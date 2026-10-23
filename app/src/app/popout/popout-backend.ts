@@ -45,11 +45,11 @@ export interface PopoutMoved {
   y: number;
 }
 
-export const POPOUT_CLOSED_EVENT = 'imt://popout-closed';
-export const POPOUT_MOVED_EVENT = 'imt://popout-moved';
+export const POPOUT_CLOSED_EVENT = 'debrief://popout-closed';
+export const POPOUT_MOVED_EVENT = 'debrief://popout-moved';
 /** A native menu item was clicked in this window (macOS shares one menu bar). */
-export const MENU_EVENT = 'imt://menu';
-export const POPOUTS_CHANGED_EVENT = 'imt://popouts-changed';
+export const MENU_EVENT = 'debrief://menu';
+export const POPOUTS_CHANGED_EVENT = 'debrief://popouts-changed';
 
 /**
  * Pop-out windows: real OS windows inside Tauri, `window.open` popups in the browser build (e2e, dev). The host
@@ -93,7 +93,7 @@ export abstract class PopoutBackend {
   abstract isMaximized(): Promise<boolean>;
   /** Called after every resize (maximised state may have changed). */
   abstract onResized(handler: () => void): Promise<Unlisten>;
-  /** The shared native menu (macOS) sends its clicks to the focused window: `imt://menu {commandId}`. */
+  /** The shared native menu (macOS) sends its clicks to the focused window: `debrief://menu {commandId}`. */
   abstract onMenu(handler: (commandId: string) => void): Promise<Unlisten>;
   /** Frameless windows: resize from an edge (`North`, `SouthEast`, ...). */
   abstract startResize(direction: ResizeDirection): Promise<void>;
@@ -310,7 +310,7 @@ export class BrowserPopoutBackend extends PopoutBackend {
     const b = request.bounds;
     const features = b ? `popup,left=${Math.round(b.x)},top=${Math.round(b.y)},width=${Math.round(b.width)},height=${Math.round(b.height)}` : 'popup,width=560,height=420';
     const win = this.win.open(url, label, features);
-    if (!win) throw new Error($localize`:@@popout.backend.blocked:The browser blocked the pop-out window; allow pop-ups for IMT`);
+    if (!win) throw new Error($localize`:@@popout.backend.blocked:The browser blocked the pop-out window; allow pop-ups for Debrief`);
     const info: PopoutInfo = { label, host, viewId: request.viewId, title: request.title ?? request.viewId, params: request.params, bounds: b ?? null, monitor: null, keepOnTop: false };
     this.windows.set(label, { win, info });
     this.watch();

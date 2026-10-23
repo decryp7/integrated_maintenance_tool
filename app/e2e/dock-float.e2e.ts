@@ -9,13 +9,13 @@ import { chooseMenu } from './menu-support';
 // with pointer events.
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
-const cue = (page: Page) => page.locator('.imt-float-cue');
+const cue = (page: Page) => page.locator('.debrief-float-cue');
 const floating = (page: Page) => page.locator('.dv-resize-container');
 const groupOf = (page: Page, name: string) => page.locator('.dv-groupview').filter({ has: tab(page, name) });
 
 /** The content box of the events grid's group. */
 async function eventsBox(page: Page): Promise<{ x: number; y: number; width: number; height: number }> {
-  return (await page.locator('.dv-groupview:has(imt-events-grid) .dv-content-container').boundingBox())!;
+  return (await page.locator('.dv-groupview:has(debrief-events-grid) .dv-content-container').boundingBox())!;
 }
 
 /** A point over the events grid well away from its compass (the middle) and the dock's edge guides. */
@@ -38,13 +38,12 @@ async function moveFloatingByHeader(page: Page): Promise<void> {
   const start = { x: header.x + header.width / 2, y: header.y + header.height / 2 };
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
-  await page.mouse.move(start.x - 60, start.y + 50, { steps: 10 });
+  await page.mouse.move(start.x - 60, start.y - 50, { steps: 10 });
   // Moving a window docks nothing: no dock guides.
-  await expect(page.locator('.imt-drop-guides.on')).toHaveCount(0);
+  await expect(page.locator('.debrief-drop-guides.on')).toHaveCount(0);
   await page.mouse.up();
   await expect.poll(async () => (await floating(page).boundingBox())!.x).toBeLessThan(before.x - 40);
-  const after = (await floating(page).boundingBox())!;
-  expect(after.y).toBeGreaterThan(before.y + 30);
+  await expect.poll(async () => (await floating(page).boundingBox())!.y).toBeLessThan(before.y - 30);
 }
 
 test.describe('dragging a panel tab', () => {
@@ -64,10 +63,10 @@ test.describe('dragging a panel tab', () => {
     const hint = (await cue(page).boundingBox())!;
     expect(Math.abs(hint.x - free.x)).toBeLessThan(40);
     expect(Math.abs(hint.y - free.y)).toBeLessThan(80);
-    await expect(page.locator('body.imt-drag-cancel')).toHaveCount(1);
+    await expect(page.locator('body.debrief-drag-cancel')).toHaveCount(1);
     await page.mouse.up();
     await expect(cue(page)).toBeHidden();
-    await expect(page.locator('body.imt-drag-cancel')).toHaveCount(0);
+    await expect(page.locator('body.debrief-drag-cancel')).toHaveCount(0);
     await expect(floating(page)).toHaveCount(0);
     expect(await groupOf(page, 'Metrics').locator('[role="tab"]').allInnerTexts()).toEqual(before);
     await expect(groupOf(page, 'Events')).not.toContainText('Metrics');
@@ -78,7 +77,7 @@ test.describe('dragging a panel tab', () => {
     const c = await eventsBox(page);
     await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2, { steps: 15 });
     await page.mouse.move(c.x + c.width / 2, c.y + c.height / 2 + 1, { steps: 2 });
-    await expect(page.locator('.imt-guide-center.hot')).toHaveCount(1);
+    await expect(page.locator('.debrief-guide-center.hot')).toHaveCount(1);
     await expect(cue(page)).toBeHidden();
     await page.mouse.up();
     await expect(groupOf(page, 'Events')).toContainText('Metrics');

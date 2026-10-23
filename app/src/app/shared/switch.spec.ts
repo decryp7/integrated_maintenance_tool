@@ -7,8 +7,8 @@ import { Switch } from './switch';
   imports: [Switch],
   template: `
     <div>
-      <imt-switch [checked]="on()" [disabled]="off()" describedBy="help" (checkedChange)="changes.push($event); on.set($event)"
-        >Load the model in the background when IMT starts</imt-switch
+      <debrief-switch [checked]="on()" [disabled]="off()" describedBy="help" (checkedChange)="changes.push($event); on.set($event)"
+        >Load the model in the background when Debrief starts</debrief-switch
       >
     </div>
     <p id="help">Help</p>

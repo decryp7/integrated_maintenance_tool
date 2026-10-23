@@ -1,0 +1,32 @@
+[package]
+name = "debrief-cli"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "The headless command line: import files into a store, run query-language queries and analyses, build the incident report (docs/cli.md)"
+
+[lib]
+name = "debrief_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "debrief"
+path = "src/bin/debrief.rs"
+
+[dependencies]
+debrief-core = { path = "../debrief-core" }
+# The store worker's client (no database linked); the CLI starts the worker like the app does.
+debrief-store-client = { path = "../debrief-store-client" }
+debrief-pdf = { path = "../debrief-pdf" }
+chrono.workspace = true
+# Ctrl+C / SIGTERM stop `watch` cleanly.
+ctrlc = { workspace = true, features = ["termination"] }
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+
+[dev-dependencies]
+debrief-store-duck = { path = "../debrief-store-duck" }
+tempfile.workspace = true

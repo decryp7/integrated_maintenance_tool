@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { nativePickOne } from '../../core/native-dialog';
 import { isTauri } from '../../core/platform';
-import { ImtCommand } from '../../extensions/tokens';
+import { DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 
 /** Chooses an `.etl` file: the native dialog in Tauri, a demo path in a browser. Replaceable in tests. */
@@ -22,7 +22,7 @@ export class NativeCommands {
   private readonly dialogs = inject(DialogService);
   private readonly picker = inject(EtlPicker);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'profiling.native', title: $localize`:@@profiling.cmd.native:Profile native process…`, category: 'Tools', run: () => this.openCapture() },
     { id: 'profiling.etl', title: $localize`:@@profiling.cmd.etl:Open process from .etl…`, category: 'File', run: () => this.openEtl() },
   ];

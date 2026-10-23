@@ -1,10 +1,10 @@
 /**
- * Wire types of the scheduled-collection agent (`imt-agent`), mirroring the Rust DTOs in
- * `crates/imt-agent/src/{config,schema,run}.rs` and `app/src-tauri/src/agent_commands.rs`
+ * Wire types of the scheduled-collection agent (`debrief-agent`), mirroring the Rust DTOs in
+ * `crates/debrief-agent/src/{config,schema,run}.rs` and `app/src-tauri/src/agent_commands.rs`
  * (camelCase JSON). Change both sides together.
  */
 
-// ---- imt-agent.toml (AgentConfigFile) ----
+// ---- debrief-agent.toml (AgentConfigFile) ----
 
 export type TimeZoneChoice = 'local' | 'utc';
 export type AgentLogLevel = 'debug' | 'information' | 'warning' | 'error';

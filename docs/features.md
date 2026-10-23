@@ -1,10 +1,12 @@
 # Features
 
-What IMT does, with screenshots. The [README](../README.md) has the short version, the [user guide](user-guide.md)
+What Debrief does, with screenshots. The [README](../README.md) has the short version, the [user guide](user-guide.md)
 covers inputs, profiles, the query language and shortcuts, and [development](development.md) covers building and testing.
 
 > The screenshots are captured automatically from the UI running against the built-in demo data.
 > See [Regenerating the screenshots](development.md#regenerating-the-screenshots).
+
+![Debrief: the instance timeline with lifecycle markers above the events grid](screenshots/workspace.png)
 
 ## Timeline per instance, with lifecycle markers
 
@@ -54,7 +56,7 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
   its colour when others are added or removed.
 - **Open the actual file**: *Open file* (the program your system uses for it), *Open at line N* (in
   VS Code when it is installed, else the default program) and *Show in folder* are in the row menu,
-  the inspector and the Explorer row menu. IMT opens only files it has opened in that window, named by
+  the inspector and the Explorer row menu. Debrief opens only files it has opened in that window, named by
   id, never a path from the page; a file inside a zip archive cannot be opened on its own (*Show
   archive in folder* reveals the archive), a gzip or binary file has no line to jump to, and scripts
   and programs are never started with their default program.
@@ -87,7 +89,7 @@ covers inputs, profiles, the query language and shortcuts, and [development](dev
 Click a row or a timeline marker to see the level, instance, rendered message and message template,
 every property, the exception and stack trace, and where the event came from (`file:line`, with the
 file's colour). Quick actions show the surrounding ±2 minutes, the same correlation id, or copy the
-event as JSON; *Open file*, *Open at line* and *Show in folder* open the event's file outside IMT (a
+event as JSON; *Open file*, *Open at line* and *Show in folder* open the event's file outside Debrief (a
 disabled one says why, e.g. the file is inside an archive).
 
 ## Filters, facets and the query language
@@ -102,6 +104,17 @@ disabled one says why, e.g. the file is inside an archive).
   query is dropped instead of overwriting a newer result.
 
 ![Query results table](screenshots/query-results.png)
+
+### Lenses and filter sets
+
+![The Lens menu with profile lenses and a filter-set chip](screenshots/lenses.png)
+
+A **lens** is a named view preset: levels, search text, filters, extra grid columns and row highlights. The profile ships
+built-in lenses (such as *Errors only* and *Warnings and worse*); *Save current as lens…* keeps your own. The time range,
+the instance selection and filter sets are not part of a lens. *Filters → set* moves the current field filters into a
+**filter set**: a named chip you switch on and off without deleting its filters (`Alt+1` to `Alt+9` toggle the first nine).
+Built-in lenses are profile configuration (`[[lens]]`), validated by the engine; see
+[ADR 0049](adr/0049-lenses-and-filter-sets.md).
 
 - **One search field.** The filter bar's field takes plain words (message search as you type) or a query; the engine tells
   which. History, completions, *Ask AI* and *Save* sit inside it, and `Ctrl/⌘+/` focuses it.
@@ -121,19 +134,21 @@ are read transparently. See [Supported inputs](user-guide.md#supported-inputs).
 A folder can mix formats: the format is decided per line, a file can hold several logical sources, and the instance
 key is per source ([ADR 0020](adr/0020-mixed-sources.md)).
 
-Third-party plugins are Rust programs written against the `imt-plugin-api` SDK and shipped as signed `.imtplugin`
+Third-party plugins are Rust programs written against the `debrief-plugin-api` SDK and shipped as signed `.debriefplugin`
 packages. The **Plugins view** installs one from a file (or a drop), shows its publisher, signature and requested
 permissions before it is installed, revokes permissions, and enables, disables or removes it. Each runs contained from
 its first instruction (files, network, programs and memory limited; see [plugin-sdk.md](plugin-sdk.md)). Settings ▸
 Plugin trust lists the publisher keys you trust; developer mode accepts unsigned packages after a warning
 ([ADR 0027](adr/0027-plugin-sdk.md)).
 
-![Setting up a format for a file IMT did not recognise](screenshots/format-wizard.png)
+![The Plugins view: one table of built-in and packaged plugins with version, source, what each provides, memory use and status](screenshots/plugins.png)
 
-Files IMT cannot read yet are listed with a **Set up format** button: mark the timestamp, level and
-message on a sample line and IMT generates a pattern (or a Serilog output template) and re-imports.
-Files whose lines IMT reads but whose timestamps it cannot get a warning in the Explorer and a
-Notifications message; IMT proposes a timestamp format it checked against those lines, and **Fix
+![Setting up a format for a file Debrief did not recognise](screenshots/format-wizard.png)
+
+Files Debrief cannot read yet are listed with a **Set up format** button: mark the timestamp, level and
+message on a sample line and Debrief generates a pattern (or a Serilog output template) and re-imports.
+Files whose lines Debrief reads but whose timestamps it cannot get a warning in the Explorer and a
+Notifications message; Debrief proposes a timestamp format it checked against those lines, and **Fix
 timestamps** previews and saves it. See [Supported inputs](user-guide.md#supported-inputs).
 
 ![Windows registry exports shown as a tree](screenshots/registry.png)
@@ -196,9 +211,10 @@ Analysis runs in the engine and is available from the command palette (`Ctrl/⌘
 | View | What it does |
 |---|---|
 | **Moment** | Everything around a point in time or a selected range: per-instance counts, top patterns, metrics against the previous window, and what users were doing. `Ctrl/⌘+Shift+M`. |
-| **Patterns** | Clusters similar messages into templates so 100k lines become a short list, with first/last seen and level colouring. |
+| **Patterns** | Clusters similar messages into templates so 100k lines become a short list, with first/last seen and level colouring. Each pattern has a **trend sparkline** (occurrences over the time of the analysed events, one scale for every pattern, so a burst, a steady stream and a new pattern look different at a glance) and a **Values** inspector: the most frequent values behind each `<*>` of a mined template with their counts (approximate, and labelled so, when there are very many distinct values); click a value to filter by it ([ADR 0046](adr/0046-pattern-trends-and-placeholder-values.md)). |
 | **Exceptions** | Groups exceptions by type and normalised stack with counts, first/last seen and affected instances. |
 | **Anomalies** | Error-rate spikes, slow-request outliers and crashes, listed with their time window and instance. |
+| **Error outliers** | The fields and values that are over-represented among errors (or any selection you type as a filter) compared with the rest of the same window, ranked by lift and significance (a G-test, with its p-value). "Only host B", "only build 3.1" instead of "errors rose". Each row filters the workspace to those events and links to evidence events; the result says what bounded it ([ADR 0045](adr/0045-error-outliers.md)). `debrief analyze outliers` does the same from the command line. |
 | **Compare** | Two windows side by side ("current vs previous", before/after a time, or any two selections): changed fields, new values and event mix. |
 | **Field statistics** | Distributions and percentiles for a field. |
 | **Traces** | Follows trace/span/request ids (for example from OpenTelemetry). |
@@ -211,6 +227,10 @@ Analysis runs in the engine and is available from the command palette (`Ctrl/⌘
 <tr>
 <td><img src="screenshots/anomalies.png" alt="Anomalies view: error spikes, crash and slow outliers"></td>
 <td><img src="screenshots/exceptions.png" alt="Exceptions view: exception groups with counts"></td>
+</tr>
+<tr>
+<td><img src="screenshots/outliers.png" alt="Error outliers view: fields and values over-represented among errors, with lift and p-value"></td>
+<td><img src="screenshots/pattern-values.png" alt="Patterns view with the values behind a mined template's placeholders opened"></td>
 </tr>
 </table>
 
@@ -253,11 +273,11 @@ exports to CSV or HTML.
 
 ## Profiling
 
-Profiler captures open next to the logs (drag them onto the window or use *Open performance capture…*); IMT tells
+Profiler captures open next to the logs (drag them onto the window or use *Open performance capture…*); Debrief tells
 captures from logs by content, so a mixed drop goes to the right place. Formats: `.nettrace`
 (dotnet-trace / EventPipe), `perf script` text, collapsed ("folded") stacks, pprof (`.pb.gz`),
 Chrome trace and `.cpuprofile`, speedscope JSON, and V8/Chromium `.heapsnapshot` files. All analysis
-runs in the `imt-profile` engine:
+runs in the `debrief-profile` engine:
 
 - **Hotspots** sortable by self/total time, samples, calls, average per call, allocations,
   exceptions and wait time; **call tree** and **inverted tree** with expand-hottest-path,
@@ -270,14 +290,14 @@ runs in the `imt-profile` engine:
   growth over three or more snapshots, dominator tree with retained sizes and paths to GC roots.
 
 **Record a .NET process** with *Profile .NET process…* (command palette) ([ADR 0019](adr/0019-dotnet-profiling.md)): pick the
-process and a kind (*CPU and waits*, *Allocations*, *Heap snapshot*). Nothing is loaded into the target. IMT records
+process and a kind (*CPU and waits*, *Allocations*, *Heap snapshot*). Nothing is loaded into the target. Debrief records
 it with ETW (needs administrator rights; the ETW recorder runs in an elevated plugin process, and a missing right is
 reported with the *Restart as administrator* hint) or with EventPipe (no elevation), and converts the trace to the same NetTrace
 captures that every view reads. A heap snapshot opens as a heap snapshot. `.etl` traces open after you pick the
 process in them (Windows only).
 
 **Record a native (C/C++) process** with *Profile native process…* (command palette): without administrator rights
-IMT samples it from outside (it pauses one thread at a time for microseconds and copies its stack), with them it
+Debrief samples it from outside (it pauses one thread at a time for microseconds and copies its stack), with them it
 records it with ETW (every CPU sample, waits with the thread that ended them, heap allocations by call stack).
 Nothing is loaded into the process. Frames are named from PDBs (your symbol path; downloads from the Microsoft
 symbol server only when you enable them), and the capture opens on its findings: the hot native function with its
@@ -322,50 +342,85 @@ content. The files are parsed in a sandboxed reader plugin (no network, no write
 - **Performance Monitor** (Windows): build a Data Collector Set from presets, install and start it
   with `logman`, then open the `.csv`/`.blg` result next to your logs. Counter rows become metrics.
 - **Process monitor**: samples CPU, memory and other counters of the processes you pick and writes
-  them as rolling CLEF files that open live in IMT; process start/exit events give start/stop markers
-  and show crashes and restarts. Also available headless as `imt-monitor`. For .NET Framework
+  them as rolling CLEF files that open live in Debrief; process start/exit events give start/stop markers
+  and show crashes and restarts. Also available headless as `debrief-monitor`. For .NET Framework
   processes (Windows) it can add the runtime counters (GC collections and heap sizes per generation,
   Large Object Heap and more, as `Dotnet*` fields); .NET Core and .NET 5+ processes are marked
   `DotnetRuntime = "core"` with a notice because their counters need EventPipe. The monitor shows
   live charts of the sampled counters.
 - **Event Log follower** (Windows): follows chosen Windows event log channels live, with a level
   filter and an optional backfill window, and writes the events as rolling CLEF files that open live
-  in IMT. It resumes where it stopped (positions are saved), retries after a cleared log or stopped
+  in Debrief. It resumes where it stopped (positions are saved), retries after a cleared log or stopped
   service, and reports the state of each channel.
 - **Diagnostics collector**: gathers app logs, Windows event logs, `msinfo32`, registry keys, a
-  performance-counter sample and environment info into one `.imtz` bundle, with redaction. Run it
-  from the app (*Collect diagnostics bundle…*) or on a customer machine with `imt-collect`.
+  performance-counter sample and environment info into one `.debriefz` bundle, with redaction. Run it
+  from the app (*Collect diagnostics bundle…*) or on a customer machine with `debrief-collect`.
 
 Windows-only collectors are skipped with a clear note on other platforms.
 
-These tools come from the built-in **tools plugin** (`imt-plugin-tools`): Performance Monitor
+These tools come from the built-in **tools plugin** (`debrief-plugin-tools`): Performance Monitor
 templates and collector sets, the process monitor, the diagnostics collector, elevation checks and
 the live counter source. Like any plugin it can be disabled or quarantined, and it is left out in
 safe mode; the shell then still checks administrator rights itself, and the tools say why they are
 unavailable. Files the tools write (collector-set XML, bundles, agent configuration) are never
 replaced without confirmation.
 
-## Scheduled and triggered collection (`imt-agent`)
+## Watched folders and time-range import
 
-`imt-agent` collects unattended on servers, without the IMT app running: schedules are cron
+<table>
+<tr>
+<td width="50%"><img src="screenshots/time-window.png" alt="The Open a time range dialog with a UTC start and end"></td>
+<td width="50%"><img src="screenshots/watched-folders.png" alt="Watched folders: a folder whose new files are imported as they settle"></td>
+</tr>
+</table>
+
+*Watched folders* (View ▸ Tools, or the command *Show watched folders*) imports files into the open project as they
+appear in folders you choose. A file is read once it has stopped changing; copies in progress (`*.part`, `*.tmp`, ...),
+empty files and files over 4 GiB are left alone and say so; a locked file is retried a few times and then reported.
+When a known issue from your knowledge files shows up in the new data it is announced once in the notification centre
+and as a desktop notification (subject to the notification setting and the OS permission). The list is saved with the
+project, up to eight folders per window.
+*Open a time range…* (Explorer toolbar) picks a folder and asks for a UTC start and end: only events inside the range
+are imported, so a huge folder costs only the hour you wanted. See [ADR 0047](adr/0047-time-window-import.md) and
+[ADR 0048](adr/0048-watched-folders.md).
+
+## Command line (`debrief`)
+
+The same engine without a window, for scripts, CI and headless machines: `debrief import` reads files and folders into
+a store you can keep with `--store`, `debrief query` runs the query language (table, CSV or JSON), `debrief analyze` runs the
+anomaly, pattern, exception and known-issue analyses (with `--fail-on-findings` for CI gates), and `debrief report`
+writes the incident summary as HTML or PDF. Exit codes are 0 done, 1 failed, 2 wrong command line, 3 findings; with
+`--json` every command prints exactly one JSON object. Output is bounded (rows, items and cell length) and the store
+runs in the same worker process as in the app. `--since` and `--until` import only a time range of very large inputs (events outside it never reach the store; files that stopped growing before it are not opened; [ADR 0047](adr/0047-time-window-import.md)). `debrief watch DIR` imports files as they settle in a folder (debounced, partial writes and temporary names ignored, locked files retried, huge files reported) and announces known issues from your knowledge files ([ADR 0048](adr/0048-watched-folders.md)). Reference: [cli.md](cli.md).
+
+```sh
+debrief import ./incident --store ./case          # read once, keep the store
+debrief query 'level >= warning | stats count() as n by SourceContext | sort n desc' --store ./case
+debrief analyze outliers --store ./case --fail-on-findings
+debrief report --out incident.html --store ./case --title "Checkout failures"
+```
+
+## Scheduled and triggered collection (`debrief-agent`)
+
+`debrief-agent` collects unattended on servers, without the Debrief app running: schedules are cron
 expressions, fixed intervals, or triggers (a process metric above a threshold for a while; a new
 log event matching a query). Actions run the diagnostics collector, record the process monitor,
 copy logs or run a Performance Monitor capture. Each run gets its own folder with a manifest; old
 runs are pruned by count, age and size; a schedule never overlaps itself; low disk space skips a
 run; every external tool has a timeout; and the agent opens no network connection. It runs once
-(`imt-agent once`), in the foreground (`imt-agent run`) or as a service (Windows Service,
-generated systemd unit or launchd plist). In IMT, *Open collection schedules* edits
-`imt-agent.toml` with validation per field (comments in the file are kept) and *Open collection
+(`debrief-agent once`), in the foreground (`debrief-agent run`) or as a service (Windows Service,
+generated systemd unit or launchd plist). In Debrief, *Open collection schedules* edits
+`debrief-agent.toml` with validation per field (comments in the file are kept) and *Open collection
 runs* browses and opens the output. See [ADR 0005](adr/0005-headless-agent.md) and
-[`imt-agent.example.toml`](../crates/imt-agent/imt-agent.example.toml). The Windows service has been
+[`debrief-agent.example.toml`](../crates/debrief-agent/debrief-agent.example.toml). The Windows service has been
 type-checked but only exercised on the Windows CI runner.
 
 ## Local AI assistant
 
-An optional assistant helps to set IMT up for a format: it proposes a regex, a parsing profile,
+An optional assistant helps to set Debrief up for a format: it proposes a regex, a parsing profile,
 pipeline steps, markers or extractors from sample lines. It only proposes; the engine validates and
 previews every proposal and you apply it. The model runs on your machine in a separate worker process
-(`imt-ai-worker`), so a native crash cannot take IMT down, and nothing about your logs leaves it.
+(`debrief-ai-worker`), so a native crash cannot take Debrief down, and nothing about your logs leaves it.
 The set-up wizard checks your hardware and, only when you ask, downloads a model and a prebuilt
 llama.cpp `llama-server` build for your platform (CPU, Vulkan, CUDA, Metal and others); downloads
 are resumable and checked against pinned SHA-256 hashes. Builds are not bundled and nothing needs
@@ -379,7 +434,7 @@ behind TLS-inspecting corporate proxies such as Zscaler once IT has installed th
 certificate; certificate checking is never switched off. A proxy is used only when you set *Download
 proxy* in Settings ▸ AI. A failed download says why in plain words (certificate problem, the proxy wants
 a sign-in, the proxy cannot be used, offline, timeout, an HTTP status) and offers **Download manually**:
-IMT opens the exact model or runtime file in your browser (the address comes from IMT's catalogs, never
+Debrief opens the exact model or runtime file in your browser (the address comes from Debrief's catalogs, never
 from the page), shows its expected SHA-256 and the steps, and *Add downloaded file…* / *Add downloaded
 files…* checks what you downloaded against that SHA-256 before using it, as a cancellable job with
 progress. A model added with *Add local GGUF…* that is named like a catalog model, or has its exact size,
@@ -399,7 +454,7 @@ The projector is stored beside the model as `<model>.mmproj.gguf`; the worker re
 its `/props` (llama-server builds choose their own) instead of assuming one.
 The default Qwen3.5 9B reads images; Qwen3.6 35B-A3B is the best-quality choice (needs 32 GB RAM). *Add image
 support* installs the projector of a model you already have; nothing is downloaded without asking. Attach an image
-in the chat (button, drag and drop, paste) or open one from the Explorer: IMT decodes it itself, within limits, and
+in the chat (button, drag and drop, paste) or open one from the Explorer: Debrief decodes it itself, within limits, and
 sends the model a clean, downscaled copy without metadata. **Find related logs** reads the screenshot into facts
 (window title, times, error texts and codes, exception names, machine and user names, ids, versions), lets the engine
 find the events around its time (from the screen, the photo's EXIF time, the file name or the file time, in the
@@ -413,14 +468,14 @@ and title only; when the clocks disagree it says by how much and offers the cloc
 your **default browser**; links from events, exceptions and research results open there too. The AI writes the
 search from the event (the exception type, the decisive words of the message, error codes, the framework and its
 version, without ids, names, paths, ports or timestamps); whatever looks private or comes from your logs is taken out,
-and you can edit it before anything opens (without a model, IMT builds it). Your search engine is Google by default;
+and you can edit it before anything opens (without a model, Debrief builds it). Your search engine is Google by default;
 DuckDuckGo, Bing or your own URL template with `{q}` are chosen in Settings ▸ Web browser and per search.
 
 Research and the chat's *Browser* menu drive a **real Chromium-based browser** (Edge, Chrome or Chromium found on
 your computer, or a pinned Chromium you download in Settings ▸ Web browser, about 200 MB, checksum verified, only when
 you ask) over the DevTools protocol, with a throwaway profile. The AI never searches the web by itself. It sees a page
 only when you add it to a chat (as cited, untrusted web content it must not take instructions from), when you set the
-chat's *Browser* menu to *Read along* (the browser window opens next to IMT and the AI may read the page you have
+chat's *Browser* menu to *Read along* (the browser window opens next to Debrief and the AI may read the page you have
 open), or to **Agent**: then it drives that window one step at a time, asks before new sites, typing and forms,
 highlights data from your logs headed into an address or a field, stops for logins, payments and CAPTCHAs, and logs
 every step; *Stop* ends the browser at once. A consent wall or CAPTCHA brings the window to the front for you; when you
@@ -432,10 +487,10 @@ unavailable, with a message that says what to do. See [ADR 0043](adr/0043-chromi
 docked Browser panel of [ADR 0024](adr/0024-docked-browser.md); [ADR 0011](adr/0011-internal-browser.md) still sets the rules).
 
 **It is always obvious when a page is driven by the AI**, with indicators that are all outside the page (nothing is ever
-injected into a page): Chrome's own banner "controlled by automated test software", a window frame in IMT's accent
-colour (best effort, depends on the browser version), a status chip in IMT with what the AI does ("Reading 3 of 5
+injected into a page): Chrome's own banner "controlled by automated test software", a window frame in Debrief's accent
+colour (best effort, depends on the browser version), a status chip in Debrief with what the AI does ("Reading 3 of 5
 results"), the site, and a *Stop* button, and the research log that lists every page opened and skipped. The window title
-text ("IMT AI: reading example.com") is carried by the chip's events. The chip clears as soon as the AI lets go: Stop,
+text ("Debrief AI: reading example.com") is carried by the chip's events. The chip clears as soon as the AI lets go: Stop,
 the answer or the research is done, cancelled or failed, or agent mode is turned off. See
 [ADR 0043](adr/0043-chromium-renderer.md).
 
@@ -456,6 +511,8 @@ pane or the status chip.
 
 ## Jobs and notifications
 
+![The Jobs pane: a running export with progress and time left, and finished AI requests](screenshots/jobs.png)
+
 Everything that takes a while is a **job**: AI answers and chat turns, web research, imports, long queries
 and analyses, exports and bundles, model and runtime downloads, the folder survey, storage clean-up and
 diagnostics collections. The engine runs them in queues per kind with limits (one AI request at a time,
@@ -469,7 +526,7 @@ finishes, and always for an answer, a proposal or a written file you asked for, 
 **View** ("Explanation ready · View": the answer and its citations, the proposals to review, the analysis
 with its query, the folder set-up with its proposals, Settings ▸ Disk usage with what was freed, the
 workspace, the model manager) or **Show in folder** for an exported file, and a desktop notification when
-IMT is not in front. Finished jobs are saved with the project; jobs cut off by a crash come back as
+Debrief is not in front. Finished jobs are saved with the project; jobs cut off by a crash come back as
 interrupted, with Retry. **Notifications** (the bell) collects what may need you: finished and failed jobs,
 live alerts (repeats merge: "Error spike on WEB02 (×4)"), files that were not imported (*Set up format*), a
 plugin that was switched off (*Reset plugin*), the paused AI (*Reset AI*), an update, a recovered session.
@@ -477,11 +534,11 @@ See [ADR 0012](adr/0012-jobs.md).
 
 ## Projects, sessions and export
 
-- **Projects** (`.imtz`, [ADR 0014](adr/0014-database-first-engine.md)): a project is the window's store, saved as one
+- **Projects** (`.debriefz`, [ADR 0014](adr/0014-database-first-engine.md)): a project is the window's store, saved as one
   self-contained file with its profile, filters, time range, zoom history, columns, notes and layout (`Ctrl/⌘+S`). It
   holds the imported events, so it opens, searches and analyses **without the original log files** (the search
   index is rebuilt in the background); recent projects; file association. The autosaved session of a window is a
-  separate small `.imtproj` file.
+  separate small `.debriefproj` file.
 - **Saved queries** (the *Saved queries* panel): named queries and highlight rules saved with the project. They were
   called bookmarks; notes took over the job of marking a place.
 - **Notes** ([ADR 0021](adr/0021-notes.md); `Ctrl/⌘+D` on the selected event): Markdown observations on an event
@@ -492,7 +549,7 @@ See [ADR 0012](adr/0012-jobs.md).
   Notes are saved in the project (with a clean copy of annotated images), the AI reads them, and the report's "Notes"
   button adds them.
 - **Export** the filtered events to CSV or Serilog CLEF (re-importable), and query results to CSV.
-- **Sessions are autosaved** per window: after a crash IMT offers to restore your work.
+- **Sessions are autosaved** per window: after a crash Debrief offers to restore your work.
 
 ## Explain and share
 
@@ -513,11 +570,11 @@ See [ADR 0012](adr/0012-jobs.md).
   top-N, alert and annotation tiles that follow the window's filters or a sliding window of their
   own; edit with the mouse or keyboard (arrows move, Shift+arrows resize) and show them full
   screen in wall mode. The sample profile has an "OrderService health" dashboard.
-- **Shareable bundles** (`.imtz`): the project, the effective profile, the raw logs or the
+- **Shareable bundles** (`.debriefz`): the project, the effective profile, the raw logs or the
   filtered (optionally redacted) events as CLEF, reports, dashboards and a manifest with SHA-256
   hashes, with a size estimate before writing. Opening one extracts it to a temporary folder
   (archive limits, no path may leave it), checks the hashes and opens it read-only.
-- **Share a redacted copy.** *File ▸ Share redacted copy…* writes a project copy (`.imtz`) built from the
+- **Share a redacted copy.** *File ▸ Share redacted copy…* writes a project copy (`.debriefz`) built from the
   redacted text of every text source, so events, search index, notes, AI chats, saved queries and reports hold
   no unredacted value of the detectors and rules you pick (mask, hash or drop). A live preview shows counts per
   rule, before/after samples and what is left out: binary, CSV and XML sources, note images, attachments and
@@ -539,19 +596,19 @@ onto other monitors: a translucent outline of the window's size with its title b
 and name) under the pointer and a dimmed snapshot of the panel. Releasing there opens the panel in
 its own window exactly where the ghost was; back over the window the ghost goes and the guides
 return. `Esc` cancels the drag. The ghost never takes the focus and lets clicks through, and it is
-never left behind (it also hides when the drag is lost or IMT loses the focus). Where the system
+never left behind (it also hides when the drag is lost or Debrief loses the focus). Where the system
 does not let an app place its windows (Linux on Wayland), or in the browser build, a translucent
 preview with **Release to open in a new window** follows the pointer along the window's edge
 instead. The hint is also announced to screen readers, and the preview does not animate when
-reduced motion is on. On macOS the ghost's transparency uses Tauri's `macos-private-api` (an IMT
+reduced motion is on. On macOS the ghost's transparency uses Tauri's `macos-private-api` (a Debrief
 build with it cannot be published in the Mac App Store); where a snapshot cannot be made (WebKit
 refuses to read back a rendered page), the ghost shows the icon, the name and the outline only.
 
-IMT behaves like a desktop app, not a web page: right-clicking toolbars, tabs and other chrome
-shows IMT's own menus or nothing (text fields and selected text keep the system Copy/Paste menu),
+Debrief behaves like a desktop app, not a web page: right-clicking toolbars, tabs and other chrome
+shows Debrief's own menus or nothing (text fields and selected text keep the system Copy/Paste menu),
 and the browser's reload, back/forward (keys and mouse buttons), page zoom (`Ctrl` `+`/`-`/`0`,
 `Ctrl`+wheel), find, print, save page and view source do nothing, as do the developer tools in
-release builds. IMT's own shortcuts and `Ctrl`+wheel zoom on the timeline still work. Buttons, tabs,
+release builds. Debrief's own shortcuts and `Ctrl`+wheel zoom on the timeline still work. Buttons, tabs,
 menus and bars do not select like text; log messages, inspector values and fields do. Images and
 links cannot be dragged out of the window.
 
@@ -607,7 +664,7 @@ Three features turn what the engine knows into a workflow, and all three work wi
 ## Video sources
 
 *File ▸ Open video…* (or a dropped recording) turns a screen recording into evidence next to the logs
-([ADR 0033](adr/0033-video-sources-ffmpeg-runtime.md)). IMT does not bundle FFmpeg: Settings ▸ Video downloads a pinned LGPL
+([ADR 0033](adr/0033-video-sources-ffmpeg-runtime.md)). Debrief does not bundle FFmpeg: Settings ▸ Video downloads a pinned LGPL
 build once (checked by SHA-256 and a self-test, with rollback), or uses an `ffmpeg` you point it at (on macOS today). Every
 FFmpeg run is sandboxed: no network, only the video readable, memory and time limited, cancellable as a job.
 
@@ -635,23 +692,23 @@ analyses*, each a job). The **SQL** tab runs sandboxed, read-only DuckDB SQL ove
 - **Several windows, one workspace each.** *New window* (`Mod+Shift+N`) opens a window with its own
   files, profile, filters, live tail and project; closing a window frees its workspace and stops its
   live tail.
-- **One IMT per user.** Starting IMT again (or opening files from Finder or Explorer) hands the
+- **One Debrief per user.** Starting Debrief again (or opening files from Finder or Explorer) hands the
   paths to the running instance, which opens them as set in *Settings → Window & tray*: in a new
   window (the default), in the current window, or by asking each time. An empty window is always
   reused. Dismissing the "this window / new window" question cancels and drops the files.
   `--new-window` always opens a new window; `--new-instance` and safe mode start a separate process
   (see [Command line](user-guide.md#command-line)).
-- **Closing the last window** asks (the default), quits, or keeps IMT running in the system tray,
+- **Closing the last window** asks (the default), quits, or keeps Debrief running in the system tray,
   where live tail, the process monitor and other background work continue. The tray menu shows the
   windows, a new window, recent projects, the running background tasks with *Stop* actions, a
-  diagnostic screenshot and *Quit*. IMT can also start hidden in the tray. Without a tray (for
+  diagnostic screenshot and *Quit*. Debrief can also start hidden in the tray. Without a tray (for
   example Linux without an app indicator) closing the last window quits.
-- **Quitting IMT** in one step: *File ▸ Exit* (Windows, Linux) or *IMT ▸ Quit IMT* (macOS, ⌘Q) closes every
+- **Quitting Debrief** in one step: *File ▸ Exit* (Windows, Linux) or *Debrief ▸ Quit Debrief* (macOS, ⌘Q) closes every
   window after asking once about unsaved changes in the current window; the other windows keep their
   autosaved sessions.
 - **Desktop notifications** (off, alerts only (the default), or alerts and finished work): live
   alerts in a window you cannot see, a crash detected at start, failed jobs, a plugin or the AI
-  switched off, imports and long jobs finished while IMT is not in front, and updates. They are
+  switched off, imports and long jobs finished while Debrief is not in front, and updates. They are
   rate-limited and never contain file contents; clicking one opens its message in Notifications.
 
 The tray and notifications use the platform's own facilities; they are covered by unit tests of
@@ -659,15 +716,15 @@ their pure logic but have not been checked on every desktop environment.
 
 ## Updates, storage, language and accessibility
 
-- **Updates are opt-in and signed.** IMT checks for a new version only when you choose *Check for
+- **Updates are opt-in and signed.** Debrief checks for a new version only when you choose *Check for
   updates…* or turn on *Check for updates automatically* in Settings ▸ Updates (off by default). The
   check is one HTTPS request for `latest.json` that carries no identifier; every update is verified
   with the key built into the app before it is installed. See [docs/releasing.md](releasing.md).
-- **Disk usage.** Settings ▸ Disk usage lists what IMT keeps on disk (opened-bundle copies, the web view
+- **Disk usage.** Settings ▸ Disk usage lists what Debrief keeps on disk (opened-bundle copies, the web view
   cache, AI runtimes and models, logs, error snapshots, session backups) with sizes. *Clear cache…*
   says what goes and how much, then removes it.
 - **Project stores.** Under the categories, Settings ▸ Storage lists the store folders on disk with size, last use
-  and state (open, kept for session restore, in use by another IMT, orphaned). Only orphaned stores can be cleaned up,
+  and state (open, kept for session restore, in use by another Debrief, orphaned). Only orphaned stores can be cleaned up,
   after a confirmation, and an open store never; an optional automatic clean-up removes orphaned stores unused for N
   days (off by default).
 - **Language.** All UI text is marked for translation and extracted to an XLF file; a generated
@@ -679,9 +736,9 @@ their pure logic but have not been checked on every desktop environment.
 
 ## Themes, colour schemes and density
 
-![The workspace in the light colour scheme of the Calm theme](screenshots/light-theme.png)
+![The workspace in the light colour scheme of the Calm theme](screenshots/workspace-light.png)
 
-Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses how IMT looks:
+Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses how Debrief looks:
 
 - **Theme.** *Calm* (the default) is quiet and neutral: graphite surfaces, one blue accent, 1 px structure, and
   colour only where the data is. *Console* has soft cards on a tinted canvas, a violet accent and richer severity
@@ -722,7 +779,7 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
 ## Robust by design
 
 - **Never modifies your files.** Input is opened read-only.
-- **Safe mode** (`--safe-mode` or `IMT_SAFE_MODE=1`, or *Restart in safe mode*) starts without
+- **Safe mode** (`--safe-mode` or `DEBRIEF_SAFE_MODE=1`, or *Restart in safe mode*) starts without
   plugins and without the saved profile, for when something misbehaves. It runs as a separate
   process with its own sessions, so it never touches the main instance's.
 - **Crash detection that is not fooled.** A running marker records the process id and its start
@@ -738,8 +795,8 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
   quarantined, inactive), what it requires and provides, the reason it is inactive, its dependents,
   warnings, whether it is hung, and per-subscriber event counters (delivered, dropped, failures,
   skipped); a plugin can be reset or disabled there. A plugin that crashes, is quarantined or becomes
-  inactive is also reported to its window as an engine error (`imt://error`, which can trigger an
-  error snapshot). Plugins are deactivated when their window closes and when IMT exits.
+  inactive is also reported to its window as an engine error (`debrief://error`, which can trigger an
+  error snapshot). Plugins are deactivated when their window closes and when Debrief exits.
 - **Only files you chose.** Commands that read or write a file the UI names accept only paths chosen
   in a native dialog, dropped on the window, given on the command line or the window's own project;
   anything else is refused with a message to choose the file again. Restarting (safe mode, as
@@ -753,9 +810,11 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
   matching events covers the first ones and says so (*Analysed the first ... of ...*);
   external tools run with timeouts; locked files and missing rights produce a message and a next step
   (retry, restart as administrator) instead of an error dialog.
-- **Diagnostics with or without the UI.** *Help ▸ Report a problem…* (and *Save diagnostics…* on the safe-mode and crash banners) and `imt-app --export-diagnostics [<file.zip>] [--force]` (no window, no plugins; exits 0/1) write one zip with IMT's logs, each child process's log (AI engine, llama-server, plugin processes; secrets scrubbed), `processes.json`, steps, snapshots, crash marker and a versioned `manifest.json`; opening that zip in IMT shows it as a diagnostics workspace (one lane per log, crash/restart markers, the *Diagnostics report* panel). Sample: `samples/diagnostics/imt-diagnostics-sample.zip`.
+- **Diagnostics with or without the UI.** *Help ▸ Report a problem…* (and *Save diagnostics…* on the safe-mode and crash banners) and `debrief-app --export-diagnostics [<file.zip>] [--force]` (no window, no plugins; exits 0/1) write one zip with Debrief's logs, each child process's log (AI engine, llama-server, plugin processes; secrets scrubbed), `processes.json`, steps, snapshots, crash marker and a versioned `manifest.json`; opening that zip in Debrief shows it as a diagnostics workspace (one lane per log, crash/restart markers, the *Diagnostics report* panel). Sample: `samples/diagnostics/debrief-diagnostics-sample.zip`.
 
 ## Easy to start, hard to get wrong
+
+![Home: tiles, events over time by level, needs-attention items and the health check](screenshots/home.png)
 
 - **Try a demo** on the welcome screen opens the bundled sample incident and offers a short, skippable
   guided tour of the timeline, grid, search field, Moment view, markers and Home.
@@ -781,12 +840,12 @@ sub-tracks below the lane's markers, so none hides another; the lane grows by on
   live preview against your own file.
 - **"Did you mean"** for unknown field names in the query language (computed by the engine) and for
   commands in the palette; helpful empty states say what to do next.
-- **IMT never modifies your files.** Opened logs and folders are only read. IMT writes only where you
+- **Debrief never modifies your files.** Opened logs and folders are only read. Debrief writes only where you
   explicitly save or export, and never replaces an existing file without asking: every write command
-  refuses to overwrite unless the user confirmed it (in the system's save dialog or in IMT).
+  refuses to overwrite unless the user confirmed it (in the system's save dialog or in Debrief).
 
 ## Privacy
 
-Everything runs on your machine. IMT sends no telemetry and makes no network requests to analyse
-files; the webview's content security policy allows no remote origins. Logs written by IMT itself do
+Everything runs on your machine. Debrief sends no telemetry and makes no network requests to analyse
+files; the webview's content security policy allows no remote origins. Logs written by Debrief itself do
 not contain file contents.

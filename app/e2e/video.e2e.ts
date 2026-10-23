@@ -6,7 +6,7 @@ import { chooseMenu } from './menu-support';
 // The Video view runs against the browser build's mock video engine (src/app/video/mock/mock-video-backend.ts):
 // File ▸ Open video… "picks" two demo videos, one playable and one whose file is not where it was.
 
-const view = (page: Page) => page.locator('imt-video-view');
+const view = (page: Page) => page.locator('debrief-video-view');
 const id = (page: Page, testId: string) => view(page).getByTestId(testId);
 const frames = (page: Page) => view(page).getByRole('listbox', { name: 'Frames of the video' }).getByRole('option');
 
@@ -30,7 +30,7 @@ test.describe('Video', () => {
     await page.keyboard.press('Space');
     await expect(id(page, 'video-frame-name')).toHaveText('Frame 4 at 00:15');
     await expect(frames(page).nth(3)).toHaveAttribute('aria-selected', 'true');
-    await expectNoSeriousViolations(page, testInfo, 'video-view', 'imt-video-view');
+    await expectNoSeriousViolations(page, testInfo, 'video-view', 'debrief-video-view');
   });
 
   test('a note is saved on the chosen frame', async ({ page }) => {
@@ -58,7 +58,7 @@ test.describe('Video', () => {
     await expect(id(page, 'video-align-by')).toContainText('set by you');
     await expect(id(page, 'video-align-evidence')).toContainText('You moved the start by -2.5 s');
     await expect(id(page, 'video-align-auto')).toBeEnabled();
-    await expectNoSeriousViolations(page, testInfo, 'video-alignment', 'imt-alignment-panel');
+    await expectNoSeriousViolations(page, testInfo, 'video-alignment', 'debrief-alignment-panel');
     await id(page, 'video-align-auto').click();
     await expect(id(page, 'video-align-by')).toContainText("the video's own creation time");
     // The model reads the clock in the chosen frame.
@@ -99,22 +99,22 @@ test.describe('Video', () => {
     await page.getByRole('button', { name: 'Settings' }).click();
     const dialog = page.getByRole('dialog', { name: 'Settings' });
     await dialog.getByRole('button', { name: 'Video' }).click();
-    const settings = dialog.locator('imt-video-settings');
+    const settings = dialog.locator('debrief-video-settings');
     await expect(settings.getByRole('heading', { name: 'FFmpeg runtime' })).toBeVisible();
     await expect(settings.getByTestId('video-settings-custom')).toContainText('/opt/homebrew/bin/ffmpeg');
     await expect(settings.getByTestId('video-settings-mac')).toContainText('brew install ffmpeg');
     await expect(settings.getByTestId('video-detected')).toContainText('Homebrew');
-    await expectNoSeriousViolations(page, testInfo, 'video-settings', 'imt-video-settings');
+    await expectNoSeriousViolations(page, testInfo, 'video-settings', 'debrief-video-settings');
   });
 
   test('without FFmpeg the view says so and points to Settings', async ({ page }) => {
     await page.goto('/?mockVideoRuntime=windows');
-    await expect(page.locator('imt-status-bar')).toContainText('events');
+    await expect(page.locator('debrief-status-bar')).toContainText('events');
     await chooseMenu(page, 'File', 'Open video…');
     await expect(id(page, 'video-runtime-problem')).toContainText('FFmpeg is not set up');
     await expect(id(page, 'video-error-retry').or(id(page, 'video-runtime-setup'))).toBeVisible();
     await id(page, 'video-runtime-setup').click();
-    await expect(page.getByRole('dialog', { name: 'Settings' }).locator('imt-video-settings')).toBeVisible();
+    await expect(page.getByRole('dialog', { name: 'Settings' }).locator('debrief-video-settings')).toBeVisible();
     await expect(page.getByTestId('video-install')).toContainText('Download FFmpeg');
   });
 });

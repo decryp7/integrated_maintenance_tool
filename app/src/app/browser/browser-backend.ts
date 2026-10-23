@@ -15,10 +15,10 @@ import {
   SourceInfo,
 } from './browser.types';
 
-export const BROWSER_EVENT = 'imt://browser';
+export const BROWSER_EVENT = 'debrief://browser';
 
 /**
- * The AI's browser of this IMT window: a real Chromium window that research and the chat's browser modes drive over
+ * The AI's browser of this Debrief window: a real Chromium window that research and the chat's browser modes drive over
  * DevTools, plus the user's default browser for links. Injected as a class token: the Tauri commands in the desktop
  * app, the mock in the browser build (dev and UI tests).
  */

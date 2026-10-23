@@ -1,0 +1,20 @@
+[package]
+name = "debrief-store-client"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+description = "Debrief's side of the store worker (ADR 0014): the protocol, the supervised worker process and RemoteStore, which implements the store ports over debrief-ipc. Links no database, so the app does not load libduckdb"
+
+[dependencies]
+debrief-core = { path = "../debrief-core" }
+debrief-ipc = { path = "../debrief-ipc" }
+debrief-plugin-api = { path = "../debrief-plugin-api" }
+arrow-array.workspace = true
+arrow-ipc.workspace = true
+log.workspace = true
+serde.workspace = true
+# Exact floats: replies cross as JSON and must read back bit for bit.
+serde_json = { workspace = true, features = ["preserve_order", "float_roundtrip"] }

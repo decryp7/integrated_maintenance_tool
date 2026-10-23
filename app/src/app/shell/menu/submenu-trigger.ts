@@ -7,7 +7,7 @@ import { DestroyRef, Directive, ElementRef, inject } from '@angular/core';
  * the menu again. A menu opened by a click still closes on the next click. Capture listeners on the target run
  * before CDK's own.
  */
-@Directive({ selector: '[imtMenuTrigger]' })
+@Directive({ selector: '[debriefMenuTrigger]' })
 export class MenuTriggerGuard {
   constructor() {
     const trigger = inject(CdkMenuTrigger);

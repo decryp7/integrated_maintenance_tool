@@ -1,5 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { Icon } from '../../shared/icon';
+import { Switch } from '../../shared/switch';
+import { DebriefSelect, SelectOption } from '../../settings/themed-select';
 import { HelpHint } from '../../ui/help-hint';
 import { CpuMode } from '../../core/tools.types';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
@@ -15,16 +17,16 @@ const KIND_LABEL: Record<TargetKind, string> = {
   pid: $localize`:@@tools.monitor.kind.pid:Process id`,
 };
 
-/** Process monitor: samples CPU, memory, threads and handles of chosen processes into CLEF files IMT can chart. */
+/** Process monitor: samples CPU, memory, threads and handles of chosen processes into CLEF files Debrief can chart. */
 @Component({
-  selector: 'imt-monitor-view',
+  selector: 'debrief-monitor-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, HelpHint, ToolError, ToolUnavailable, MonitorLiveCharts],
+  imports: [Icon, HelpHint, DebriefSelect, Switch, ToolError, ToolUnavailable, MonitorLiveCharts],
   template: `
     <div class="scroll" role="region" aria-label="Process monitor" i18n-aria-label="@@tools.monitor.region" tabindex="0">
       <p class="intro" i18n="@@tools.monitor.intro">Sample the resource use of processes at an interval. The samples are written as log events and opened here with live tail, so they show up on the timeline, in Metrics and in the Live charts below.</p>
-      <imt-tool-unavailable tool="process-monitor" />
-      <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+      <debrief-tool-unavailable tool="process-monitor" />
+      <debrief-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       @if (store.notice(); as notice) { <div class="note" role="status">{{ notice }}</div> }
 
       <div class="card status" data-testid="monitor-status" role="status">
@@ -32,10 +34,10 @@ const KIND_LABEL: Record<TargetKind, string> = {
         <strong>{{ runLabel() }}</strong>
         @if (store.dir(); as dir) { <span class="faint ellipsis" [title]="dir" i18n="@@tools.monitor.output">Output: <span class="mono">{{ dir }}</span></span> }
         <span class="spacer"></span>
-        <button type="button" class="icon-btn" aria-label="Refresh status" i18n-aria-label="@@tools.monitor.refresh.aria" title="Refresh status" i18n-title="@@tools.monitor.refresh.title" (click)="store.refresh()"><imt-icon name="refresh" [size]="14" /></button>
+        <button type="button" class="icon-btn" aria-label="Refresh status" i18n-aria-label="@@tools.monitor.refresh.aria" title="Refresh status" i18n-title="@@tools.monitor.refresh.title" (click)="store.refresh()"><debrief-icon name="refresh" [size]="14" /></button>
       </div>
 
-      <imt-monitor-live-charts />
+      <debrief-monitor-live-charts />
 
       @if (store.accessDeniedSeen() > 0) {
         <div class="warn" role="alert" data-testid="access-denied-note">
@@ -44,23 +46,21 @@ const KIND_LABEL: Record<TargetKind, string> = {
             <ng-container i18n="@@tools.monitor.adminNeeded">Administrator rights are needed for those.</ng-container>
             <button type="button" class="btn" (click)="life.restartElevated()" i18n="@@tools.monitor.restartAdmin">Restart as administrator</button>
           } @else {
-            <ng-container i18n="@@tools.monitor.runAsAdmin">Run IMT as administrator to include them.</ng-container>
+            <ng-container i18n="@@tools.monitor.runAsAdmin">Run Debrief as administrator to include them.</ng-container>
           }
         </div>
       }
 
       <section aria-labelledby="pmon-targets" (input)="edited.set(true)" (change)="edited.set(true)">
-        <h2 id="pmon-targets" class="section-title" i18n="@@tools.monitor.targets">Targets <imt-help label="Targets" i18n-label="@@tools.monitor.targets.helpLabel" text="A process is watched when any row matches. Names and paths accept globs such as order*, case-insensitive; a path matches the full executable path." i18n-text="@@tools.monitor.targets.helpText" /></h2>
+        <h2 id="pmon-targets" class="section-title" i18n="@@tools.monitor.targets">Targets <debrief-help label="Targets" i18n-label="@@tools.monitor.targets.helpLabel" text="A process is watched when any row matches. Names and paths accept globs such as order*, case-insensitive; a path matches the full executable path." i18n-text="@@tools.monitor.targets.helpText" /></h2>
         @for (t of store.draft().targets; track $index) {
           <div class="inline">
-            <select class="select" [attr.aria-label]="targetTypeLabel($index)" [value]="t.kind" (change)="store.setTarget($index, { kind: kind($event) })">
-              @for (k of kinds; track k) { <option [value]="k">{{ label[k] }}</option> }
-            </select>
+            <debrief-select [attr.data-testid]="'target-type-' + $index" [ariaLabel]="targetTypeLabel($index)" [options]="kindOptions" [value]="t.kind" (valueChange)="edited.set(true); store.setTarget($index, { kind: $any($event) })" />
             <input class="input grow" [attr.aria-label]="targetValueLabel($index)" [value]="t.value" placeholder="e.g. OrderService*" i18n-placeholder="@@tools.monitor.target.placeholder" (input)="store.setTarget($index, { value: val($event) })" />
-            <button type="button" class="icon-btn" [attr.aria-label]="removeTargetLabel($index)" title="Remove" i18n-title="@@tools.monitor.remove.title" (click)="store.removeTarget($index)"><imt-icon name="close" [size]="13" /></button>
+            <button type="button" class="icon-btn" [attr.aria-label]="removeTargetLabel($index)" title="Remove" i18n-title="@@tools.monitor.remove.title" (click)="store.removeTarget($index)"><debrief-icon name="close" [size]="13" /></button>
           </div>
         }
-        <div><button type="button" class="btn" (click)="store.addTarget()" i18n="@@tools.monitor.addTarget"><imt-icon name="plus" [size]="12" />Add target</button></div>
+        <div><button type="button" class="btn" (click)="store.addTarget()" i18n="@@tools.monitor.addTarget"><debrief-icon name="plus" [size]="12" />Add target</button></div>
       </section>
 
       <section aria-labelledby="pmon-opts" (input)="edited.set(true)" (change)="edited.set(true)">
@@ -69,22 +69,19 @@ const KIND_LABEL: Record<TargetKind, string> = {
           <label class="lbl"><ng-container i18n="@@tools.monitor.interval">Interval (ms)</ng-container>
             <input class="input" type="number" min="250" step="250" [value]="store.draft().intervalMs" (input)="store.patchDraft({ intervalMs: +val($event) })" />
           </label>
-          <label class="lbl"><ng-container i18n="@@tools.monitor.cpuShownAs">CPU shown as</ng-container>
-            <select class="select" [value]="store.draft().cpu" (change)="store.patchDraft({ cpu: cpu($event) })">
-              <option value="machine" i18n="@@tools.monitor.cpu.machine">Percent of the whole machine</option>
-              <option value="core" i18n="@@tools.monitor.cpu.core">Percent of one core (like top)</option>
-            </select>
-          </label>
+          <div class="lbl"><ng-container i18n="@@tools.monitor.cpuShownAs">CPU shown as</ng-container>
+            <debrief-select data-testid="cpu-mode" [ariaLabel]="cpuLabel" [options]="cpuOptions" [value]="store.draft().cpu" (valueChange)="edited.set(true); store.patchDraft({ cpu: $any($event) })" />
+          </div>
         </div>
-        <label class="check" i18n="@@tools.monitor.includeChildren"><input type="checkbox" [checked]="store.draft().includeChildren" (change)="store.patchDraft({ includeChildren: checked($event) })" /> Include child processes</label>
-        <label class="check" i18n="@@tools.monitor.dotnet"><input type="checkbox" [checked]="store.draft().dotnet" (change)="store.patchDraft({ dotnet: checked($event) })" /> .NET runtime counters (Framework)
-          <imt-help label=".NET runtime counters" i18n-label="@@tools.monitor.dotnet.helpLabel" i18n-text="@@tools.monitor.dotnet.helpText" text="Reads GC collections, heap sizes, % time in GC, exceptions/s, lock contention, threads and loaded assemblies of .NET Framework processes. .NET (Core) processes need EventPipe and are reported as not collected." /></label>
+        <debrief-switch [checked]="store.draft().includeChildren" (checkedChange)="edited.set(true); store.patchDraft({ includeChildren: $event })"><ng-container i18n="@@tools.monitor.includeChildren">Include child processes</ng-container></debrief-switch>
+        <debrief-switch [checked]="store.draft().dotnet" (checkedChange)="edited.set(true); store.patchDraft({ dotnet: $event })"><ng-container i18n="@@tools.monitor.dotnet">.NET runtime counters (Framework)</ng-container>
+          <debrief-help label=".NET runtime counters" i18n-label="@@tools.monitor.dotnet.helpLabel" i18n-text="@@tools.monitor.dotnet.helpText" text="Reads GC collections, heap sizes, % time in GC, exceptions/s, lock contention, threads and loaded assemblies of .NET Framework processes. .NET (Core) processes need EventPipe and are reported as not collected." /></debrief-switch>
         @if (store.countersAvailable()) {
           <label class="lbl"><ng-container i18n="@@tools.monitor.extraCounters">Extra performance counters (one per line, optional)</ng-container>
             <textarea class="input mono" rows="3" [value]="store.draft().counters" placeholder="\\Process(*)\\IO Data Bytes/sec" (input)="store.patchDraft({ counters: val($event) })"></textarea>
           </label>
         }
-        <label class="lbl"><ng-container i18n="@@tools.monitor.outputFolder">Output folder (optional, defaults to IMT's data folder)</ng-container>
+        <label class="lbl"><ng-container i18n="@@tools.monitor.outputFolder">Output folder (optional, defaults to Debrief's data folder)</ng-container>
           <input class="input mono" [value]="store.draft().dir" (input)="store.patchDraft({ dir: val($event) })" />
         </label>
       </section>
@@ -117,7 +114,6 @@ const KIND_LABEL: Record<TargetKind, string> = {
     .row { display: flex; gap: 12px; flex-wrap: wrap; }
     .row .lbl { flex: 1; min-width: 160px; }
     .lbl { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-xs); color: var(--muted); }
-    .check { display: inline-flex; gap: 6px; align-items: center; color: var(--text-2); }
     .problem { color: var(--danger-text); font-size: var(--fs-sm); }
     .note { padding: 6px 10px; border-radius: 6px; border: 1px solid var(--ok); background: var(--bg-3); font-size: var(--fs-sm); }
     .warn { padding: 8px 10px; border-radius: 6px; border: 1px solid var(--lvl-warn); background: var(--bg-3); font-size: var(--fs-sm); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
@@ -128,8 +124,12 @@ export class MonitorView implements OnInit {
   protected readonly edited = signal(false);
   protected readonly store = inject(MonitorStore);
   protected readonly life = inject(LifecycleService);
-  protected readonly kinds: TargetKind[] = ['name', 'path', 'pid'];
-  protected readonly label = KIND_LABEL;
+  protected readonly kindOptions: SelectOption<TargetKind>[] = (['name', 'path', 'pid'] as const).map((k) => ({ value: k, label: KIND_LABEL[k] }));
+  protected readonly cpuLabel = $localize`:@@tools.monitor.cpuShownAs.aria:CPU shown as`;
+  protected readonly cpuOptions: SelectOption<CpuMode>[] = [
+    { value: 'machine', label: $localize`:@@tools.monitor.cpu.machine:Percent of the whole machine` },
+    { value: 'core', label: $localize`:@@tools.monitor.cpu.core:Percent of one core (like top)` },
+  ];
   protected readonly runLabel = computed(() =>
     this.store.running() ? $localize`:@@tools.monitor.running:Running` : $localize`:@@tools.monitor.stopped:Stopped`,
   );
@@ -143,7 +143,4 @@ export class MonitorView implements OnInit {
   }
 
   protected val = (e: Event) => (e.target as HTMLInputElement).value;
-  protected checked = (e: Event) => (e.target as HTMLInputElement).checked;
-  protected kind = (e: Event) => this.val(e) as TargetKind;
-  protected cpu = (e: Event) => this.val(e) as CpuMode;
 }

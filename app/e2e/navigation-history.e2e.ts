@@ -24,7 +24,7 @@ async function pressUntil(page: Page, key: string, done: () => Promise<boolean>,
   }
 }
 
-const inspector = (page: Page) => page.locator('imt-inspector');
+const inspector = (page: Page) => page.locator('debrief-inspector');
 
 /** The inspector shows event `index` (its header reads "Event #n"; the capital letters are CSS). */
 async function expectEvent(page: Page, index: number): Promise<void> {
@@ -33,13 +33,13 @@ async function expectEvent(page: Page, index: number): Promise<void> {
 
 /** Clicks the row at this position of the result (the DOM order of the virtual rows is not the visual one). */
 async function selectEvent(page: Page, index: number): Promise<void> {
-  await page.locator(`imt-events-grid [role=row][aria-rowindex="${index + 2}"]`).click();
+  await page.locator(`debrief-events-grid [role=row][aria-rowindex="${index + 2}"]`).click();
   await expectEvent(page, index);
 }
 
 /** Drags across the histogram strip between two fractions of the plot width. */
 async function brush(page: Page, from: number, to: number): Promise<void> {
-  const box = (await page.locator('imt-timeline-panel .hist-row .plot').boundingBox())!;
+  const box = (await page.locator('debrief-timeline-panel .hist-row .plot').boundingBox())!;
   const y = box.y + box.height / 2;
   await page.mouse.move(box.x + box.width * from, y);
   await page.mouse.down();
@@ -60,7 +60,7 @@ test.describe('navigation history', () => {
     await selectEvent(page, 9);
     await page.keyboard.press('Alt+ArrowLeft');
     await expectEvent(page, 5);
-    await expect(page.locator('imt-events-grid [role=row][aria-selected=true]')).toHaveCount(1);
+    await expect(page.locator('debrief-events-grid [role=row][aria-selected=true]')).toHaveCount(1);
   });
 
   test('the mouse back button does the same', async ({ page }) => {
@@ -118,6 +118,6 @@ test.describe('navigation history', () => {
     await expect(gridTotal(page)).toHaveText(all);
     await page.keyboard.press('ControlOrMeta+Shift+z');
     await expect.poll(() => rangeOf(page)).toBe(zoomed);
-    await expectNoSeriousViolations(page, testInfo, 'navigation-zoomed', 'imt-filter-bar');
+    await expectNoSeriousViolations(page, testInfo, 'navigation-zoomed', 'debrief-filter-bar');
   });
 });

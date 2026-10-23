@@ -12,7 +12,7 @@ export const LANGUAGE_STORAGE = new InjectionToken<LanguageStorage>('LANGUAGE_ST
 });
 
 /**
- * Starts IMT again so the startup code loads the new language: the desktop app relaunches and reopens the session,
+ * Starts Debrief again so the startup code loads the new language: the desktop app relaunches and reopens the session,
  * the browser build reloads the page. Replaced in tests.
  */
 export const PAGE_RELOAD = new InjectionToken<() => void>('PAGE_RELOAD', {
@@ -55,7 +55,7 @@ export class LanguageService {
       title: $localize`:Dialog title@@i18n.reload.title:Change the language?`,
       width: 440,
       inputs: {
-        message: $localize`:@@i18n.reload.message:IMT restarts to show the new language and reopens your session. Unsaved edits in open dialogs are lost.`,
+        message: $localize`:@@i18n.reload.message:Debrief restarts to show the new language and reopens your session. Unsaved edits in open dialogs are lost.`,
         confirmLabel: $localize`:@@i18n.reload.confirm:Restart now`,
         cancelLabel: $localize`:Keep the current language until the next start@@i18n.reload.later:Later`,
       },

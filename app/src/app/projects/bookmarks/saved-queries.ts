@@ -9,7 +9,7 @@ import { SavedSqlStore } from './saved-sql.store';
 
 /** Named queries: save the current search and filters, re-apply them with one click; saved SQL opens in the SQL console. */
 @Component({
-  selector: 'imt-saved-queries',
+  selector: 'debrief-saved-queries',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
@@ -24,7 +24,7 @@ import { SavedSqlStore } from './saved-sql.store';
             <span class="badge" title="Query language" i18n-title="@@projects.savedQueries.qlBadgeTitle" i18n="@@projects.savedQueries.qlBadge">QL</span>
             <span class="ellipsis grow" [title]="q.name">{{ q.name }}</span>
             <button type="button" class="btn" [attr.aria-label]="applyLabel(q.name)" (click)="queries.apply(q.id)" i18n="@@projects.savedQueries.apply">Apply</button>
-            <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(q.name)" title="Delete" i18n-title="@@projects.savedQueries.delete" (click)="queries.remove(q.id)"><imt-icon name="trash" [size]="13" /></button>
+            <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(q.name)" title="Delete" i18n-title="@@projects.savedQueries.delete" (click)="queries.remove(q.id)"><debrief-icon name="trash" [size]="13" /></button>
           </li>
         }
         @for (q of sql.items(); track q.id) {
@@ -32,7 +32,7 @@ import { SavedSqlStore } from './saved-sql.store';
             <span class="badge sql" title="SQL console" i18n-title="@@projects.savedQueries.sqlBadgeTitle" i18n="@@projects.savedQueries.sqlBadge">SQL</span>
             <span class="ellipsis grow" [title]="q.sql">{{ q.name }}</span>
             <button type="button" class="btn" [attr.aria-label]="openLabel(q.name)" (click)="openSql(q.sql)" i18n="@@projects.savedQueries.openSql">Open</button>
-            <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(q.name)" title="Delete" i18n-title="@@projects.savedQueries.delete" (click)="sql.remove(q.id)"><imt-icon name="trash" [size]="13" /></button>
+            <button type="button" class="icon-btn" [attr.aria-label]="deleteLabel(q.name)" title="Delete" i18n-title="@@projects.savedQueries.delete" (click)="sql.remove(q.id)"><debrief-icon name="trash" [size]="13" /></button>
           </li>
         }
       </ul>

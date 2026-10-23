@@ -4,7 +4,7 @@ import { LifecycleService } from './lifecycle.service';
 
 /** Right end of the title bar: project name with an unsaved dot, and the Administrator badge. */
 @Component({
-  selector: 'imt-title-extras',
+  selector: 'debrief-title-extras',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { style: 'display: contents' },
   template: `
@@ -12,7 +12,7 @@ import { LifecycleService } from './lifecycle.service';
       {{ projects.name() }}@if (projects.dirty()) {<span class="unsaved" role="img" aria-label="Unsaved changes" title="Unsaved changes" i18n-aria-label="@@lifecycle.titleExtras.unsaved" i18n-title="@@lifecycle.titleExtras.unsavedTitle">●</span>}
     </span>
     @if (life.elevated()) {
-      <span class="admin" data-testid="admin-badge" title="IMT is running with administrator rights" i18n-title="@@lifecycle.titleExtras.adminTitle" i18n="@@lifecycle.titleExtras.admin">Administrator</span>
+      <span class="admin" data-testid="admin-badge" title="Debrief is running with administrator rights" i18n-title="@@lifecycle.titleExtras.adminTitle" i18n="@@lifecycle.titleExtras.admin">Administrator</span>
     }
   `,
   styles: `

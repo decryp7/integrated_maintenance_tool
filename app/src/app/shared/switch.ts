@@ -8,9 +8,9 @@ let nextId = 0;
  * The projected content is the label; it wraps beside the switch, never under it.
  */
 @Component({
-  selector: 'imt-switch',
+  selector: 'debrief-switch',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  host: { class: 'imt-switch', '[class.small]': 'size() === "small"' },
+  host: { class: 'debrief-switch', '[class.small]': 'size() === "small"' },
   template: `
     <label class="sw" [for]="inputId()">
       <input
@@ -56,6 +56,6 @@ export class Switch {
   readonly describedBy = input<string | null>(null);
   readonly size = input<'normal' | 'small'>('normal');
   /** Id of the inner checkbox (for `aria-describedby` targets and external labels). */
-  readonly inputId = input(`imt-switch-${nextId++}`);
+  readonly inputId = input(`debrief-switch-${nextId++}`);
   readonly checkedChange = output<boolean>();
 }

@@ -46,19 +46,19 @@ test.describe('events grid with 50 million rows', () => {
       const first = eventId(await gridRows(page).first().textContent());
       expect(first).toBeLessThanOrEqual(0 + 10);
     }).toPass();
-    await expect(page.locator('imt-events-grid .row', { hasText: 'Synthetic event 10' }).first()).toBeAttached();
+    await expect(page.locator('debrief-events-grid .row', { hasText: 'Synthetic event 10' }).first()).toBeAttached();
     // About a hundred rows further (the row height comes from the theme and density).
-    const rowH = await page.locator('imt-events-grid').evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--row-h')));
+    const rowH = await page.locator('debrief-events-grid').evaluate((el) => parseFloat(getComputedStyle(el).getPropertyValue('--row-h')));
     await page.mouse.wheel(0, 110 * rowH - 260);
-    await expect(page.locator('imt-events-grid .row', { hasText: 'Synthetic event 110' }).first()).toBeAttached();
+    await expect(page.locator('debrief-events-grid .row', { hasText: 'Synthetic event 110' }).first()).toBeAttached();
   });
 
   test('keyboard: End, Home, arrows and pages move the selection and keep it on screen', async ({ page }) => {
-    const sel = page.locator('imt-events-grid .row.sel');
+    const sel = page.locator('debrief-events-grid .row.sel');
     await viewport(page).focus();
     await page.keyboard.press('End');
     await expect(sel).toContainText('Synthetic event 49999999');
-    await expect(page.locator('imt-inspector')).toContainText('#49999999');
+    await expect(page.locator('debrief-inspector')).toContainText('#49999999');
     await page.keyboard.press('ArrowUp');
     await expect(sel).toContainText('Synthetic event 49999998');
     await page.keyboard.press('PageUp');
@@ -85,7 +85,7 @@ test.describe('events grid with 50 million rows', () => {
     const id = eventId(await row.textContent());
     await row.click();
     await page.getByRole('button', { name: 'Show ±2 min' }).click();
-    const sel = page.locator('imt-events-grid .row.sel');
+    const sel = page.locator('debrief-events-grid .row.sel');
     await expect(sel).toContainText(`Synthetic event ${id}`);
     // The query changes first (rows reload), then the jump centres the row: poll until it has settled.
     await expect
@@ -107,6 +107,6 @@ test.describe('events grid with 50 million rows', () => {
       el.scrollTop = el.scrollHeight / 3;
     });
     await expect(gridRows(page).first()).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'scale-grid', 'imt-events-grid');
+    await expectNoSeriousViolations(page, testInfo, 'scale-grid', 'debrief-events-grid');
   });
 });

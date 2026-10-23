@@ -138,7 +138,7 @@ mod tests {
             ("DurationMs", "12".into()),
             ("Files", "3".into()),
             ("ApiKey", "sk-123".into()),
-            ("SourceContext", "IMT.Activity".into()),
+            ("SourceContext", "Debrief.Activity".into()),
         ]
         .into_iter()
         .map(|(k, v)| (k.to_string(), v))

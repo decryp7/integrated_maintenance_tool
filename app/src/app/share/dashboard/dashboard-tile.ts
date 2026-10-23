@@ -31,7 +31,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
 
 /** One dashboard tile: asks the engine for its data (again when the query or data change) and draws it. */
 @Component({
-  selector: 'imt-dashboard-tile',
+  selector: 'debrief-dashboard-tile',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [EChart],
   template: `
@@ -53,7 +53,7 @@ export function cellText(column: string, value: unknown, tz: 'utc' | 'local'): s
         }
         @case ('chart') {
           @if (d.data.series.length) {
-            <imt-echart class="chart" [options]="chartOption()!" />
+            <debrief-echart class="chart" [options]="chartOption()!" />
           } @else {
             <div class="msg faint" i18n="@@share.dashboardTile.noData">No data in this range.</div>
           }

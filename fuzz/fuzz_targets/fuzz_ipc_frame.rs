@@ -1,7 +1,7 @@
 #![no_main]
-//! The frame decoder every IMT connection runs on untrusted bytes: the length prefix with its limit, the
+//! The frame decoder every Debrief connection runs on untrusted bytes: the length prefix with its limit, the
 //! postcard envelope and the generic JSON newtype. Never panics; what decodes re-encodes to the same frame.
-use imt_ipc::frame::{self, Frame};
+use debrief_ipc::frame::{self, Frame};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -14,6 +14,6 @@ fuzz_target!(|data: &[u8]| {
         rest = &rest[used..];
     }
     let _: Result<Frame, _> = frame::decode_body(data);
-    let _ = imt_ipc::wire::decode::<imt_ipc::Json>(data);
-    let _ = imt_ipc::wire::decode::<imt_ipc::RemoteError>(data);
+    let _ = debrief_ipc::wire::decode::<debrief_ipc::Json>(data);
+    let _ = debrief_ipc::wire::decode::<debrief_ipc::RemoteError>(data);
 });

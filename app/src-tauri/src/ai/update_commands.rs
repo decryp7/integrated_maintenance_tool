@@ -1,6 +1,6 @@
 //! The Tauri side of the AI update checks ([`super::updates`]): the scheduler thread, the install jobs, the
 //! "Update / Later / Skip this version" message and the commands `ai_updates_status`, `ai_updates_check`,
-//! `ai_updates_apply`, `ai_updates_skip`, `ai_updates_later`. Event: `imt://ai-updates` (the status, to every
+//! `ai_updates_apply`, `ai_updates_skip`, `ai_updates_later`. Event: `debrief://ai-updates` (the status, to every
 //! window). Wire types: `app/src/app/ai/ai.types.ts` (`AiUpdatesStatus`).
 
 use super::commands::core;
@@ -11,8 +11,8 @@ use super::updates::{system_now, AiUpdates, AiUpdatesStatus, BusyProbe, UpdateEf
 use super::{STATUS_EVENT, UPDATES_EVENT};
 use crate::jobs::{self, Controls, Done, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeScope, NoticeSeverity, NoticeSource};
-use imt_ai::setup::SetupStage;
-use imt_ai::updates::{UpdateCandidate, UpdateKind};
+use debrief_ai::setup::SetupStage;
+use debrief_ai::updates::{UpdateCandidate, UpdateKind};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
@@ -44,7 +44,7 @@ fn updates<R: Runtime>(app: &AppHandle<R>) -> AiResult<Arc<AiUpdates>> {
 }
 
 fn size_text(bytes: u64) -> String {
-    imt_plugin_api::units::bytes(bytes)
+    debrief_plugin_api::units::bytes(bytes)
 }
 
 /// The message of an update the user is asked about.
@@ -155,7 +155,7 @@ pub fn manage<R: Runtime>(app: &AppHandle<R>, core: Arc<AiCore>, now: Box<dyn Fn
 /// Creates the update checks for `core` and starts the scheduler. Call after [`super::manage`].
 pub fn init<R: Runtime>(app: &AppHandle<R>, core: Arc<AiCore>) {
     let updates = manage(app, core, Box::new(system_now));
-    let spawned = std::thread::Builder::new().name("imt-ai-updates".into()).spawn(move || loop {
+    let spawned = std::thread::Builder::new().name("debrief-ai-updates".into()).spawn(move || loop {
         std::thread::sleep(TICK);
         if std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| updates.tick())).is_err() {
             log::error!("AI update check stopped unexpectedly; it runs again at the next beat");

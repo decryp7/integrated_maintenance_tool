@@ -72,7 +72,7 @@ describe('ReportProblemDialog', () => {
     await flush(f);
     const el: HTMLElement = f.nativeElement;
     const names = [...el.querySelectorAll('[data-testid=report-contents] .name')].map((n) => n.textContent);
-    expect(names).toEqual(expect.arrayContaining(['description.txt', 'steps-to-reproduce.txt', 'system-info.json', 'logs/activity.log', 'logs/imt.log']));
+    expect(names).toEqual(expect.arrayContaining(['description.txt', 'steps-to-reproduce.txt', 'system-info.json', 'logs/activity.log', 'logs/debrief.log']));
     expect(names.some((n) => n?.startsWith('snapshots/'))).toBe(true);
     const steps = [...el.querySelectorAll('[data-testid=report-steps] li')].map((li) => li.textContent?.trim());
     expect(steps).toEqual(["Opened <dir#1a2b3c4d>/samples (3 files) from the menu", "Clicked 'Export CSV' from the menu"]);
@@ -127,7 +127,7 @@ describe('ReportProblemDialog', () => {
     await flush(f);
     await f.componentInstance.save();
     expect(f.componentInstance.saved()).toBeNull();
-    expect(REPORT_FILE_NAME).toBe('imt-problem-report.zip');
+    expect(REPORT_FILE_NAME).toBe('debrief-problem-report.zip');
   });
 
   it('formats sizes', () => {
@@ -150,10 +150,10 @@ describe('report and activity log commands', () => {
     expect(backend.activityLogOpened).toBe(1);
     expect(notifyError).not.toHaveBeenCalled();
     backend.openActivityLog = async () => {
-      throw new Error('IMT has not written a log yet');
+      throw new Error('Debrief has not written a log yet');
     };
     await log.run({ notifyError } as unknown as CommandContext);
-    expect(notifyError).toHaveBeenCalledWith('Could not open the activity log: IMT has not written a log yet');
+    expect(notifyError).toHaveBeenCalledWith('Could not open the activity log: Debrief has not written a log yet');
   });
 });
 
@@ -213,7 +213,7 @@ describe('snapshots with breadcrumbs', () => {
   });
 
   it('the snapshot toast offers to report the problem', async () => {
-    @Component({ selector: 'imt-host', imports: [SnapshotToast], template: '<imt-snapshot-toast />' })
+    @Component({ selector: 'debrief-host', imports: [SnapshotToast], template: '<debrief-snapshot-toast />' })
     class Host {}
     const { run } = setup();
     const f = TestBed.createComponent(Host);

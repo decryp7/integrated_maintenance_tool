@@ -27,7 +27,7 @@ jobs:
     name: fuzz (shard ${{ matrix.shard }}/6)
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
     strategy:
       fail-fast: false
       matrix:

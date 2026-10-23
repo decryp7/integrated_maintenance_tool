@@ -6,10 +6,10 @@
 //! host's state, so every command works unchanged from inside it), it hears
 //! the host's events ([`crate::windows::emit_to_window`] fans out), and it
 //! never outlives the host. Closing a pop-out docks its panel back: the host
-//! gets `imt://popout-closed` and puts the panel where it was.
+//! gets `debrief://popout-closed` and puts the panel where it was.
 //!
 //! Commands: `popout_panel`, `dock_panel`, `list_popouts`, `set_popout_on_top`.
-//! Events (to the host only): `imt://popout-closed`, `imt://popouts-changed`.
+//! Events (to the host only): `debrief://popout-closed`, `debrief://popouts-changed`.
 
 use crate::window_manager::clean_title;
 use crate::windows::Windows;
@@ -26,12 +26,12 @@ pub const LABEL_PREFIX: &str = "p-";
 /// More pop-outs per host window than this are refused.
 pub const MAX_POPOUTS: usize = 12;
 /// To the host: a pop-out is gone; dock its panel back. Payload: [`PopoutClosed`].
-pub const POPOUT_CLOSED_EVENT: &str = "imt://popout-closed";
+pub const POPOUT_CLOSED_EVENT: &str = "debrief://popout-closed";
 /// To the host: a pop-out opened, moved, resized or closed (persist the layout).
-pub const POPOUTS_CHANGED_EVENT: &str = "imt://popouts-changed";
+pub const POPOUTS_CHANGED_EVENT: &str = "debrief://popouts-changed";
 /// To the host: a pop-out window is being moved; where the cursor is. Payload: [`PopoutMoved`]. The host shows
 /// its dock guides under the cursor and docks the panel when the window is dropped on one.
-pub const POPOUT_MOVED_EVENT: &str = "imt://popout-moved";
+pub const POPOUT_MOVED_EVENT: &str = "debrief://popout-moved";
 
 const MAX_VIEW_ID: usize = 64;
 const MAX_PARAMS_BYTES: usize = 4096;
@@ -265,7 +265,9 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, host: &str, request: PopoutRequest) 
         anyhow::bail!("the view parameters are larger than {MAX_PARAMS_BYTES} bytes");
     }
     let host_window = app.get_window(host).ok_or_else(|| anyhow::anyhow!("the window was closed"))?;
-    let popouts = app.try_state::<Popouts>().ok_or_else(|| anyhow::anyhow!("IMT is not ready yet"))?;
+    let popouts = app
+        .try_state::<Popouts>()
+        .ok_or_else(|| anyhow::anyhow!("Debrief is not ready yet"))?;
     if let Some(existing) = popouts.find(host, &request.view_id) {
         if let Some(w) = app.get_window(&existing) {
             let _ = w.unminimize();
@@ -359,7 +361,7 @@ fn owned_by<'a, R: Runtime, M: Manager<R>>(
     Ok(b)
 }
 
-/// Pop-outs draw IMT's own compact title bar (like VS / VS Code tool windows). macOS keeps the native traffic
+/// Pop-outs draw Debrief's own compact title bar (like VS / VS Code tool windows). macOS keeps the native traffic
 /// lights (full screen, tiling, Mission Control) drawn over the web content; elsewhere the window has no native
 /// frame (the shell draws minimise / maximise / close) but keeps the OS shadow and its resize border.
 #[cfg(target_os = "macos")]
@@ -385,7 +387,7 @@ fn fallback_place<R: Runtime>(host: &Window<R>) -> (f64, f64, f64, f64) {
     (x, y, w, h)
 }
 
-/// A pop-out window is gone: forget it and, unless its host is gone too or IMT
+/// A pop-out window is gone: forget it and, unless its host is gone too or Debrief
 /// is quitting, tell the host to dock the panel back.
 pub fn on_destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
     let Some(entry) = app.try_state::<Popouts>().and_then(|p| p.remove(label)) else {
@@ -503,7 +505,7 @@ pub async fn set_popout_on_top<R: Runtime>(app: AppHandle<R>, window: Window<R>,
     if !is_popout(&label) {
         return Err("only a pop-out window can stay on top of its window".into());
     }
-    let popouts = app.try_state::<Popouts>().ok_or("IMT is not ready yet")?;
+    let popouts = app.try_state::<Popouts>().ok_or("Debrief is not ready yet")?;
     let entry = popouts.get(&label).ok_or("the pop-out was closed")?;
     if entry.keep_on_top == on {
         return Ok(());
@@ -810,10 +812,10 @@ mod tests {
         let other = crate::window_manager::open_new(&h, vec![]).unwrap();
         open(&h, MAIN, request("inspector")).unwrap();
         open(&h, &other, request("inspector")).unwrap();
-        let host = recorder(&window(&app, MAIN), "imt://test");
-        let mine = recorder(&window(&app, "p-main-1"), "imt://test");
-        let theirs = recorder(&window(&app, "p-w-2-2"), "imt://test");
-        emit_to_window(&h, MAIN, "imt://test", 1);
+        let host = recorder(&window(&app, MAIN), "debrief://test");
+        let mine = recorder(&window(&app, "p-main-1"), "debrief://test");
+        let theirs = recorder(&window(&app, "p-w-2-2"), "debrief://test");
+        emit_to_window(&h, MAIN, "debrief://test", 1);
         assert_eq!(host.lock().unwrap().len(), 1);
         assert_eq!(mine.lock().unwrap().len(), 1, "the pop-out hears its host's events");
         assert!(theirs.lock().unwrap().is_empty(), "other groups do not");

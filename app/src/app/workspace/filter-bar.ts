@@ -11,6 +11,7 @@ import { Switch } from '../shared/switch';
 import { TimelineZoom } from '../timeline/zoom';
 import { QueryField, QueryStatus } from '../analysis/query-field';
 import { SearchField } from '../analysis/search-field';
+import { LensBar } from '../lenses/lens-bar';
 
 /** The filter bar folds its secondary controls into a menu when the bar is narrower than this, px (H1). */
 export const COMPACT_WIDTH_PX = 1000;
@@ -28,41 +29,41 @@ const OP_LABELS: Record<FilterOp, string> = {
 };
 
 @Component({
-  selector: 'imt-filter-bar',
+  selector: 'debrief-filter-bar',
   host: { '[class.compact]': 'compact()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, ClickOutside, Switch, QueryField, QueryStatus],
+  imports: [Icon, ClickOutside, Switch, QueryField, QueryStatus, LensBar],
   template: `
     <div class="row">
-      <imt-query-field #qf />
+      <debrief-query-field #qf />
 
       <!-- One tab stop: the arrow keys move between the chips (roving tabindex). -->
       <div class="levels" role="toolbar" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels" (keydown)="onLevelsKey($event)">
-        @for (l of levels; track l; let i = $index) {
+        @for (l of visibleLevels(); track l; let i = $index) {
           <button #lvl class="lvl" [attr.data-level]="l" [attr.tabindex]="i === levelFocus() ? 0 : -1" (focus)="levelFocused(i)" [class.on]="levelOn(l)" [class.none]="levelMatching(l) === 0" (click)="store.toggleLevel(l)" [attr.aria-pressed]="levelOn(l)" [title]="levelTitle(l)">
             <span class="dot" [style.background]="levelVar(l)"></span>
-            <span class="mono code">{{ code(l) }}</span>
-            <span class="mono faint">{{ levelCount(l) }}</span>
+            <span class="code">{{ code(l) }}</span>
+            <span class="faint">{{ levelCount(l) }}</span>
           </button>
         }
       </div>
 
       <button class="btn tall range" [class.fold]="compact()" (click)="store.hasRange() && zoom.fit()" [title]="rangeLabel() + ' · ' + rangeTitle()">
-        <span class="mono ends"><span class="end">{{ rangeEnds()[0] }}</span>@if (rangeEnds()[1]) {<span> → </span><span class="end">{{ rangeEnds()[1] }}</span>}</span>
+        <span class="ends"><span class="end">{{ rangeShort()[0] }}</span>@if (rangeShort()[1]) {<span> – </span><span class="end">{{ rangeShort()[1] }}</span>}</span>
         @if (store.hasRange()) {
           <span class="faint">({{ rangeSpan() }})</span>
-          <imt-icon name="zoomOut" [size]="13" />
+          <debrief-icon name="zoomOut" [size]="13" />
         }
       </button>
       <button class="tz" [class.fold]="compact()" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@workspace.filterBar.toggleTz">{{ tz() }}</button>
-      <div class="anchor" (imtClickOutside)="addOpen.set(false)">
+      <div class="anchor" (debriefClickOutside)="addOpen.set(false)">
         <button class="btn dashed pill" (click)="addOpen.set(!addOpen())" [attr.aria-expanded]="addOpen()" i18n="@@workspace.filterBar.addFilter">+ Add filter</button>
         @if (addOpen()) {
           <form class="popover add-pop" (submit)="$event.preventDefault(); addFilter()">
             <label class="lbl"><ng-container i18n="@@workspace.filterBar.field">Field</ng-container>
-              <input class="input mono" list="imt-field-names" [value]="newField()" (input)="newField.set($any($event.target).value)" placeholder="SourceContext" required />
+              <input class="input mono" list="debrief-field-names" [value]="newField()" (input)="newField.set($any($event.target).value)" placeholder="SourceContext" required />
             </label>
-            <datalist id="imt-field-names">
+            <datalist id="debrief-field-names">
               @for (f of allFields(); track f) { <option [value]="f"></option> }
             </datalist>
             <label class="lbl"><ng-container i18n="@@workspace.filterBar.operator">Operator</ng-container>
@@ -86,12 +87,14 @@ const OP_LABELS: Record<FilterOp, string> = {
       @if (hasAnyFilter()) {
         <button class="btn ghost pill" [class.fold]="compact()" (click)="store.clearQuery()" i18n="@@workspace.filterBar.clearAll">Clear all</button>
       }
-      <span class="spacer"></span>
+      <!-- The lens and view options stay together: when the bar wraps they move to the next line as one right-aligned group. -->
+      <div class="tools">
+      <debrief-lens-bar />
       @if (compact()) {
         <!-- Narrow window (H1): what does not fit folds into this menu; the search and the levels always stay. -->
-        <div class="anchor" (imtClickOutside)="moreOpen.set(false)" (keydown.escape)="moreOpen.set(false)">
+        <div class="anchor" (debriefClickOutside)="moreOpen.set(false)" (keydown.escape)="moreOpen.set(false)">
           <button class="btn tall" data-testid="filter-more" aria-haspopup="menu" [attr.aria-expanded]="moreOpen()" aria-label="More filter controls" i18n-aria-label="@@workspace.filterBar.more" title="More filter controls" i18n-title="@@workspace.filterBar.moreTitle" (click)="moreOpen.set(!moreOpen())">
-            <imt-icon name="more" [size]="14" />
+            <debrief-icon name="more" [size]="14" />
           </button>
           @if (moreOpen()) {
             <div class="popover more-pop" role="menu" aria-label="More filter controls" i18n-aria-label="@@workspace.filterBar.more">
@@ -104,14 +107,14 @@ const OP_LABELS: Record<FilterOp, string> = {
           }
         </div>
       }
-      <div class="anchor" (imtClickOutside)="optionsOpen.set(false)" (keydown.escape)="optionsOpen.set(false)">
-        <button class="btn tall" data-testid="view-options" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="imt-view-options" (click)="optionsOpen.set(!optionsOpen())">
-          <imt-icon name="group" [size]="14" />
-          <span [class.fold]="compact()" i18n="@@workspace.filterBar.viewOptions">View options</span>
-          <imt-icon name="chevronDown" [size]="12" />
+      <div class="anchor" (debriefClickOutside)="optionsOpen.set(false)" (keydown.escape)="optionsOpen.set(false)">
+        <button class="btn tall" data-testid="view-options" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="debrief-view-options" (click)="optionsOpen.set(!optionsOpen())">
+          <debrief-icon name="group" [size]="14" />
+          <span class="fold" i18n="@@workspace.filterBar.viewOptions">View options</span>
+          <debrief-icon name="chevronDown" [size]="12" />
         </button>
         @if (optionsOpen()) {
-          <div class="popover options-pop" id="imt-view-options" role="dialog" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria">
+          <div class="popover options-pop" id="debrief-view-options" role="dialog" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria">
             <div class="opt-section">
               <div class="opt-head"><span class="muted" i18n="@@workspace.filterBar.groupLanesBy">Group events into timeline lanes by</span> <span class="mono">{{ store.effectiveGroupBy().join(' · ') || '—' }}</span></div>
               <div class="faint small" i18n="@@workspace.filterBar.groupLanesHelp">Events with equal values in these fields form one lane.</div>
@@ -131,14 +134,15 @@ const OP_LABELS: Record<FilterOp, string> = {
               </div>
             </div>
             <div class="opt-section switches">
-              <imt-switch class="sw" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)" i18n="@@workspace.filterBar.markedOnly">Marked only</imt-switch>
-              <imt-switch class="sw" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)" i18n="@@workspace.filterBar.alwaysLifecycle">Always show start / stop</imt-switch>
+              <debrief-switch class="sw" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)" i18n="@@workspace.filterBar.markedOnly">Marked only</debrief-switch>
+              <debrief-switch class="sw" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)" i18n="@@workspace.filterBar.alwaysLifecycle">Always show start / stop</debrief-switch>
             </div>
           </div>
         }
       </div>
+      </div>
     </div>
-    <imt-query-status (pick)="qf.useSuggestion($event)" />
+    <debrief-query-status (pick)="qf.useSuggestion($event)" />
 
     @if (q().filters.length || q().groups.length || field.hiddenText()) {
     <div class="row" role="group" aria-label="Filters" i18n-aria-label="@@workspace.filterBar.filters">
@@ -170,21 +174,20 @@ const OP_LABELS: Record<FilterOp, string> = {
   `,
   styles: `
     :host { flex: none; display: flex; flex-direction: column; gap: 8px; padding: 10px 14px; border-bottom: 1px solid var(--border); background: var(--bg-1); }
-    .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .row:first-child { flex-wrap: nowrap; }
+    .row { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
     /* A narrow bar (H1) wraps: the search field gets a line of its own and the rest follows below. */
     :host(.compact) .row:first-child { flex-wrap: wrap; }
-    :host(.compact) imt-query-field { flex: 1 1 100%; }
+    :host(.compact) debrief-query-field { flex: 1 1 100%; }
     .levels { flex: none; display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
-    .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 9px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
+    .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 7px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
     .lvl:last-child { border-right: 0; }
     .lvl.on { background: var(--bg-active); color: var(--text); }
-    .lvl .code, .lvl .faint { font-size: var(--fs-xs); }
+    .lvl .code, .lvl .faint { font-size: var(--fs-xs); font-variant-numeric: tabular-nums; }
+    .lvl .code { font-weight: 500; }
     .tall { height: 30px; flex: none; }
-    /* The range shrinks (with an ellipsis) before anything else in the one-row bar. */
-    .range { flex: 0 1 auto; min-width: 80px; overflow: hidden; }
-    .range .ends { display: flex; gap: 4px; min-width: 0; overflow: hidden; white-space: nowrap; font-size: var(--fs-xs); }
-    .range .end { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+    /* The bar wraps before anything is squeezed: the range keeps its full text, the title carries the dates. */
+    .range { flex: none; }
+    .range .ends { display: flex; gap: 4px; white-space: nowrap; font-size: var(--fs-xs); }
     /* A chip that would add nothing ("0/403") keeps readable text (no opacity: AA contrast); only its dot fades. */
     .lvl.none .dot { opacity: 0.35; }
     .pill { height: 24px; border-radius: 12px; flex: none; }
@@ -195,7 +198,7 @@ const OP_LABELS: Record<FilterOp, string> = {
     .chip .field { color: var(--chip-text); }
     .x { border: 0; background: transparent; color: var(--faint); cursor: pointer; padding: 0 0 0 2px; font-size: var(--fs-lg); line-height: 1; }
     .x:hover { color: var(--text); }
-    .spacer { flex: 1; }
+    .tools { margin-left: auto; display: flex; align-items: center; gap: 8px; flex: none; }
     .options-pop { top: 34px; right: 0; width: 340px; display: flex; flex-direction: column; gap: 12px; }
     .opt-section { display: flex; flex-direction: column; gap: 8px; }
     .opt-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-size: var(--fs-sm); }
@@ -231,7 +234,7 @@ export class FilterBar {
   private readonly levelButtons = viewChildren<ElementRef<HTMLButtonElement>>('lvl');
   /** The chip that holds the levels' one tab stop. */
   protected readonly levelFocus = signal(0);
-  private readonly levelNav = new RovingFocusNavigation(signal(LEVELS.length), inject(Injector), (i) => this.levelButtons()[i]?.nativeElement.focus(), { wrap: true, homeAndEnd: true });
+  private readonly levelNav = new RovingFocusNavigation(computed(() => this.visibleLevels().length), inject(Injector), (i) => this.levelButtons()[i]?.nativeElement.focus(), { wrap: true, homeAndEnd: true });
 
   protected readonly q = this.store.query;
   protected readonly rangeTitle = computed(() =>
@@ -256,6 +259,22 @@ export class FilterBar {
     const s = this.store.summary();
     if (q.from == null && q.to == null && s?.from == null) return [$localize`:@@workspace.filterBar.allTime:All time`, ''];
     return [formatDateTime(q.from ?? s?.from ?? null, tz), formatDateTime(q.to ?? s?.to ?? null, tz)];
+  });
+  /**
+   * The levels worth a chip: those the files contain, plus any that is filtered on (so it can be switched off). A level
+   * with no events is no information, so its chip is hidden.
+   */
+  protected readonly visibleLevels = computed(() => {
+    const present = this.store.summary()?.levels;
+    return LEVELS.filter((l) => !present || (present[l] ?? 0) > 0 || this.levelOn(l));
+  });
+  /** The range for the chip: times only when both ends fall on one day (the date is in the tooltip). */
+  protected readonly rangeShort = computed<[string, string]>(() => {
+    const [a, b] = this.rangeEnds();
+    if (!b) return [a, b];
+    const [da, ta] = [a.split(' ').slice(0, 2).join(' '), a.split(' ').slice(2).join(' ')];
+    const [db, tb] = [b.split(' ').slice(0, 2).join(' '), b.split(' ').slice(2).join(' ')];
+    return da === db && ta && tb ? [ta.slice(0, 5), tb.slice(0, 5)] : [a, b];
   });
   /** The range as one line, for the button's tooltip. */
   protected readonly rangeLabel = computed(() => this.rangeEnds().filter(Boolean).join(' → '));

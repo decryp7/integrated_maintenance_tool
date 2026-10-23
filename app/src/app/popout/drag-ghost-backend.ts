@@ -8,7 +8,7 @@ import { Rect } from '../dock/dock-geometry';
 export interface GhostRequest {
   /** The panel's name, in the ghost's title bar. */
   title: string;
-  /** The panel's icon: the `d` of its SVG path on IMT's 24×24 icon grid. */
+  /** The panel's icon: the `d` of its SVG path on Debrief's 24×24 icon grid. */
   icon?: string;
   /** A dimmed snapshot of the panel: `data:image/png;base64,…` (at most 2 MiB). */
   snapshot?: string;
@@ -83,7 +83,7 @@ export class NoDragGhost extends DragGhostBackend {
   }
 }
 
-/** What the simulated ghost publishes as `window.__imtMockGhost` (end-to-end tests read it). */
+/** What the simulated ghost publishes as `window.__debriefMockGhost` (end-to-end tests read it). */
 export interface MockGhostState {
   starts: number;
   ends: number;
@@ -108,7 +108,7 @@ export class MockDragGhostBackend extends DragGhostBackend {
     super();
     // The window's position plus the client point: some engines report no screen position for synthetic moves.
     win.addEventListener('pointermove', (e) => this.moved(win.screenX + e.clientX, win.screenY + e.clientY), true);
-    (win as unknown as { __imtMockGhost?: MockGhostState }).__imtMockGhost = this.state;
+    (win as unknown as { __debriefMockGhost?: MockGhostState }).__debriefMockGhost = this.state;
   }
 
   private moved(x: number, y: number): void {

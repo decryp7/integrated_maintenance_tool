@@ -3,7 +3,7 @@
 //! what their logs say).
 
 use crate::snapshots::tail_of;
-use imt_ipc::child_log::{self, ProcessSummary};
+use debrief_ipc::child_log::{self, ProcessSummary};
 use std::path::{Path, PathBuf};
 
 /// Bytes of one child log in a report (its newest part, from a line start).

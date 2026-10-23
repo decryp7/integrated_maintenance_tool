@@ -24,7 +24,7 @@ const ZONES: Record<ZoneSource, string> = {
  * kept or dropped, and the rounds of drafting and checking. Display only: every number comes from Rust.
  */
 @Component({
-  selector: 'imt-ai-parser-verdict',
+  selector: 'debrief-ai-parser-verdict',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (p().verdict; as v) {
@@ -113,7 +113,7 @@ export class ParserVerdictView {
       case 'done':
         return $localize`:@@ai.parserVerdict.status.done:target reached`;
       case 'builtin':
-        return $localize`:@@ai.parserVerdict.status.builtin:read by IMT's parsers`;
+        return $localize`:@@ai.parserVerdict.status.builtin:read by Debrief's parsers`;
       default:
         return $localize`:@@ai.parserVerdict.status.best:best after ${this.p().rounds.length}:rounds: rounds — edit to finish`;
     }

@@ -13,11 +13,11 @@ import { KnowledgeStore } from './knowledge.store';
 const MARKDOWN = [{ name: 'Markdown', extensions: ['md', 'markdown', 'txt'] }];
 
 /**
- * Settings ▸ AI ▸ Knowledge: the knowledge files of this project (saved with it) and of every project (IMT's
+ * Settings ▸ AI ▸ Knowledge: the knowledge files of this project (saved with it) and of every project (Debrief's
  * configuration folder). Add (write or import), edit with a preview, enable or disable, export and remove (asked first).
  */
 @Component({
-  selector: 'imt-knowledge-settings',
+  selector: 'debrief-knowledge-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h4 i18n="@@ai.knowledge.title">Knowledge</h4>
@@ -111,7 +111,7 @@ export class KnowledgeSettings implements OnInit {
     {
       scope: 'global',
       title: $localize`:@@ai.knowledge.scope.global:Every project`,
-      hint: $localize`:@@ai.knowledge.scope.globalHint:Kept in IMT's settings folder on this computer.`,
+      hint: $localize`:@@ai.knowledge.scope.globalHint:Kept in Debrief's settings folder on this computer.`,
     },
   ];
 

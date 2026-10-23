@@ -1,7 +1,7 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
-import { IMT_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
+import { DEBRIEF_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_COMMANDS, IMT_INSPECTOR_SECTIONS, IMT_VIEWS, ImtCommand, ImtInspectorSection, ImtView } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_INSPECTOR_SECTIONS, DEBRIEF_VIEWS, DebriefCommand, DebriefInspectorSection, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { anchors, NOTE_IMAGE_VIEW, NoteActions, NOTES_VIEW } from './note-actions';
 import { NotesInspectorSection } from './notes-inspector-section';
@@ -9,14 +9,14 @@ import { NotesPersistence } from './notes-persistence';
 
 const CATEGORY = () => $localize`:Command palette category|@@notes.category:Notes`;
 
-export function notesViews(): ImtView[] {
+export function notesViews(): DebriefView[] {
   return [
     { id: NOTES_VIEW, category: 'Analysis', title: $localize`:@@notes.view.notes:Notes`, icon: 'note', defaultPosition: 'right', component: () => import('./notes-panel').then((m) => m.NotesPanel) },
     { id: NOTE_IMAGE_VIEW, category: 'Analysis', title: $localize`:@@notes.view.image:Image notes`, icon: 'image', defaultPosition: 'center', component: () => import('./image/note-image-view').then((m) => m.NoteImageView) },
   ];
 }
 
-export function notesCommands(actions: NoteActions, workspace: WorkspaceStore): ImtCommand[] {
+export function notesCommands(actions: NoteActions, workspace: WorkspaceStore): DebriefCommand[] {
   return [
     { id: 'notes.show', title: $localize`:@@notes.cmd.show:Show notes`, category: CATEGORY(), run: (ctx) => ctx.showView(NOTES_VIEW) },
     {
@@ -38,15 +38,15 @@ export function notesRecordMenu(actions: NoteActions): RecordMenuContribution {
   return (record) => [{ group: 'mark', shortcut: 'Mod+D', label: $localize`:@@notes.menu.add:Add note…`, run: () => void actions.write(anchors.event(record)) }];
 }
 
-const INSPECTOR_SECTION: ImtInspectorSection = { id: 'notes', title: $localize`:@@notes.inspector.title:Notes`, order: 250, component: NotesInspectorSection };
+const INSPECTOR_SECTION: DebriefInspectorSection = { id: 'notes', title: $localize`:@@notes.inspector.title:Notes`, order: 250, component: NotesInspectorSection };
 
 /** One line in `app.config.ts`: the Notes panel and image view, commands, menus, the inspector section, saving. */
 export function provideNotes(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useFactory: notesViews },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => notesCommands(inject(NoteActions), inject(WorkspaceStore)) },
-    { provide: IMT_RECORD_MENU_ITEMS, multi: true, useFactory: () => notesRecordMenu(inject(NoteActions)) },
-    { provide: IMT_INSPECTOR_SECTIONS, multi: true, useValue: [INSPECTOR_SECTION] },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: notesViews },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => notesCommands(inject(NoteActions), inject(WorkspaceStore)) },
+    { provide: DEBRIEF_RECORD_MENU_ITEMS, multi: true, useFactory: () => notesRecordMenu(inject(NoteActions)) },
+    { provide: DEBRIEF_INSPECTOR_SECTIONS, multi: true, useValue: [INSPECTOR_SECTION] },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(NotesPersistence).contribution] },
   ]);
 }

@@ -4,7 +4,7 @@
 //! A folder is
 //! - `open`: a window has it open (never removed),
 //! - `session`: an autosaved session reopens it after a crash (kept, so the session can be restored),
-//! - `running`: another IMT process (its pid is in the name) is still using it,
+//! - `running`: another Debrief process (its pid is in the name) is still using it,
 //! - `orphaned`: nothing references it; typically the extraction of a project that was closed, or a store a busy
 //!   file system could not remove when its window closed.
 //!
@@ -73,7 +73,7 @@ pub struct StoreClearResult {
     pub cancelled: bool,
 }
 
-/// The automatic clean-up: orphaned store folders unused for this many days are removed when IMT starts. 0 = off.
+/// The automatic clean-up: orphaned store folders unused for this many days are removed when Debrief starts. 0 = off.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct StoragePolicy {
@@ -103,7 +103,7 @@ pub struct Needs<'a> {
     pub open: &'a [PathBuf],
     /// Store folders autosaved sessions reopen.
     pub kept: &'a [PathBuf],
-    /// Whether an IMT process with this id is running.
+    /// Whether a Debrief process with this id is running.
     pub alive: &'a dyn Fn(u32) -> bool,
 }
 
@@ -188,7 +188,7 @@ fn why(state: StoreState) -> &'static str {
     match state {
         StoreState::Open => "a window has this store open",
         StoreState::Session => "a saved session reopens this store; restore or discard the session first",
-        StoreState::Running => "another IMT process is using this store",
+        StoreState::Running => "another Debrief process is using this store",
         StoreState::Orphaned => "",
     }
 }
@@ -342,7 +342,7 @@ mod tests {
         let reasons: std::collections::HashMap<&str, &str> = r.skipped.iter().map(|s| (s.id.as_str(), s.reason.as_str())).collect();
         assert!(reasons["main-1-1"].contains("open"));
         assert!(reasons["w-2-1"].contains("session"));
-        assert!(reasons["w-777-1"].contains("another IMT"));
+        assert!(reasons["w-777-1"].contains("another Debrief"));
         for bad in ["../escape", "a/b", "", ".."] {
             assert_eq!(reasons[bad], "not a store folder name", "{bad:?}");
         }
@@ -395,7 +395,8 @@ mod tests {
                 &["w-3-1".into(), "w-3-2".into()],
                 &AtomicBool::new(false),
             );
-            std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o700)).unwrap();
+            // (Root may have deleted the folder already: then there is nothing to unlock.)
+            let _ = std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o700));
             // Root may delete anyway (CI containers): the contract is that nothing panics and the free one goes.
             assert!(r.removed.contains(&"w-3-2".to_string()));
             if locked.exists() {

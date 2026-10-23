@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { AlertTarget, AnomalyKind, LiveAlert, Severity, SEVERITIES } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { describeError, Logger } from '../core/logger';
 
 /** Alerts kept in the panel (oldest dropped first). */
@@ -88,7 +88,7 @@ export const AlertsStore = signalStore(
       return counts;
     }),
   })),
-  withMethods((store, backend = inject(ImtBackend), logger = inject(Logger)) => {
+  withMethods((store, backend = inject(DebriefBackend), logger = inject(Logger)) => {
     let nextId = 1;
     const timers = new Map<number, ReturnType<typeof setTimeout>>();
 

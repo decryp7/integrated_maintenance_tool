@@ -7,7 +7,7 @@
 import { AnnotationDto, FieldMatch, MarkerKind, Severity } from '../core/api.types';
 import { clamp } from '../core/format';
 
-/** Joins the values of the group-by fields into a lane key (crates/imt-core/src/query.rs GROUP_SEPARATOR). */
+/** Joins the values of the group-by fields into a lane key (crates/debrief-core/src/query.rs GROUP_SEPARATOR). */
 export const GROUP_SEPARATOR = ' · ';
 /** Narrowest band drawn, in percent of the plot, so short spans stay visible and clickable. */
 export const MIN_BAND_PCT = 0.4;

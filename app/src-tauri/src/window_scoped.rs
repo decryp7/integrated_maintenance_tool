@@ -1,7 +1,7 @@
 //! Features that keep state per window register here (ADR 0016) instead of being listed by hand in the
 //! window teardown: each [`Scope`] says what to do when a window is created and when it is destroyed.
 //! Teardown is one loop, every hook off the main thread and bounded ([`crate::lifecycle::teardown_step`]),
-//! so a stuck feature cannot hold a closing window (or IMT) open, and a new feature cannot forget to
+//! so a stuck feature cannot hold a closing window (or Debrief) open, and a new feature cannot forget to
 //! clean up after itself.
 //!
 //! Window operations themselves (closing a window's pop-outs and browser) stay in
@@ -92,6 +92,14 @@ pub fn install<R: Runtime>(app: &AppHandle<R>) {
         Scope::on_destroyed("background tasks", |app, label| {
             if let Some(tasks) = app.try_state::<crate::background::BackgroundTasks>() {
                 tasks.remove_window(label);
+            }
+        }),
+    );
+    register(
+        app,
+        Scope::on_destroyed("watched folders", |app, label| {
+            if let Ok(win) = crate::windows::CurrentWindow::of(app, label) {
+                win.watched.stop();
             }
         }),
     );

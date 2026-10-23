@@ -1,4 +1,4 @@
-//! The optional pinned Chromium (ADR 0043): when no Chromium-based browser exists (or the user prefers a known one), IMT
+//! The optional pinned Chromium (ADR 0043): when no Chromium-based browser exists (or the user prefers a known one), Debrief
 //! can download Chrome for Testing at a pinned version, verify its SHA-256, unpack it, run a self-test and use it. Only
 //! on the user's request (Settings ▸ Web browser). Updating installs the new version beside the old one and switches
 //! only after the new one passes its self-test, so a failed update keeps the working version.
@@ -158,7 +158,7 @@ fn mark_runnable(p: &Path) {
 fn mark_runnable(_: &Path) {}
 
 fn download(url: &str, to: &Path) -> Result<(), String> {
-    let agent = imt_ai::net::agent(&imt_ai::net::HttpConfig {
+    let agent = debrief_ai::net::agent(&debrief_ai::net::HttpConfig {
         proxy: None,
         connect_timeout: std::time::Duration::from_secs(15),
         timeout: std::time::Duration::from_secs(15 * 60),
@@ -185,7 +185,7 @@ pub async fn browser_runtime_status<R: Runtime>(app: AppHandle<R>) -> CmdResult<
 /// Downloads the pinned Chromium (only when the user asks). Returns the new status.
 #[tauri::command]
 pub async fn browser_runtime_install<R: Runtime>(app: AppHandle<R>, _win: CurrentWindow) -> CmdResult<RuntimeStatus> {
-    let root = root(&app).ok_or("IMT's data folder is not available")?;
+    let root = root(&app).ok_or("Debrief's data folder is not available")?;
     let version = crate::sync::blocking("the Chromium download", move || {
         install_blocking(&root).map_err(crate::CmdError::from)
     })

@@ -382,7 +382,7 @@ describe('PlaybooksPanel', () => {
     await settle(fixture);
     expect(text(fixture)).toContain('0 of 4 steps');
     expect(store.activeRun()).not.toBeNull();
-    expect(all(fixture, 'imt-playbook-run .step').length).toBe(4);
+    expect(all(fixture, 'debrief-playbook-run .step').length).toBe(4);
   });
 
   it('shows the loading error with retry', async () => {

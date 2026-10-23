@@ -7,30 +7,30 @@ import { SchemaField } from './schema-field';
 import { plural } from '../i18n/locale';
 
 /**
- * "Collection schedules": a schema-driven editor of the headless agent's `imt-agent.toml`.
+ * "Collection schedules": a schema-driven editor of the headless agent's `debrief-agent.toml`.
  * Validation is the agent's; its issues are shown next to the fields they concern.
  */
 @Component({
-  selector: 'imt-schedules-view',
+  selector: 'debrief-schedules-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, SchemaField],
   template: `
     <div class="scroll" role="region" aria-label="Collection schedules" i18n-aria-label="@@schedules.region" tabindex="0">
       <p class="intro" i18n="@@schedules.intro">
-        Schedules for <span class="mono">imt-agent</span>, the headless collector that runs as a service on servers. Each run writes a folder with a
-        manifest; see the Runs view. Install it with <span class="mono">imt-agent service install</span> (Windows),
+        Schedules for <span class="mono">debrief-agent</span>, the headless collector that runs as a service on servers. Each run writes a folder with a
+        manifest; see the Runs view. Install it with <span class="mono">debrief-agent service install</span> (Windows),
         <span class="mono">print-unit</span> (systemd) or <span class="mono">print-plist</span> (launchd).
       </p>
 
       <div class="inline">
         <label class="lbl grow"><ng-container i18n="@@schedules.configFile">Config file</ng-container>
-          <input class="input mono" [value]="store.path()" placeholder="Default: IMT's config folder" i18n-placeholder="@@schedules.configFile.placeholder" (input)="store.setPath(val($event))" />
+          <input class="input mono" [value]="store.path()" placeholder="Default: Debrief's config folder" i18n-placeholder="@@schedules.configFile.placeholder" (input)="store.setPath(val($event))" />
         </label>
-        <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.load()" i18n="@@schedules.load"><imt-icon name="refresh" [size]="12" />Load</button>
+        <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.load()" i18n="@@schedules.load"><debrief-icon name="refresh" [size]="12" />Load</button>
       </div>
 
       @if (store.error(); as e) {
-        <div class="err" role="alert">{{ e }} <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@schedules.dismiss" (click)="store.dismissError()"><imt-icon name="close" [size]="12" /></button></div>
+        <div class="err" role="alert">{{ e }} <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@schedules.dismiss" (click)="store.dismissError()"><debrief-icon name="close" [size]="12" /></button></div>
       }
       @if (store.notice(); as n) { <div class="note" role="status">{{ n }}</div> }
       @if (topIssues().length) {
@@ -43,12 +43,12 @@ import { plural } from '../i18n/locale';
             <h2 id="sch-agent" class="section-title" i18n="@@schedules.agent">Agent</h2>
             <div class="grid">
               @for (f of schema.agent; track f.key) {
-                <imt-schema-field [field]="f" [value]="$any(cfg.agent)[f.key]" [issues]="issues('agent.' + f.key)" (valueChange)="store.setAgent(f.key, $event, f.required)" />
+                <debrief-schema-field [field]="f" [value]="$any(cfg.agent)[f.key]" [issues]="issues('agent.' + f.key)" (valueChange)="store.setAgent(f.key, $event, f.required)" />
               }
             </div>
             <div class="grid">
               @for (f of schema.log; track f.key) {
-                <imt-schema-field [field]="f" [value]="$any(cfg.agent.log)[f.key]" [issues]="issues('agent.log.' + f.key)" (valueChange)="store.setLog(f.key, $event)" />
+                <debrief-schema-field [field]="f" [value]="$any(cfg.agent.log)[f.key]" [issues]="issues('agent.log.' + f.key)" (valueChange)="store.setLog(f.key, $event)" />
               }
             </div>
           </section>
@@ -57,7 +57,7 @@ import { plural } from '../i18n/locale';
             <h2 id="sch-retention" class="section-title" i18n="@@schedules.retention">Retention</h2>
             <div class="grid">
               @for (f of schema.retention; track f.key) {
-                <imt-schema-field [field]="f" [value]="$any(cfg.retention)[f.key]" [issues]="issues('retention.' + f.key)" (valueChange)="store.setRetention(f.key, $event)" />
+                <debrief-schema-field [field]="f" [value]="$any(cfg.retention)[f.key]" [issues]="issues('retention.' + f.key)" (valueChange)="store.setRetention(f.key, $event)" />
               }
             </div>
           </section>
@@ -70,7 +70,7 @@ import { plural } from '../i18n/locale';
                 @for (m of issues('schedules[' + i + ']') ?? []; track m) { <div class="problem" role="alert">{{ m }}</div> }
                 <div class="grid">
                   @for (f of schema.schedule; track f.key) {
-                    <imt-schema-field [field]="f" [value]="$any(s)[f.key]" [issues]="issues('schedules[' + i + '].' + f.key)" (valueChange)="store.setScheduleKey(i, f.key, $event, f.required)" />
+                    <debrief-schema-field [field]="f" [value]="$any(s)[f.key]" [issues]="issues('schedules[' + i + '].' + f.key)" (valueChange)="store.setScheduleKey(i, f.key, $event, f.required)" />
                   }
                   <label class="lbl col"><ng-container i18n="how a schedule is started|@@schedules.runs">Runs</ng-container>
                     <select class="select" [value]="timing(s)" (change)="store.setTiming(i, $any(val($event)))">
@@ -86,13 +86,13 @@ import { plural } from '../i18n/locale';
                       </select>
                     </label>
                     @for (f of triggerFields(s); track f.key) {
-                      <imt-schema-field [field]="f" [value]="$any(s.trigger)[f.key]" [issues]="issues('schedules[' + i + '].trigger.' + f.key)" (valueChange)="store.setTriggerKey(i, f.key, $event, f.required)" />
+                      <debrief-schema-field [field]="f" [value]="$any(s.trigger)[f.key]" [issues]="issues('schedules[' + i + '].trigger.' + f.key)" (valueChange)="store.setTriggerKey(i, f.key, $event, f.required)" />
                     }
                   </div>
                 } @else {
                   <div class="grid">
                     @for (f of timingFields(s); track f.key) {
-                      <imt-schema-field [field]="f" [value]="$any(s)[f.key]" [issues]="issues('schedules[' + i + '].' + f.key)" (valueChange)="store.setScheduleKey(i, f.key, $event, f.required)" />
+                      <debrief-schema-field [field]="f" [value]="$any(s)[f.key]" [issues]="issues('schedules[' + i + '].' + f.key)" (valueChange)="store.setScheduleKey(i, f.key, $event, f.required)" />
                     }
                   </div>
                 }
@@ -107,24 +107,24 @@ import { plural } from '../i18n/locale';
                           @for (v of schema.actions; track v.kind) { <option [value]="v.kind" [selected]="v.kind === a.kind">{{ v.label }}</option> }
                         </select>
                       </label>
-                      <button type="button" class="icon-btn" [attr.aria-label]="removeActionLabel(j, s.name)" title="Remove action" i18n-title="@@schedules.removeAction.title" (click)="store.removeAction(i, j)"><imt-icon name="trash" [size]="13" /></button>
+                      <button type="button" class="icon-btn" [attr.aria-label]="removeActionLabel(j, s.name)" title="Remove action" i18n-title="@@schedules.removeAction.title" (click)="store.removeAction(i, j)"><debrief-icon name="trash" [size]="13" /></button>
                     </div>
                     @for (m of issues('schedules[' + i + '].actions[' + j + ']') ?? []; track m) { <div class="problem" role="alert">{{ m }}</div> }
                     <div class="grid">
                       @for (f of actionFields(a.kind); track f.key) {
-                        <imt-schema-field [field]="f" [value]="$any(a)[f.key]" [issues]="issues('schedules[' + i + '].actions[' + j + '].' + f.key)" (valueChange)="store.setActionKey(i, j, f.key, $event, f.required)" />
+                        <debrief-schema-field [field]="f" [value]="$any(a)[f.key]" [issues]="issues('schedules[' + i + '].actions[' + j + '].' + f.key)" (valueChange)="store.setActionKey(i, j, f.key, $event, f.required)" />
                       }
                     </div>
                   </div>
                 }
                 <div class="inline">
-                  <button type="button" class="btn" (click)="store.addAction(i)" i18n="@@schedules.addAction"><imt-icon name="plus" [size]="12" />Add action</button>
+                  <button type="button" class="btn" (click)="store.addAction(i)" i18n="@@schedules.addAction"><debrief-icon name="plus" [size]="12" />Add action</button>
                   <span class="spacer"></span>
-                  <button type="button" class="btn danger" (click)="store.removeSchedule(i)" i18n="@@schedules.removeSchedule"><imt-icon name="trash" [size]="12" />Remove schedule</button>
+                  <button type="button" class="btn danger" (click)="store.removeSchedule(i)" i18n="@@schedules.removeSchedule"><debrief-icon name="trash" [size]="12" />Remove schedule</button>
                 </div>
               </fieldset>
             }
-            <div><button type="button" class="btn" (click)="store.addSchedule()" i18n="@@schedules.addSchedule"><imt-icon name="plus" [size]="12" />Add schedule</button></div>
+            <div><button type="button" class="btn" (click)="store.addSchedule()" i18n="@@schedules.addSchedule"><debrief-icon name="plus" [size]="12" />Add schedule</button></div>
           </section>
 
           <div class="inline footer">

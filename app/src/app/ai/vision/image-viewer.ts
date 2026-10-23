@@ -8,7 +8,7 @@ import { capturedLabel, sizeLabel } from './related-format';
  * generic: notes and annotation (ADR 0021) reuse it.
  */
 @Component({
-  selector: 'imt-image-viewer',
+  selector: 'debrief-image-viewer',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">

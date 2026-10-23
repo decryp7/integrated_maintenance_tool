@@ -37,6 +37,21 @@ export function tabDropOutcome(c: DropContext): TabDropOutcome {
 /** Smallest size of the new-window preview, and the size of a panel floated from a menu, px. */
 export const FLOAT_MIN: Size = { width: 240, height: 160 };
 export const FLOAT_MAX: Size = { width: 560, height: 380 };
+/** Where a panel floated from a menu opens (top-left), px. */
+export const FLOAT_ORIGIN: Point = { x: 140, y: 100 };
+/**
+ * The size of a panel floated from a menu: roomy enough for its content (a timeline with its lanes), a share of the
+ * window capped at 960 x 640, never below `FLOAT_MAX` unless the window is smaller, and always fully inside the window.
+ */
+export function floatedSize(viewport: Size): Size {
+  const margin = 16;
+  const fit = (want: number, min: number, origin: number, room: number) =>
+    Math.round(Math.max(0, Math.min(Math.max(want, min), room - origin - margin)));
+  return {
+    width: fit(Math.min(viewport.width * 0.6, 960), FLOAT_MAX.width, FLOAT_ORIGIN.x, viewport.width),
+    height: fit(Math.min(viewport.height * 0.7, 640), FLOAT_MAX.height, FLOAT_ORIGIN.y, viewport.height),
+  };
+}
 /** Where the pointer holds the ghost, from its top-left corner (like a title bar; matches pop-out placement). */
 const GRAB = { x: 120, y: 12 };
 
@@ -89,7 +104,7 @@ export function cueHint(outcome: TabDropOutcome): string | null {
 }
 
 /** The class on `<body>` while a release would cancel the drag: dims dockview's dragged tab chip. */
-export const DRAG_CANCEL_CLASS = 'imt-drag-cancel';
+export const DRAG_CANCEL_CLASS = 'debrief-drag-cancel';
 
 /**
  * Draws the cue: a fixed layer over the whole window (no pointer events), plus a polite live region that announces
@@ -103,13 +118,13 @@ export class FloatCue {
 
   constructor(private readonly doc: Document = document) {
     this.ghost = doc.createElement('div');
-    this.ghost.className = 'imt-float-cue';
+    this.ghost.className = 'debrief-float-cue';
     this.ghost.setAttribute('aria-hidden', 'true');
     // Marked as an overlay while shown (pop-out snapshots leave overlays out).
-    this.ghost.setAttribute('data-imt-overlay', '');
+    this.ghost.setAttribute('data-debrief-overlay', '');
     this.ghost.hidden = true;
     this.hint = doc.createElement('div');
-    this.hint.className = 'imt-float-cue-hint';
+    this.hint.className = 'debrief-float-cue-hint';
     this.ghost.append(this.hint);
     this.live = doc.createElement('div');
     this.live.className = 'sr-only';

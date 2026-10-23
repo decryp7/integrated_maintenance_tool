@@ -11,7 +11,7 @@ const SHAPES: Record<Severity, { outline: string; mark: string }> = {
 
 /** Severity icon plus its label ("Critical", "Warning", "Info"). */
 @Component({
-  selector: 'imt-severity-badge',
+  selector: 'debrief-severity-badge',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <svg [attr.width]="size()" [attr.height]="size()" viewBox="0 0 24 24" aria-hidden="true">

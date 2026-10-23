@@ -1,9 +1,9 @@
-//! The Settings screen's backend: every configurable part of IMT described by
-//! the typed schema of [`imt_core::settings`], validated in Rust, applied and
+//! The Settings screen's backend: every configurable part of Debrief described by
+//! the typed schema of [`debrief_core::settings`], validated in Rust, applied and
 //! persisted in one versioned `settings.json` in the config folder.
 //!
 //! Sections come from built-in adapters (diagnostics, workspace, plugin
-//! management), from engine plugins ([`imt_core::Plugin::configurable`]) and
+//! management), from engine plugins ([`debrief_core::Plugin::configurable`]) and
 //! from app modules registered later ([`SettingsService::register`], e.g. the
 //! AI assistant; until then the `ai` section shows "not installed").
 //!
@@ -20,8 +20,8 @@
 
 use crate::windows::Windows;
 use crate::{err, lifecycle, AppState, CmdResult};
-use imt_core::plugin::PluginStatus;
-use imt_core::settings::{sanitize, validate, Configurable, FieldError, PluginSettings, SectionOwner, SettingsSection, ValidValues};
+use debrief_core::plugin::PluginStatus;
+use debrief_core::settings::{sanitize, validate, Configurable, FieldError, PluginSettings, SectionOwner, SettingsSection, ValidValues};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Map, Value};
 use std::collections::BTreeMap;
@@ -52,7 +52,7 @@ pub enum SectionGroup {
     Diagnostics,
     Plugins,
     Ai,
-    /// Memory and processor use of IMT's processes (ADR 0031).
+    /// Memory and processor use of Debrief's processes (ADR 0031).
     Performance,
     /// Where debug symbols come from (ADR 0036).
     Symbols,
@@ -70,7 +70,7 @@ pub enum SectionStatus {
     Quarantined,
     /// Nothing provides this section in this build.
     NotInstalled,
-    /// IMT runs in safe mode; plugins are not loaded.
+    /// Debrief runs in safe mode; plugins are not loaded.
     SafeMode,
 }
 
@@ -167,7 +167,7 @@ fn read_settings_file(path: &Path) -> Result<Option<SettingsFile>, String> {
         Ok(v) => v,
         Err(ReadError::Missing) => return Ok(None),
         Err(ReadError::Damaged(why)) => return Err(format!("not a settings file: {why}")),
-        Err(ReadError::Newer(v)) => return Err(format!("written by a newer IMT (format {v})")),
+        Err(ReadError::Newer(v)) => return Err(format!("written by a newer Debrief (format {v})")),
     };
     if !value.is_object() {
         return Err("not a settings file: expected a JSON object".into());
@@ -236,7 +236,7 @@ pub struct SettingsService {
 /// One section, wherever it comes from.
 enum Source {
     Builtin(Builtin),
-    Plugin(Box<imt_core::settings::PluginSettings>),
+    Plugin(Box<debrief_core::settings::PluginSettings>),
 }
 
 impl SettingsService {
@@ -325,7 +325,7 @@ impl SettingsService {
         match source {
             Source::Builtin(b) if self.safe_mode && b.configurable.settings_section().id == PLUGINS_SECTION => (
                 SectionStatus::SafeMode,
-                Some("IMT is running in safe mode: plugins are not loaded and their settings are not shown.".into()),
+                Some("Debrief is running in safe mode: plugins are not loaded and their settings are not shown.".into()),
             ),
             Source::Builtin(_) => (SectionStatus::Active, None),
             Source::Plugin(p) => {
@@ -542,7 +542,7 @@ fn section_of(source: &Source) -> SettingsSection {
     }
 }
 
-/// Plugin code runs guarded (see [`imt_core::settings::GuardedConfigurable`]).
+/// Plugin code runs guarded (see [`debrief_core::settings::GuardedConfigurable`]).
 fn apply(source: &Source, values: &ValidValues) -> anyhow::Result<()> {
     match source {
         Source::Builtin(b) => b.configurable.apply_settings(values),
@@ -738,7 +738,7 @@ pub async fn export_settings<R: Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<()> {
     let target = grants.write(&path, &["json"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
+    debrief_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     let path = target;
     service(&app).export(&path).map_err(err)?;
     log::info!("Settings exported");
@@ -760,15 +760,15 @@ pub(crate) mod tests {
     use super::*;
     use crate::diagnostics;
     use crate::test_support::Now as _;
-    use imt_core::guard::QUARANTINE_AFTER;
-    use imt_core::settings::{FieldKind, SettingField};
-    use imt_core::{Plugin, PluginRegistry};
+    use debrief_core::guard::QUARANTINE_AFTER;
+    use debrief_core::settings::{FieldKind, SettingField};
+    use debrief_core::{Plugin, PluginRegistry};
     use std::sync::atomic::AtomicUsize;
 
     struct Temp(PathBuf);
     impl Temp {
         fn new(tag: &str) -> Temp {
-            let d = std::env::temp_dir().join(format!("imt-settings-{tag}-{}", std::process::id()));
+            let d = std::env::temp_dir().join(format!("debrief-settings-{tag}-{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&d);
             std::fs::create_dir_all(&d).unwrap();
             Temp(d)
@@ -882,7 +882,7 @@ pub(crate) mod tests {
         service: SettingsService,
         debounce: Arc<AtomicU64>,
         /// The workspace whose registry the plugin sections come from.
-        workspace: Arc<imt_core::Workspace>,
+        workspace: Arc<debrief_core::Workspace>,
         enabled_calls: Arc<Mutex<Vec<(String, bool)>>>,
     }
 
@@ -921,7 +921,7 @@ pub(crate) mod tests {
             std::fs::write(dir.join("plugins.json"), serde_json::to_string(&s)?)?;
             Ok(())
         });
-        let workspace = Arc::new(imt_core::Workspace::with_registry(imt_core::Profile::default_profile(), plugins).unwrap());
+        let workspace = Arc::new(debrief_core::Workspace::with_registry(debrief_core::Profile::default_profile(), plugins).unwrap());
         let ws = workspace.clone();
         let debounce = Arc::new(AtomicU64::new(DEFAULT_LIVE_TAIL_DEBOUNCE.as_millis() as u64));
         let config = SettingsConfig {
@@ -1399,7 +1399,7 @@ pub(crate) mod tests {
         }
         let mut plugins = PluginRegistry::empty();
         plugins.install(&Clash).unwrap();
-        let clash = imt_core::Workspace::with_registry(imt_core::Profile::default_profile(), plugins).unwrap();
+        let clash = debrief_core::Workspace::with_registry(debrief_core::Profile::default_profile(), plugins).unwrap();
         let debounce = Arc::new(AtomicU64::new(750));
         let service = SettingsService::new(
             SettingsConfig {

@@ -7,14 +7,15 @@ test.describe('Process monitor', () => {
     await openAppWith(page);
     const before = await sourceCount(page);
     await openView(page, 'Process Monitor');
-    const panel = page.locator('imt-monitor-view');
+    const panel = page.locator('debrief-monitor-view');
     const status = panel.getByTestId('monitor-status');
     await expect(status).toContainText('Stopped');
     await expect(panel.getByRole('button', { name: 'Start' })).toBeDisabled();
 
     await panel.getByLabel('Target value 1').fill('OrderService*');
     await panel.getByRole('button', { name: /Add target/ }).click();
-    await panel.getByLabel('Target type 2').selectOption('pid');
+    await panel.getByLabel('Target type 2').click();
+    await page.getByRole('option', { name: 'Process id' }).click();
     await panel.getByLabel('Target value 2').fill('1234');
     await panel.getByRole('spinbutton').fill('1000');
     await expectNoSeriousViolations(page, testInfo, 'process-monitor');

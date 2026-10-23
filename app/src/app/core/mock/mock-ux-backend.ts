@@ -1,5 +1,5 @@
 import { ImportProgress, ProfileDoc, ProfileVersionInfo } from '../api.types';
-import type { ImtBackend } from '../backend';
+import type { DebriefBackend } from '../backend';
 import type { UxBackend } from '../ux-backend';
 import { MockBackend } from './mock-backend';
 import { IDLE_PROGRESS, MOCK_DEMO_PATHS } from './mock-import';
@@ -9,10 +9,10 @@ import { IDLE_PROGRESS, MOCK_DEMO_PATHS } from './mock-import';
  * live in `MockBackend`). Plausible, never the reference: the engine is.
  */
 export class MockUxBackend implements UxBackend {
-  constructor(private readonly imt: ImtBackend) {}
+  constructor(private readonly debrief: DebriefBackend) {}
 
   private mock(): MockBackend | null {
-    return this.imt instanceof MockBackend ? this.imt : null;
+    return this.debrief instanceof MockBackend ? this.debrief : null;
   }
 
   importProgress(): Promise<ImportProgress> {

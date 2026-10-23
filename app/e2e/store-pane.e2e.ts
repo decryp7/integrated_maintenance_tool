@@ -5,13 +5,14 @@ import { openAppWith } from './mock-url';
 
 // The Store pane and its SQL console (ADR 0030) against the mock backend: the reports, a confirmed maintenance job,
 // and a SQL run with completion, a refusal, results, Open in Events and saving next to the saved queries.
-test('Store pane: reports, maintenance and the read-only SQL console', async ({ page }, testInfo) => {
+test('Store pane: reports, maintenance and the read-only SQL console', async ({ page, browserName }, testInfo) => {
+  test.skip(browserName === 'webkit' && process.platform === 'darwin', 'Tab does not reach buttons in macOS WebKit unless the system full keyboard access setting is on; passes on Linux and Windows');
   await openAppWith(page, '');
   await chooseMenu(page, 'View', 'Store');
-  const pane = page.locator('imt-store-pane');
+  const pane = page.locator('debrief-store-pane');
   await expect(pane.getByTestId('store-overview')).toContainText('Size on disk');
   await expect(pane.getByTestId('store-activity')).toHaveText('Ready');
-  await expectNoSeriousViolations(page, testInfo, 'store-pane', 'imt-store-pane');
+  await expectNoSeriousViolations(page, testInfo, 'store-pane', 'debrief-store-pane');
 
   // Maintenance asks first.
   await pane.getByTestId('store-maintain-clearCachedAnalyses').click();
@@ -37,6 +38,15 @@ test('Store pane: reports, maintenance and the read-only SQL console', async ({ 
   await page.getByRole('combobox', { name: 'Type a command' }).fill('Open SQL console');
   await page.getByRole('option', { name: /Open SQL console/ }).first().click();
   const editor = pane.getByTestId('sql-editor');
+  const openConsole = () =>
+    expect(async () => {
+      await page.keyboard.press('ControlOrMeta+k');
+      await page.getByRole('combobox', { name: 'Type a command' }).fill('Open SQL console');
+      await page.getByRole('option', { name: /Open SQL console/ }).first().click();
+      await expect(editor).toBeVisible();
+      await page.waitForTimeout(400);
+      await expect(editor).toBeVisible({ timeout: 1000 });
+    }).toPass({ timeout: 15_000 });
   await expect(editor).toBeVisible();
   await editor.fill('');
   await editor.pressSequentially('SELECT id, ts, level, message FROM ev');
@@ -51,10 +61,9 @@ test('Store pane: reports, maintenance and the read-only SQL console', async ({ 
   await pane.getByTestId('sql-open-events').click();
   await expect(page.locator('[role=row][aria-selected=true]').first()).toBeVisible({ timeout: 10_000 });
   // Back to the console (the Events grid came to the front).
-  await page.keyboard.press('ControlOrMeta+k');
-  await page.getByRole('combobox', { name: 'Type a command' }).fill('Open SQL console');
-  await page.getByRole('option', { name: /Open SQL console/ }).first().click();
-  await expect(editor).toBeVisible();
+  // The slid-out panel settles a moment after the command (it can be dismissed by the focus change of the click that
+  // chose it), so the console counts as open once it has stayed visible.
+  await openConsole();
 
   // A write is refused, with the keyword underlined.
   await editor.fill('DROP VIEW events');
@@ -70,6 +79,8 @@ test('Store pane: reports, maintenance and the read-only SQL console', async ({ 
   const saved = page.getByTestId('saved-sql');
   await expect(saved).toContainText('All events');
   await expect(saved).toContainText('SQL');
+  // The Store panel slides away while another panel has the focus: bring it back before editing.
+  await openConsole();
   await editor.fill('');
   await saved.getByRole('button', { name: /Open SQL All events/ }).click();
   await expect(editor).toHaveValue('SELECT count(*) FROM events');

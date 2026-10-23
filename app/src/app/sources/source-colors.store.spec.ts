@@ -108,18 +108,18 @@ describe('source colour markers in the views', () => {
     const { store } = await setup();
     const sidebar = TestBed.createComponent(Sidebar);
     await settle(sidebar);
-    expect(all(sidebar, 'imt-source-swatch').map((s) => s.getAttribute('data-slot'))).toEqual(['0', '1']);
+    expect(all(sidebar, 'debrief-source-swatch').map((s) => s.getAttribute('data-slot'))).toEqual(['0', '1']);
 
     const timeline = TestBed.createComponent(TimelinePanel);
     await settle(timeline);
     await settle(timeline);
-    const dots = all(timeline, '.lane-label imt-source-swatch');
+    const dots = all(timeline, '.lane-label debrief-source-swatch');
     expect(dots.length).toBeGreaterThan(0);
     expect(dots.every((d) => /^File: /.test(d.getAttribute('title') ?? ''))).toBe(true);
 
     const inspector = TestBed.createComponent(Inspector);
     store.select(row(1, 'WEB02'));
     await settle(inspector);
-    expect(all(inspector, '.src-line imt-source-swatch').map((s) => s.getAttribute('data-slot'))).toEqual(['1']);
+    expect(all(inspector, '.src-line debrief-source-swatch').map((s) => s.getAttribute('data-slot'))).toEqual(['1']);
   });
 });

@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { TileCfg } from '../../core/api.types';
-import { ImtCommand } from '../../extensions/tokens';
+import { DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 import { AddTileDialog } from './add-tile-dialog';
 import { DashboardStore } from './dashboard.store';
@@ -11,7 +11,7 @@ export class DashboardCommands {
   private readonly ds = inject(DashboardStore);
   private readonly dialogs = inject(DialogService);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'dashboards.show', title: $localize`:@@share.dashboardCommands.show:Show dashboards`, category: $localize`:@@share.commands.categoryView:View`, run: (ctx) => ctx.showView('dashboards') },
     {
       id: 'dashboards.edit',

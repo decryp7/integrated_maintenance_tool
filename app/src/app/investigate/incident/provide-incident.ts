@@ -1,10 +1,10 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
-import { ImtCommand, IMT_COMMANDS } from '../../extensions/tokens';
+import { DebriefCommand, DEBRIEF_COMMANDS } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 import { openIncidentSummary } from './incident-summary-dialog';
 
 /** The incident summary command: opens the dialog; the report view is shown once a report was built. */
-export function incidentCommands(dialogs: DialogService): ImtCommand[] {
+export function incidentCommands(dialogs: DialogService): DebriefCommand[] {
   return [
     {
       id: 'incident.build',
@@ -20,5 +20,5 @@ export function incidentCommands(dialogs: DialogService): ImtCommand[] {
 
 /** One line in `app.config.ts`: the incident summary report (ADR 0039). */
 export function provideIncident(): EnvironmentProviders {
-  return makeEnvironmentProviders([{ provide: IMT_COMMANDS, multi: true, useFactory: () => incidentCommands(inject(DialogService)) }]);
+  return makeEnvironmentProviders([{ provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => incidentCommands(inject(DialogService)) }]);
 }

@@ -23,12 +23,12 @@ export const COLOR_PRESETS = ['#f2545b', '#e9ae3f', '#3fbf7f', '#3987e5', '#9085
  * collects the rule and previews what it matches.
  */
 @Component({
-  selector: 'imt-marker-editor',
+  selector: 'debrief-marker-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ConditionsEditor, GlyphPicker, MarkerGlyph, RegexAssist],
   template: `
     <div class="top">
-      <imt-marker-glyph [glyph]="style()" [size]="32" [label]="previewLabel" />
+      <debrief-marker-glyph [glyph]="style()" [size]="32" [label]="previewLabel" />
       <div class="grow">
         <div class="row">
           <label class="lbl"><ng-container i18n="@@markers.editor.label">Label</ng-container><input class="input" [value]="label()" (input)="label.set($any($event.target).value)" /></label>
@@ -38,7 +38,7 @@ export const COLOR_PRESETS = ['#f2545b', '#e9ae3f', '#3fbf7f', '#3987e5', '#9085
       </div>
     </div>
 
-    <imt-glyph-picker [(mode)]="mode" [(badge)]="badge" [(shape)]="shape" [(icon)]="icon" [(pending)]="pending" [color]="color()" [suggestion]="suggestion()" [takenNames]="takenIcons()" />
+    <debrief-glyph-picker [(mode)]="mode" [(badge)]="badge" [(shape)]="shape" [(icon)]="icon" [(pending)]="pending" [color]="color()" [suggestion]="suggestion()" [takenNames]="takenIcons()" />
 
     <div class="row">
       <label class="lbl"><ng-container i18n="@@markers.editor.colour">Colour</ng-container><input class="input color" type="color" [value]="color()" (input)="color.set($any($event.target).value)" /></label>
@@ -60,9 +60,9 @@ export const COLOR_PRESETS = ['#f2545b', '#e9ae3f', '#3fbf7f', '#3987e5', '#9085
         @if (!converted()) { <span class="faint" i18n="@@markers.editor.tooComplex">This query is too complex for conditions, so it can only be previewed.</span> }
       </div>
     } @else {
-      <imt-conditions-editor [conditions]="conditions()" emptyText="Add a condition: a marker without any would mark every event." i18n-emptyText="@@markers.editor.emptyConditions" (changed)="conditions.set($event)" />
+      <debrief-conditions-editor [conditions]="conditions()" emptyText="Add a condition: a marker without any would mark every event." i18n-emptyText="@@markers.editor.emptyConditions" (changed)="conditions.set($event)" />
       @for (c of regexConditions(); track $index) {
-        <div class="assist"><span class="faint mono ellipsis">{{ c.value }}</span><imt-regex-assist [pattern]="c.value ?? ''" /></div>
+        <div class="assist"><span class="faint mono ellipsis">{{ c.value }}</span><debrief-regex-assist [pattern]="c.value ?? ''" /></div>
       }
       <button type="button" class="btn ghost link" (click)="advanced.set(true)" i18n="@@markers.editor.advanced">Advanced: query language</button>
     }

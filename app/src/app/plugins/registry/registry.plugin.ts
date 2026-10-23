@@ -1,10 +1,10 @@
-import { ImtPlugin } from '../../extensions/provide';
+import { DebriefPlugin } from '../../extensions/provide';
 
 /**
  * Example UI plugin: a tree view for Windows registry exports. It is only offered while a source
  * with the "registry" importer is open, and registers one palette command.
  */
-export const REGISTRY_PLUGIN: ImtPlugin = {
+export const REGISTRY_PLUGIN: DebriefPlugin = {
   views: [
     {
       id: 'registry',

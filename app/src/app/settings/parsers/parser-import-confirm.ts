@@ -8,7 +8,7 @@ import { lineDiff } from './line-diff';
  * diff of the two files) and a confirm. Closes with `true` to replace; any other close keeps the library as it is.
  */
 @Component({
-  selector: 'imt-parser-import-confirm',
+  selector: 'debrief-parser-import-confirm',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let c = check();

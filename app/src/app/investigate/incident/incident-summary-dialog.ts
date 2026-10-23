@@ -8,7 +8,7 @@ export type IncidentDialogResult = 'show';
 
 /** Builds the incident summary report (the engine computes it); an AI narrative is optional and marked. */
 @Component({
-  selector: 'imt-incident-summary-dialog',
+  selector: 'debrief-incident-summary-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DatePipe],
   template: `

@@ -3,7 +3,7 @@ import { RecordView } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { copyTextFor } from '../context/record-actions';
 import { GridSelection } from '../grid/grid-selection';
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 import { copyText } from '../tools/clipboard';
 
 /** The selected events as JSON: one object, or an array for a multi-selection. Pure. */
@@ -29,7 +29,7 @@ export class EditCommands {
     return one ? [one] : [];
   }
 
-  readonly commands: ImtCommand[] = (() => {
+  readonly commands: DebriefCommand[] = (() => {
     const category = $localize`:@@shell.edit.category:Edit`;
     const nothing = () => this.store.setNotice($localize`:@@shell.edit.nothingSelected:Select events or text first.`);
     return [

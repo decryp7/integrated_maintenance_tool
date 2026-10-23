@@ -1,6 +1,6 @@
-# IMT roadmap
+# Debrief roadmap
 
-IMT aims to cover the whole maintenance loop: **collect** diagnostics from a machine, **analyse** them across instances and
+Debrief aims to cover the whole maintenance loop: **collect** diagnostics from a machine, **analyse** them across instances and
 sources, **explain** what went wrong, and **share** the result. This page lists what is still open; what shipped is in
 [features.md](features.md), [CHANGELOG.md](../CHANGELOG.md) and the [ADRs](architecture.md#architecture-decisions).
 
@@ -10,10 +10,10 @@ Kept short on purpose; each line links to where it is described.
 
 | Area | Done |
 |---|---|
-| Reuse and share | Projects (`.imtz`, [ADR 0014](adr/0014-database-first-engine.md)), notes ([0021](adr/0021-notes.md)), saved queries and highlight rules, context view, archives, export (CSV, CLEF, PNG/SVG, HTML/PDF reports, bundles), redaction ([0007](adr/0007-reports-pdf-and-redaction.md)), a redacted project copy ([0041](adr/0041-redacted-project-copy.md)), dashboards |
+| Reuse and share | Projects (`.debriefz`, [ADR 0014](adr/0014-database-first-engine.md)), notes ([0021](adr/0021-notes.md)), saved queries and highlight rules, context view, archives, export (CSV, CLEF, PNG/SVG, HTML/PDF reports, bundles), redaction ([0007](adr/0007-reports-pdf-and-redaction.md)), a redacted project copy ([0041](adr/0041-redacted-project-copy.md)), dashboards |
 | Finding the problem | Query language, correlation and traces, exception grouping, pattern mining, anomalies, comparisons, field statistics and calculated fields, clock-skew correction and live tail on the store ([0006](adr/0006-clock-skew-applied-on-load.md), [0037](adr/0037-store-clock-skew-and-live-tail.md)), runs, Moment, known issues, the incident summary and playbooks ([0039](adr/0039-known-issues-incident-summary-playbooks.md)) |
 | Sources | Windows (EVTX, registry, msinfo32, Process Monitor, IIS, ERRORLOG, minidump), syslog/journald, web server logs, XML layouts, OpenTelemetry, Docker/Kubernetes, HAR, configuration diff, per-line mixed formats ([0020](adr/0020-mixed-sources.md)), the parser library and AI-generated parsers ([0026](adr/0026-parser-library.md), [0032](adr/0032-ai-parser-generation.md)), text encodings ([0040](adr/0040-text-encodings.md)), paste as log, video sources ([0033](adr/0033-video-sources-ffmpeg-runtime.md)) |
-| Collecting | Process monitor, Event Log follower, Performance Monitor sets, the diagnostics collector, the headless agent (`imt-agent`, [0005](adr/0005-headless-agent.md)) |
+| Collecting | Process monitor, Event Log follower, Performance Monitor sets, the diagnostics collector, the headless agent (`debrief-agent`, [0005](adr/0005-headless-agent.md)) |
 | Profiling and dumps | The profiling engine and views, .NET capture by ETW and EventPipe ([0019](adr/0019-dotnet-profiling.md)), native capture ([0022](adr/0022-native-profiling.md)), `.etl` import, crash dumps and UMDH ([0023](adr/0023-dumps-and-umdh.md)) with PDB symbols by identity and symbol servers ([0036](adr/0036-dump-symbols-by-pdb-identity.md)) |
 | AI | Local assistant, vision, knowledge files ([0029](adr/0029-knowledge-files.md)), the AI's Chromium browser and Research ([0011](adr/0011-internal-browser.md), [0043](adr/0043-chromium-renderer.md)), jobs and notifications ([0012](adr/0012-jobs.md)) |
 | Platform | DuckDB store with Tantivy search ([0014](adr/0014-database-first-engine.md)), the Store pane and SQL console ([0030](adr/0030-store-pane-and-sql-console.md)), performance settings ([0031](adr/0031-performance-settings.md)), the store port table ([0042](adr/0042-store-port-table.md)), out-of-process Rust plugins ([0017](adr/0017-one-ipc-out-of-process-plugins.md)) and the signed plugin SDK ([0027](adr/0027-plugin-sdk.md)), Rhai scripting, auto-update, settings import/export, i18n readiness |
@@ -80,17 +80,17 @@ robustness (typed errors, cancellable queries, import progress, rolling logs wit
 
 ## Open items from the 2026-10 redesign plan
 
-The plan (four architecture reviews, phases R0 to R6) is done except for the items below. IMT is pre-v1, so each is
+The plan (four architecture reviews, phases R0 to R6) is done except for the items below. Debrief is pre-v1, so each is
 done by redesigning, not by compatibility code.
 
 - **R0, not verified:** the "R" row (lock recovery in analysis caches, caches keyed by generation plus hash, an event
   size cap with a diagnostic, reporting when a cap drops records) needs a pass; U2 to U4 (pointer moves, resize
   debouncing, stores that stop querying when their view closes) are described in the responsiveness rules of
   [development.md](development.md) but have no regression test named for them.
-- **R3 (ADR 0017, "Deferred"):** split `imt-ai` into `imt-ai-proto`, `imt-ai-runtime`, `imt-ai` and
-  `imt-browser-agent` with one `SafeHttp` and the assistant on the `Query`/`Analysis` ports; one redactor
-  (`imt_core::redact`) shared by AI privacy and child-log scrubbing; `imt-perfmon` and the event-log follower as
-  libraries instead of through `imt-collect`/`imt-monitor` (the tools plugin still links `imt-core`); importer plugins
+- **R3 (ADR 0017, "Deferred"):** split `debrief-ai` into `debrief-ai-proto`, `debrief-ai-runtime`, `debrief-ai` and
+  `debrief-browser-agent` with one `SafeHttp` and the assistant on the `Query`/`Analysis` ports; one redactor
+  (`debrief_core::redact`) shared by AI privacy and child-log scrubbing; `debrief-perfmon` and the event-log follower as
+  libraries instead of through `debrief-collect`/`debrief-monitor` (the tools plugin still links `debrief-core`); importer plugins
   streaming batches to the store worker directly with credits (needs postcard store DTOs instead of JSON bodies).
 - **R5, the UI:**
   - ports mirroring ADR 0014 (`QueryPort`, `IngestPort`, `AnalysisPort`, `ProfilePort`), one DI token each;

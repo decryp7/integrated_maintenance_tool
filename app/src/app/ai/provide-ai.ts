@@ -3,8 +3,8 @@ import { isTauri } from '../core/platform';
 import { TimeCursor } from '../analysis/time-cursor';
 import { RecordView } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { DEBRIEF_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { aiActivityItems } from './ai-activity';
 import { AiBackend, provideAiBackend } from './ai-backend';
@@ -16,7 +16,7 @@ import { AiStatusStore } from './ai-status.store';
 export const AI_CHAT_VIEW = 'ai-chat';
 
 /** The chat, a tool window offered only while AI can be used in this run. */
-export function aiViews(status: InstanceType<typeof AiStatusStore>): ImtView[] {
+export function aiViews(status: InstanceType<typeof AiStatusStore>): DebriefView[] {
   return [
     {
       id: AI_CHAT_VIEW,
@@ -55,7 +55,7 @@ export function aiCommands(
   status: InstanceType<typeof AiStatusStore>,
   store: InstanceType<typeof WorkspaceStore>,
   cursor: TimeCursor,
-): ImtCommand[] {
+): DebriefCommand[] {
   const available = () => status.available();
   const withData = () => status.available() && !!store.summary()?.total;
   const selected = (): RecordView | null => store.selected();
@@ -129,7 +129,7 @@ export function aiRecordMenu(launcher: AiLauncher, status: InstanceType<typeof A
   };
 }
 
-const FIRST_RUN_KEY = 'imt.ai.setupOffered.v1';
+const FIRST_RUN_KEY = 'debrief.ai.setupOffered.v1';
 
 /**
  * First run of the desktop app: when AI can be used but no model is set up, the set-up wizard is offered
@@ -165,10 +165,10 @@ export function offerSetupOnFirstRun(status: InstanceType<typeof AiStatusStore>,
 export function provideAi(): EnvironmentProviders {
   return makeEnvironmentProviders([
     ...provideAiBackend(),
-    { provide: IMT_VIEWS, multi: true, useFactory: () => aiViews(inject(AiStatusStore)) },
-    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => aiActivityItems(inject(AiStatusStore), AI_CHAT_VIEW) },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => aiCommands(inject(AiLauncher), inject(AiStatusStore), inject(WorkspaceStore), inject(TimeCursor)) },
-    { provide: IMT_RECORD_MENU_ITEMS, multi: true, useFactory: () => aiRecordMenu(inject(AiLauncher), inject(AiStatusStore)) },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: () => aiViews(inject(AiStatusStore)) },
+    { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: () => aiActivityItems(inject(AiStatusStore), AI_CHAT_VIEW) },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => aiCommands(inject(AiLauncher), inject(AiStatusStore), inject(WorkspaceStore), inject(TimeCursor)) },
+    { provide: DEBRIEF_RECORD_MENU_ITEMS, multi: true, useFactory: () => aiRecordMenu(inject(AiLauncher), inject(AiStatusStore)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(AiChatPersistence).contribution, inject(KnowledgePersistence).contribution] },
     provideEnvironmentInitializer(() => offerSetupOnFirstRun(inject(AiStatusStore), inject(AiLauncher), inject(Injector))),
   ]);

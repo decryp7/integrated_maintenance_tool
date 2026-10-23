@@ -4,7 +4,7 @@
     "beforeBuildCommand": "npm run build && node scripts/build-sidecars.mjs"
   },
   "bundle": {
-    "externalBin": ["binaries/imt-ai-worker", "binaries/imt-plugins", "binaries/imt-store-worker"],
+    "externalBin": ["binaries/debrief-ai-worker", "binaries/debrief-plugins", "binaries/debrief-store-worker"],
     "resources": {
       "binaries/lib/": "lib/"
     }

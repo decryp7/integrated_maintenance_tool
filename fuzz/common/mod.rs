@@ -1,8 +1,8 @@
 //! Helpers shared by the fuzz targets (included with `#[path]`).
 #![allow(dead_code)]
 
-use imt_core::importers::{self, ImportCtx, Importer};
-use imt_core::profile::{CompiledProfile, Profile};
+use debrief_core::importers::{self, ImportCtx, Importer};
+use debrief_core::profile::{CompiledProfile, Profile};
 use std::path::Path;
 use std::sync::OnceLock;
 
@@ -33,19 +33,19 @@ pub fn text_importer(imp: &dyn Importer, data: &[u8]) {
     }
 }
 
-fn timestamps() -> &'static imt_plugin_api::time::TimestampParser {
-    static T: OnceLock<imt_plugin_api::time::TimestampParser> = OnceLock::new();
-    T.get_or_init(imt_plugin_api::time::TimestampParser::default)
+fn timestamps() -> &'static debrief_plugin_api::time::TimestampParser {
+    static T: OnceLock<debrief_plugin_api::time::TimestampParser> = OnceLock::new();
+    T.get_or_init(debrief_plugin_api::time::TimestampParser::default)
 }
 
-fn plugin_ctx() -> imt_plugin_api::ImportCtx<'static> {
-    let mut c = imt_plugin_api::ImportCtx::new(Path::new("fuzz"), timestamps());
+fn plugin_ctx() -> debrief_plugin_api::ImportCtx<'static> {
+    let mut c = debrief_plugin_api::ImportCtx::new(Path::new("fuzz"), timestamps());
     c.file_date = chrono::NaiveDate::from_ymd_opt(2026, 10, 14);
     c
 }
 
-/// A plugin's text importer (`imt-plugin-api`), as its process runs it; rows cross the IPC as wire events.
-pub fn plugin_text(imp: &dyn imt_plugin_api::TextImporter, data: &[u8]) {
+/// A plugin's text importer (`debrief-plugin-api`), as its process runs it; rows cross the IPC as wire events.
+pub fn plugin_text(imp: &dyn debrief_plugin_api::TextImporter, data: &[u8]) {
     let Some(text) = importers::decode(data) else { return };
     let c = plugin_ctx();
     let head: String = text.chars().take(64 * 1024).collect();
@@ -56,7 +56,7 @@ pub fn plugin_text(imp: &dyn imt_plugin_api::TextImporter, data: &[u8]) {
 }
 
 /// A plugin's binary importer, as its process runs it.
-pub fn plugin_binary(imp: &dyn imt_plugin_api::BinaryImporter, data: &[u8]) {
+pub fn plugin_binary(imp: &dyn debrief_plugin_api::BinaryImporter, data: &[u8]) {
     let c = plugin_ctx();
     assert!(imp.sniff(&c, &data[..data.len().min(4096)]) <= 100);
     if let Ok(imported) = imp.import(&c, data) {
@@ -65,27 +65,27 @@ pub fn plugin_binary(imp: &dyn imt_plugin_api::BinaryImporter, data: &[u8]) {
 }
 
 /// Records of a plugin cross the IPC as postcard wire events: every record encodes and decodes.
-pub fn wire_round_trip(records: &[imt_plugin_api::Record]) {
-    let rows: Vec<_> = records.iter().map(imt_plugin_api::protocol::WireEvent::of).collect();
-    let bytes = imt_ipc::wire::encode(&rows).expect("wire events encode");
-    let back: Vec<imt_plugin_api::protocol::WireEvent> = imt_ipc::wire::decode(&bytes).expect("wire events decode");
+pub fn wire_round_trip(records: &[debrief_plugin_api::Record]) {
+    let rows: Vec<_> = records.iter().map(debrief_plugin_api::protocol::WireEvent::of).collect();
+    let bytes = debrief_ipc::wire::encode(&rows).expect("wire events encode");
+    let back: Vec<debrief_plugin_api::protocol::WireEvent> = debrief_ipc::wire::decode(&bytes).expect("wire events decode");
     assert_eq!(back.len(), rows.len());
 }
 
 /// Sniffs and imports a profile or heap snapshot with small limits (import
 /// runs even when sniff says no), then runs the views over what came out.
-pub fn capture_importer(imp: &dyn imt_profile::CaptureImporter, data: &[u8]) {
-    let limits = imt_profile::Limits {
+pub fn capture_importer(imp: &dyn debrief_profile::CaptureImporter, data: &[u8]) {
+    let limits = debrief_profile::Limits {
         max_input_bytes: 4 << 20,
         max_frames: 20_000,
         max_stack_nodes: 50_000,
         max_samples: 200_000,
         max_objects: 50_000,
         max_edges: 200_000,
-        ..imt_profile::Limits::default()
+        ..debrief_profile::Limits::default()
     };
     assert!(imp.sniff("fuzz", &data[..data.len().min(64 * 1024)]) <= 100);
     if let Ok(capture) = imp.import("fuzz", data, &limits) {
-        imt_profile::fuzz_views(capture);
+        debrief_profile::fuzz_views(capture);
     }
 }

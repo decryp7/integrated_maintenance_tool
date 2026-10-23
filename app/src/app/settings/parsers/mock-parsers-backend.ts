@@ -1,5 +1,5 @@
 import { ParserDocDto, ParserDraftRequest, ParserImportCheckDto, ParserLibraryDto, ParserValidationDto } from '../../core/api.types';
-import type { ImtBackend } from '../../core/backend';
+import type { DebriefBackend } from '../../core/backend';
 import { CmdError } from '../../core/cmd-error';
 import { MockBackend } from '../../core/mock/mock-backend';
 import { MockParserLibrary, MockParserSource } from '../../core/mock/mock-parsers';
@@ -14,14 +14,14 @@ import type { ParserSaveOptions, ParsersBackend } from './parsers-backend';
 export class MockParsersBackend implements ParsersBackend {
   private readonly own = new MockParserLibrary();
 
-  constructor(private readonly imt: ImtBackend) {}
+  constructor(private readonly debrief: DebriefBackend) {}
 
   private get library(): MockParserLibrary {
-    return this.imt instanceof MockBackend ? this.imt.parsers : this.own;
+    return this.debrief instanceof MockBackend ? this.debrief.parsers : this.own;
   }
 
   private sources(): MockParserSource[] {
-    return this.imt instanceof MockBackend ? this.imt.parserSources() : [];
+    return this.debrief instanceof MockBackend ? this.debrief.parserSources() : [];
   }
 
   /** Like a command: resolves on a later task; a throw becomes a rejection. */

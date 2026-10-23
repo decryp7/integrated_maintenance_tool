@@ -28,10 +28,10 @@ export function releaseDate(iso: string | null): string {
  * (never `innerHTML`); the engine bounds and cleans them.
  */
 @Component({
-  selector: 'imt-updates-dialog',
+  selector: 'debrief-updates-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p class="current faint" i18n="@@updates.current">You have IMT {{ store.status()?.currentVersion ?? '…' }}.</p>
+    <p class="current faint" i18n="@@updates.current">You have Debrief {{ store.status()?.currentVersion ?? '…' }}.</p>
     @switch (phase()?.kind) {
       @case ('unavailable') {
         <p class="msg" data-testid="updates-unavailable" i18n="@@updates.unavailable.title">Updates are not available in this build.</p>
@@ -44,7 +44,7 @@ export function releaseDate(iso: string | null): string {
         <p class="msg" role="status" i18n="@@updates.checking">Checking for updates…</p>
       }
       @case ('upToDate') {
-        <p class="msg" role="status" data-testid="updates-up-to-date" i18n="@@updates.upToDate">IMT is up to date.</p>
+        <p class="msg" role="status" data-testid="updates-up-to-date" i18n="@@updates.upToDate">Debrief is up to date.</p>
         <div class="actions"><button class="btn" type="button" (click)="store.check()" i18n="@@updates.checkAgain">Check again</button></div>
       }
       @case ('available') {
@@ -55,16 +55,16 @@ export function releaseDate(iso: string | null): string {
         </div>
       }
       @case ('downloading') {
-        <p class="msg" i18n="@@updates.downloading">Downloading IMT {{ info()?.version }}…</p>
+        <p class="msg" i18n="@@updates.downloading">Downloading Debrief {{ info()?.version }}…</p>
         <progress max="1" [value]="store.progress() ?? 0" aria-label="Download progress" i18n-aria-label="@@updates.downloading.label" data-testid="updates-progress"></progress>
         <p class="faint" role="status">{{ progress() }}</p>
         <div class="actions"><button class="btn" type="button" (click)="store.cancel()" i18n="@@updates.cancel">Cancel</button></div>
       }
       @case ('ready') {
-        <p class="msg" role="status" data-testid="updates-ready" i18n="@@updates.ready">IMT {{ info()?.version }} is downloaded and its signature verified.</p>
+        <p class="msg" role="status" data-testid="updates-ready" i18n="@@updates.ready">Debrief {{ info()?.version }} is downloaded and its signature verified.</p>
         <label class="quit" i18n="@@updates.installOnQuit">
           <input type="checkbox" [checked]="installOnQuit()" (change)="store.setInstallOnQuit($any($event.target).checked)" />
-          Install when IMT quits instead
+          Install when Debrief quits instead
         </label>
         <div class="actions">
           <button class="btn primary" type="button" (click)="store.restart()" i18n="@@updates.restart">Restart to update</button>
@@ -73,7 +73,7 @@ export function releaseDate(iso: string | null): string {
         </div>
       }
       @case ('installing') {
-        <p class="msg" role="status" i18n="@@updates.installing">Restarting to install IMT {{ info()?.version }}…</p>
+        <p class="msg" role="status" i18n="@@updates.installing">Restarting to install Debrief {{ info()?.version }}…</p>
       }
       @case ('failed') {
         <ng-container [ngTemplateOutlet]="failure" [ngTemplateOutletContext]="{ $implicit: failed() }" />
@@ -100,7 +100,7 @@ export function releaseDate(iso: string | null): string {
     }
 
     <ng-template #release let-info>
-      <p class="msg" data-testid="updates-available" i18n="@@updates.available">IMT {{ info.version }} is available.</p>
+      <p class="msg" data-testid="updates-available" i18n="@@updates.available">Debrief {{ info.version }} is available.</p>
       <p class="faint meta">
         @if (date(info)) {
           <ng-container i18n="@@updates.released">Released {{ date(info) }}</ng-container>

@@ -10,14 +10,14 @@
 
 ## Context
 
-IMT runs code in other processes for three reasons: native code that can crash (llama.cpp), memory it must cap
+Debrief runs code in other processes for three reasons: native code that can crash (llama.cpp), memory it must cap
 (the DuckDB store worker) and code that parses untrusted files (every importer plugin). Before this decision:
 
 - **Three transports.** gRPC (tonic, prost, protox, three `build.rs`, `proto/`) for the AI worker and plugins, a
   gRPC call carrying a JSON envelope for the store worker, and in-process trait objects for plugins by default.
   Each needed HTTP/2 window tuning, a token interceptor, a trailer for typed errors and a 4 GiB message limit
   for whole files.
-- **Two ways to run a plugin.** In process (the default; a stack overflow, abort or OOM in a parser takes IMT
+- **Two ways to run a plugin.** In process (the default; a stack overflow, abort or OOM in a parser takes Debrief
   down; a hang can only be abandoned) or isolated (opt-in per plugin, "isolated mode", automatic after a
   quarantine). Only importers, transforms, exporters, marker kinds, annotators and settings crossed the
   boundary, so tools, collectors, configuration parsers and the profiling importers could never be isolated.
@@ -27,12 +27,12 @@ IMT runs code in other processes for three reasons: native code that can crash (
   (ADR 0016, "Not done yet").
 - **A polyglot promise nobody uses.** A C#/.NET SDK, a gRPC conformance kit and a .NET CI job exist for
   third-party plugins in other languages; there are none, and all first-party code is Rust (ADR 0004).
-- **Plugins depend on the whole engine.** Plugin crates use `imt_core` types (`Record`, `TimestampParser`,
+- **Plugins depend on the whole engine.** Plugin crates use `debrief_core` types (`Record`, `TimestampParser`,
   `ConfigParser`, settings, tools), so a plugin process links the engine, and plugin-to-plugin services
   (`Service<T>`) assume one address space.
 - **No sandbox.** Children get a cleared environment and, on Windows, a job object; nothing restricts the file
   system, the network or the integrity level. ETW capture (ADR 0019) needs administrator rights, which today
-  means restarting all of IMT elevated.
+  means restarting all of Debrief elevated.
 
 The user decided (2026-10-20): plugins are Rust only, lean and out of process, over one IPC that is easy to
 understand; gRPC, the .NET SDK, its CI and the conformance suite are deleted; no backward compatibility before
@@ -40,9 +40,9 @@ v1; elevated plugin processes must be possible, with a narrow, authenticated cha
 
 ## Decision
 
-### 1. One frame codec (`imt_ipc::frame`)
+### 1. One frame codec (`debrief_ipc::frame`)
 
-Every byte between two IMT processes is a **frame**: a 4-byte little-endian length, then the frame body encoded
+Every byte between two Debrief processes is a **frame**: a 4-byte little-endian length, then the frame body encoded
 with **postcard** (serde, compact, no schema compiler, MIT/Apache-2.0).
 
 ```text
@@ -68,7 +68,7 @@ Frame   = Hello  { version, token: [u8; 32], pid }      first frame of the conne
 - **Streams with credits.** A `Call` carries an initial credit (default 4 items); the callee sends at most that
   many `Item`s ahead of the caller's `Credit`s, so a fast producer (an importer streaming events) never fills
   the caller's memory, and a slow consumer pushes back on the producer. Items are bounded by the frame limit;
-  event items carry at most 8,192 rows (`imt_batch::BATCH_ROWS`).
+  event items carry at most 8,192 rows (`debrief_batch::BATCH_ROWS`).
 - **Cancel and deadlines.** A caller that stops waiting sends `Cancel`; the callee sees it through its call
   context (`is_cancelled`) and ends with `Fail{code: CANCELLED}`. A callee that does not end within the grace
   period counts as hung (the supervisor kills it). Deadlines are the caller's; nothing is sent for them.
@@ -88,18 +88,18 @@ Frame   = Hello  { version, token: [u8; 32], pid }      first frame of the conne
   **the peer's process id** (`GetNamedPipeClientProcessId` / `SO_PEERCRED` / `getpeereid`) against the process it
   started, then answers `Welcome`. Anything else closes the connection. One connection per child.
 - The child exits when the connection closes (the host died or stopped it) and when stdin closes. On Windows a
-  job object with `KILL_ON_JOB_CLOSE` also kills it with IMT; an elevated child puts itself into such a job.
+  job object with `KILL_ON_JOB_CLOSE` also kills it with Debrief; an elevated child puts itself into such a job.
 - No TCP, no listening child, no connect-retry loop: the host accepts with a timeout (the child's start window).
 
-### 3. `imt-plugin-api`: the contract, with no engine dependency
+### 3. `debrief-plugin-api`: the contract, with no engine dependency
 
-A new crate that plugins depend on, and nothing else of IMT (it depends on `imt-ipc` and `imt-batch`):
+A new crate that plugins depend on, and nothing else of Debrief (it depends on `debrief-ipc` and `debrief-batch`):
 
 - **Plugin traits**: `Plugin` (manifest and contributions), `TextImporter`, `BinaryImporter`, `ConfigParser`,
   `Annotator`, `Tool`, `ProfileImporter` (profiling captures), `Settings`.
-- **Value types plugins build**: `Record`, `Level`, `Fields` (moved from `imt_core::model`), the timestamp parser
-  (moved from `imt_core::time`), text decoding (`decode`, `MAX_LINE_LEN`), configuration trees, settings
-  sections, tool descriptions and argument schemas, marker kinds, annotations. `imt-core` re-exports them, so the
+- **Value types plugins build**: `Record`, `Level`, `Fields` (moved from `debrief_core::model`), the timestamp parser
+  (moved from `debrief_core::time`), text decoding (`decode`, `MAX_LINE_LEN`), configuration trees, settings
+  sections, tool descriptions and argument schemas, marker kinds, annotations. `debrief-core` re-exports them, so the
   engine's code is unchanged and there is one definition of each.
 - **The manifest** (id, name, version, contract version, capabilities, permissions) with **owned ids**
   (`Arc<str>`): nothing is leaked to get a `&'static str`.
@@ -109,7 +109,7 @@ A new crate that plugins depend on, and nothing else of IMT (it depends on `imt-
   connection closes). A plugin's `main` is one line.
 
 Event rows cross as postcard `WireEvent`s in items of at most `BATCH_ROWS` rows; the host's batcher turns them into
-`imt_batch::EventBatch`es with the profile's pipeline, so the store and index see one schema (ADR 0014 §3) and
+`debrief_batch::EventBatch`es with the profile's pipeline, so the store and index see one schema (ADR 0014 §3) and
 **Arrow does not cross the plugin boundary** (this resolves ADR 0014's Arrow 58/60 split: Arrow 58, inside the host
 only). Importers parse before the profile pipeline, so the pipeline, marker rules and ids stay in the host.
 
@@ -123,13 +123,13 @@ only). Importers parse before the profile pipeline, so the pipeline, marker rule
 | Annotator | `Annotate { annotator, start, rows }` → annotations | rows the host selected by the declared interest |
 | Settings | the section is in the manifest; `ApplySettings { json }` → ok | the host validates first; the plugin again |
 | Tool | descriptions in the manifest; `Invoke { tool, op, args }` → JSON; `Stop { tool, task }` | path arguments are grant-checked by the host (below); task reports are calls back to the host |
-| Profile importer | `SniffProfile`, `ImportProfile { importer, file }` → a profile (imt-profile's model) | runs in the profiling plugin, capped by bytes |
+| Profile importer | `SniffProfile`, `ImportProfile { importer, file }` → a profile (debrief-profile's model) | runs in the profiling plugin, capped by bytes |
 | Transform | `Transform { id, rows }` → rows, verdicts, marks | a `{ step = "plugin" }` pipeline step |
 
 Dropped from plugins (no built-in plugin used them; the engine keeps them for its own built-ins): workspace hooks,
 events, exporters, services and plugin-declared extension points, and dependencies between plugins. **Shared
-code is a library**, not a plugin service: `imt-perfmon` (PerfMon CSV and `relog`) and the event-log follower
-(`imt-eventlog`) are crates that plugins and the headless agent link.
+code is a library**, not a plugin service: `debrief-perfmon` (PerfMon CSV and `relog`) and the event-log follower
+(`debrief-eventlog`) are crates that plugins and the headless agent link.
 
 **Host files instead of paths.** The host opens a file the user chose and gives the plugin a `FileRef { id, name,
 len }`; the plugin reads ranges through the connection (`ReadFile { id, offset, len ≤ 1 MiB }`, a call back to the
@@ -145,25 +145,25 @@ it; a path the user did not choose is refused with `notGranted`. Outputs a tool 
 
 - **Every plugin runs in its own process**, always: in-process plugin linking, "isolated mode", "Run isolated",
   auto-isolation after a quarantine and the `--isolated` flag are deleted. The app does not link plugin crates;
-  `imt-plugins` is one binary that serves any built-in (`imt-plugins --plugin <id>`), one process per plugin,
+  `debrief-plugins` is one binary that serves any built-in (`debrief-plugins --plugin <id>`), one process per plugin,
   shared by every window. Safe mode starts none.
-- **The host adapter** (`imt-plugin-host`) makes a plugin process look like an `imt_core::Plugin`: its manifest
+- **The host adapter** (`debrief-plugin-host`) makes a plugin process look like an `debrief_core::Plugin`: its manifest
   registers proxy contributions (`RemoteImporter`, `RemoteTool`, ...) in the registry, so guards, quarantine,
   status, settings and the UI are unchanged. It is a library: the app links it, and the store worker links it to
   run importer plugins next to the store when imports move there (ADR 0014 6c), so events go from the plugin to
   the store worker directly with credits, without an app hop.
-- **One supervisor** (`imt_ipc::Supervisor`): lazy start, restart with exponential backoff, quarantine after
+- **One supervisor** (`debrief_ipc::Supervisor`): lazy start, restart with exponential backoff, quarantine after
   3 failures in 10 minutes, a **restart hook** that restores state (the AI worker reloads its model, the store
-  worker reopens its stores, a plugin gets its settings again). `imt_core::guard` semantics hold across the
+  worker reopens its stores, a plugin gets its settings again). `debrief_core::guard` semantics hold across the
   boundary: a crash, hang, oversized or garbled frame is an error attributed to the plugin, counted towards its
   quarantine; a typed `Fail` is not a crash.
-- **One launcher** (`imt_ipc::launch`) with a `SpawnSpec` that includes a `SandboxSpec` and an `Elevation`.
+- **One launcher** (`debrief_ipc::launch`) with a `SpawnSpec` that includes a `SandboxSpec` and an `Elevation`.
 
 ### 6. Sandbox (`SandboxSpec`)
 
 | | Windows | Linux | macOS |
 |---|---|---|---|
-| Memory | resident memory watched by the host (`watch_memory`, `imt-ipc` `process.rs`); no rlimit or job limit, because both count the reservations that allocators such as mimalloc make up front (changed 2026-10-21; an elevated child caps itself with a job object) | the same watcher | the same watcher |
+| Memory | resident memory watched by the host (`watch_memory`, `debrief-ipc` `process.rs`); no rlimit or job limit, because both count the reservations that allocators such as mimalloc make up front (changed 2026-10-21; an elevated child caps itself with a job object) | the same watcher | the same watcher |
 | CPU | job CPU rate cap; per-process user time | `RLIMIT_CPU` | `RLIMIT_CPU` |
 | Child processes | job `ActiveProcessLimit = 1` unless allowed | `RLIMIT_NPROC` / seccomp `fork` denied | profile `process-fork` denied |
 | Network | (not enforced; low integrity cannot reach the app's pipes) | seccomp: `socket(AF_INET/AF_INET6)` → `EACCES` | profile `network*` denied |
@@ -171,22 +171,22 @@ it; a path the user did not choose is refused with `notGranted`. Outputs a tool 
 | Environment | cleared (`KEPT_ENV` + named variables) | same | same |
 
 - The launcher applies what must come from outside (job object, environment, working directory, priority); the
-  child **locks itself down after connecting and before handling any request** (`imt_ipc::sandbox::lockdown`:
+  child **locks itself down after connecting and before handling any request** (`debrief_ipc::sandbox::lockdown`:
   lowers its integrity level, sets rlimits, restricts itself with landlock and seccomp, or enters its sandbox
   profile). The connection and stdin are already open, so the lockdown needs no exceptions for them. This is the
   Chromium "lock down after init" pattern; it defends against a compromised parser, which is the threat for
   first-party plugins. Third-party binaries would need external enforcement (AppContainer / a restricted token at
-  `CreateProcessAsUser`, a seccomp launcher) before IMT accepts them; none ship.
+  `CreateProcessAsUser`, a seccomp launcher) before Debrief accepts them; none ship.
 - Profiles: `SandboxSpec::locked()` (importers, parsers: no network, no file system, no children, low integrity,
   1 GiB unless the manifest declares another cap), widened only by manifest permissions the user granted
-  (`OpenedFilePaths`, `RunPrograms`, `WriteFolders`, `Network`; `imt_plugin_host::sandbox_for`): the tools plugin
+  (`OpenedFilePaths`, `RunPrograms`, `WriteFolders`, `Network`; `debrief_plugin_host::sandbox_for`): the tools plugin
   asks for `RunPrograms` and `WriteFolders` (normal integrity, children allowed). Workers have their own (the
   store worker: memory cap, no file-system restriction yet; the AI worker: may start `llama-server`). The Plugins
   settings show the permissions.
 - What the system cannot enforce degrades instead of failing the plugin, and is never silent: a kernel or
   container without landlock (or with landlock filtered by its seccomp profile) leaves file access unrestricted,
   one without seccomp leaves network sockets and program starts allowed; the child logs each gap as a warning
-  ("sandbox degraded: …") in its log, and `imt_ipc::sandbox::applied_notes` reports them as typed `Gap`s, which the
+  ("sandbox degraded: …") in its log, and `debrief_ipc::sandbox::applied_notes` reports them as typed `Gap`s, which the
   sandbox tests use to skip, with a message, what the machine cannot enforce. A failed resource limit, and on
   Windows a failed integrity drop, still fail the start.
 
@@ -195,7 +195,7 @@ it; a path the user did not choose is refused with `notGranted`. Outputs a tool 
 - A tool operation may declare `elevated: true` (e.g. the .NET plugin's ETW capture, ADR 0019). Calling it starts
   **a second process of the same plugin** in its elevated role (`--elevated`), which serves only the elevated
   operations of that plugin; the normal process keeps everything else.
-- **Launcher decision** (pure, tested): elevation not needed → normal spawn; needed and IMT already elevated →
+- **Launcher decision** (pure, tested): elevation not needed → normal spawn; needed and Debrief already elevated →
   normal spawn; needed on Windows → `ShellExecuteExW` with `runas` (the UAC prompt; declining is a typed
   `Denied` error with the "Restart as administrator" hint); needed elsewhere → `Denied` with the hint to run the
   collector with `sudo` (no setuid helper).
@@ -211,20 +211,20 @@ it; a path the user did not choose is refused with `notGranted`. Outputs a tool 
 ### 8. Workers use the same stack
 
 - **AI worker**: the same frames (`Hello`/`Load`/`Chat` (streamed deltas with credits)/`Unload`/`Status`), the
-  same supervisor (the restart hook reloads the model). `imt-ai` is split into `imt-ai-proto` (worker messages),
-  `imt-ai-runtime` (downloads and installs through one `SafeHttp`), `imt-ai` (assistant, chat, tools; it takes the
-  `Query` and `Analysis` ports) and `imt-browser-agent`; the worker links only `imt-ai-proto` and `imt-ipc`.
+  same supervisor (the restart hook reloads the model). `debrief-ai` is split into `debrief-ai-proto` (worker messages),
+  `debrief-ai-runtime` (downloads and installs through one `SafeHttp`), `debrief-ai` (assistant, chat, tools; it takes the
+  `Query` and `Analysis` ports) and `debrief-browser-agent`; the worker links only `debrief-ai-proto` and `debrief-ipc`.
 - **Store worker**: its request enum (`OpenStore`, `Open`, `Page`, ...) replaces the JSON envelope; replies are the
-  ports' owned DTOs. Batches for `scan` cross as Arrow IPC (imt-batch's Arrow 58) inside items when 6c needs them.
-- **Profile worker**: `imt-profile` and its importers run in the profiling plugin process, capped by bytes (input
+  ports' owned DTOs. Batches for `scan` cross as Arrow IPC (debrief-batch's Arrow 58) inside items when 6c needs them.
+- **Profile worker**: `debrief-profile` and its importers run in the profiling plugin process, capped by bytes (input
   size limit and the job memory cap); the app holds the resulting model and its views.
-- **One redactor** (`imt_core::redact`) is used by the AI privacy filter and by child-log scrubbing.
+- **One redactor** (`debrief_core::redact`) is used by the AI privacy filter and by child-log scrubbing.
 
 ### 9. Deleted
 
 `tonic`, `tonic-prost`, `tonic-prost-build`, `prost` (as an IPC dependency), `protox`, `tower`, `hyper-util`; the
-three `build.rs` that generated gRPC code; `proto/`, `crates/imt-ipc/proto`, `crates/imt-ai-worker/proto/llm.proto`,
-`crates/imt-store-worker/proto`; `crates/imt-plugin-sdk` (SDK, Arrow conversion, `imt-plugin-check`, the toy
+three `build.rs` that generated gRPC code; `proto/`, `crates/debrief-ipc/proto`, `crates/debrief-ai-worker/proto/llm.proto`,
+`crates/debrief-store-worker/proto`; `crates/debrief-plugin-sdk` (SDK, Arrow conversion, `debrief-plugin-check`, the toy
 plugin); `sdk/dotnet` and its CI job; the isolation settings (`plugin-isolation` section, `--isolated`,
 `plugin_isolation_status`); `PluginSpec` grants of the gRPC handshake. No migration of stored settings (pre-v1).
 
@@ -232,16 +232,16 @@ plugin); `sdk/dotnet` and its CI job; the isolation settings (`plugin-isolation`
 
 | Crate | Becomes |
 |---|---|
-| `imt-ipc` | frames, connection (`Peer`), endpoint, launcher with sandbox and elevation, supervisor, child loop |
-| `imt-plugin-sdk` | deleted; `imt-plugin-api` (contract) |
-| `imt-plugin-host` | host adapter library (no plugin crates); `imt-plugins` serves the built-ins |
-| `imt-plugin-registry`, `-otel`, `-syslog`, `-web`, `-formats` | depend on `imt-plugin-api` only; importers over host files |
-| `imt-plugin-windows` | importers, msinfo parser, markers, annotators on the API; event-log follower → `imt-eventlog`, PerfMon → `imt-perfmon` libraries |
-| `imt-plugin-tools` | a plugin process (`SandboxSpec::tools()`), tools with typed path arguments |
-| `imt-plugin-profiling` | profile importers over the API in their own process (the profile worker) |
-| `imt-plugin-dotnet` (ADR 0019) | its tool and `.etl` importer over the API; ETW capture as the first elevated operation |
-| `imt-ai`, `imt-ai-worker` | split as in §8; worker over frames |
-| `imt-store-worker` | request enum over frames |
+| `debrief-ipc` | frames, connection (`Peer`), endpoint, launcher with sandbox and elevation, supervisor, child loop |
+| `debrief-plugin-sdk` | deleted; `debrief-plugin-api` (contract) |
+| `debrief-plugin-host` | host adapter library (no plugin crates); `debrief-plugins` serves the built-ins |
+| `debrief-plugin-registry`, `-otel`, `-syslog`, `-web`, `-formats` | depend on `debrief-plugin-api` only; importers over host files |
+| `debrief-plugin-windows` | importers, msinfo parser, markers, annotators on the API; event-log follower → `debrief-eventlog`, PerfMon → `debrief-perfmon` libraries |
+| `debrief-plugin-tools` | a plugin process (`SandboxSpec::tools()`), tools with typed path arguments |
+| `debrief-plugin-profiling` | profile importers over the API in their own process (the profile worker) |
+| `debrief-plugin-dotnet` (ADR 0019) | its tool and `.etl` importer over the API; ETW capture as the first elevated operation |
+| `debrief-ai`, `debrief-ai-worker` | split as in §8; worker over frames |
+| `debrief-store-worker` | request enum over frames |
 
 ### 11. Testing
 
@@ -257,9 +257,9 @@ UAC prompt itself cannot run in CI and is a manual check.
 
 - One transport to understand, test and fuzz; about 40 crates fewer in the dependency tree and no code
   generation. A frame is readable in a debugger as a Rust enum.
-- A plugin bug can no longer take IMT down or read files the user did not open; plugins start lazily (the first
+- A plugin bug can no longer take Debrief down or read files the user did not open; plugins start lazily (the first
   import of a format, the first tool call), at the cost of one process per plugin (a few MB each) and a copy of
-  event rows through a local socket (measured by `imt-plugin-host`'s transport benchmark).
+  event rows through a local socket (measured by `debrief-plugin-host`'s transport benchmark).
 - Plugins compile against a small crate, not the engine; the engine's types plugins build live in the API crate.
 - Third-party plugins in other languages are no longer possible; a future need would add a second codec behind
   the same frames, not a second transport.
@@ -270,40 +270,40 @@ UAC prompt itself cannot run in CI and is a manual check.
 
 What landed, and where it differs from the text above:
 
-- **Frames** (`imt_ipc::frame`, `peer`, `link`): as in §1, except that there is no `End` frame: a streamed
+- **Frames** (`debrief_ipc::frame`, `peer`, `link`): as in §1, except that there is no `End` frame: a streamed
   answer is its `Item`s followed by the `Reply`. `RemoteError` is `{code, message, data: Option<Json>}`; retry
   advice is in the message and the error code. The `Peer` API is synchronous (handlers run on a blocking pool of
   one shared two-thread runtime), with `max_concurrent_calls` (over it: `BUSY`) and a 2 s cancel grace.
 - **Descriptive types cross as JSON.** The manifest (with settings sections, tool schemas, marker kinds) is read
-  once per start with `imt-plugins --manifests` and on `PluginRequest::Manifest`, as JSON: these types use serde
+  once per start with `debrief-plugins --manifests` and on `PluginRequest::Manifest`, as JSON: these types use serde
   attributes postcard cannot carry, and they are not on a hot path. Event rows (`WireEvent` with `WireValue`s),
   file chunks and every request/reply envelope are postcard.
 - **Host files** are lent per call: the host answers the plugin's `ReadFile` (≤ 1 MiB) from the file it opened,
-  on the calling thread, for the duration of the call (`imt_plugin_host::process`'s pump); the plugin sees a
+  on the calling thread, for the duration of the call (`debrief_plugin_host::process`'s pump); the plugin sees a
   `HostFileRef`, never a path, unless it was granted `OpenedFilePaths`. Annotators read the host's view through
   `ViewSelect`/`ViewInstances`/`ViewTimeRange` callbacks with a call-scoped ticket; tools report tasks with
   `TaskStarted`/`TaskProgress`/`TaskFinished`.
-- **Plugins**: every built-in runs in its own `imt-plugins --plugin <id>` process; the app links no plugin crate.
+- **Plugins**: every built-in runs in its own `debrief-plugins --plugin <id>` process; the app links no plugin crate.
   Settings are re-applied after a restart (`Supervisor::with_restore`). Path arguments are typed
-  (`Schema::Path`) and checked by `imt_core`'s `ToolHost` against the window's grants (`ToolError::PathRefused`
+  (`Schema::Path`) and checked by `debrief_core`'s `ToolHost` against the window's grants (`ToolError::PathRefused`
   → `CmdError::NotGranted`).
 - **Profiling**: the profiling plugin's process is the profile worker (3 GiB cap); the model crosses as postcard
-  through `imt_profile::wire`, validated on decode.
+  through `debrief_profile::wire`, validated on decode.
 - **AI worker**: `WorkerRequest` (`Hello`, `Load`, `Chat` streamed with credits, `Unload`, `Status`, `Shutdown`)
   over frames; the gRPC code and `llm.proto` are gone.
 - **Store worker**: `StoreRequest { OpenStore, CloseStore, Status, Call { store, op: StoreOp, body } }` over
   frames. The port DTOs still travel as JSON inside the frame (`Json` body), because many use serde attributes
   postcard cannot carry; moving them to postcard-safe types is part of ADR 0014 6c, together with the store
   worker running importer plugins itself.
-- **Sandbox and elevation** (`imt_ipc::sandbox`, `job`, `elevation`): Windows low integrity, job memory/CPU/child
-  limits and the elevated launch (`ShellExecuteExW runas`, bootstrap file `--imt-bootstrap <file>` read and
+- **Sandbox and elevation** (`debrief_ipc::sandbox`, `job`, `elevation`): Windows low integrity, job memory/CPU/child
+  limits and the elevated launch (`ShellExecuteExW runas`, bootstrap file `--debrief-bootstrap <file>` read and
   deleted by the child, Administrators in the pipe DACL, peer PID check) are implemented and tested on Windows
   (low-integrity write denied, job blocks a child process, memory cap). The UAC prompt itself is a manual check.
   Linux (rlimits, landlock, seccomp BPF denying `AF_INET`/`AF_INET6` sockets and `execve`) and macOS
   (`sandbox_init` profile) are implemented behind `cfg` and type-checked with clippy for
   `x86_64-unknown-linux-gnu` and `x86_64-apple-darwin`; they run in CI on those runners.
 
-- **Elevated operations** (§7, first user: `imt-plugin-dotnet`'s ETW recordings, ADR 0019): the host runs an
+- **Elevated operations** (§7, first user: `debrief-plugin-dotnet`'s ETW recordings, ADR 0019): the host runs an
   operation declared `elevated` in the plugin's elevated process when the UI calls it, or when the plugin's normal
   process asks with `HostRequest::InvokeElevated` (`ToolCtx::elevated()`), which lets a plugin keep its state in the
   normal process and use the elevated one only for what needs the rights. The host accepts only operations the
@@ -313,12 +313,12 @@ What landed, and where it differs from the text above:
 
 Deferred (tracked in docs/roadmap.md, "Open items from the 2026-10 redesign plan"):
 
-- Splitting `imt-ai` into `imt-ai-proto` / `imt-ai-runtime` / `imt-ai` / `imt-browser-agent`, one `SafeHttp`, the
-  assistant on the `Query`/`Analysis` ports (§8); the worker already links only `imt-ai`'s worker module and
-  `imt-ipc`.
-- One redactor `imt_core::redact` (§8).
-- `imt-perfmon` and `imt-eventlog` as libraries (§4): the tools plugin still links `imt-core` (through
-  `imt-collect` and `imt-monitor`); its process is sandboxed like any other plugin.
+- Splitting `debrief-ai` into `debrief-ai-proto` / `debrief-ai-runtime` / `debrief-ai` / `debrief-browser-agent`, one `SafeHttp`, the
+  assistant on the `Query`/`Analysis` ports (§8); the worker already links only `debrief-ai`'s worker module and
+  `debrief-ipc`.
+- One redactor `debrief_core::redact` (§8).
+- `debrief-perfmon` and `debrief-eventlog` as libraries (§4): the tools plugin still links `debrief-core` (through
+  `debrief-collect` and `debrief-monitor`); its process is sandboxed like any other plugin.
 - Importer plugins streaming to the store worker directly (§5): needs the store worker in the workspace and its
   imports (ADR 0014 6c).
 
@@ -337,7 +337,7 @@ request in that direction, so the ETW collector wrote its file itself (ADR 0022 
   with `Result<SavedOutput, String>` when the stream ended. While it is pending the host pulls the bytes with
   **`PluginRequest::PullOutput { stream }`**, a streamed request with `OUTPUT_CREDIT` (4) credits: pieces of at most
   `OUTPUT_CHUNK` (256 KiB), so at most 1 MiB is in flight; the stream ends with `OutputEnd { bytes }`. The plugin side
-  is `ToolCtx::outputs()` (`imt_plugin_api::output::Outputs::create(folder, name, max_bytes)` giving an `OutputFile`,
+  is `ToolCtx::outputs()` (`debrief_plugin_api::output::Outputs::create(folder, name, max_bytes)` giving an `OutputFile`,
   which is `Write`); `FolderOutputs` writes the same files directly for a normal process and in tests.
 - **The host decides where**: `<data>/captures/<folder>/<name>` in the data folder it chose for the tool. Both names
   are one plain component (`check_output_name`: `[A-Za-z0-9._-]`, at most 200 bytes, no leading or trailing dot, no
@@ -354,5 +354,5 @@ request in that direction, so the ETW collector wrote its file itself (ADR 0022 
 - The elevated process still writes nothing at a path it receives; the one remaining write of the ETW tool is its
   symbol cache, below the user's application-data folders (ADR 0022 §7).
 
-Tested end to end with the host's fake plugin (`imt-plugin-host/tests/elevated_output.rs`): intact bytes, the limit,
+Tested end to end with the host's fake plugin (`debrief-plugin-host/tests/elevated_output.rs`): intact bytes, the limit,
 malicious names, a crash in the middle of a stream, forwarded and capped standard error.

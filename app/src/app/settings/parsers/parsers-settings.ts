@@ -17,19 +17,19 @@ const NAMES_SHOWN = 3;
  * sources were read with parsers that changed since.
  */
 @Component({
-  selector: 'imt-parsers-settings',
+  selector: 'debrief-parsers-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Switch, CdkMenu, CdkMenuItem, CdkMenuTrigger],
   template: `
     <div class="section-head">
-      <h3 i18n="Settings section|The log formats IMT reads@@settings.parsers.title">Parsers</h3>
+      <h3 i18n="Settings section|The log formats Debrief reads@@settings.parsers.title">Parsers</h3>
       <span class="spacer"></span>
       <button type="button" class="btn" data-testid="parsers-new-from-file" [disabled]="busy() || !sources().length" [cdkMenuTriggerFor]="fileMenu" i18n="@@settings.parsers.newFromFile">New from a file…</button>
       <button type="button" class="btn" data-testid="parsers-generate-ai" [disabled]="busy() || !sources().length" [cdkMenuTriggerFor]="aiMenu" i18n="@@settings.parsers.generateAi">Generate with AI…</button>
       <button type="button" class="btn" data-testid="parsers-import" [disabled]="busy()" (click)="store.importFromFile()" i18n="@@settings.parsers.import">Import .toml…</button>
       <button type="button" class="btn" data-testid="parsers-new-blank" [disabled]="busy()" (click)="newBlank()" i18n="@@settings.parsers.newBlank">New blank</button>
     </div>
-    <p class="desc" i18n="@@settings.parsers.desc">A parser describes one log format and is one TOML file you can share. For every file, IMT uses the enabled parser that reads it best; “Parse with…” in the Explorer chooses one yourself.</p>
+    <p class="desc" i18n="@@settings.parsers.desc">A parser describes one log format and is one TOML file you can share. For every file, Debrief uses the enabled parser that reads it best; “Parse with…” in the Explorer chooses one yourself.</p>
 
     @if (store.readTarget(); as t) {
       <div class="banner target" role="region" aria-label="Choose a parser" i18n-aria-label="@@settings.parsers.target.label" data-testid="parsers-target">
@@ -79,7 +79,7 @@ const NAMES_SHOWN = 3;
               @if (store.readTarget(); as t) {
                 <button type="button" class="btn small" [class.primary]="store.targetChoice() === p.id" data-testid="parser-read-with" [disabled]="busy()" [attr.aria-label]="readWithLabel(p, t.name)" (click)="store.readTargetWith(p.id)" i18n="@@settings.parsers.target.use">Read it with this</button>
               }
-              <imt-switch size="small" [checked]="p.enabled" [disabled]="busy()" (checkedChange)="store.setEnabled(p.id, $event)"><span class="sr-only">{{ enableLabel(p) }}</span><span aria-hidden="true" i18n="@@settings.parsers.enabled">Enabled</span></imt-switch>
+              <debrief-switch size="small" [checked]="p.enabled" [disabled]="busy()" (checkedChange)="store.setEnabled(p.id, $event)"><span class="sr-only">{{ enableLabel(p) }}</span><span aria-hidden="true" i18n="@@settings.parsers.enabled">Enabled</span></debrief-switch>
               <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(editText, p)" (click)="edit(p.id)">{{ editText }}</button>
               <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(duplicateText, p)" (click)="store.duplicate(p.id)">{{ duplicateText }}</button>
               <button type="button" class="btn ghost small" [disabled]="busy()" [attr.aria-label]="actionLabel(exportText, p)" (click)="store.exportParser(p.id)">{{ exportText }}</button>
@@ -126,7 +126,7 @@ const NAMES_SHOWN = 3;
     :host-context(.parsers-view) .parser { flex-direction: column; align-items: stretch; }
     .section-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     h3 { margin: 0 0 4px; font-size: var(--fs-lg); font-weight: 600; }
-    h4 { margin: 14px 0 4px; font-size: var(--fs-xs); font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+    h4 { margin: 14px 0 4px; font-size: var(--fs-sm); font-weight: 600; color: var(--muted); }
     .spacer { flex: 1; }
     .desc { margin: 4px 0 8px; color: var(--muted); line-height: 1.45; }
     .muted { color: var(--muted); }

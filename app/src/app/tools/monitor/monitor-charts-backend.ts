@@ -1,6 +1,6 @@
 import { inject, InjectionToken } from '@angular/core';
 import { ChartData, ChartRequest } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { isTauri } from '../../core/platform';
 import { CollectBackend } from '../../core/tools-backend';
 import type { MockToolsBackend } from '../mock/mock-tools-backend';
@@ -19,7 +19,7 @@ export const MONITOR_CHARTS = new InjectionToken<MonitorCharts>('MONITOR_CHARTS'
   providedIn: 'root',
   factory: () => {
     if (isTauri()) {
-      const backend = inject(ImtBackend);
+      const backend = inject(DebriefBackend);
       return { queryChart: (r: ChartRequest) => backend.queryChart(r) };
     }
     // The mock tools backend remembers the run's config: .NET samples appear only when the run asked for them.

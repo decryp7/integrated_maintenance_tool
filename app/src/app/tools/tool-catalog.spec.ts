@@ -1,12 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { pluginInfo, settle } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { ToolCatalogBackend } from '../core/tools-backend';
 import { ToolEntry } from '../core/tools.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { CommandRegistry } from '../extensions/command-registry';
-import { IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS } from '../extensions/tokens';
 import { ViewRegistry } from '../extensions/view-registry';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { mockTools, provideToolsTesting } from './mock/test-support';
@@ -15,15 +15,15 @@ import { ToolCatalog } from './tool-catalog.store';
 import { ToolUnavailable } from './tool-unavailable';
 import { ToolsCommands, toolsViews } from './tools-commands';
 
-@Component({ imports: [ToolUnavailable], template: `<imt-tool-unavailable tool="process-monitor" />` })
+@Component({ imports: [ToolUnavailable], template: `<debrief-tool-unavailable tool="process-monitor" />` })
 class Host {}
 
 async function setup(options: Partial<MockToolsOptions> = {}) {
   TestBed.configureTestingModule({
     providers: [
       ...provideToolsTesting(options),
-      { provide: IMT_VIEWS, multi: true, useFactory: () => toolsViews(inject(ToolCatalog)) },
-      { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ToolsCommands).commands },
+      { provide: DEBRIEF_VIEWS, multi: true, useFactory: () => toolsViews(inject(ToolCatalog)) },
+      { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(ToolsCommands).commands },
     ],
   });
   await TestBed.inject(WorkspaceStore).init();
@@ -106,9 +106,9 @@ describe('ToolCatalog', () => {
   it('reads the tools again when a plugin changes state', async () => {
     await setup();
     const spy = vi.spyOn(mockTools(), 'toolsList');
-    const imt = TestBed.inject(ImtBackend);
-    const summary = await imt.workspaceSummary();
-    vi.spyOn(imt, 'workspaceSummary').mockResolvedValue({ ...summary, plugins: [pluginInfo({ id: 'net.decryptology.tools', status: 'quarantined' })] });
+    const debrief = TestBed.inject(DebriefBackend);
+    const summary = await debrief.workspaceSummary();
+    vi.spyOn(debrief, 'workspaceSummary').mockResolvedValue({ ...summary, plugins: [pluginInfo({ id: 'net.decryptology.tools', status: 'quarantined' })] });
     await TestBed.inject(WorkspaceStore).refreshSummary();
     await settle();
     expect(spy).toHaveBeenCalled();

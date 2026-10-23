@@ -19,7 +19,7 @@ use tauri::ipc::{CommandArg, CommandItem, Invoke, InvokeError};
 use tauri::Runtime;
 
 /// IPC header carrying the UI's operation id.
-pub const OP_HEADER: &str = "imt-op-id";
+pub const OP_HEADER: &str = "debrief-op-id";
 const MAX_OP_ID: usize = 64;
 const MAX_COMMAND: usize = 96;
 
@@ -378,7 +378,7 @@ mod tests {
             assert_eq!(m.props["Window"], "w-ipc");
             assert_eq!(m.props["Kind"], "mutation");
             assert_eq!(m.props["Attribution"], "attributed");
-            assert_eq!(m.props["SourceContext"], "IMT.Activity");
+            assert_eq!(m.props["SourceContext"], "Debrief.Activity");
             let q = &ipc_entries("query_page")[0];
             assert_eq!(
                 (q.level, q.props["Kind"].as_str(), q.props["Attribution"].as_str()),

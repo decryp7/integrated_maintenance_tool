@@ -4,7 +4,7 @@ import { settle } from '../../testing/helpers';
 import { provideBackend } from '../core/backend';
 import { Logger } from '../core/logger';
 import { MemoryLogger } from '../../testing/helpers';
-import { provideImtBuiltins } from '../builtin/provide-builtins';
+import { provideDebriefBuiltins } from '../builtin/provide-builtins';
 import { DockService } from '../dock/dock.service';
 import { CommandRegistry } from '../extensions/command-registry';
 import { ViewRegistry } from '../extensions/view-registry';
@@ -25,7 +25,7 @@ function configure() {
       { provide: Logger, useFactory: () => new MemoryLogger() },
       { provide: DockService, useValue: new FakeDock() },
       provideBackend(),
-      provideImtBuiltins(),
+      provideDebriefBuiltins(),
       provideTools(),
     ],
   });
@@ -76,6 +76,6 @@ describe('provideTools', () => {
     await settle();
     expect(TestBed.inject(LifecycleService).status()).not.toBeNull();
     expect(TestBed.inject(SessionService)).toBeDefined();
-    expect(document.body.querySelector('imt-title-extras, imt-lifecycle-banners')).toBeNull();
+    expect(document.body.querySelector('debrief-title-extras, debrief-lifecycle-banners')).toBeNull();
   });
 });

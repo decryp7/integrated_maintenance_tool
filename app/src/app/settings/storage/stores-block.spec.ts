@@ -21,7 +21,7 @@ describe('StorageStores', () => {
     const { fixture } = await setup();
     expect(rows(fixture)).toHaveLength(5);
     const states = rows(fixture).map((r) => r.querySelector('.badge')?.textContent?.trim());
-    expect(states).toEqual(['Open', 'Kept for session restore', 'In use by another IMT', 'Orphaned', 'Orphaned']);
+    expect(states).toEqual(['Open', 'Kept for session restore', 'In use by another Debrief', 'Orphaned', 'Orphaned']);
     const first = rows(fixture)[0]!;
     expect(first.textContent).toContain('store-7f3a91c2');
     expect(first.textContent).toContain('640 MB');

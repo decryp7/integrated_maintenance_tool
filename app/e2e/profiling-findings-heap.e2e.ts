@@ -10,7 +10,7 @@ test.describe('Profiling findings and memory', () => {
     const lock = view.locator('li.finding[data-kind="lockContention"]');
     await expect(lock).toContainText('Critical');
     await expect(lock).toContainText('Lock contention');
-    await expectNoSeriousViolations(page, testInfo, 'profiling-findings', 'imt-findings-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-findings', 'debrief-findings-view');
 
     await lock.getByRole('button', { name: /Open evidence/ }).click();
     const grid = callTree(page).getByRole('treegrid');
@@ -29,24 +29,24 @@ test.describe('Profiling findings and memory', () => {
     const view = heap(page);
     // The memory view starts on its findings (problem first).
     await expect(view.getByRole('list', { name: 'Memory findings' }).locator('li.finding').first()).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-findings', 'imt-heap-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-findings', 'debrief-heap-view');
     await view.getByRole('tab', { name: 'Types' }).click();
     await expect(view.getByRole('table', { name: 'Types' })).toContainText('Shop.Orders.Order');
-    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-types', 'imt-heap-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-types', 'debrief-heap-view');
 
     await view.getByRole('tab', { name: 'Compare snapshots' }).click();
     await view.getByRole('combobox', { name: 'Before snapshot' }).selectOption({ label: 'heap-1.heapsnapshot' });
     await view.getByRole('combobox', { name: 'After snapshot' }).selectOption({ label: 'heap-2.heapsnapshot' });
     const diff = view.getByRole('table', { name: /Snapshot comparison/ });
     await expect(diff.locator('tr', { hasText: 'Shop.Orders.AuditLog' }).first().locator('.tag')).toHaveText('new');
-    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-diff', 'imt-heap-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-diff', 'debrief-heap-view');
 
     await view.getByRole('tab', { name: 'Growth' }).click();
     const growth = view.getByRole('table', { name: 'Growth across snapshots' });
     const order = growth.locator('tr', { has: page.getByRole('button', { name: 'Shop.Orders.Order', exact: true }) });
     await expect(order).toContainText('steady growth');
     await expect(order.getByRole('img', { name: /Trend of Shop.Orders.Order/ })).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-growth', 'imt-heap-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-growth', 'debrief-heap-view');
 
     await order.getByRole('button', { name: 'Shop.Orders.Order', exact: true }).click();
     await expect(view.getByRole('tab', { name: 'Instances and paths' })).toHaveAttribute('aria-selected', 'true');
@@ -55,7 +55,7 @@ test.describe('Profiling findings and memory', () => {
     await expect(chain.locator('li').first()).toContainText('GC root');
     await expect(chain).toContainText('_orders');
     await expect(chain.locator('li').last()).toContainText('Shop.Orders.Order');
-    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-paths', 'imt-heap-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-heap-paths', 'debrief-heap-view');
 
     await view.getByRole('tab', { name: 'Dominator tree' }).click();
     const dom = view.getByRole('treegrid', { name: 'Dominator tree' });

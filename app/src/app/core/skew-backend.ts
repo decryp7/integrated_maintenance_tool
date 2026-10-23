@@ -1,7 +1,7 @@
 import { invoke } from './activity/ipc';
 import { inject, Provider } from '@angular/core';
 import { OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult } from './api.types';
-import { ImtBackend } from './backend';
+import { DebriefBackend } from './backend';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
@@ -51,7 +51,7 @@ export class UnsupportedSkewBackend extends SkewBackend {
  */
 export function createSkewBackend(): SkewBackend {
   if (!isTauri()) {
-    const workspace = inject(ImtBackend);
+    const workspace = inject(DebriefBackend);
     return hasSkew(workspace) ? workspace : new UnsupportedSkewBackend();
   }
   return withFailureLogging<SkewBackend>(new TauriSkewBackend(), inject(Logger), { onFailure: reportBackendFailures() });

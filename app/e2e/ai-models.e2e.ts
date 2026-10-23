@@ -7,7 +7,7 @@ import { openAppWith } from './mock-url';
 async function openModels(page: Page) {
   await page.keyboard.press('ControlOrMeta+k');
   await page.getByRole('combobox', { name: 'Type a command' }).fill('AI: Manage models');
-  await expect(page.getByRole('option').first()).toContainText('AI: Manage models');
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText('AI: Manage models');
   await page.keyboard.press('Enter');
   const dialog = page.getByRole('dialog', { name: 'AI models' });
   await expect(dialog).toBeVisible();

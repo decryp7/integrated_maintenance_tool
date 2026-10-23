@@ -2,11 +2,11 @@ import { expect, Page, test } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-// The scripts IMT evaluates in pages of the AI's browser (crates/imt-ai/src/browser/js), run in real
+// The scripts Debrief evaluates in pages of the AI's browser (crates/debrief-ai/src/browser/js), run in real
 // Chromium and WebKit the way `scripts.rs` calls them: `(function (A) {...})({...})`, returning JSON text.
 // What they return is parsed and judged in Rust (tested there); this checks what they collect and do.
 
-const JS = join(__dirname, '..', '..', 'crates', 'imt-ai', 'src', 'browser', 'js');
+const JS = join(__dirname, '..', '..', 'crates', 'debrief-ai', 'src', 'browser', 'js');
 const source = (name: string) => readFileSync(join(JS, name), 'utf8').replace(/\r\n/g, '\n').trim();
 
 async function run(page: Page, name: string, args: Record<string, unknown>): Promise<Record<string, unknown>> {

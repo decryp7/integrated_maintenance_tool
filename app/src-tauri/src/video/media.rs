@@ -5,7 +5,7 @@
 
 use super::commands::playable;
 use crate::windows::CurrentWindow;
-use imt_video::media::{answer, content_type, RangeAnswer};
+use debrief_video::media::{answer, content_type, RangeAnswer};
 use std::io::{Read, Seek, SeekFrom};
 use tauri::http::{header, Request, Response, StatusCode};
 use tauri::{Manager, Runtime, UriSchemeContext, UriSchemeResponder};

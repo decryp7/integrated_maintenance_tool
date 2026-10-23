@@ -7,7 +7,7 @@ const rangeButton = (page: Page) => page.getByTitle(/Reset to the full range|Dra
 
 /** Drags across the histogram strip (no markers there) between two fractions of the plot width. */
 async function brush(page: Page, from: number, to: number): Promise<void> {
-  const box = (await page.locator('imt-timeline-panel .hist-row .plot').boundingBox())!;
+  const box = (await page.locator('debrief-timeline-panel .hist-row .plot').boundingBox())!;
   const y = box.y + box.height / 2;
   await page.mouse.move(box.x + box.width * from, y);
   await page.mouse.down();
@@ -56,7 +56,7 @@ test.describe('timeline zoom', () => {
     const full = await rangeText(range);
     await brush(page, 0.4, 0.6);
     await expect(range).not.toHaveText(full);
-    const box = (await page.locator('imt-timeline-panel .hist-row .plot').boundingBox())!;
+    const box = (await page.locator('debrief-timeline-panel .hist-row .plot').boundingBox())!;
     await page.mouse.dblclick(box.x + box.width / 2, box.y + box.height / 2);
     await expect(range).toHaveText(full);
   });
@@ -64,7 +64,7 @@ test.describe('timeline zoom', () => {
   test('Ctrl+wheel zooms around the cursor', async ({ page }) => {
     const range = rangeButton(page);
     const full = await rangeText(range);
-    const box = (await page.locator('imt-timeline-panel .hist-row .plot').boundingBox())!;
+    const box = (await page.locator('debrief-timeline-panel .hist-row .plot').boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.keyboard.down('Control');
     await page.mouse.wheel(0, -400);
@@ -77,37 +77,37 @@ test.describe('timeline zoom', () => {
 test.describe('timeline and analysis', () => {
   test('right-clicking the time axis offers "Analyse this moment"', async ({ page }) => {
     await openApp(page);
-    const axis = page.locator('imt-timeline-panel .axis');
+    const axis = page.locator('debrief-timeline-panel .axis');
     await axis.click({ button: 'right', position: { x: 200, y: 10 } });
     const menu = page.getByRole('menu', { name: 'Actions' });
     await expect(menu).toBeVisible();
     await menu.getByRole('menuitem', { name: 'Analyse this moment' }).click();
     await expect(menu).toHaveCount(0);
-    const view = page.locator('imt-moment-view');
+    const view = page.locator('debrief-moment-view');
     await expect(view).toBeVisible();
     await expect(view.getByRole('heading', { name: 'Instances' })).toBeVisible();
   });
 
   test('hovering the timeline draws the shared time cursor', async ({ page }) => {
     await openApp(page);
-    const box = (await page.locator('imt-timeline-panel .hist-row .plot').boundingBox())!;
+    const box = (await page.locator('debrief-timeline-panel .hist-row .plot').boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await expect(page.locator('imt-timeline-panel .cursor-label')).toHaveText(/\d{2}:\d{2}:\d{2}/);
+    await expect(page.locator('debrief-timeline-panel .cursor-label')).toHaveText(/\d{2}:\d{2}:\d{2}/);
     await page.mouse.move(box.x + box.width / 2, box.y - 200);
-    await expect(page.locator('imt-timeline-panel .cursor')).toBeHidden();
+    await expect(page.locator('debrief-timeline-panel .cursor')).toBeHidden();
   });
 
   test('a failed timeline request shows an inline error with Retry', async ({ page }) => {
     // The panel asks again when its width is measured, so more than one request fails before Retry succeeds.
     await openAppWith(page, '?mockFail=queryTimeline:3&mockSnapshots=off');
-    const card = page.locator('imt-timeline-panel .err-card');
+    const card = page.locator('debrief-timeline-panel .err-card');
     await expect(card).toContainText("Couldn't load the timeline.");
     await expect(card).toContainText('Simulated queryTimeline failure');
-    await expect(page.locator('.imt-toast-stack .toast[role=alert]')).toHaveCount(0);
+    await expect(page.locator('.debrief-toast-stack .toast[role=alert]')).toHaveCount(0);
     await expect(async () => {
       if (await card.count()) await card.getByRole('button', { name: 'Retry' }).click();
       await expect(card).toHaveCount(0, { timeout: 1500 });
     }).toPass({ timeout: 15_000 });
-    await expect(page.locator('imt-timeline-panel .lane').first()).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel .lane').first()).toBeVisible();
   });
 });

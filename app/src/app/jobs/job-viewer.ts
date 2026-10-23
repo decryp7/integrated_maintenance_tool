@@ -13,7 +13,7 @@ export const JOBS_VIEW = 'jobs';
 const AI_CHAT_VIEW = 'ai-chat';
 
 /** The analysis views a job's `view` result names (the engine's names are the view ids). */
-const ANALYSIS_VIEWS = new Set(['patterns', 'exceptions', 'anomalies', 'compare', 'moment', 'query']);
+const ANALYSIS_VIEWS = new Set(['patterns', 'exceptions', 'anomalies', 'outliers', 'compare', 'moment', 'query']);
 
 /**
  * View: opens a finished job's result where it belongs — an AI answer with its citations or the proposals to

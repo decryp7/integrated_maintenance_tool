@@ -6,17 +6,17 @@ import { libduckdbFile, sidecarPlan } from './build-sidecars.mjs';
 
 const select = [
   '-p',
-  'imt-ai-worker',
+  'debrief-ai-worker',
   '--bin',
-  'imt-ai-worker',
+  'debrief-ai-worker',
   '-p',
-  'imt-plugins',
+  'debrief-plugins',
   '--bin',
-  'imt-plugins',
+  'debrief-plugins',
   '-p',
-  'imt-store-worker',
+  'debrief-store-worker',
   '--bin',
-  'imt-store-worker',
+  'debrief-store-worker',
 ];
 const host = 'x86_64-pc-windows-msvc';
 const targetDir = join('ci', 'target');
@@ -27,9 +27,9 @@ test('a host build runs without --target and reads target/<profile>, where tauri
   assert.deepEqual(
     plan.binaries.map((b) => [b.file, b.built]),
     [
-      ['imt-ai-worker-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-ai-worker.exe')]],
-      ['imt-plugins-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-plugins.exe')]],
-      ['imt-store-worker-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'imt-store-worker.exe')]],
+      ['debrief-ai-worker-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'debrief-ai-worker.exe')]],
+      ['debrief-plugins-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'debrief-plugins.exe')]],
+      ['debrief-store-worker-x86_64-pc-windows-msvc.exe', [join(targetDir, 'release', 'debrief-store-worker.exe')]],
     ],
   );
 });
@@ -38,20 +38,20 @@ test('a debug host build has no --release and reads target/debug', () => {
   const plan = sidecarPlan({ target: 'x86_64-unknown-linux-gnu', host: 'x86_64-unknown-linux-gnu', profile: 'debug', targetDir });
   assert.deepEqual(plan.builds, [['build', ...select]]);
   assert.equal(plan.ext, '');
-  assert.deepEqual(plan.binaries[0].built, [join(targetDir, 'debug', 'imt-ai-worker')]);
+  assert.deepEqual(plan.binaries[0].built, [join(targetDir, 'debug', 'debrief-ai-worker')]);
 });
 
 test('a custom profile (dist) passes --profile and reads target/<profile>', () => {
   const plan = sidecarPlan({ target: host, host, profile: 'dist', targetDir });
   assert.deepEqual(plan.builds, [['build', ...select, '--profile', 'dist']]);
-  assert.deepEqual(plan.binaries[0].built, [join(targetDir, 'dist', 'imt-ai-worker.exe')]);
+  assert.deepEqual(plan.binaries[0].built, [join(targetDir, 'dist', 'debrief-ai-worker.exe')]);
 });
 
 test('a cross build keeps --target and its own folder', () => {
   const plan = sidecarPlan({ target: 'aarch64-pc-windows-msvc', host, profile: 'release', targetDir });
   assert.deepEqual(plan.builds, [['build', ...select, '--target', 'aarch64-pc-windows-msvc', '--release']]);
-  assert.deepEqual(plan.binaries[1].built, [join(targetDir, 'aarch64-pc-windows-msvc', 'release', 'imt-plugins.exe')]);
-  assert.equal(plan.binaries[1].file, 'imt-plugins-aarch64-pc-windows-msvc.exe');
+  assert.deepEqual(plan.binaries[1].built, [join(targetDir, 'aarch64-pc-windows-msvc', 'release', 'debrief-plugins.exe')]);
+  assert.equal(plan.binaries[1].file, 'debrief-plugins-aarch64-pc-windows-msvc.exe');
 });
 
 test('universal macOS builds both architectures with --target, like tauri build does, for lipo', () => {
@@ -60,10 +60,10 @@ test('universal macOS builds both architectures with --target, like tauri build 
     ['build', ...select, '--target', 'aarch64-apple-darwin', '--release'],
     ['build', ...select, '--target', 'x86_64-apple-darwin', '--release'],
   ]);
-  assert.equal(plan.binaries[0].file, 'imt-ai-worker-universal-apple-darwin');
+  assert.equal(plan.binaries[0].file, 'debrief-ai-worker-universal-apple-darwin');
   assert.deepEqual(plan.binaries[0].built, [
-    join(targetDir, 'aarch64-apple-darwin', 'release', 'imt-ai-worker'),
-    join(targetDir, 'x86_64-apple-darwin', 'release', 'imt-ai-worker'),
+    join(targetDir, 'aarch64-apple-darwin', 'release', 'debrief-ai-worker'),
+    join(targetDir, 'x86_64-apple-darwin', 'release', 'debrief-ai-worker'),
   ]);
 });
 

@@ -35,6 +35,7 @@ pub enum Alpha {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RawCapture {
     /// An encoded image (PNG from WebView2).
+    #[cfg_attr(not(any(windows, target_os = "macos")), allow(dead_code))]
     Encoded(Vec<u8>),
     /// An encoded image drawn at the screen's backing scale (BMP from WebKit on macOS, 2 px per point on Retina),
     /// with the window's width in points: the snapshot is kept at most that wide, so a Retina capture costs what

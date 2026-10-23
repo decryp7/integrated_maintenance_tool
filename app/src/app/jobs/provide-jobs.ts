@@ -1,13 +1,13 @@
 import { effect, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideAppInitializer, signal, untracked } from '@angular/core';
 import { Logger } from '../core/logger';
-import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { JOBS_VIEW } from './job-viewer';
 import { JobsBackend } from './jobs-backend';
 import { JobsStore } from './jobs.store';
 import { JobsRecord } from './jobs.types';
 
-export function jobsViews(): ImtView[] {
+export function jobsViews(): DebriefView[] {
   return [
     {
       id: JOBS_VIEW,
@@ -21,7 +21,7 @@ export function jobsViews(): ImtView[] {
   ];
 }
 
-export function jobsCommands(store: InstanceType<typeof JobsStore>): ImtCommand[] {
+export function jobsCommands(store: InstanceType<typeof JobsStore>): DebriefCommand[] {
   const category = $localize`:Command palette category@@jobs.category:View`;
   return [
     { id: 'jobs.show', title: $localize`:@@jobs.cmd.show:View: Jobs`, category, view: JOBS_VIEW, run: (ctx) => ctx.showView(JOBS_VIEW) },
@@ -94,8 +94,8 @@ export class JobsPersistence {
 /** One line in `app.config.ts`: the Jobs view (View ▸ Jobs), its commands, saved history; running jobs show in the status bar. */
 export function provideJobs(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useFactory: jobsViews },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => jobsCommands(inject(JobsStore)) },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: jobsViews },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => jobsCommands(inject(JobsStore)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(JobsPersistence).contribution] },
     provideAppInitializer(() => {
       inject(JobsStore);

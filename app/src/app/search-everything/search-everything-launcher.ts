@@ -25,7 +25,7 @@ export class SearchEverythingLauncher {
       ariaLabel: $localize`:@@search.dialog.label:Search everything`,
       hasBackdrop: true,
       backdropClass: 'cdk-overlay-dark-backdrop',
-      panelClass: 'imt-search-everything-panel',
+      panelClass: 'debrief-search-everything-panel',
       positionStrategy: this.overlay.position().global().centerHorizontally().top('72px'),
       autoFocus: 'first-tabbable',
       restoreFocus: true,

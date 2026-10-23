@@ -6,7 +6,7 @@ import { QlError } from '../core/api.types';
  * as buttons that replace the misspelt name (the caller applies the choice with `applySuggestion`).
  */
 @Component({
-  selector: 'imt-ql-suggestions',
+  selector: 'debrief-ql-suggestions',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (names().length) {

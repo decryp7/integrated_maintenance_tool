@@ -17,7 +17,7 @@ and a group, next to a separate search box in the filter bar.
 
 ## Decision
 
-1. **Every view has a home area**, declared in the view registry (`ImtView.area`, derived by `viewArea` for plugin
+1. **Every view has a home area**, declared in the view registry (`DebriefView.area`, derived by `viewArea` for plugin
    views that declare none):
    - `document` (centre): Timeline, Events, query results, editors, Parsers, profiling documents, Dump, reports;
    - `analysis` (one group below the events grid): Anomalies, Patterns, Exceptions, Moment, Compare, Field
@@ -35,7 +35,7 @@ and a group, next to a separate search box in the filter bar.
    *Live* (tail status and alerts below the events) and *Diagnostics* (problems, jobs, error snapshots, store, plugin
    health below the events). A built-in one is offered only when the views it needs exist. Window layouts the user
    saves are perspectives too. Each perspective remembers how the user left it: switching away stores the
-   arrangement, switching back restores it; *Reset perspective* rebuilds it. The state (`imt.perspectives`,
+   arrangement, switching back restores it; *Reset perspective* rebuilds it. The state (`debrief.perspectives`,
    versioned, malformed storage falls back to Investigate) is per viewer like the dock layout.
    Switching: the activity bar's *Perspectives* fly-out, *Window ▸ Perspectives* and `Mod+1…9`. Dock group focus
    moves to `Ctrl+Alt+1…9`, read from the physical key (`KeyboardEvent.code`; on macOS Option changes `key`).
@@ -43,7 +43,7 @@ and a group, next to a separate search box in the filter bar.
    The *Layout* submenu, `LayoutModeStore` and the Full/Focused commands are removed (no migration before v1). The
    Overview opens after an import only when its own setting (off by default) says so.
 3. **One search field** (D2). The filter bar's field takes plain words (message search, applied as you type) or a
-   query. The *engine* decides which: `imt_core::ql::classify_input` (pure, bounded, never fails; a comparison counts
+   query. The *engine* decides which: `debrief_core::ql::classify_input` (pure, bounded, never fails; a comparison counts
    only when its left side names a field the data has) behind the command `classify_search`; the UI keeps no
    second parser. The text is the query session's, so history, completions, did-you-mean and the results view are
    unchanged. The old Query panel is deleted.
@@ -57,7 +57,7 @@ and a group, next to a separate search box in the filter bar.
    user has been: events they selected, time ranges they zoomed to, views they brought forward (`NavHistory`, 50
    places, zoom steps merged). Zooming and panning are also on the undo stack (`RangeUndo`, next to the filter
    changes of `QueryUndo`), merged per gesture.
-7. **Drag and drop between views.** Rows of the events grid are drag sources (`application/x-imt-event`, parsed and
+7. **Drag and drop between views.** Rows of the events grid are drag sources (`application/x-debrief-event`, parsed and
    bounded on drop); dropping one on the Notes panel writes a note on that event. `Mod+D` stays the keyboard route.
 
 ## Consequences

@@ -42,12 +42,12 @@ export function evidenceSummary(e: Evidence): string {
 
 /** The engine's automatic findings for the active profile (and baseline), each linking to its evidence. */
 @Component({
-  selector: 'imt-findings-view',
+  selector: 'debrief-findings-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileBar, NoCapture, SeverityBadge],
   template: `
     @if (active.profile(); as p) {
-      <imt-profile-bar [showMetric]="false" />
+      <debrief-profile-bar [showMetric]="false" />
       <div class="bar">
         <span class="section-title" i18n="@@profiling.findings.title">Findings</span>
         @if (state.baselineId() !== null) { <span class="muted" i18n="@@profiling.findings.regressions">including regressions against the baseline</span> }
@@ -56,12 +56,12 @@ export function evidenceSummary(e: Evidence): string {
           <button class="btn" type="button" (click)="explain(p.name)" data-testid="findings-explain" i18n="@@profiling.findings.explain">Explain with AI</button>
         }
       </div>
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this view crosses a threshold." i18n-emptyText="@@profiling.findings.empty" (retry)="res.retry()">
+      <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.length === 0" emptyText="No findings: nothing in this view crosses a threshold." i18n-emptyText="@@profiling.findings.empty" (retry)="res.retry()">
         <ul class="list body" aria-label="Findings" i18n-aria-label="@@profiling.findings.listLabel">
           @for (f of res.data() ?? []; track f.kind + ':' + f.title) {
             <li class="finding" [attr.data-kind]="f.kind">
               <div class="head">
-                <imt-severity-badge [severity]="f.severity" />
+                <debrief-severity-badge [severity]="f.severity" />
                 <strong class="title">{{ f.title }}</strong>
                 @if (f.valuePct !== null) { <span class="mono muted">{{ pct(f.valuePct) }}</span> }
               </div>
@@ -73,9 +73,9 @@ export function evidenceSummary(e: Evidence): string {
             </li>
           }
         </ul>
-      </imt-analysis-state>
+      </debrief-analysis-state>
     } @else {
-      <imt-no-capture text="Open a performance capture to see automatic findings." i18n-text="@@profiling.findings.noCapture" />
+      <debrief-no-capture text="Open a performance capture to see automatic findings." i18n-text="@@profiling.findings.noCapture" />
     }
   `,
   styles: [

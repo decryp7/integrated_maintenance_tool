@@ -22,38 +22,38 @@ import { isMac } from '../extensions/keybinding';
  * timeline, its settings bar (events shown, lanes, sync).
  */
 @Component({
-  selector: 'imt-timeline-header',
+  selector: 'debrief-timeline-header',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, Switch, AutoFocus, LiveWindowControls, HealthHeadline, HelpHint],
   host: { style: 'display: contents' },
   template: `
     <div class="head">
       @if (renaming()) {
-        <input class="input title-input" imtAutoFocus aria-label="Timeline title" i18n-aria-label="@@timeline.panel.titleAria" maxlength="80" [value]="src.title()" (keydown)="renameKey($event)" (blur)="commitRename($event)" />
+        <input class="input title-input" debriefAutoFocus aria-label="Timeline title" i18n-aria-label="@@timeline.panel.titleAria" maxlength="80" [value]="src.title()" (keydown)="renameKey($event)" (blur)="commitRename($event)" />
       } @else {
         <span class="section-title" [attr.data-testid]="src.main ? null : 'timeline-title'" (dblclick)="startRename()">{{ src.title() }}</span>
       }
       @if (inst && !inst.synced()) { <span class="unlinked" title="Zoom, pan and the time cursor are not linked to the main timeline" i18n-title="@@timeline.panel.unlinked.title" i18n="@@timeline.panel.unlinked">Unlinked</span> }
       @if (src.main) {
         <!-- The health check's headline, on the title row (Home stays one click away). -->
-        <imt-health-headline />
+        <debrief-health-headline />
       }
       <span class="faint hint">{{ hint() }}</span>
       @if (hint()) {
         <!-- How to zoom and pan, behind a (?) rather than always on the title row. -->
-        <imt-help class="hint-help" label="Zoom and pan" i18n-label="@@timeline.hint.helpLabel" [text]="gestures" />
+        <debrief-help class="hint-help" label="Zoom and pan" i18n-label="@@timeline.hint.helpLabel" [text]="gestures" />
       }
       @if (src.loading()) { <span class="spinner" role="status" aria-label="Loading" i18n-aria-label="@@timeline.panel.loading"></span> }
       <span class="spacer"></span>
-      @if (src.main) { <imt-live-window-controls /> }
+      @if (src.main) { <debrief-live-window-controls /> }
       <div class="zoom" role="group" aria-label="Zoom" i18n-aria-label="@@timeline.panel.zoom">
         <button class="icon-btn" title="Previous range (Alt+←)" i18n-title="@@timeline.panel.back.title" aria-label="Previous range" i18n-aria-label="@@timeline.panel.back.aria" [disabled]="!zoom.canBack()" (click)="zoom.back()">←</button>
         <button class="icon-btn" title="Next range (Alt+→)" i18n-title="@@timeline.panel.forward.title" aria-label="Next range" i18n-aria-label="@@timeline.panel.forward.aria" [disabled]="!zoom.canForward()" (click)="zoom.forward()">→</button>
-        <button class="icon-btn" title="Zoom in" i18n-title="@@timeline.panel.zoomIn.title" aria-label="Zoom in" i18n-aria-label="@@timeline.panel.zoomIn.aria" (click)="zoom.zoomIn()"><imt-icon name="plus" [size]="13" /></button>
-        <button class="icon-btn" title="Zoom out" i18n-title="@@timeline.panel.zoomOut.title" aria-label="Zoom out" i18n-aria-label="@@timeline.panel.zoomOut.aria" (click)="zoom.zoomOut()"><imt-icon name="minus" [size]="13" /></button>
-        <button class="btn" title="Fit all (double-click)" i18n-title="@@timeline.panel.fit.title" [disabled]="!zoom.isZoomed()" (click)="zoom.fit()" i18n="@@timeline.panel.fit"><imt-icon name="zoomOut" [size]="13" /> Fit</button>
+        <button class="icon-btn" title="Zoom in" i18n-title="@@timeline.panel.zoomIn.title" aria-label="Zoom in" i18n-aria-label="@@timeline.panel.zoomIn.aria" (click)="zoom.zoomIn()"><debrief-icon name="plus" [size]="13" /></button>
+        <button class="icon-btn" title="Zoom out" i18n-title="@@timeline.panel.zoomOut.title" aria-label="Zoom out" i18n-aria-label="@@timeline.panel.zoomOut.aria" (click)="zoom.zoomOut()"><debrief-icon name="minus" [size]="13" /></button>
+        <button class="btn" title="Fit all (double-click)" i18n-title="@@timeline.panel.fit.title" [disabled]="!zoom.isZoomed()" (click)="zoom.fit()" i18n="@@timeline.panel.fit"><debrief-icon name="zoomOut" [size]="13" /> Fit</button>
       </div>
-      <button class="icon-btn" type="button" title="Timeline menu" i18n-title="@@timeline.panel.menu.title" aria-label="Timeline menu" i18n-aria-label="@@timeline.panel.menu.aria" aria-haspopup="menu" (click)="openMenu($event)"><imt-icon name="chevronDown" [size]="13" /></button>
+      <button class="icon-btn" type="button" title="Timeline menu" i18n-title="@@timeline.panel.menu.title" aria-label="Timeline menu" i18n-aria-label="@@timeline.panel.menu.aria" aria-haspopup="menu" (click)="openMenu($event)"><debrief-icon name="chevronDown" [size]="13" /></button>
     </div>
     @if (inst; as s) {
       <div class="config" role="group" aria-label="Timeline settings" i18n-aria-label="@@timeline.config.aria">
@@ -90,7 +90,7 @@ import { isMac } from '../extensions/keybinding';
           </select>
         }
         <span class="spacer"></span>
-        <imt-switch size="small" [checked]="s.synced()" (checkedChange)="s.setSync($event)" i18n="@@timeline.config.syncTime">Sync time</imt-switch>
+        <debrief-switch size="small" [checked]="s.synced()" (checkedChange)="s.setSync($event)" i18n="@@timeline.config.syncTime">Sync time</debrief-switch>
       </div>
     }
   `,

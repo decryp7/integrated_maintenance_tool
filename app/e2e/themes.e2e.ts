@@ -16,7 +16,7 @@ const THEMES = ['calm', 'console', 'precision', 'contrast'] as const;
 const SCHEMES = ['light', 'dark'] as const;
 
 async function openThemed(page: Page, theme: string, scheme: 'light' | 'dark'): Promise<void> {
-  await page.addInitScript(([t, s]) => localStorage.setItem('imt.prefs.v1', JSON.stringify({ theme: t, scheme: s })), [theme, scheme]);
+  await page.addInitScript(([t, s]) => localStorage.setItem('debrief.prefs.v1', JSON.stringify({ theme: t, scheme: s })), [theme, scheme]);
   await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
   await openApp(page);
   const html = page.locator('html');
@@ -30,7 +30,7 @@ for (const theme of THEMES) {
     test.describe(`${theme} ${scheme}`, () => {
       test('the main window has no serious accessibility violations', async ({ page }, testInfo) => {
         await openThemed(page, theme, scheme);
-        await page.locator('imt-events-grid [role=row].row').first().click();
+        await page.locator('debrief-events-grid [role=row].row').first().click();
         await expectNoSeriousViolations(page, testInfo, `theme-${theme}-${scheme}`);
       });
 
@@ -48,10 +48,10 @@ for (const theme of THEMES) {
         // The close-up: the timeline maximised, every lane in view.
         const group = page.locator('.dv-groupview').filter({ has: page.getByRole('tab', { name: 'Timeline', exact: true }) });
         await group.getByRole('button', { name: 'Maximize panel' }).click();
-        await expect(page.locator('imt-timeline-panel .lane')).toHaveCount(7);
+        await expect(page.locator('debrief-timeline-panel .lane')).toHaveCount(7);
         await settleAnimations(page);
         await settleDockLayout(page);
-        await expect(page.locator('imt-timeline-panel')).toHaveScreenshot(shots[1]!, { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.01 });
+        await expect(page.locator('debrief-timeline-panel')).toHaveScreenshot(shots[1]!, { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.01 });
       });
     });
   }
@@ -66,7 +66,7 @@ test('switching the theme restyles the timeline: runs, lane fill and surface fol
   await expect(html).toHaveAttribute('data-runs', 'line');
   await expect(html).toHaveAttribute('data-lane-fill', 'neutral');
   // A run cut off at the edge of the view squares that end, so pick one shown whole.
-  const run = page.locator('imt-timeline-panel imt-run-track .run[data-status="closed"]:not(.clip-l):not(.clip-r)').first();
+  const run = page.locator('debrief-timeline-panel debrief-run-track .run[data-status="closed"]:not(.clip-l):not(.clip-r)').first();
   await expect(run).toBeVisible();
   // A run is a line in Calm (no fill) and a pill in Console (a tinted, rounded band).
   expect(await run.evaluate((el) => getComputedStyle(el).backgroundColor)).toBe('rgba(0, 0, 0, 0)');
@@ -80,7 +80,7 @@ test('switching the theme restyles the timeline: runs, lane fill and surface fol
   await expect.poll(() => run.evaluate((el) => getComputedStyle(el).borderTopLeftRadius)).toBe('999px');
   // The lane's volume is drawn in its source colour.
   await expect(html).toHaveAttribute('data-lane-fill', 'bySource');
-  const edge = page.locator('imt-timeline-panel .lane.colored .density .edge').first();
+  const edge = page.locator('debrief-timeline-panel .lane.colored .density .edge').first();
   expect(await edge.evaluate((el) => getComputedStyle(el).stroke)).not.toBe('none');
 });
 
@@ -89,15 +89,15 @@ test('Precision draws bracket runs and barcode lanes; the interface font follows
   const html = page.locator('html');
   await expect(html).toHaveAttribute('data-runs', 'bracket');
   await expect(html).toHaveAttribute('data-lane-fill', 'barcode');
-  await expect(page.locator('imt-timeline-panel .lane .density .bars').first()).toBeVisible();
+  await expect(page.locator('debrief-timeline-panel .lane .density .bars').first()).toBeVisible();
   // The operating system's font by default (native feel, ADR 0028), log text in the theme's mono face.
-  const font = () => page.locator('imt-status-bar').evaluate((el) => getComputedStyle(el).fontFamily);
+  const font = () => page.locator('debrief-status-bar').evaluate((el) => getComputedStyle(el).fontFamily);
   expect(await font()).toContain('Segoe UI');
-  const time = page.locator('imt-events-grid [role=row].row .time').first();
+  const time = page.locator('debrief-events-grid [role=row].row .time').first();
   expect(await time.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('IBM Plex Mono');
   // Keeping the theme's font (Settings ▸ Appearance ▸ Interface font) brings IBM Plex Sans to the interface.
   const themed = await page.context().newPage();
-  await themed.addInitScript(() => localStorage.setItem('imt.prefs.v1', JSON.stringify({ theme: 'precision', scheme: 'light', uiFont: 'theme' })));
+  await themed.addInitScript(() => localStorage.setItem('debrief.prefs.v1', JSON.stringify({ theme: 'precision', scheme: 'light', uiFont: 'theme' })));
   await openApp(themed);
-  expect(await themed.locator('imt-status-bar').evaluate((el) => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans');
+  expect(await themed.locator('debrief-status-bar').evaluate((el) => getComputedStyle(el).fontFamily)).toContain('IBM Plex Sans');
 });

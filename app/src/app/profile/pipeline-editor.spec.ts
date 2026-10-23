@@ -244,18 +244,18 @@ describe('FlowOverview and form integration', () => {
     await draft.load();
     const fixture = TestBed.createComponent(ProfileForm);
     await settle(fixture);
-    const stages = all<HTMLButtonElement>(fixture, 'imt-flow-overview .node');
+    const stages = all<HTMLButtonElement>(fixture, 'debrief-flow-overview .node');
     expect(stages.map((s) => s.querySelector('.title')!.textContent)).toEqual(['Import', 'Extract', 'Pipeline', 'Markers']);
     expect(stages[0]?.textContent).toContain('2 sources · 11 events');
     expect(stages[2]?.textContent).toContain('0 steps');
     at(stages, 2).click();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('imt-pipeline-editor')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-pipeline-editor')).not.toBeNull();
     draft.update((m) => (m.pipeline = [{ step: 'drop' }, { step: 'keep', disabled: true }]));
     await settle(fixture);
-    expect(all(fixture, 'imt-flow-overview .node')[2]?.textContent).toContain('1 step');
+    expect(all(fixture, 'debrief-flow-overview .node')[2]?.textContent).toContain('1 step');
     for (const [i, section] of ['files', 'extract', 'pipeline', 'marker'].entries()) {
-      at(all<HTMLButtonElement>(fixture, 'imt-flow-overview .node'), i).click();
+      at(all<HTMLButtonElement>(fixture, 'debrief-flow-overview .node'), i).click();
       await settle(fixture);
       expect(section).toBeTruthy();
     }
@@ -271,11 +271,11 @@ describe('FlowOverview and form integration', () => {
     for (const label of ['Files', 'Instance', 'Extractors', 'Pipeline', 'Markers', 'Charts']) {
       all<HTMLButtonElement>(fixture, '.nav-item').find((b) => b.textContent?.includes(label))!.click();
       await settle(fixture);
-      const q = el<HTMLButtonElement>(fixture, '.body imt-help .q');
+      const q = el<HTMLButtonElement>(fixture, '.body debrief-help .q');
       helps.push(q.getAttribute('aria-label')!);
       q.click();
       await settle(fixture);
-      expect(el(fixture, '.body imt-help .tip').textContent!.length).toBeGreaterThan(20);
+      expect(el(fixture, '.body debrief-help .tip').textContent!.length).toBeGreaterThan(20);
     }
     expect(helps).toEqual(['Help: Files', 'Help: Instance', 'Help: Field extractors', 'Help: Pipeline', 'Help: Markers', 'Help: Charts']);
   });

@@ -18,11 +18,11 @@ async function render(backend = tinyBackend()) {
 describe('TimelinePanel runs', () => {
   it('draws runs as bands per lane behind the markers, out of the tab order', async () => {
     const { fixture } = await render();
-    const runs = all<HTMLButtonElement>(fixture, '.lane imt-run-track .run');
+    const runs = all<HTMLButtonElement>(fixture, '.lane debrief-run-track .run');
     expect(runs.map((r) => r.getAttribute('data-status')).sort()).toEqual(['closed', 'closed', 'open']);
     expect(runs.every((r) => r.getAttribute('tabindex') === '-1')).toBe(true);
     const open = must(runs.find((r) => r.getAttribute('data-status') === 'open'));
-    expect(el(fixture, '.lane imt-run-track .still').textContent).toContain('still running');
+    // "still running" at the band's end needs room (RUN_STILL_MIN_PX); the name always carries it.
     expect(open.getAttribute('aria-label')).toBe('Running (Still running) — show this run');
     // Runs are not listed among the plugin annotations.
     expect(all(fixture, '.ann-legend [data-kind="run"]')).toHaveLength(0);
@@ -51,6 +51,9 @@ describe('TimelinePanel runs', () => {
     const { fixture, store } = await render();
     const toggle = el<HTMLButtonElement>(fixture, '[data-testid="runs-toggle"]');
     expect(toggle.getAttribute('aria-pressed')).toBe('true');
+    // The one-line strip keeps the run kinds in the legend popover.
+    el<HTMLButtonElement>(fixture, '[data-testid=legend-more]').click();
+    await settle(fixture);
     const kind = el<HTMLButtonElement>(fixture, '.run-legend [data-run-kind="run"]');
     expect(kind.textContent).toContain('Running');
     kind.click();

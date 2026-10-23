@@ -105,7 +105,7 @@ export function kindHint(kind: ProblemKind): string {
     case 'unmatchedLine':
       return $localize`:@@problems.hint.unmatchedLine:They were kept with the event above. A regex or template in the file's parser may read them.`;
     case 'unknownFormat':
-      return $localize`:@@problems.hint.unknownFormat:Teach IMT the format with the format wizard, or ask the AI for a parser.`;
+      return $localize`:@@problems.hint.unknownFormat:Teach Debrief the format with the format wizard, or ask the AI for a parser.`;
     case 'lineTooLong':
     case 'eventTooLarge':
       return $localize`:@@problems.hint.tooLarge:The rest was cut off at the limit.`;

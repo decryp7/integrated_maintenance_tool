@@ -4,22 +4,22 @@
 
 use super::section::WORKER_BASE_MB;
 use super::PerformanceSettings;
-use imt_ipc::memory_watch::MemoryListener;
-use imt_plugin_host::PluginLimits;
-use imt_store_client::{MemoryMode, StoreTuning, WorkerLaunch};
+use debrief_ipc::memory_watch::MemoryListener;
+use debrief_plugin_host::PluginLimits;
+use debrief_store_client::{MemoryMode, StoreTuning, WorkerLaunch};
 use std::path::PathBuf;
 
 const MB: u64 = 1 << 20;
 /// Import memory one parse thread needs (it holds a file's chunk and its batches in flight): 768 MB → 8 threads.
 pub const MB_PER_PARSE_THREAD: u32 = 96;
-/// Most parse threads chosen automatically (`imt_core::ingest::MAX_DEFAULT_THREADS`).
+/// Most parse threads chosen automatically (`debrief_core::ingest::MAX_DEFAULT_THREADS`).
 pub const MAX_AUTO_PARSE_THREADS: u32 = 8;
 /// The smallest DuckDB memory limit derived from the query budget, MB.
 const MIN_DUCK_MB: u32 = 64;
 /// The index writer's heap is this fraction of the import budget (768 MB → 64 MB).
 const INDEX_HEAP_SHARE: u32 = 12;
 
-/// Cores IMT's thread pools may use: all but the ones left free, at least one.
+/// Cores Debrief's thread pools may use: all but the ones left free, at least one.
 pub fn usable_cores(s: &PerformanceSettings, cores: u32) -> u32 {
     cores.saturating_sub(s.leave_cores_free).max(1)
 }
@@ -56,7 +56,7 @@ pub fn store_tuning(s: &PerformanceSettings, cores: u32) -> StoreTuning {
         max_spill_mb: (s.max_spill_mb > 0).then_some(u64::from(s.max_spill_mb)),
         allocator_flush_mb: Some(u64::from(s.allocator_flush_mb)),
         allocator_background_threads: Some(s.allocator_background_threads),
-        // DuckDB's jemalloc arenas on Linux: the worker's default (imt_store_client::allocator::ARENAS).
+        // DuckDB's jemalloc arenas on Linux: the worker's default (debrief_store_client::allocator::ARENAS).
         allocator_arenas: None,
         plugin_memory_mb: Some(u64::from(s.plugin_memory_mb)),
         plugin_memory_overrides_mb: s.plugin_memory.iter().map(|(id, mb)| (id.clone(), u64::from(*mb))).collect(),
@@ -77,7 +77,7 @@ pub fn worker_launch(s: &PerformanceSettings, cores: u32) -> WorkerLaunch {
     }
 }
 
-/// The limits of IMT's plugin processes (the app's; the worker's own plugins get them through its tuning).
+/// The limits of Debrief's plugin processes (the app's; the worker's own plugins get them through its tuning).
 pub fn plugin_limits(s: &PerformanceSettings, listener: Option<MemoryListener>) -> PluginLimits {
     PluginLimits {
         default_memory: Some(u64::from(s.plugin_memory_mb) * MB),
@@ -100,14 +100,14 @@ mod tests {
     fn the_defaults_derive_todays_tested_knobs() {
         let d = PerformanceSettings::default();
         let t = store_tuning(&d, 8);
-        // imt_store_duck's defaults: default_threads() on 8 cores (7), DUCK_THREADS, MEMORY_LIMIT, the index writer.
+        // debrief_store_duck's defaults: default_threads() on 8 cores (7), DUCK_THREADS, MEMORY_LIMIT, the index writer.
         assert_eq!(t.parse_threads, Some(7));
         assert_eq!((t.duck_threads, t.memory_limit_mb), (Some(4), Some(192)));
         assert_eq!((t.index_heap_mb, t.index_threads), (Some(64), Some(2)));
         assert_eq!((t.allocator_flush_mb, t.allocator_background_threads), (Some(32), Some(true)));
         assert_eq!((t.spill_dir, t.max_spill_mb, t.plugin_cpu_percent), (None, None, None));
         let l = worker_launch(&d, 8);
-        // imt_store_client's DEFAULT_MEMORY_CAP.
+        // debrief_store_client's DEFAULT_MEMORY_CAP.
         assert_eq!((l.memory_cap, l.memory_mode), (Some(2 << 30), MemoryMode::Normal));
         // 16 cores: still 8 parse threads (the automatic maximum and the import budget agree).
         assert_eq!(store_tuning(&d, 16).parse_threads, Some(8));

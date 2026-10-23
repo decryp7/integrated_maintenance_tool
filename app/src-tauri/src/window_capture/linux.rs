@@ -19,7 +19,7 @@ pub(super) fn snapshot(webview: &webkit2gtk::WebView, reply: ReplyTx) -> Result<
     Ok(())
 }
 
-/// A copy of a cairo image surface's pixels (B, G, R, A in memory on the little-endian machines IMT runs on).
+/// A copy of a cairo image surface's pixels (B, G, R, A in memory on the little-endian machines Debrief runs on).
 fn surface_pixels(surface: cairo::Surface) -> Result<RawCapture, CaptureError> {
     let unusable = || CaptureError::Webview("WebKit returned an unusable snapshot".into());
     let image = cairo::ImageSurface::try_from(surface).map_err(|_| unusable())?;

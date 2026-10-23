@@ -148,7 +148,7 @@ interface MockDoc {
 /**
  * The dump engine of the browser build: a crash dump of OrderService (CLR exception, a culprit frame, two threads
  * waiting on a lock) and three UMDH snapshots of the same process in which the order cache leaks. Plausible
- * answers for the contract; the engine (`imt_dump`) is the reference for behaviour.
+ * answers for the contract; the engine (`debrief_dump`) is the reference for behaviour.
  */
 export class MockDumpsBackend extends DumpsBackend {
   private docs: MockDoc[] = [];
@@ -166,7 +166,7 @@ export class MockDumpsBackend extends DumpsBackend {
 
   async open(path: string): Promise<DumpDocSummary> {
     const kind = this.kindOf(path);
-    if (kind === 'none') throw fail('unsupported', `${path} is neither a dump nor a UMDH log IMT can read`);
+    if (kind === 'none') throw fail('unsupported', `${path} is neither a dump nor a UMDH log Debrief can read`);
     if (path.includes('missing')) throw fail('notFound', `cannot open ${path}: The system cannot find the file specified.`);
     this.docs = this.docs.filter((d) => d.summary.path !== path);
     const id = this.nextId++;
@@ -370,6 +370,6 @@ export class MockDumpsBackend extends DumpsBackend {
   async explain(r: DumpFindingsRequest): Promise<string> {
     if (!r.ids.length) throw fail('invalid', 'nothing to explain');
     const f = await this.findings(r);
-    return [`Explain these documents in plain words: ${r.ids.map((id) => this.doc(id).summary.name).join(', ')}.`, 'Findings computed by IMT\'s dump engine:', ...f.map((x) => `- [${x.severity}] ${x.title}. ${x.detail}`)].join('\n');
+    return [`Explain these documents in plain words: ${r.ids.map((id) => this.doc(id).summary.name).join(', ')}.`, 'Findings computed by Debrief\'s dump engine:', ...f.map((x) => `- [${x.severity}] ${x.title}. ${x.detail}`)].join('\n');
   }
 }

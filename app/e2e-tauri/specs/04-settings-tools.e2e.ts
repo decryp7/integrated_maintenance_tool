@@ -32,7 +32,7 @@ describe('real app: settings and tools', () => {
 
   it('View ▸ Tools ▸ Process Monitor opens the view', async () => {
     await chooseMenu('View', 'Tools', 'Process Monitor');
-    const monitor = $('imt-monitor-view');
+    const monitor = $('debrief-monitor-view');
     await monitor.waitForDisplayed({ timeout: 30_000 });
     await expect(monitor.$('[data-testid=monitor-status]')).toHaveText(
       expect.stringContaining('Stopped'),

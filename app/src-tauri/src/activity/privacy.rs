@@ -60,9 +60,9 @@ fn cap(text: &str) -> String {
 
 /// Removes secrets (API keys, passwords, connection strings, ...) with the diagnostic-bundle redactor.
 pub fn redact(text: &str) -> String {
-    static REDACTOR: OnceLock<Option<imt_collect::Redactor>> = OnceLock::new();
-    match REDACTOR.get_or_init(|| imt_collect::Redactor::new(&imt_collect::RedactConfig::default()).ok()) {
-        Some(r) => r.apply(text, &mut imt_collect::Counts::new()),
+    static REDACTOR: OnceLock<Option<debrief_collect::Redactor>> = OnceLock::new();
+    match REDACTOR.get_or_init(|| debrief_collect::Redactor::new(&debrief_collect::RedactConfig::default()).ok()) {
+        Some(r) => r.apply(text, &mut debrief_collect::Counts::new()),
         None => text.to_string(),
     }
 }

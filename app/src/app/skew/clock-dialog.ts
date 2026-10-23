@@ -11,7 +11,7 @@ import { confidenceLabel, formatConfidence, formatOffset, parseOffset } from './
  * reference, or the engine's suggestion from shared correlation ids. The engine applies the offset.
  */
 @Component({
-  selector: 'imt-clock-dialog',
+  selector: 'debrief-clock-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p i18n="@@skew.dialog.intro">

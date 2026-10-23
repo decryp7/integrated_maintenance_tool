@@ -8,7 +8,7 @@
 ## Context
 
 One log file often holds more than one writer: several processes of one product, or several products when a log
-server (rsyslog, a shared network folder) collects them. IMT assumed one writer per file:
+server (rsyslog, a shared network folder) collects them. Debrief assumed one writer per file:
 
 1. **One format per file.** `importers/text.rs::best_format` picked the format matching most of the first 200
    lines; every later line that did not match it was appended to the previous event as a continuation line, so a
@@ -24,13 +24,13 @@ server (rsyslog, a shared network folder) collects them. IMT assumed one writer 
 4. **One profile for the whole file.** Products sharing a file could not be told apart for grouping or labels.
 
 Both import paths are affected: the current app path (`importers/*` + `Workspace`) and the streaming path
-(`crates/imt-core/src/ingest/*`, ADR 0014) that the app switches to in phase 6c.
+(`crates/debrief-core/src/ingest/*`, ADR 0014) that the app switches to in phase 6c.
 
 ## Decision
 
 ### 1. Every line is read with its own format (both import paths)
 
-`imt_core::importers::lines` (pure, shared by `TextImporter` and `ingest::text`) classifies each line on its own:
+`debrief_core::importers::lines` (pure, shared by `TextImporter` and `ingest::text`) classifies each line on its own:
 
 1. the **first text format in profile order** that matches starts an event (output templates first, then
    regexes, as listed);
@@ -79,7 +79,7 @@ syslog and journald `Host`, `App`, `ProcId`; EVTX `Computer`, `ProcessId`; Docke
 
 **Amendment (2026-10, identity fields are scoped to their sources).** An identity field an importer or a parser
 (ADR 0026, `[format] identity`) declares, and that is not one of the profile's `[instance] candidates`, applies only
-to the sources whose importer or parser declares it (`imt_core::instance::KeyScopes`). Before, hadoop-spark's
+to the sources whose importer or parser declares it (`debrief_core::instance::KeyScopes`). Before, hadoop-spark's
 `Logger` or the console parser's `Category` joined the key of the whole workspace and split every other file that
 writes a field of that name (a log4net `Logger`, an EVTX `Category`) into one lane per value. The scopes are part
 of the default key: per-source presence ignores a scoped field in other sources, the group key of an event leaves
@@ -88,7 +88,7 @@ reads it only for those sources (`CASE WHEN s.name IN (...)`). A `group_by` the 
 
 ### 4. The automatic instance key is chosen per source
 
-`imt_core::instance::instance_key` (pure; the workspace feeds it per-source field counts that its field index
+`debrief_core::instance::instance_key` (pure; the workspace feeds it per-source field counts that its field index
 now keeps per source id) chooses in two steps:
 
 1. candidates present on at least half of **all** events (unchanged for homogeneous sets);
@@ -152,7 +152,7 @@ tell products apart (or `@source` after routing); there are no per-product profi
 
 ### Follow-ups, with a short design
 
-- **Routing in the streaming path (6c).** The router (`imt_core::route`) runs in `RecordBatcher` after
+- **Routing in the streaming path (6c).** The router (`debrief_core::route`) runs in `RecordBatcher` after
   `profile.ingest`, before batches are built. `BatchSink` gains `begin_logical(parent: SourceId, label) ->
   SourceId`; a per-file `label → SourceId` map is shared by the chunk workers of one file (behind the
   `SharedSink` lock; at most 256 entries), so parallel chunks agree on ids. The `sources` table gains
@@ -202,31 +202,31 @@ tell products apart (or `@source` after routing); there are no per-product profi
   literally add `..Default::default()`), `EventSink::problems` (default method), `PlanKind::Text { format:
   LineFormat }`, `query::default_group_by` now delegates to `instance::instance_key_from_totals`.
 - **Instance keys read differently** where fields are missing at the ends (`WEB01` instead of `WEB01 · –`;
-  `source · …` when the first field is missing). Saved instance selections in that form no longer match (IMT is
+  `source · …` when the first field is missing). Saved instance selections in that form no longer match (Debrief is
   pre-v1; no migration). The DuckDB read path mirrors both: `group_key_expr` builds the same key in SQL (checked
   against `group_key` for every combination of present and missing fields, and by the differential tests), and the
   store chooses the default key with the same two-step rule from one grouped count of the candidate fields per
   source (cached per data generation), with the identity fields of the sources' importers.
-- Heterogeneous folders get more accurate lanes: in `/samples`, the IMT diagnostics bundle's child processes now
+- Heterogeneous folders get more accurate lanes: in `/samples`, the Debrief diagnostics bundle's child processes now
   get one lane per process id, so the anomaly detector reports each plugin crash separately.
 - Throughput: per-line matching costs one `is_match` per earlier format for event lines when the dominant format
   is not the first one, and nothing extra for continuation lines that do not look like events. Measured with
-  `cargo bench -p imt-core --bench engine -- import` (250k lines, release, the shared Windows VM, other builds
+  `cargo bench -p debrief-core --bench engine -- import` (250k lines, release, the shared Windows VM, other builds
   running): before → after, MiB/s: Serilog text 32.2 → 28.6–29.2, log4net 28.3 → 25.5–29.6 (three runs; criterion
   calls the differences noise, p > 0.05, except one log4net run), CSV and CLEF (code unchanged) moved −34 % to
   +2 % between runs, which bounds the noise. New case `logserver` (three formats line by line): 26.2 MiB/s, in
   line with single-format text.
 - New samples (`cargo xtask gen-samples`): `linux/logserver01/apps-20261014.log` (Checkout in Serilog text,
   Inventory in log4net, Payments as CLEF lines, haproxy lines no default format reads, five process ids) with
-  `profiles/logserver.imtprofile.toml` (an extractor and two routes), and `linux/logserver01/syslog-20261014.log`
-  (RFC 5424 from three hosts, four apps, six processes). Tests: `crates/imt-core/tests/mixed_sources.rs`, the
+  `profiles/logserver.debriefprofile.toml` (an extractor and two routes), and `linux/logserver01/syslog-20261014.log`
+  (RFC 5424 from three hosts, four apps, six processes). Tests: `crates/debrief-core/tests/mixed_sources.rs`, the
   syslog plugin's samples test, property tests for the line parser and routes.
 
 ## Note (R3, ADR 0017)
 
-Plugins now run out of process over `imt-ipc` frames, not gRPC. The plugin-facing additions live in
-`imt-plugin-api`: `TextImporter::identity_fields` / `BinaryImporter::identity_fields`, carried in the manifest's
+Plugins now run out of process over `debrief-ipc` frames, not gRPC. The plugin-facing additions live in
+`debrief-plugin-api`: `TextImporter::identity_fields` / `BinaryImporter::identity_fields`, carried in the manifest's
 `ImporterCap.identity_fields` (at most 8 names of 1–64 characters, checked by `Manifest::check`), and
-`Imported::problems` (`imt_plugin_api::problems`, which `imt_core::ingest` re-exports), sent with the end of an
+`Imported::problems` (`debrief_plugin_api::problems`, which `debrief_core::ingest` re-exports), sent with the end of an
 import (`ImportDone` / `TailDone`). The host's importer proxies return both, so the syslog, journald, EVTX and
 Docker/CRI identity fields work as before.

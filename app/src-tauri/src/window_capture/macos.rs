@@ -23,7 +23,7 @@ pub(super) fn snapshot(webview: *mut std::ffi::c_void, reply: ReplyTx) -> Result
     if !window.is_some_and(|w| w.occlusionState().contains(NSWindowOcclusionState::Visible)) {
         return Err(CaptureError::NotVisible);
     }
-    // SAFETY: a fresh configuration, created and used on the main thread. Its defaults are what IMT wants: the visible
+    // SAFETY: a fresh configuration, created and used on the main thread. Its defaults are what Debrief wants: the visible
     // bounds at the view's own size, after pending screen updates (the error UI). `afterScreenUpdates` is not set
     // explicitly: the setter needs macOS 10.15, and Tauri supports older systems.
     let config = unsafe { WKSnapshotConfiguration::new(mtm) };

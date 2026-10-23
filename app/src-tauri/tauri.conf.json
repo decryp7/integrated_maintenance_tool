@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "IMT",
+  "productName": "Debrief",
   "version": "0.1.0",
-  "identifier": "net.decryptology.imt",
+  "identifier": "net.decryptology.debrief",
   "build": {
     "frontendDist": "../dist/app/browser",
     "devUrl": "http://localhost:4200",
@@ -15,7 +15,7 @@
       {
         "label": "main",
         "create": false,
-        "title": "IMT — Integrated Maintenance Tool",
+        "title": "Debrief",
         "width": 1440,
         "height": 900,
         "minWidth": 1100,
@@ -52,21 +52,21 @@
     "fileAssociations": [
       {
         "ext": [
-          "imtz"
+          "debriefz"
         ],
-        "name": "IMT Project",
-        "description": "IMT project: the analysed events, profile, view and reports, shareable without the log files",
+        "name": "Debrief Project",
+        "description": "Debrief project: the analysed events, profile, view and reports, shareable without the log files",
         "role": "Editor",
-        "mimeType": "application/x-imt-project"
+        "mimeType": "application/x-debrief-project"
       }
     ]
   },
-  "mainBinaryName": "imt-app",
+  "mainBinaryName": "debrief-app",
   "plugins": {
     "updater": {
       "pubkey": "",
       "endpoints": [
-        "https://dev.decryptology.net/decryp7/integrated_maintenance_tool/releases/download/latest/latest.json"
+        "https://dev.decryptology.net/decryp7/debrief/releases/download/latest/latest.json"
       ],
       "requireSignedVersion": true,
       "windows": {

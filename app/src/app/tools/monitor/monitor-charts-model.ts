@@ -6,8 +6,8 @@ import { buildOption } from '../../metrics/chart-card';
 import { ChartTokens } from '../../metrics/chart-theme';
 import { activeLocale } from '../../i18n/locale';
 
-/** `SourceContext` of every event the process monitor writes (imt-monitor `SOURCE_CONTEXT`). */
-export const MONITOR_SOURCE_CONTEXT = 'IMT.Monitor';
+/** `SourceContext` of every event the process monitor writes (debrief-monitor `SOURCE_CONTEXT`). */
+export const MONITOR_SOURCE_CONTEXT = 'Debrief.Monitor';
 /** Field that marks the monitor's per-process sample events. */
 export const MONITOR_SAMPLE_FIELD = 'CpuPercent';
 /** One series per tracked process instance: names repeat (globs), process ids do not. */

@@ -1,8 +1,8 @@
 import { ApplicationConfig, provideBrowserGlobalErrorListeners } from '@angular/core';
-import { provideImtBuiltins } from './builtin/provide-builtins';
+import { provideDebriefBuiltins } from './builtin/provide-builtins';
 import { provideBackend } from './core/backend';
 import { provideErrorLogging, provideLogger } from './core/logger';
-import { provideImtPlugin } from './extensions';
+import { provideDebriefPlugin } from './extensions';
 import { provideDiagnostics } from './diagnostics/provide-diagnostics';
 import { provideAnalysis } from './analysis/analysis.plugin';
 import { provideLive } from './live/provide-live';
@@ -15,6 +15,7 @@ import { REGISTRY_PLUGIN } from './plugins/registry/registry.plugin';
 import { provideWindowing } from './windowing/provide-windowing';
 import { provideClockSkew } from './skew/skew.plugin';
 import { provideShare } from './share/share.plugin';
+import { provideWatched } from './watched/watched.plugin';
 import { provideProfiling } from './profiling/provide-profiling';
 import { provideDumps } from './dumps/provide-dumps';
 import { provideVideo } from './video/provide-video';
@@ -30,7 +31,7 @@ import { provideAi } from './ai/provide-ai';
 import { provideFolderSetup } from './ai/folder-setup/provide-folder-setup';
 import { provideBrowser } from './browser/provide-browser';
 import { provideActivity } from './core/activity/provide-activity';
-import { provideImtIcons } from './shared/material/imt-icons';
+import { provideDebriefIcons } from './shared/material/debrief-icons';
 import { provideUpdates } from './updates/provide-updates';
 import { provideJobs } from './jobs/provide-jobs';
 import { provideNotifications } from './notifications/provide-notifications';
@@ -53,8 +54,8 @@ export const appConfig: ApplicationConfig = {
     provideDiagnostics(),
     provideBackend(),
     provideWorkspace(),
-    provideImtBuiltins(),
-    provideImtPlugin(REGISTRY_PLUGIN),
+    provideDebriefBuiltins(),
+    provideDebriefPlugin(REGISTRY_PLUGIN),
     provideMarkers(),
     provideRuns(),
     provideTools(),
@@ -65,6 +66,7 @@ export const appConfig: ApplicationConfig = {
     provideWindowing(),
     provideClockSkew(),
     provideShare(),
+    provideWatched(),
     provideProfiling(),
     provideDumps(),
     provideVideo(),
@@ -80,7 +82,7 @@ export const appConfig: ApplicationConfig = {
     provideFolderSetup(),
     provideBrowser(),
     provideActivity(),
-    provideImtIcons(),
+    provideDebriefIcons(),
     provideUpdates(),
     provideJobs(),
     provideNotifications(),

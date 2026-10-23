@@ -4,8 +4,8 @@ import { expectNoSeriousViolations } from './axe';
 import { chooseMenu } from './menu-support';
 import { runCommand } from './profiling-support';
 
-const dump = (page: Page) => page.locator('imt-dump-view');
-const umdh = (page: Page) => page.locator('imt-umdh-view');
+const dump = (page: Page) => page.locator('debrief-dump-view');
+const umdh = (page: Page) => page.locator('debrief-umdh-view');
 
 test.describe('Dumps', () => {
   test('a crash dump opens on its findings and leads to the culprit frame', async ({ page }, testInfo) => {
@@ -17,7 +17,7 @@ test.describe('Dumps', () => {
     const findings = view.getByRole('list', { name: 'Findings' });
     await expect(findings.locator('li.finding').first()).toHaveAttribute('data-kind', 'crashCause');
     await expect(findings).toContainText('Likely culprit: Shop.Orders.dll!OrderCache::Add+0x4a');
-    await expectNoSeriousViolations(page, testInfo, 'dump-findings', 'imt-dump-view');
+    await expectNoSeriousViolations(page, testInfo, 'dump-findings', 'debrief-dump-view');
 
     await view.getByRole('button', { name: /^Show the evidence of Likely culprit/ }).click();
     await expect(view.getByRole('tab', { name: 'Threads' })).toHaveAttribute('aria-selected', 'true');
@@ -31,7 +31,7 @@ test.describe('Dumps', () => {
     await page.keyboard.press('ArrowUp');
     await page.keyboard.press('Space');
     await expect(stack).toContainText('Ledger::Post');
-    await expectNoSeriousViolations(page, testInfo, 'dump-threads', 'imt-dump-view');
+    await expectNoSeriousViolations(page, testInfo, 'dump-threads', 'debrief-dump-view');
 
     await view.getByRole('tab', { name: 'Modules' }).click();
     await expect(view.getByTestId('dump-modules').locator('tbody tr')).toHaveCount(6);
@@ -44,7 +44,7 @@ test.describe('Dumps', () => {
     const findings = view.getByRole('list', { name: 'Findings' });
     await expect(findings.locator('li.finding').first()).toHaveAttribute('data-kind', 'leakGrowth');
     await expect(findings).toContainText('Steady growth in Shop.Orders!OrderCache::Add+0x4a across 3 snapshots');
-    await expectNoSeriousViolations(page, testInfo, 'umdh-findings', 'imt-umdh-view');
+    await expectNoSeriousViolations(page, testInfo, 'umdh-findings', 'debrief-umdh-view');
 
     await view.getByRole('tab', { name: 'Growth' }).click();
     const growth = view.getByTestId('umdh-growth');
@@ -59,13 +59,13 @@ test.describe('Dumps', () => {
     await expect(tree.getByRole('treeitem')).toHaveCount(1);
     await tree.getByRole('button', { name: 'Expand OrderService!wmain' }).click();
     await expect(tree.getByRole('treeitem').nth(1)).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'umdh-tree', 'imt-umdh-view');
+    await expectNoSeriousViolations(page, testInfo, 'umdh-tree', 'debrief-umdh-view');
   });
 
   test('Create dump of process writes a dump into the chosen folder and opens it', async ({ page }) => {
     await openApp(page);
     await runCommand(page, 'Create dump of process');
-    const view = page.locator('imt-create-dump-view');
+    const view = page.locator('debrief-create-dump-view');
     const list = view.getByRole('listbox', { name: 'Processes' });
     await expect(list.getByRole('option')).toHaveCount(5);
     await view.getByRole('searchbox', { name: 'Filter processes' }).fill('4120');
@@ -84,7 +84,7 @@ test.describe('Dumps', () => {
     await expect(dump(page).getByTestId('dump-exception')).toBeVisible();
     // The dump view opens tabbed with the timeline; bring it back, then open the dump from its marker.
     await page.getByRole('tab', { name: /Timeline/ }).click();
-    const marker = page.locator('imt-timeline-panel').getByRole('button', { name: 'Open dump OrderService.exe.4120.dmp' });
+    const marker = page.locator('debrief-timeline-panel').getByRole('button', { name: 'Open dump OrderService.exe.4120.dmp' });
     await expect(marker).toBeVisible();
     await marker.click();
     await expect(dump(page).getByTestId('dump-exception')).toBeVisible();

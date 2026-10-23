@@ -8,8 +8,8 @@
 ## Context
 
 Users attach screenshots to incidents: an error dialog, a frozen window, a console, a dashboard. They want the local
-assistant to explain an image and, above all, to find the log events that belong to it. The PCs IMT runs on are short
-of memory (two machines ran out while a model and IMT were loaded), so a second, vision-only model loaded next to the
+assistant to explain an image and, above all, to find the log events that belong to it. The PCs Debrief runs on are short
+of memory (two machines ran out while a model and Debrief were loaded), so a second, vision-only model loaded next to the
 text model is not an option. Upstream llama.cpp loads a multimodal projector (`mmproj` GGUF) into the same
 `llama-server` as the language model (`--mmproj`): the one model then reads images too. Projectors are specific to a
 model generation (a Qwen3.6 projector does not work with Qwen3.5), and llama.cpp reports crashes when speculative or
@@ -35,8 +35,8 @@ instruct the model. Everything must stay on the PC.
    adds `--mmproj` and `LoadResult.vision` reports it. The projector goes to the GPU only when the whole model
    does (`--no-mmproj-offload` otherwise), so on an 8 GB GPU it stays in system RAM and the 9B model keeps its
    layers; recommendations judge the GPU fit on the model, memory checks count the projector;
-   chat requests carry `images` (IMT's sanitised encoding, base64; at most 4 images, 8 MB together, re-checked by the
-   worker). IMT renders prompts itself, so images go through llama-server's `/completion` multimodal prompt
+   chat requests carry `images` (Debrief's sanitised encoding, base64; at most 4 images, 8 MB together, re-checked by the
+   worker). Debrief renders prompts itself, so images go through llama-server's `/completion` multimodal prompt
    (`prompt_string` with llama.cpp's media marker per image, `multimodal_data` with the images) instead of the
    OpenAI-style `image_url` of `/v1/chat/completions`; the bytes are the same base64 a data URI would carry. The
    marker is stripped from every other text (logs, web pages, the system prompt), so no content can claim an image
@@ -47,7 +47,7 @@ instruct the model. Everything must stay on the PC.
    tells whether the active model reads images; AI status and the model list report "Text + images" or "Text only".
    A request with images to a text-only model fails with the typed `NoVision` error; the UI offers to install the
    projector of the active model (when the catalog has one) or to switch to a model marked "Text + images".
-4. **Images are decoded in Rust only** (`imt_ai::vision::image`, the `image` crate with only PNG, JPEG, BMP, GIF and
+4. **Images are decoded in Rust only** (`debrief_ai::vision::image`, the `image` crate with only PNG, JPEG, BMP, GIF and
    WebP compiled in): the format by signature, the file size bounded (32 MB), the claimed dimensions checked before
    any pixel is decoded (64 MP, 16 384 px per side), the decoder's allocations limited (512 MB), GIF's first frame,
    decoder panics caught as "damaged". The pixels are flattened onto white, downscaled to what the model reads (its
@@ -63,7 +63,7 @@ instruct the model. Everything must stay on the PC.
      without a date), error texts, error codes, exception names, machine, user and server names, ids, versions and
      a one-line summary. Rust parses it again (unknown fields refused, strings cleaned and cut, lists bounded and
      de-duplicated); an invalid answer gets one retry with the reason, then fails typed.
-   - The engine operation `imt_core::related::find_related` decides the time — shown date and time, else a shown
+   - The engine operation `debrief_core::related::find_related` decides the time — shown date and time, else a shown
      time of day on the date of the other evidence (or of the data when it covers one day), else the EXIF capture
      time, else a time in the file name, else the file's modification time — in the profile's `assume_timezone`,
      and applies the clock offset of the screenshot's machine (a source named like a machine on the screen) the way

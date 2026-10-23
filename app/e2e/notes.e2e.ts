@@ -10,7 +10,7 @@ import { openAppWith } from './mock-url';
 test('a note on an event row is marked on the row, listed and jumped to', async ({ page }, testInfo) => {
   test.slow();
   await openAppWith(page, '');
-  const row = page.locator('imt-events-grid [role=row].row').nth(2);
+  const row = page.locator('debrief-events-grid [role=row].row').nth(2);
   await expect(row).toBeVisible();
   await row.click({ button: 'right' });
   await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Add note…' }).click();
@@ -26,25 +26,25 @@ test('a note on an event row is marked on the row, listed and jumped to', async 
   await expect(row.getByTestId('note-glyph')).toHaveAttribute('aria-label', 'Root cause: the disk filled up');
 
   await runCommand(page, 'Show notes');
-  const panel = page.locator('imt-notes-panel');
+  const panel = page.locator('debrief-notes-panel');
   const item = panel.getByTestId('note-item');
   await expect(item).toHaveCount(1);
   await expect(item).toContainText('#disk');
-  await expectNoSeriousViolations(page, testInfo, 'notes-panel', 'imt-notes-panel');
+  await expectNoSeriousViolations(page, testInfo, 'notes-panel', 'debrief-notes-panel');
   // Scroll the grid away, then jump back to the noted event.
-  await page.locator('imt-events-grid .viewport').evaluate((v) => (v.scrollTop = v.scrollHeight));
+  await page.locator('debrief-events-grid .viewport').evaluate((v) => (v.scrollTop = v.scrollHeight));
   await item.getByTestId('note-jump').click();
-  await expect(page.locator('imt-events-grid .row.sel').getByTestId('note-glyph')).toBeVisible();
+  await expect(page.locator('debrief-events-grid .row.sel').getByTestId('note-glyph')).toBeVisible();
 });
 
 test('an area marked on an image gets a note and is drawn as a region', async ({ page }) => {
   test.slow();
   await openAppWith(page, `?mockOpen=${encodeURIComponent('/shots/error-dialog.png')}`);
-  const sidebar = page.locator('imt-sidebar');
+  const sidebar = page.locator('debrief-sidebar');
   await sidebar.getByRole('button', { name: 'Open files' }).click();
   await sidebar.getByRole('button', { name: 'Mark up image error-dialog.png' }).click();
 
-  const view = page.locator('imt-note-image-view');
+  const view = page.locator('debrief-note-image-view');
   await expect(view.getByTestId('note-image-img')).toHaveAttribute('src', /^data:image\//);
   const stage = view.getByTestId('note-image-stage');
   const box = (await stage.boundingBox())!;

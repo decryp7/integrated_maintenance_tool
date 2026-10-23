@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
 import { DiagnosticRow, FixEvaluation, IndexStatus, QuickFix } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { browserMocks } from '../core/mock-registry';
@@ -41,6 +41,6 @@ export class TauriProblemsBackend extends ProblemsBackend {
 }
 
 export function createProblemsBackend(): ProblemsBackend {
-  const backend: ProblemsBackend = isTauri() ? new TauriProblemsBackend() : new (browserMocks().MockProblemsBackend)(inject(ImtBackend));
+  const backend: ProblemsBackend = isTauri() ? new TauriProblemsBackend() : new (browserMocks().MockProblemsBackend)(inject(DebriefBackend));
   return withFailureLogging<ProblemsBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }

@@ -6,8 +6,8 @@
 use crate::jobs::{Controls, Done, JobCtx, JobProgress, JobResult, JobSpec};
 use crate::windows::{CurrentWindow, WindowState};
 use crate::CmdResult;
-use imt_core::ports::{ImportReport, ImportSession, Store, StoreResult};
-use imt_core::workspace::ProgressSnapshot;
+use debrief_core::ports::{ImportReport, ImportSession, Store, StoreResult};
+use debrief_core::workspace::ProgressSnapshot;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
@@ -28,9 +28,9 @@ fn start_when_free(store: &dyn Store, start: &Start, ctx: &JobCtx, cancel: &Atom
     let mut told = false;
     loop {
         match start(store) {
-            Err(imt_core::ports::StoreError::Busy(_)) if began.elapsed() < BUSY_WAIT => {
+            Err(debrief_core::ports::StoreError::Busy(_)) if began.elapsed() < BUSY_WAIT => {
                 if ctx.is_cancelled() || cancel.load(Ordering::Relaxed) {
-                    return Err(imt_core::ports::StoreError::Cancelled);
+                    return Err(debrief_core::ports::StoreError::Cancelled);
                 }
                 if !told {
                     ctx.message("Waiting for the running import");

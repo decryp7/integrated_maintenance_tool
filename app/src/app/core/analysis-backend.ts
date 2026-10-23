@@ -7,6 +7,7 @@ import {
   ExceptionGroup,
   FieldStats,
   MomentSummary,
+  OutlierReport,
   Pattern,
   QlError,
   QlQuery,
@@ -43,6 +44,8 @@ export abstract class AnalysisBackend {
   abstract queryPatterns(query: QlQuery): Promise<Analyzed<Pattern[]>>;
   abstract queryExceptions(query: QlQuery): Promise<Analyzed<ExceptionGroup[]>>;
   abstract queryAnomalies(query: QlQuery): Promise<Analyzed<Anomaly[]>>;
+  /** Values over-represented in `subset` (a filter; empty: errors) against the rest of the window `query` (ADR 0045). */
+  abstract queryOutliers(query: QlQuery, subset: string, fields: readonly string[]): Promise<Analyzed<OutlierReport>>;
   abstract compareWindows(a: QlQuery, b: QlQuery): Promise<Analyzed<Comparison>>;
   abstract fieldStats(query: QlQuery, field: string, buckets: number): Promise<FieldStats>;
   /** Ids of the events whose `field` equals `value`. */
@@ -127,6 +130,9 @@ export class TauriAnalysisBackend extends AnalysisBackend {
   }
   queryAnomalies(query: QlQuery) {
     return this.call<Analyzed<Anomaly[]>>('query_anomalies', { request: { query } });
+  }
+  queryOutliers(query: QlQuery, subset: string, fields: readonly string[]) {
+    return this.call<Analyzed<OutlierReport>>('query_outliers', { request: { query, subset, fields, limit: 0 } });
   }
   compareWindows(a: QlQuery, b: QlQuery) {
     return this.call<Analyzed<Comparison>>('compare_windows', { request: { a, b } });

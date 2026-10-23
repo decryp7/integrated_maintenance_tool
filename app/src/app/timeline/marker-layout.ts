@@ -51,6 +51,13 @@ export interface LayoutOptions {
   mergePx?: number;
   /** Above this many shapes in view, compact kinds become ticks. */
   maxShapes?: number;
+  /**
+   * Three or more markers of any kind chained closer than this many px collapse into one glyph of their most important
+   * kind with the total as its count badge (no pile of overlapping glyphs). Off when unset.
+   */
+  crowdPx?: number;
+  /** Kinds never absorbed into a crowd (crashes stay visible). */
+  keepKinds?: ReadonlySet<string>;
 }
 
 /** Minimum hit-area size in px (WCAG 2.2 SC 2.5.8, target size minimum). */
@@ -101,6 +108,34 @@ export function mergeMarkers(markers: MarkerVm[], minGap: number): MarkerVm[] {
   }
   return out;
 }
+
+/**
+ * Collapses crowds: runs of at least {@link CROWD_MIN} markers (any kind, `keep` kinds excepted) whose neighbours are
+ * closer than `gapPct` become one marker of the member kind that ranks first, at the earliest member of that kind, with the summed count.
+ */
+export function mergeCrowds(markers: MarkerVm[], gapPct: number, rank: (kind: string) => number, keep: ReadonlySet<string> = new Set()): MarkerVm[] {
+  const sorted = markers.filter((m) => !keep.has(m.cluster.kind)).sort((a, b) => a.left - b.left);
+  const out: MarkerVm[] = markers.filter((m) => keep.has(m.cluster.kind));
+  let run: MarkerVm[] = [];
+  const flush = () => {
+    if (run.length < CROWD_MIN) out.push(...run);
+    else {
+      const top = run.reduce((best, m) => (rank(m.cluster.kind) < rank(best.cluster.kind) ? m : best));
+      const count = run.reduce((n, m) => n + m.cluster.count, 0);
+      out.push({ ...top, cluster: { ...top.cluster, count } });
+    }
+    run = [];
+  };
+  for (const m of sorted) {
+    if (run.length && m.left - run[run.length - 1]!.left >= gapPct) flush();
+    run.push(m);
+  }
+  flush();
+  return out;
+}
+
+/** Fewest markers that make a crowd. */
+export const CROWD_MIN = 3;
 
 interface Interval {
   from: number;
@@ -160,14 +195,16 @@ export function layoutTargets(shapes: LaidMarker[], plotWidth: number): MarkerTa
 /** Lays out one lane's markers: merge, collapse busy kinds to ticks, order by priority, fit badges. */
 export function layoutLane(markers: MarkerVm[], opts: LayoutOptions): LaneLayout {
   const width = Math.max(1, opts.plotWidth);
-  const merged = mergeMarkers(markers, ((opts.mergePx ?? 12) / width) * 100);
-  const busy = merged.length > (opts.maxShapes ?? defaultMaxShapes(width));
-  const compact = busy ? merged.filter((m) => opts.compactKinds.has(m.cluster.kind)) : [];
-  const shapes = busy ? merged.filter((m) => !opts.compactKinds.has(m.cluster.kind)) : merged;
   const rank = (kind: string) => {
     const i = opts.priority.indexOf(kind);
     return i < 0 ? opts.priority.length : i;
   };
+  const merged = mergeMarkers(markers, ((opts.mergePx ?? 12) / width) * 100);
+  const busy = merged.length > (opts.maxShapes ?? defaultMaxShapes(width));
+  const compact = busy ? merged.filter((m) => opts.compactKinds.has(m.cluster.kind)) : [];
+  const drawn = busy ? merged.filter((m) => !opts.compactKinds.has(m.cluster.kind)) : merged;
+  // Crowds are folded after the busy decision, so a busy lane still turns its compact kinds into the tick strip first.
+  const shapes = opts.crowdPx ? mergeCrowds(drawn, (opts.crowdPx / width) * 100, rank, opts.keepKinds) : drawn;
   shapes.sort((a, b) => rank(b.cluster.kind) - rank(a.cluster.kind) || a.left - b.left);
   const badges = placeBadges(shapes, width);
   const laid = shapes.map((m) => ({ ...m, showCount: badges.has(m) }));

@@ -1,5 +1,5 @@
-//! Projects (ADR 0014 §6): a project is the window's store folder, saved as a self-contained `.imtz`; the UI's
-//! state and reports travel in it as `ui.json`. IMT's own workspace files (`.imtproj`: the autosaved session
+//! Projects (ADR 0014 §6): a project is the window's store folder, saved as a self-contained `.debriefz`; the UI's
+//! state and reports travel in it as `ui.json`. Debrief's own workspace files (`.debriefproj`: the autosaved session
 //! with the store folder to reopen, the activity log, unpacked bundles) name files to import instead. The
 //! commands (`save_project`, `open_project`, `open_bundle`, `save_session`) check paths and run the jobs; this
 //! knows no window or job.
@@ -7,7 +7,7 @@
 use crate::error::{CmdError, CmdResult};
 use crate::profile::ProfileDoc;
 use crate::ErrorCode;
-use imt_core::project::{ProjectFile, PROJECT_VERSION};
+use debrief_core::project::{ProjectFile, PROJECT_VERSION};
 use serde::Serialize;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
@@ -35,7 +35,7 @@ pub(crate) struct SavedProject {
 pub(crate) struct OpenedProject {
     pub path: String,
     pub name: String,
-    pub summary: imt_core::api::WorkspaceSummary,
+    pub summary: debrief_core::api::WorkspaceSummary,
     pub profile: ProfileDoc,
     pub ui: Value,
     pub reports: Vec<Value>,
@@ -63,7 +63,7 @@ pub fn session(name: String, profile: String, roots: Vec<String>, store: Option<
 }
 
 /// Writes the UI's state and the reports into a project folder (atomically). Blocking.
-pub fn write_ui(dir: &Path, ui: &Value, reports: &[imt_core::report::Report]) -> CmdResult<()> {
+pub fn write_ui(dir: &Path, ui: &Value, reports: &[debrief_core::report::Report]) -> CmdResult<()> {
     let io = |e: std::io::Error| CmdError::new(ErrorCode::Io, format!("cannot save the project's view: {e}"));
     let json = serde_json::to_vec(&serde_json::json!({ "version": 1, "ui": ui, "reports": reports }))
         .map_err(|e| CmdError::new(ErrorCode::Internal, e.to_string()))?;
@@ -124,7 +124,7 @@ mod tests {
     #[test]
     fn sessions_and_the_view_of_a_project_round_trip() {
         let t = TempDir::new("project-service");
-        let file = t.0.join("session.imtproj");
+        let file = t.0.join("session.debriefproj");
         let ui = serde_json::json!({ "profiling": { "captures": [t.0.join("a.cpuprofile").to_string_lossy(), "relative", 3] } });
         let s = session(
             "Last session".into(),
@@ -138,9 +138,9 @@ mod tests {
         assert_eq!((back.name.as_str(), back.sources.len()), ("Last session", 1));
         assert!(back.store.is_some());
         assert_eq!(captures(&back.ui), vec![t.0.join("a.cpuprofile")]);
-        assert_eq!(load(&t.0.join("missing.imtproj")).unwrap_err().code, ErrorCode::NotFound);
-        std::fs::write(t.0.join("bad.imtproj"), "{").unwrap();
-        assert_eq!(load(&t.0.join("bad.imtproj")).unwrap_err().code, ErrorCode::Invalid);
+        assert_eq!(load(&t.0.join("missing.debriefproj")).unwrap_err().code, ErrorCode::NotFound);
+        std::fs::write(t.0.join("bad.debriefproj"), "{").unwrap();
+        assert_eq!(load(&t.0.join("bad.debriefproj")).unwrap_err().code, ErrorCode::Invalid);
         assert!(captures(&Value::Null).is_empty());
         // The view of a project folder.
         assert_eq!(read_ui(&t.0), (Value::Null, vec![]));

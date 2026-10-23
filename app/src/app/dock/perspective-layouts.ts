@@ -1,5 +1,5 @@
 import type { DockviewApi } from 'dockview';
-import type { ImtView } from '../extensions/tokens';
+import type { DebriefView } from '../extensions/tokens';
 import { PANEL } from './dock-context';
 import { DockExtras } from './layout-store';
 
@@ -35,7 +35,7 @@ export interface PerspectiveBuildContext {
   api: DockviewApi;
   /** Builds Investigate (the timeline over the events, the inspector auto-hidden) and returns its extras. */
   buildDefault(): DockExtras;
-  find(id: string): ImtView | undefined;
+  find(id: string): DebriefView | undefined;
 }
 
 const LANDING_WIDTH = 380;
@@ -43,7 +43,7 @@ const BOTTOM_HEIGHT = 260;
 
 /** Adds the views that exist as tabs of one new group at `direction` of the reference group, the first one active. */
 function tabbed(ctx: PerspectiveBuildContext, ids: readonly string[], position: { referenceGroup?: string; direction: 'below' | 'right' | 'left' }, size?: { width?: number; height?: number }): void {
-  const views = ids.map((id) => ctx.find(id)).filter((v): v is ImtView => !!v);
+  const views = ids.map((id) => ctx.find(id)).filter((v): v is DebriefView => !!v);
   const first = views[0];
   if (!first) return;
   const panel = ctx.api.addPanel({ id: first.id, component: first.id, title: first.title, position: position.referenceGroup ? { referenceGroup: position.referenceGroup, direction: position.direction } : { direction: position.direction } });

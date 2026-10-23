@@ -14,7 +14,7 @@ const MAX_CHARS = 4000;
  */
 export function explainPrompt(profileName: string, findings: readonly ProfileFinding[], evidence: (f: ProfileFinding) => string): string {
   const lines = findings.slice(0, MAX_FINDINGS).map((f) => `- [${f.severity}] ${f.title}. ${f.detail} (evidence: ${evidence(f)})`);
-  const head = $localize`:@@profiling.explain.prompt:Explain these profiling findings for "${profileName}:name:" in plain words: what the likely root cause is, and what to change first. The findings were computed by IMT's profiling engine:`;
+  const head = $localize`:@@profiling.explain.prompt:Explain these profiling findings for "${profileName}:name:" in plain words: what the likely root cause is, and what to change first. The findings were computed by Debrief's profiling engine:`;
   const text = [head, ...lines].join('\n');
   return text.length > MAX_CHARS ? `${text.slice(0, MAX_CHARS - 1)}…` : text;
 }

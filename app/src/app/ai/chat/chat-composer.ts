@@ -34,12 +34,12 @@ const CONTEXT_MODES: readonly ContextMode[] = ['selection', 'view', 'none'];
  * the AI answers. The whole card takes dropped and pasted images. State lives in `ChatStore` and `ChatBrowserStore`.
  */
 @Component({
-  selector: 'imt-chat-composer',
+  selector: 'debrief-chat-composer',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, CdkMenu, CdkMenuItemRadio, CdkMenuTrigger, AiNoVisionCard],
   template: `
     @if (images.noVision()) {
-      <imt-ai-no-vision class="no-vision" />
+      <debrief-ai-no-vision class="no-vision" />
     }
     @if (attachError(); as e) {
       <p class="err" role="alert" data-testid="ai-attach-error">{{ e }} <button type="button" class="link" (click)="retryAttach()" i18n="@@ai.vision.retry">Retry</button> <button type="button" class="link" (click)="attachError.set(null)" i18n="@@ai.vision.dismiss">Dismiss</button></p>
@@ -52,7 +52,7 @@ const CONTEXT_MODES: readonly ContextMode[] = ['selection', 'view', 'none'];
               <img class="thumb" [src]="a.dataUrl" [alt]="a.name" />
               <span class="att-name" [title]="a.name">{{ a.name }}</span>
               <button type="button" class="link small" [disabled]="store.running() || !status.hasModel()" (click)="store.sendRelated(a)" i18n="@@ai.vision.chat.related">Find related logs</button>
-              <button type="button" class="icon-btn" [attr.aria-label]="removeLabel(a.name)" [attr.title]="removeLabel(a.name)" (click)="store.detach(a.id)"><imt-icon name="close" [size]="12" /></button>
+              <button type="button" class="icon-btn" [attr.aria-label]="removeLabel(a.name)" [attr.title]="removeLabel(a.name)" (click)="store.detach(a.id)"><debrief-icon name="close" [size]="12" /></button>
             </li>
           }
         </ul>
@@ -76,14 +76,14 @@ const CONTEXT_MODES: readonly ContextMode[] = ['selection', 'view', 'none'];
       ></textarea>
       <div class="tools" role="toolbar" aria-label="Question options" i18n-aria-label="@@ai.chat.composer.toolbar">
         <button type="button" class="icon-btn" data-testid="ai-attach" [attr.aria-label]="attachLabel" [title]="attachTitle()" [disabled]="!!attachBlocked()" (click)="attachFile()">
-          <imt-icon name="image" [size]="16" />
+          <debrief-icon name="image" [size]="16" />
         </button>
         <button type="button" class="btn ghost menu-btn" data-testid="ai-context-menu" [cdkMenuTriggerFor]="contextMenu" [title]="contextTitle()">
-          <span class="ellipsis">{{ contextButton() }}</span><imt-icon name="chevronDown" [size]="12" />
+          <span class="ellipsis">{{ contextButton() }}</span><debrief-icon name="chevronDown" [size]="12" />
         </button>
         @if (sessionId()) {
           <button type="button" class="btn ghost menu-btn" data-testid="ai-browser-menu" [cdkMenuTriggerFor]="browserMenu" [title]="browserHint(browserMode())">
-            <span class="ellipsis">{{ browserButton() }}</span><imt-icon name="chevronDown" [size]="12" />
+            <span class="ellipsis">{{ browserButton() }}</span><debrief-icon name="chevronDown" [size]="12" />
           </button>
         }
         <button type="button" class="btn ghost" data-testid="chat-research" [title]="researchTitle()" (click)="research()" i18n="@@browser.chatBar.research">Research…</button>

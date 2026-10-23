@@ -4,7 +4,7 @@ import { isTauri } from '../core/platform';
 /** What Window › Full screen (Shift+Alt+Enter) does: hide the tool windows and chrome, make the OS window full screen, or both. */
 export type FullScreenMode = 'chrome' | 'os' | 'both';
 export const FULL_SCREEN_MODES: readonly FullScreenMode[] = ['both', 'chrome', 'os'];
-export const FULL_SCREEN_MODE_KEY = 'imt.fullScreenMode';
+export const FULL_SCREEN_MODE_KEY = 'debrief.fullScreenMode';
 
 /** The saved full-screen mode ("both" when unset or unreadable). Never throws. */
 export function loadFullScreenMode(): FullScreenMode {

@@ -6,14 +6,14 @@ import { openMenu, showProfileEditor } from './menu-support';
 async function openProfile(page: Page) {
   await openApp(page);
   await showProfileEditor(page);
-  await expect(page.locator('imt-profile-editor .bar .name')).toHaveText(/\(Serilog\)/);
-  await expect(page.locator('imt-profile-editor .bar .good')).toBeVisible();
+  await expect(page.locator('debrief-profile-editor .bar .name')).toHaveText(/\(Serilog\)/);
+  await expect(page.locator('debrief-profile-editor .bar .good')).toBeVisible();
 }
 
 test.describe('profile history', () => {
   test('restores an earlier version, applied and undoable', async ({ page }, testInfo) => {
     await openProfile(page);
-    const editor = page.locator('imt-profile-editor');
+    const editor = page.locator('debrief-profile-editor');
     await editor.getByRole('tab', { name: 'History', exact: true }).click();
     await expect(editor).toContainText('No earlier versions yet');
 
@@ -30,7 +30,7 @@ test.describe('profile history', () => {
     await versions.first().click();
     await expect(editor.locator('.summary')).toContainText('Restoring it would remove');
     await expect(editor.locator('.diff .l.added').filter({ hasText: '(Serilog)' }).first()).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'profile-history', 'imt-profile-history');
+    await expectNoSeriousViolations(page, testInfo, 'profile-history', 'debrief-profile-history');
 
     await editor.getByRole('button', { name: 'Restore this version' }).click();
     await expect(editor.locator('.bar .name')).toHaveText(/\(Serilog\)/);

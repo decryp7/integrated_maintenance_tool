@@ -5,12 +5,12 @@ import { AiProposalCard } from '../proposals/proposal-card';
 
 /** A finished AI job's proposal (opened from the Jobs pane or a notification): review, then Apply or dismiss. */
 @Component({
-  selector: 'imt-ai-proposal-result-dialog',
+  selector: 'debrief-ai-proposal-result-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiProposalCard],
   template: `
     @if (!dismissed()) {
-      <imt-ai-proposal-card [proposal]="proposal()" [state]="state()" (applied)="state.set('applied')" (dismissed)="dismissed.set(true)" />
+      <debrief-ai-proposal-card [proposal]="proposal()" [state]="state()" (applied)="state.set('applied')" (dismissed)="dismissed.set(true)" />
     } @else {
       <p class="muted" i18n="@@ai.proposalResult.dismissed">Dismissed.</p>
     }

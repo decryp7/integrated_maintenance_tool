@@ -1,0 +1,93 @@
+---
+source: crates/debrief-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: clock-skew/gateway/requests-20261014.clef
+importer: json
+records: 1141
+skipped: 0
+levels:
+  2-Information: 1141
+with_timestamp: 1141
+first_timestamp: "2026-10-14T10:00:00.041Z"
+last_timestamp: "2026-10-14T10:29:59.215Z"
+fields:
+  - Application
+  - CorrelationId
+  - MachineName
+  - ProcessId
+  - RequestMethod
+  - RequestPath
+  - SourceContext
+  - Upstream
+first:
+  - line: 1
+    timestamp: "2026-10-14T10:00:00.041Z"
+    level: Information
+    message: "Forwarding GET /api/orders/88590 to web02:8080 (79556a23-4418-634c-b197-388843be7167)"
+    template: "Forwarding {RequestMethod} {RequestPath} to {Upstream} ({CorrelationId})"
+    fields:
+      Application: Gateway
+      CorrelationId: 79556a23-4418-634c-b197-388843be7167
+      MachineName: GATEWAY
+      ProcessId: 1880
+      RequestMethod: GET
+      RequestPath: /api/orders/88590
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web02:8080"
+  - line: 2
+    timestamp: "2026-10-14T10:00:02.087Z"
+    level: Information
+    message: "Forwarding GET /api/orders/88102 to web02:8080 (51f0861d-c660-8a26-bdfb-1c828668859d)"
+    template: "Forwarding {RequestMethod} {RequestPath} to {Upstream} ({CorrelationId})"
+    fields:
+      Application: Gateway
+      CorrelationId: 51f0861d-c660-8a26-bdfb-1c828668859d
+      MachineName: GATEWAY
+      ProcessId: 1880
+      RequestMethod: GET
+      RequestPath: /api/orders/88102
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web02:8080"
+  - line: 3
+    timestamp: "2026-10-14T10:00:02.646Z"
+    level: Information
+    message: "Forwarding GET /api/orders/88837 to web02:8080 (e7746c56-3df5-b5af-45a1-cb52b8732718)"
+    template: "Forwarding {RequestMethod} {RequestPath} to {Upstream} ({CorrelationId})"
+    fields:
+      Application: Gateway
+      CorrelationId: e7746c56-3df5-b5af-45a1-cb52b8732718
+      MachineName: GATEWAY
+      ProcessId: 1880
+      RequestMethod: GET
+      RequestPath: /api/orders/88837
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web02:8080"
+  - line: 4
+    timestamp: "2026-10-14T10:00:06.667Z"
+    level: Information
+    message: "Forwarding POST /api/cart to web02:8080 (ccc3be9b-ab06-a9bd-df84-75c59952dd3d)"
+    template: "Forwarding {RequestMethod} {RequestPath} to {Upstream} ({CorrelationId})"
+    fields:
+      Application: Gateway
+      CorrelationId: ccc3be9b-ab06-a9bd-df84-75c59952dd3d
+      MachineName: GATEWAY
+      ProcessId: 1880
+      RequestMethod: POST
+      RequestPath: /api/cart
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web02:8080"
+  - line: 5
+    timestamp: "2026-10-14T10:00:08.544Z"
+    level: Information
+    message: "Forwarding POST /api/cart to web02:8080 (26945c5b-29a0-37a3-6092-312459bb1a4c)"
+    template: "Forwarding {RequestMethod} {RequestPath} to {Upstream} ({CorrelationId})"
+    fields:
+      Application: Gateway
+      CorrelationId: 26945c5b-29a0-37a3-6092-312459bb1a4c
+      MachineName: GATEWAY
+      ProcessId: 1880
+      RequestMethod: POST
+      RequestPath: /api/cart
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web02:8080"

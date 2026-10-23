@@ -29,7 +29,7 @@ pub enum NoticeSource {
     Ai,
     Update,
     Session,
-    /// Memory caps of IMT's processes (Settings ▸ Performance).
+    /// Memory caps of Debrief's processes (Settings ▸ Performance).
     Performance,
     /// Things about the files and folders the user opened (a new folder worth setting up).
     Workspace,
@@ -124,7 +124,7 @@ pub enum NoticeAction {
     },
 }
 
-/// One of IMT's capped processes, as a message's action names it.
+/// One of Debrief's capped processes, as a message's action names it.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", tag = "kind")]
 pub enum ProcessRef {
@@ -442,9 +442,14 @@ mod tests {
         assert!(c.get(NoticeId(99)).is_none());
         // A `once` message is announced once.
         let update = || {
-            NewNotice::new(NoticeSource::Update, NoticeSeverity::Info, "IMT 2 is available", NoticeScope::App)
-                .dedupe("update:2")
-                .once()
+            NewNotice::new(
+                NoticeSource::Update,
+                NoticeSeverity::Info,
+                "Debrief 2 is available",
+                NoticeScope::App,
+            )
+            .dedupe("update:2")
+            .once()
         };
         c.post(update(), NoticeId(7), 500);
         c.mark_read(NoticeId(7));

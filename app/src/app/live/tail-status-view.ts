@@ -15,7 +15,7 @@ export const STATUS_POLL_MS = 2000;
 
 /** Dock view: per-file live tail state and a read-only summary of the live tail options (changed in Settings ▸ Live tail). */
 @Component({
-  selector: 'imt-tail-status-view',
+  selector: 'debrief-tail-status-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NextSteps],
   template: `
@@ -65,7 +65,7 @@ export const STATUS_POLL_MS = 2000;
               @if (sourcesOpen()) {
                 <tr><td colspan="7" class="faint" i18n="@@live.tailStatus.noFileState">The state of each tailed file is not available yet. Live tail still adds new lines.</td></tr>
               } @else {
-                <tr><td colspan="7" class="faint" i18n="@@live.tailStatus.noFiles">No files are open. <imt-next-steps /></td></tr>
+                <tr><td colspan="7" class="faint" i18n="@@live.tailStatus.noFiles">No files are open. <debrief-next-steps /></td></tr>
               }
             }
           </tbody>

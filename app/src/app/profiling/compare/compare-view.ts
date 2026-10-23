@@ -36,12 +36,12 @@ const STATUS_LABEL = {
  * baseline, blue = smaller, grey = unchanged) and the per-function changes sorted by size.
  */
 @Component({
-  selector: 'imt-compare-view',
+  selector: 'debrief-compare-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileBar, NoCapture, FlameChart],
   template: `
     @if (active.profile(); as p) {
-      <imt-profile-bar />
+      <debrief-profile-bar />
       <div class="bar">
         <span class="section-title" i18n="@@profiling.compare.title">Compare</span>
         <label class="inline"><ng-container i18n="@@profiling.compare.baseline">Baseline</ng-container>&ngsp;
@@ -63,9 +63,9 @@ const STATUS_LABEL = {
                 @else { <button class="link" type="button" (click)="focus.set(c.path)">{{ c.label }}</button><span aria-hidden="true" class="sep">›</span> }
               }
             </nav>
-            <imt-analysis-state [loading]="flame.loading()" [error]="flame.error()" [hasData]="!!flame.data()" (retry)="flame.retry()">
-              <imt-flame-chart [graph]="flame.data()" [diff]="true" [metrics]="p.metrics" [label]="flameLabel(p.name)" (zoom)="focus.set(extend($event))" (zoomOut)="focus.set(focus().slice(0, -1))" (selected)="state.selectFrame($event)" />
-            </imt-analysis-state>
+            <debrief-analysis-state [loading]="flame.loading()" [error]="flame.error()" [hasData]="!!flame.data()" (retry)="flame.retry()">
+              <debrief-flame-chart [graph]="flame.data()" [diff]="true" [metrics]="p.metrics" [label]="flameLabel(p.name)" (zoom)="focus.set(extend($event))" (zoomOut)="focus.set(focus().slice(0, -1))" (selected)="state.selectFrame($event)" />
+            </debrief-analysis-state>
           </section>
           <section class="pane table" aria-label="Function changes" i18n-aria-label="@@profiling.compare.tableSection">
             <div class="bar">
@@ -78,7 +78,7 @@ const STATUS_LABEL = {
               <input type="search" placeholder="Search…" i18n-placeholder="@@profiling.compare.searchPlaceholder" aria-label="Search changes" i18n-aria-label="@@profiling.compare.searchLabel" (input)="onSearch($event)" />
               @if (diff.data(); as d) { <span class="muted" i18n="@@profiling.compare.summary">{{ fmt(d.totalRows) // i18n(ph: "count") }} functions · baseline {{ value(d.baselineTotal) // i18n(ph: "baseline") }} · target {{ value(d.targetTotal) // i18n(ph: "target") }}</span> }
             </div>
-            <imt-analysis-state [loading]="diff.loading()" [error]="diff.error()" [hasData]="!!diff.data()" [empty]="diff.data()?.totalRows === 0" emptyText="No functions match." i18n-emptyText="@@profiling.compare.noMatch" (retry)="diff.retry()">
+            <debrief-analysis-state [loading]="diff.loading()" [error]="diff.error()" [hasData]="!!diff.data()" [empty]="diff.data()?.totalRows === 0" emptyText="No functions match." i18n-emptyText="@@profiling.compare.noMatch" (retry)="diff.retry()">
               <div class="body tight" tabindex="0" role="region" aria-label="Function change rows" i18n-aria-label="@@profiling.compare.rowsRegion">
                 <table class="grid" aria-label="Function changes, sorted by change" i18n-aria-label="@@profiling.compare.tableLabel">
                   <thead>
@@ -102,12 +102,12 @@ const STATUS_LABEL = {
                 </table>
                 @if (more() > 0) { <button class="btn more" type="button" (click)="loadMore()" i18n="@@profiling.compare.loadMore">Load {{ more() // i18n(ph: "count") }} more</button> }
               </div>
-            </imt-analysis-state>
+            </debrief-analysis-state>
           </section>
         </div>
       }
     } @else {
-      <imt-no-capture text="Open two profiles to compare them." i18n-text="@@profiling.compare.noCapture" />
+      <debrief-no-capture text="Open two profiles to compare them." i18n-text="@@profiling.compare.noCapture" />
     }
   `,
   styles: [

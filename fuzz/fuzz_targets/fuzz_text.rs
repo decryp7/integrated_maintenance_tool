@@ -4,4 +4,4 @@ mod common;
 use libfuzzer_sys::fuzz_target;
 
 // Uses the default profile's text formats.
-fuzz_target!(|data: &[u8]| common::text_importer(&imt_core::importers::TextImporter, data));
+fuzz_target!(|data: &[u8]| common::text_importer(&debrief_core::importers::TextImporter, data));

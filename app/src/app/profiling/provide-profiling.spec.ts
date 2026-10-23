@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
-import { flattenContributions, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { flattenContributions, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { CapturesStore } from './captures.store';
 import { PROFILING_VIEW_IDS as V } from './profiling-navigator';
 import { ProfileViewState } from './profile-view-state';
@@ -43,7 +43,7 @@ describe('ProfilingCommands', () => {
     const doubles = setupProfiling();
     return { commands: TestBed.inject(ProfilingCommands), ctx: doubles.context, picker: doubles.picker, captures: TestBed.inject(CapturesStore) };
   }
-  const byId = (commands: ProfilingCommands, id: string): ImtCommand => commands.commands.find((c) => c.id === id)!;
+  const byId = (commands: ProfilingCommands, id: string): DebriefCommand => commands.commands.find((c) => c.id === id)!;
 
   it('has unique command ids; only "profiling.open" is in the File category', () => {
     const { commands } = setup();
@@ -153,8 +153,8 @@ describe('startProfiling and provideProfiling', () => {
   it('registers the views and commands under the extension tokens', () => {
     const { providers } = provideProfilingTesting();
     TestBed.configureTestingModule({ providers: [provideProfiling(), ...providers] });
-    const views = flattenContributions<ImtView>(TestBed.inject(IMT_VIEWS));
-    const commands = flattenContributions<ImtCommand>(TestBed.inject(IMT_COMMANDS));
+    const views = flattenContributions<DebriefView>(TestBed.inject(DEBRIEF_VIEWS));
+    const commands = flattenContributions<DebriefCommand>(TestBed.inject(DEBRIEF_COMMANDS));
     expect(views).toEqual(PROFILING_VIEWS);
     expect(commands.map((c) => c.id)).toEqual([...TestBed.inject(ProfilingCommands).commands, ...TestBed.inject(DotnetCommands).commands, ...TestBed.inject(NativeCommands).commands].map((c) => c.id));
   });
@@ -162,7 +162,7 @@ describe('startProfiling and provideProfiling', () => {
   it('refreshes at startup and claims dropped captures, leaving other files to the log import', async () => {
     const { providers, doubles } = provideProfilingTesting({ options: { preopen: [ORDERS] } });
     TestBed.configureTestingModule({ providers: [provideProfiling(), ...providers] });
-    TestBed.inject(IMT_VIEWS);
+    TestBed.inject(DEBRIEF_VIEWS);
     await settle();
     const captures = TestBed.inject(CapturesStore);
     expect(captures.profiles()).toHaveLength(1);

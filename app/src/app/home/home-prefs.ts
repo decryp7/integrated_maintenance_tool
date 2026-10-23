@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-export const HOME_AUTO_OPEN_KEY = 'imt.home.autoOpen.v1';
+export const HOME_AUTO_OPEN_KEY = 'debrief.home.autoOpen.v1';
 
 function readAutoOpen(): boolean {
   try {

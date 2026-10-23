@@ -8,6 +8,7 @@ import { mockTools, provideToolsTesting } from '../mock/test-support';
 import { MonitorView } from './monitor-view';
 import { ACCESS_DENIED_FIELD, MonitorStore } from './monitor.store';
 import { at } from '../../../testing/must';
+import { pick } from '../../settings/themed-select.testing';
 import { FakeECharts } from '../../../testing/fake-echarts';
 
 // The view hosts the live charts once a run starts: a fake ECharts keeps canvas out of jsdom.
@@ -84,13 +85,13 @@ describe('MonitorView', () => {
     // No validation message before the user has touched the form.
     expect(text(fixture)).not.toContain('Add at least one process');
 
-    typeInto(el(fixture, 'select[aria-label="Target type 1"]'), 'path', 'change');
+    await pick(fixture, 'debrief-select[data-testid=target-type-0] button', 'Executable path');
     await settle(fixture);
     expect(text(fixture)).toContain('Add at least one process');
     typeInto(el(fixture, 'input[aria-label="Target value 1"]'), 'C:\\svc\\*');
     buttonByText(fixture, /Add target/).click();
     await settle(fixture);
-    typeInto(el(fixture, 'select[aria-label="Target type 2"]'), 'pid', 'change');
+    await pick(fixture, 'debrief-select[data-testid=target-type-1] button', 'Process id');
     typeInto(el(fixture, 'input[aria-label="Target value 2"]'), 'abc');
     await settle(fixture);
     expect(text(fixture)).toContain('"abc" is not a valid process id');
@@ -98,7 +99,7 @@ describe('MonitorView', () => {
     await settle(fixture);
 
     typeInto(el(fixture, 'input[type=number]'), '1000');
-    typeInto(el(fixture, 'select:not([aria-label])'), 'core', 'change');
+    await pick(fixture, 'debrief-select[data-testid=cpu-mode] button', 'one core');
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     at(all<HTMLInputElement>(fixture, 'input[type=checkbox]'), 1).click();
     typeInto(el(fixture, 'textarea'), '\\Process(*)\\Handle Count');
@@ -149,7 +150,7 @@ describe('MonitorView', () => {
     const s = workspace.summary()!;
     workspace.applySummary({ ...s, fields: [...s.fields, { name: ACCESS_DENIED_FIELD, count: 1, distinct: 1, numeric: false, derived: false }] });
     await settle(fixture);
-    expect(text(fixture)).toContain('Run IMT as administrator to include them');
+    expect(text(fixture)).toContain('Run Debrief as administrator to include them');
   });
 
   it('shows start errors', async () => {

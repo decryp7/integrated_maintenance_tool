@@ -4,7 +4,7 @@ tail, rotation and alerts. Not run by the tests; nothing here is generated.
 
     python3 samples/live/append.py [folder] [--rate 5] [--rotate-kb 256] [--seed 7]
 
-Open the folder in IMT (File > Open folder, then Live tail), then start this
+Open the folder in Debrief (File > Open folder, then Live tail), then start this
 script. It writes `orders-live.log` in the Serilog text format of
 `serilog-text/` (timestamp, level, message, properties as JSON) at about
 `--rate` lines per second. Every `--rotate-kb` KiB the file is rotated the way
@@ -14,7 +14,7 @@ started, so the tail has to follow the rename. Roughly once a minute a burst of
 payment timeouts and errors arrives (alerts on error rate fire), now and then a
 slow request, and every 30 s a "Process stats" line (charts move).
 
-Stop with Ctrl+C. The default folder is `imt-live-demo` in the system temp
+Stop with Ctrl+C. The default folder is `debrief-live-demo` in the system temp
 folder; the path is printed at start.
 """
 
@@ -50,7 +50,7 @@ def rotate(path):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("folder", nargs="?", default=os.path.join(tempfile.gettempdir(), "imt-live-demo"))
+    ap.add_argument("folder", nargs="?", default=os.path.join(tempfile.gettempdir(), "debrief-live-demo"))
     ap.add_argument("--rate", type=float, default=5.0, help="lines per second (default 5)")
     ap.add_argument("--rotate-kb", type=int, default=256, help="rotate after this many KiB (default 256)")
     ap.add_argument("--seed", type=int, default=7)

@@ -3,6 +3,7 @@ import { Severity } from '../core/api.types';
 import { formatCount } from '../core/format';
 import { RovingFocusNavigation } from '../shared/list-navigation';
 import { Icon } from '../shared/icon';
+import { PanelEmpty } from '../jobs/panel-empty';
 import { KnownIssues } from '../investigate/known-issues/known-issues';
 import { DialogService } from '../ui/dialog.service';
 import { countText, evaluationText, evaluationTone, kindHint, kindLabel, parserCanFix, ProblemGroup, ProblemItem } from './problems-model';
@@ -30,15 +31,15 @@ export function severityLabel(s: Severity): string {
  * parser changes and its files are read again) or ask the AI for a parser to review.
  */
 @Component({
-  selector: 'imt-problems-panel',
+  selector: 'debrief-problems-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KnownIssues],
+  imports: [Icon, KnownIssues, PanelEmpty],
   template: `
     <div class="bar">
       <span class="summary" data-testid="problems-summary">{{ summary() }}</span>
       <span class="spacer"></span>
       <button type="button" class="icon-btn" data-testid="problems-refresh" aria-label="Refresh problems" i18n-aria-label="@@problems.refresh" title="Refresh" i18n-title="@@problems.refreshTitle" [disabled]="store.loading()" (click)="store.load()">
-        <imt-icon name="refresh" [size]="13" />
+        <debrief-icon name="refresh" [size]="13" />
       </button>
     </div>
     @if (store.index(); as idx) {
@@ -55,15 +56,15 @@ export function severityLabel(s: Severity): string {
     @if (store.actionError(); as error) {
       <div class="error" role="alert" data-testid="problems-action-error">
         <span>{{ error }}</span>
-        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@problems.dismiss" (click)="store.dismiss()"><imt-icon name="close" [size]="12" /></button>
+        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@problems.dismiss" (click)="store.dismiss()"><debrief-icon name="close" [size]="12" /></button>
       </div>
     }
     @if (store.notice(); as notice) {
       <div class="notice" role="status">{{ notice }}</div>
     }
-    <imt-known-issues />
+    <debrief-known-issues />
     @if (store.loaded() && rows().length === 0 && !store.loadError()) {
-      <div class="empty faint" data-testid="problems-empty" i18n="@@problems.empty">No problems: every opened file was read completely.</div>
+      <debrief-panel-empty class="empty" data-testid="problems-empty" icon="check" title="No problems" i18n-title="@@problems.empty.title"><ng-container i18n="@@problems.empty">Every opened file was read completely.</ng-container></debrief-panel-empty>
     } @else {
       <div class="body">
         <div class="tree" role="tree" aria-label="Problems" i18n-aria-label="@@problems.tree" (keydown)="onKey($event)">
@@ -83,8 +84,8 @@ export function severityLabel(s: Severity): string {
                 [title]="r.group.path"
                 (click)="activate(r)"
               >
-                <imt-icon class="twisty" [name]="r.expanded ? 'chevronDown' : 'chevronRight'" [size]="12" />
-                <imt-icon [class]="'sev ' + r.group.severity" name="alert" [size]="13" />
+                <debrief-icon class="twisty" [name]="r.expanded ? 'chevronDown' : 'chevronRight'" [size]="12" />
+                <debrief-icon [class]="'sev ' + r.group.severity" name="alert" [size]="13" />
                 <span class="name ellipsis">{{ r.group.name }}</span>
                 <span class="count">{{ r.group.items.length }}</span>
               </div>
@@ -103,7 +104,7 @@ export function severityLabel(s: Severity): string {
                 [class.sel]="r.item.key === store.selectedKey()"
                 (click)="activate(r)"
               >
-                <imt-icon [class]="'sev ' + r.item.row.severity" name="alert" [size]="13" />
+                <debrief-icon [class]="'sev ' + r.item.row.severity" name="alert" [size]="13" />
                 <span class="sr-only">{{ severity(r.item.row.severity) }}:</span>
                 <span class="name ellipsis">{{ kind(r.item.row.kind) }}</span>
                 <span class="count">{{ count(r.item) }}</span>
@@ -117,7 +118,7 @@ export function severityLabel(s: Severity): string {
         <section class="details" aria-label="Problem details" i18n-aria-label="@@problems.details">
           @if (store.selected(); as sel) {
             <h3 class="title" data-testid="problem-title">
-              <imt-icon [class]="'sev ' + sel.row.severity" name="alert" [size]="14" />
+              <debrief-icon [class]="'sev ' + sel.row.severity" name="alert" [size]="14" />
               <span>{{ kind(sel.row.kind) }}</span>
               <span class="count">{{ count(sel) }}</span>
             </h3>
@@ -136,7 +137,7 @@ export function severityLabel(s: Severity): string {
             }
             @if (sel.row.fix; as fix) {
               <div class="fix" data-testid="quick-fix">
-                <div class="fix-title"><imt-icon name="check" [size]="12" /> <span i18n="@@problems.fix.title">Quick fix: {{ fix.title }}</span></div>
+                <div class="fix-title"><debrief-icon name="check" [size]="12" /> <span i18n="@@problems.fix.title">Quick fix: {{ fix.title }}</span></div>
                 <pre class="fragment mono" aria-label="Parser change" i18n-aria-label="@@problems.fix.fragment">{{ fix.parserOverride }}</pre>
                 @if (preview(sel.key); as p) {
                   @if (p.state === 'running') {
@@ -158,7 +159,7 @@ export function severityLabel(s: Severity): string {
             }
             @if (canAskAi(sel)) {
               <div class="actions">
-                <button type="button" class="btn" data-testid="ask-ai-fix" (click)="store.askAi(sel.key)"><imt-icon name="ai" [size]="12" /> <span i18n="@@problems.askAi">Ask the AI to fix…</span></button>
+                <button type="button" class="btn" data-testid="ask-ai-fix" (click)="store.askAi(sel.key)"><debrief-icon name="ai" [size]="12" /> <span i18n="@@problems.askAi">Ask the AI to fix…</span></button>
                 @if (sel.row.kind === 'unknownFormat') {
                   <button type="button" class="btn" (click)="setUpFormat(sel)" i18n="@@problems.setUpFormat">Set up format…</button>
                 }
@@ -173,14 +174,13 @@ export function severityLabel(s: Severity): string {
     }
   `,
   styles: `
-    :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); container-type: inline-size; }
+    :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); container-type: inline-size; overflow: auto; }
     .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 4px 12px; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-2); }
     .spacer { flex: 1; }
     .index, .notice { flex: none; padding: 4px 12px; font-size: var(--fs-sm); color: var(--text-2); border-bottom: 1px solid var(--border); }
     .error { flex: none; display: flex; align-items: center; gap: 8px; padding: 4px 12px; color: var(--danger-text); font-size: var(--fs-sm); border-bottom: 1px solid var(--border); }
     .error span { flex: 1; }
-    .empty { padding: 12px 14px; }
-    .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(220px, 45%) 1fr; }
+    .body { flex: 1 0 280px; min-height: 0; display: grid; grid-template-columns: minmax(220px, 45%) 1fr; }
     @container (max-width: 560px) { .body { grid-template-columns: 1fr; grid-template-rows: 1fr auto; } .details { border-left: 0; border-top: 1px solid var(--border); } }
     .tree { position: relative; min-height: 0; overflow: auto; padding: 2px 0; }
     .item { display: flex; align-items: center; gap: 6px; height: 24px; padding: 0 10px; cursor: default; color: var(--text-2); white-space: nowrap; font-size: var(--fs-sm); }
@@ -192,7 +192,7 @@ export function severityLabel(s: Severity): string {
     .twisty { flex: none; }
     .name { flex: 1; min-width: 0; }
     .count { flex: none; color: var(--muted); font-weight: 400; font-size: var(--fs-xs); }
-    .fixable { flex: none; font-size: var(--fs-2xs); color: var(--accent-text); border: 1px solid currentColor; border-radius: 8px; padding: 0 5px; }
+    .fixable { flex: none; font-size: var(--fs-xs); color: var(--muted); }
     .sev { flex: none; }
     .sev.critical { color: var(--lvl-error); }
     .sev.warning { color: var(--lvl-warn); }

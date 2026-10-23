@@ -1,7 +1,7 @@
 import { effect, inject, untracked } from '@angular/core';
 import { patchState, signalStore, withHooks, withState } from '@ngrx/signals';
 import { LEVELS, Level, QlQuery, Query } from '../api.types';
-import { ImtBackend } from '../backend';
+import { DebriefBackend } from '../backend';
 import { QueryStore } from './query.store';
 import { WorkspaceDataStore } from './workspace-data.store';
 
@@ -28,7 +28,7 @@ export const LevelCountsStore = signalStore(
   withState<LevelCountsState>({ matching: null }),
   withHooks({
     onInit(store) {
-      const backend = inject(ImtBackend);
+      const backend = inject(DebriefBackend);
       const query = inject(QueryStore);
       const data = inject(WorkspaceDataStore);
       let seq = 0;

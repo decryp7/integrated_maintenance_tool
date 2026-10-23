@@ -8,7 +8,7 @@ export const MOCK_NO_TIMESTAMPS = 'no-timestamps';
 const CTIME_FORMAT = '%a %b %d %H:%M:%S %Y';
 
 /**
- * Mimics the engine's timestamp diagnosis (`imt_core::timestamp_issue`) for the browser demo: a path naming
+ * Mimics the engine's timestamp diagnosis (`debrief_core::timestamp_issue`) for the browser demo: a path naming
  * `no-timestamps` imports as a CSV whose events have no timestamp, with ctime-style examples and the format the
  * engine would propose. Mock only; the engine decides this for real.
  */

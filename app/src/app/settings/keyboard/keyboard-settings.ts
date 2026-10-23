@@ -21,7 +21,7 @@ interface PendingConflict {
  * the browser like the other interface preferences.
  */
 @Component({
-  selector: 'imt-keyboard-settings',
+  selector: 'debrief-keyboard-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
@@ -32,8 +32,8 @@ interface PendingConflict {
     <p class="status" role="status" aria-live="polite" data-testid="shortcut-status">{{ status() }}</p>
 
     @if (pending(); as p) {
-      <div class="conflict" role="alertdialog" aria-labelledby="imt-kb-conflict" data-testid="shortcut-conflict">
-        <span id="imt-kb-conflict">{{ conflictText(p) }}</span>
+      <div class="conflict" role="alertdialog" aria-labelledby="debrief-kb-conflict" data-testid="shortcut-conflict">
+        <span id="debrief-kb-conflict">{{ conflictText(p) }}</span>
         @if (canReplace(p)) {
           <button class="btn primary" type="button" data-testid="shortcut-replace" (click)="replace(p)" i18n="@@settings.keyboard.replace">Replace</button>
         }
@@ -108,7 +108,7 @@ interface PendingConflict {
     .conflict span { flex: 1; }
     .table { width: 100%; border-collapse: collapse; }
     th, td { text-align: start; padding: 4px 6px; border-bottom: 1px solid var(--border); vertical-align: middle; }
-    thead th { position: sticky; top: 0; background: var(--bg-1); font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); font-weight: 600; }
+    thead th { position: sticky; top: 0; background: var(--bg-1); font-size: var(--fs-sm); color: var(--muted); font-weight: 600; }
     tbody th.title { font-weight: 400; color: var(--text); }
     .cat, .def { color: var(--text-2); }
     .scoped { margin-inline-start: 6px; font-size: var(--fs-xs); color: var(--muted); }

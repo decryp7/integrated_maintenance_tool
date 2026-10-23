@@ -8,7 +8,7 @@ import { SettingValue } from '../settings.types';
 /** Section id of Settings ▸ Performance (Rust `builtin_sections::PERFORMANCE_SECTION`). */
 export const PERFORMANCE_SECTION = 'performance';
 
-/** One of IMT's capped processes. */
+/** One of Debrief's capped processes. */
 export type ProcessRef = { kind: 'storeWorker' } | { kind: 'ai' } | { kind: 'plugin'; pluginId: string };
 
 export type Preset = 'standard' | 'lowMemory';

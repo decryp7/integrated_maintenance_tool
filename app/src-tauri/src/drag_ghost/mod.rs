@@ -4,9 +4,9 @@
 //!
 //! The ghost is one hidden window (`drag-ghost`), created on the first drag and reused: undecorated, always on top,
 //! not in the task bar, never focused, click-through and transparent where the platform allows. It loads a static
-//! page (`drag-ghost.html`) that has no IMT commands and no capabilities; the shell hands it what to show.
+//! page (`drag-ghost.html`) that has no Debrief commands and no capabilities; the shell hands it what to show.
 //!
-//! A drag session belongs to the IMT window that started it: `drag_ghost_start` (content and size), then
+//! A drag session belongs to the Debrief window that started it: `drag_ghost_start` (content and size), then
 //! `drag_ghost_show` as the pointer leaves or re-enters the window, and `drag_ghost_end`, which hides the ghost and
 //! answers where it was, so the pop-out opens exactly there. While a session is active a thread follows the global
 //! cursor at about 60 Hz. The ghost is never left behind: it hides when the session ends, when the primary button is
@@ -218,7 +218,7 @@ fn cursor<R: Runtime>(app: &AppHandle<R>) -> Option<(f64, f64)> {
 /// The script that hands the page its content: a JSON literal, never markup.
 fn content_script(content: &GhostContent) -> Option<String> {
     let json = serde_json::to_string(content).ok()?;
-    Some(format!("window.imtGhost && window.imtGhost({json});"))
+    Some(format!("window.debriefGhost && window.debriefGhost({json});"))
 }
 
 fn push_content<R: Runtime>(app: &AppHandle<R>) {
@@ -238,7 +238,7 @@ fn ensure_window<R: Runtime>(app: &AppHandle<R>, size: GhostSize) -> tauri::Resu
         return Ok(w);
     }
     let builder = WebviewWindowBuilder::new(app, GHOST_LABEL, WebviewUrl::App(GHOST_PAGE.into()))
-        .title("IMT drag preview")
+        .title("Debrief drag preview")
         .inner_size(size.width, size.height)
         .decorations(false)
         .transparent(true)
@@ -334,7 +334,7 @@ pub fn end_for<R: Runtime>(app: &AppHandle<R>, host: &str) -> Option<Bounds> {
 }
 
 /// Window events that end a drag: the dragging window lost the focus with the button up, or was destroyed (then,
-/// with no IMT window left, the hidden ghost goes too, so it never keeps IMT running).
+/// with no Debrief window left, the hidden ghost goes too, so it never keeps Debrief running).
 pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
     let app = window.app_handle();
     let label = window.label();
@@ -397,7 +397,7 @@ fn start<R: Runtime>(app: &AppHandle<R>, host: &str, ghost: request::Ghost, scre
     }
     let tracker = app.clone();
     if let Err(e) = std::thread::Builder::new()
-        .name("imt-drag-ghost".into())
+        .name("debrief-drag-ghost".into())
         .spawn(move || track(tracker, id))
     {
         ghosts.lock().finish(host);
@@ -578,9 +578,9 @@ mod tests {
             dark: true,
         })
         .unwrap();
-        assert!(script.starts_with("window.imtGhost && window.imtGhost({"));
+        assert!(script.starts_with("window.debriefGhost && window.debriefGhost({"));
         let json = script
-            .trim_start_matches("window.imtGhost && window.imtGhost(")
+            .trim_start_matches("window.debriefGhost && window.debriefGhost(")
             .trim_end_matches(");");
         let v: serde_json::Value = serde_json::from_str(json).unwrap();
         assert_eq!(v["title"], "</script><img src=x onerror=alert(1)>\"");
@@ -606,7 +606,7 @@ mod tests {
         for s in crate::COMMANDS {
             assert!(crate::commands::check(s.name(), GHOST_LABEL, 10).is_err(), "{}", s.name());
         }
-        // Only IMT windows start a ghost; a pop-out has its own drag.
+        // Only Debrief windows start a ghost; a pop-out has its own drag.
         for cmd in ["drag_ghost_start", "drag_ghost_show", "drag_ghost_end"] {
             assert!(crate::commands::check(cmd, MAIN, 10).is_ok());
             assert!(crate::commands::check(cmd, "p-main-1", 10).is_err());
@@ -657,7 +657,7 @@ mod tests {
         drag_ghost_show(app.handle().clone(), other.clone(), true).now().unwrap();
         assert_eq!(drag_ghost_end(app.handle().clone(), other.clone()).now(), None);
         assert!(app.state::<DragGhosts>().lock().session.is_some());
-        // The dragging window goes: its drag ends; with another IMT window left the ghost stays for later.
+        // The dragging window goes: its drag ends; with another Debrief window left the ghost stays for later.
         on_window_event(&w, &WindowEvent::Destroyed);
         assert!(app.state::<DragGhosts>().lock().session.is_none());
         assert!(app.get_window(GHOST_LABEL).is_some());

@@ -29,7 +29,7 @@ interface Drag {
 
 /** The "Dashboards" view: a grid of tiles from the profile's `[[dashboard]]`, with an edit mode and a wall mode. */
 @Component({
-  selector: 'imt-dashboard-view',
+  selector: 'debrief-dashboard-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [DashboardTile, Icon],
   host: { '[class.wall]': 'ds.wall()', '(keydown.escape)': 'exitWall()' },
@@ -37,7 +37,7 @@ interface Drag {
     <div class="bar" role="toolbar" aria-label="Dashboard" i18n-aria-label="@@share.dashboardView.toolbar">
       @if (ds.editing()) {
         <label class="title-edit"><ng-container i18n="@@share.dashboardView.title">Title</ng-container>&ngsp;<input class="input" [value]="ds.current()?.title ?? ''" (input)="ds.setTitle($any($event.target).value)" /></label>
-        <button type="button" class="btn" (click)="addTile()"><imt-icon name="plus" [size]="13" />&ngsp;<ng-container i18n="@@share.dashboardView.addTile">Add tile</ng-container></button>
+        <button type="button" class="btn" (click)="addTile()"><debrief-icon name="plus" [size]="13" />&ngsp;<ng-container i18n="@@share.dashboardView.addTile">Add tile</ng-container></button>
         <span class="spacer"></span>
         <span class="hint faint" i18n="@@share.dashboardView.hint">Drag tiles, or focus one: arrows move, Shift+arrows resize, Delete removes.</span>
         <button type="button" class="btn" (click)="ds.cancel()" i18n="@@share.dashboardView.cancel">Cancel</button>
@@ -51,7 +51,7 @@ interface Drag {
           </label>
         }
         <span class="spacer"></span>
-        <button type="button" class="btn" (click)="ds.newDashboard()"><imt-icon name="plus" [size]="13" />&ngsp;<ng-container i18n="@@share.dashboardView.new">New dashboard</ng-container></button>
+        <button type="button" class="btn" (click)="ds.newDashboard()"><debrief-icon name="plus" [size]="13" />&ngsp;<ng-container i18n="@@share.dashboardView.new">New dashboard</ng-container></button>
         @if (ds.current()) {
           <button type="button" class="btn" (click)="ds.startEdit()" i18n="@@share.dashboardView.edit">Edit</button>
           <button type="button" class="btn" [attr.aria-pressed]="ds.wall()" (click)="toggleWall()">{{ wallLabel() }}</button>
@@ -79,9 +79,9 @@ interface Drag {
               (pointerdown)="startDrag($event, t, 'move')"
             >
               <h3 class="tile-title">{{ t.title || t.id }}@if (t.window) {<span class="faint win" i18n="@@share.dashboardView.window"> · last {{ t.window }}</span>}</h3>
-              <imt-dashboard-tile [tile]="t" />
+              <debrief-dashboard-tile [tile]="t" />
               @if (ds.editing()) {
-                <button type="button" class="icon-btn remove" [attr.aria-label]="removeLabel(t)" (pointerdown)="$event.stopPropagation()" (click)="ds.remove(t.id)"><imt-icon name="close" [size]="12" /></button>
+                <button type="button" class="icon-btn remove" [attr.aria-label]="removeLabel(t)" (pointerdown)="$event.stopPropagation()" (click)="ds.remove(t.id)"><debrief-icon name="close" [size]="12" /></button>
                 <span class="resizer" aria-hidden="true" (pointerdown)="startDrag($event, t, 'resize')"></span>
               }
             </section>
@@ -94,7 +94,7 @@ interface Drag {
       <div class="none">
         <p i18n="@@share.dashboardView.none">No dashboards in this profile yet.</p>
         <p class="faint" i18n="@@share.dashboardView.noneHelp">A dashboard puts charts, counts and top values of your events side by side. It is saved in the profile as a <code>[[dashboard]]</code> section.</p>
-        <button type="button" class="btn primary" (click)="ds.newDashboard()"><imt-icon name="plus" [size]="13" />&ngsp;<ng-container i18n="@@share.dashboardView.create">Create a dashboard</ng-container></button>
+        <button type="button" class="btn primary" (click)="ds.newDashboard()"><debrief-icon name="plus" [size]="13" />&ngsp;<ng-container i18n="@@share.dashboardView.create">Create a dashboard</ng-container></button>
       </div>
     }
   `,

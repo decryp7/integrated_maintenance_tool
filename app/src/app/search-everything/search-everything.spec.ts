@@ -9,7 +9,7 @@ import { CmdError } from '../core/cmd-error';
 import { Logger } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { CommandContext, flattenContributions, IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
+import { CommandContext, flattenContributions, DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
 import { NOTES_VIEW } from '../notes/note-actions';
 import { ExceptionFocus } from '../analysis/exception-focus';
 import { KnowledgeBackend } from '../ai/knowledge/knowledge-backend';
@@ -220,7 +220,7 @@ describe('search everything navigation', () => {
   it('goes where each result points', () => {
     const { context } = provide();
     const dialogs = TestBed.inject(DialogService);
-    const open = vi.spyOn(dialogs, 'open').mockImplementation(() => undefined as never);
+    vi.spyOn(dialogs, 'open').mockImplementation(() => undefined as never);
     const nav = TestBed.inject(SearchEverythingNavigator);
     nav.go({ kind: 'event', id: 4 });
     expect(context.jumpTo).toHaveBeenLastCalledWith(4);
@@ -340,7 +340,7 @@ describe('search everything command and launcher', () => {
     command.run({} as CommandContext);
     expect(launcher.isOpen).toBe(true);
     expect(dialog.openDialogs.length).toBe(1);
-    expect(document.querySelector('imt-search-everything')).not.toBeNull();
+    expect(document.querySelector('debrief-search-everything')).not.toBeNull();
     launcher.open();
     expect(dialog.openDialogs.length).toBe(1);
     launcher.close();
@@ -350,7 +350,7 @@ describe('search everything command and launcher', () => {
 
   it('is the only command of the app on its key', () => {
     TestBed.configureTestingModule({ providers: [...appConfig.providers, { provide: Logger, useFactory: () => new MemoryLogger() }] });
-    const commands = flattenContributions<ImtCommand>(TestBed.inject(IMT_COMMANDS, null) ?? []);
+    const commands = flattenContributions<DebriefCommand>(TestBed.inject(DEBRIEF_COMMANDS, null) ?? []);
     const bound = commands.filter((c) => c.keybinding?.toLowerCase() === SEARCH_EVERYTHING_KEYBINDING.toLowerCase());
     expect(bound.map((c) => c.id)).toEqual([SEARCH_EVERYTHING_COMMAND]);
     expect(typeof provideSearchEverything).toBe('function');

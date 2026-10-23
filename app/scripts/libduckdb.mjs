@@ -1,5 +1,5 @@
 // Fetches the official prebuilt libduckdb the store worker links, without a shell: Windows has no bash. The pins
-// (version, release assets and their SHA-256) stay in one place, crates/imt-store-duck/scripts/fetch-libduckdb.sh,
+// (version, release assets and their SHA-256) stay in one place, crates/debrief-store-duck/scripts/fetch-libduckdb.sh,
 // which CI and the docs run directly; this module reads them from it. The archive is checked against its pin before
 // it is unpacked (Windows 10+ `tar`, which reads zip; `unzip` elsewhere) into a fresh folder of the cache.
 import { execFileSync } from 'node:child_process';
@@ -77,7 +77,7 @@ export async function fetchLibduckdb(scriptPath, cacheDir, platform = process.pl
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const cache = process.argv[2] ?? join(process.env.CARGO_TARGET_DIR ?? join(root, 'target'), 'libduckdb');
-  const env = await fetchLibduckdb(join(root, 'crates', 'imt-store-duck', 'scripts', 'fetch-libduckdb.sh'), cache);
+  const env = await fetchLibduckdb(join(root, 'crates', 'debrief-store-duck', 'scripts', 'fetch-libduckdb.sh'), cache);
   const lines =
     process.platform === 'win32'
       ? [`$env:DUCKDB_LIB_DIR = '${env.DUCKDB_LIB_DIR}'`, `$env:DUCKDB_INCLUDE_DIR = '${env.DUCKDB_INCLUDE_DIR}'`, `$env:PATH = '${env.DUCKDB_LIB_DIR};' + $env:PATH`]

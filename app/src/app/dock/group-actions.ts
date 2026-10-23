@@ -42,7 +42,7 @@ export class GroupActions implements IHeaderActionsRenderer {
   private group?: DockviewGroupPanel;
 
   constructor(private readonly host: GroupActionsHost) {
-    this.element.className = 'imt-dock-actions';
+    this.element.className = 'debrief-dock-actions';
     this.menu.setAttribute('aria-haspopup', 'menu');
     this.set(this.menu, $localize`:@@dock.groupActions.panelMenu:Panel menu`, ICONS.more);
     this.element.append(this.menu, this.maximize);
@@ -51,7 +51,7 @@ export class GroupActions implements IHeaderActionsRenderer {
   private button(): HTMLButtonElement {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'imt-dock-action';
+    b.className = 'debrief-dock-action';
     return b;
   }
 

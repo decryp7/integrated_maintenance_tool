@@ -25,10 +25,10 @@ describe('RecentOpener', () => {
     const guard = TestBed.inject(UnsavedChangesGuard);
     const open = vi.spyOn(TestBed.inject(ProjectService), 'open').mockResolvedValue(true);
     vi.spyOn(guard, 'confirm').mockResolvedValueOnce(false).mockResolvedValueOnce(true);
-    await opener.openProject('/p/x.imtproj');
+    await opener.openProject('/p/x.debriefproj');
     expect(open).not.toHaveBeenCalled();
-    await opener.openProject('/p/x.imtproj');
-    expect(open).toHaveBeenCalledWith('/p/x.imtproj');
+    await opener.openProject('/p/x.debriefproj');
+    expect(open).toHaveBeenCalledWith('/p/x.debriefproj');
   });
 
   it('empties both recent lists', async () => {

@@ -61,19 +61,18 @@ describe('AnomaliesView', () => {
     const { fixture } = await mount(AnomaliesView);
     const rows = all<HTMLButtonElement>(fixture, 'li button');
     expect(rows).toHaveLength(2);
-    expect(rows[0]?.textContent).toContain('Error spike');
+    expect(all(fixture, 'li.group').map((g) => g.textContent?.trim())).toEqual(['▲Error spike1', '✖Crash1']);
     expect(rows[0]?.textContent).toContain('WEB01 · 3312');
     expect(rows[0]?.textContent).toContain('12 errors in 5 min');
     expect(rows[0]?.textContent).toContain('→');
     expect(rows[0]?.textContent).toContain('6.5');
     expect(rows[1]?.textContent).toContain('all instances');
-    expect(rows[1]?.textContent).toContain('Crash');
     expect(text(fixture)).toContain('2 found');
   });
 
   it('has sortable column headers (K2)', async () => {
     const { fixture } = await mount(AnomaliesView);
-    expect(all(fixture, '[data-testid=anomaly-head] .th').map((h) => h.textContent?.replace(/\s+/g, ' ').trim().replace(/[▲▼]/, '').trim())).toEqual(['Kind', 'Instance', 'Time', 'What', 'Score']);
+    expect(all(fixture, '[data-testid=anomaly-head] .th').map((h) => h.textContent?.replace(/\s+/g, ' ').trim().replace(/[▲▼]/, '').trim())).toEqual(['Instance', 'Time', 'What', 'Score']);
     const first = () => all<HTMLButtonElement>(fixture, 'li button')[0]?.textContent ?? '';
     el<HTMLButtonElement>(fixture, '[data-testid=anomaly-sort-score]').click();
     fixture.detectChanges();
@@ -140,12 +139,12 @@ describe('PatternsView', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]?.textContent).toContain('120');
     expect(rows[0]?.textContent).toContain('Order {OrderId} placed');
-    expect(el(fixture, '[role=img]').getAttribute('aria-label')).toBe('Information 100, Warning 15, Error 5');
+    expect(el(fixture, '.bars').getAttribute('aria-label')).toBe('Information 100, Warning 15, Error 5');
     expect(rows[0]?.querySelectorAll('.bars span')).toHaveLength(3);
     // Bar length is relative to the most frequent pattern (120 → 90px, 30 → 23px).
     const bars = all<HTMLElement>(fixture, '.bars');
     expect([bars[0]?.style.width, bars[1]?.style.width]).toEqual(['90px', '23px']);
-    expect(all(fixture, '[role=img]')[1]?.getAttribute('aria-label')).toBe('Information 30');
+    expect(all(fixture, '.bars')[1]?.getAttribute('aria-label')).toBe('Information 30');
     expect(text(fixture)).toContain('2 templates');
   });
 
@@ -165,9 +164,40 @@ describe('PatternsView', () => {
     expect(ctx.last('setQuery')).toEqual([{ ql: '(level >= warning or Ms > 5) and @template = "Order {OrderId} placed" | head 10' }]);
   });
 
+  it('draws a sparkline for patterns with a trend and leaves the others blank', async () => {
+    const { fixture } = await mount(PatternsView);
+    const sparks = all<SVGElement>(fixture, '[data-testid=pattern-trend]');
+    expect(sparks).toHaveLength(1);
+    expect(sparks[0]?.querySelectorAll('rect')).toHaveLength(6);
+    expect(sparks[0]?.getAttribute('aria-label')).toMatch(/^Occurrences over time, busiest around /);
+    expect(all(fixture, '.spark-slot')).toHaveLength(1);
+  });
+
+  it('shows the values behind the placeholders and filters by one', async () => {
+    const { fixture, ctx } = await mount(PatternsView);
+    const buttons = all<HTMLButtonElement>(fixture, '.values-btn');
+    expect(buttons).toHaveLength(1);
+    expect(buttons[0]?.getAttribute('aria-expanded')).toBe('false');
+    expect(all(fixture, '[data-testid=pattern-values]')).toHaveLength(0);
+    at(buttons, 0).click();
+    fixture.detectChanges();
+    const panel = el(fixture, '[data-testid=pattern-values]');
+    expect(buttons[0]?.getAttribute('aria-expanded')).toBe('true');
+    expect(panel.textContent).toContain('Value 1 · 30 events');
+    expect(panel.textContent).toContain('approximate');
+    const values = all<HTMLButtonElement>(fixture, '.vrow .link');
+    expect(values.map((v) => v.textContent?.trim())).toEqual(['12', '15']);
+    expect(all(fixture, '.vrow .num').map((n) => n.textContent?.trim())).toEqual(['9', '4']);
+    at(values, 0).click();
+    expect(ctx.last('setQuery')).toEqual([{ ql: '(@message ~ "Took .+ ms") and @message contains "12"' }]);
+    at(buttons, 0).click();
+    fixture.detectChanges();
+    expect(all(fixture, '[data-testid=pattern-values]')).toHaveLength(0);
+  });
+
   it('jumps to an example event of a pattern that has samples', async () => {
     const { fixture, ctx } = await mount(PatternsView);
-    const examples = all<HTMLButtonElement>(fixture, 'li .sample');
+    const examples = all<HTMLButtonElement>(fixture, 'li button.sample');
     expect(examples).toHaveLength(1);
     expect(examples[0]?.getAttribute('aria-label')).toBe('Show an example event of Order {OrderId} placed');
     at(examples, 0).click();
@@ -367,7 +397,7 @@ describe('CompareView', () => {
     expect(t).toContain('100 events');
     expect(t).toContain('300 events');
     expect(t).toContain('StatusCode');
-    expect(t).toContain('A 1% · B 40%');
+    expect(t).toContain('A 1%');
     expect(t).toContain('+150%');
     expect(t).toContain('−25%');
     expect(t).toContain('web03');
@@ -399,9 +429,12 @@ describe('CompareView', () => {
     expect(targets.windowA()).toEqual({ from: mid - 300_000, to: mid });
     expect(targets.windowB()).toEqual({ from: mid, to: mid + 300_000 });
 
-    const select = el<HTMLSelectElement>(fixture, 'select');
-    select.value = String(60_000);
-    select.dispatchEvent(new Event('change'));
+    el<HTMLButtonElement>(fixture, 'debrief-select button').click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const option = [...document.querySelectorAll<HTMLElement>('.cdk-overlay-container [role=option]')].find((o) => o.textContent?.includes('1 minute'));
+    option?.click();
+    fixture.detectChanges();
     TestBed.inject(TimeCursor).select({ from: 10_000_000, to: 10_100_000 });
     fixture.detectChanges();
     buttonByText(fixture, 'Before / after selected time').click();

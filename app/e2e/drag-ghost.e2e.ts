@@ -2,9 +2,9 @@ import { expect, Page, test } from '@playwright/test';
 import { openView } from './app';
 import { openAppWith } from './mock-url';
 
-// A tab dragged out of the window: in IMT the shell's ghost window follows the pointer outside it and the pop-out
+// A tab dragged out of the window: in Debrief the shell's ghost window follows the pointer outside it and the pop-out
 // opens exactly where the ghost was (`drag_ghost.rs`). The browser build simulates that ghost with `?mockGhost=1`
-// (`MockDragGhostBackend`, published as `window.__imtMockGhost`); without it the in-window preview is used
+// (`MockDragGhostBackend`, published as `window.__debriefMockGhost`); without it the in-window preview is used
 // (dock-float.e2e).
 
 interface GhostState {
@@ -19,7 +19,7 @@ const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: t
 const ghost = (page: Page) =>
   page.evaluate(
     () =>
-      JSON.parse(JSON.stringify((window as unknown as { __imtMockGhost?: unknown }).__imtMockGhost ?? { starts: 0, ends: 0, visible: false, rect: null, request: null })) as GhostState,
+      JSON.parse(JSON.stringify((window as unknown as { __debriefMockGhost?: unknown }).__debriefMockGhost ?? { starts: 0, ends: 0, visible: false, rect: null, request: null })) as GhostState,
   );
 
 test.describe('dragging a tab out of the window with the shell ghost', () => {
@@ -51,15 +51,15 @@ test.describe('dragging a tab out of the window with the shell ghost', () => {
     // The title bar is under the pointer: the ghost is the window that will open.
     expect(first.rect).toMatchObject({ width: first.request!.width, height: first.request!.height });
     // The ghost window shows the new window: the in-window preview is not drawn, its hint is still announced.
-    await expect(page.locator('.imt-float-cue')).toBeHidden();
+    await expect(page.locator('.debrief-float-cue')).toBeHidden();
     await expect(page.getByRole('status').filter({ hasText: 'Release to open in a new window' })).toHaveCount(1);
     await page.mouse.move(420, -60, { steps: 5 });
     await expect.poll(async () => (await ghost(page)).rect!.x).toBeGreaterThan(first.rect!.x + 100);
     // Back over the window, off the guides: the ghost hides and the cancel cue returns.
-    const grid = (await page.locator('.dv-groupview:has(imt-events-grid) .dv-content-container').boundingBox())!;
+    const grid = (await page.locator('.dv-groupview:has(debrief-events-grid) .dv-content-container').boundingBox())!;
     await page.mouse.move(grid.x + grid.width * 0.3, grid.y + grid.height * 0.3, { steps: 5 });
     await expect.poll(async () => (await ghost(page)).visible).toBe(false);
-    await expect(page.locator('.imt-float-cue')).toHaveText('Release to cancel');
+    await expect(page.locator('.debrief-float-cue')).toHaveText('Release to cancel');
     // Out again and released there.
     await page.mouse.move(500, -40, { steps: 5 });
     await expect.poll(async () => (await ghost(page)).visible).toBe(true);

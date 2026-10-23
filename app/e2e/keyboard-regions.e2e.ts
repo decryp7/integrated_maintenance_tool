@@ -6,8 +6,8 @@ import { expectNoSeriousViolations } from './axe';
 function focusedRegion(page: Page): Promise<string | null> {
   return page.evaluate(() => {
     const el = document.activeElement;
-    const region = el?.closest('[data-imt-region]');
-    if (region) return region.getAttribute('data-imt-region');
+    const region = el?.closest('[data-debrief-region]');
+    if (region) return region.getAttribute('data-debrief-region');
     const group = el?.closest('.dv-groupview');
     if (!group) return null;
     return `group:${[...document.querySelectorAll('.dv-groupview')].indexOf(group) + 1}`;
@@ -26,7 +26,7 @@ test.describe('keyboard regions', () => {
 
     await page.keyboard.press('F6');
     expect(await focusedRegion(page)).toBe('activity');
-    await expectNoSeriousViolations(page, testInfo, 'region-focus', '[data-imt-region="activity"]');
+    await expectNoSeriousViolations(page, testInfo, 'region-focus', '[data-debrief-region="activity"]');
     await page.keyboard.press('F6');
     expect(await focusedRegion(page)).toBe('sidebar');
     await page.keyboard.press('F6');
@@ -59,10 +59,16 @@ test.describe('keyboard regions', () => {
   test('the level chips are one tab stop; the arrows move between them', async ({ page }) => {
     const levels = page.getByRole('toolbar', { name: 'Levels' });
     const chips = levels.getByRole('button');
+    // The chips re-render while the first counts arrive: focus the first chip once the bar has settled.
+    await expect(chips).toHaveCount(5); // levels with no events (Verbose here) have no chip
+    await expect(levels.getByRole('button', { name: /^ERR \d/ })).toBeVisible();
     await chips.first().focus();
+    await expect(chips.first()).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(chips.nth(1)).toBeFocused();
-    // Tab leaves the toolbar at once instead of visiting the other five chips.
+    // The roving tab stop follows after the next render; Tab straight away would still see the old one.
+    await expect(chips.nth(1)).toHaveAttribute('tabindex', '0');
+    // Tab leaves the toolbar at once instead of visiting the other four chips.
     await page.keyboard.press('Tab');
     expect(await page.evaluate(() => !!document.activeElement?.closest('[aria-label="Levels"]'))).toBe(false);
     await page.keyboard.press('Shift+Tab');

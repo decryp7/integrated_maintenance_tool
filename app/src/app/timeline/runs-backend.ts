@@ -1,7 +1,7 @@
 import { inject, Injectable, Provider } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
 import { RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
@@ -49,7 +49,7 @@ export class UnsupportedRunsBackend extends RunsBackend {
 /** The Rust backend inside Tauri; in a plain browser the in-memory mock workspace (which logs its own failures). */
 export function createRunsBackend(): RunsBackend {
   if (!isTauri()) {
-    const workspace = inject(ImtBackend);
+    const workspace = inject(DebriefBackend);
     return hasRuns(workspace) ? workspace : new UnsupportedRunsBackend();
   }
   return withFailureLogging<RunsBackend>(new TauriRunsBackend(), inject(Logger), { onFailure: reportBackendFailures() });

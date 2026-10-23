@@ -1,9 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 // Ports and the production-build server can be overridden so several runs can share a machine.
-const PORT = Number(process.env['IMT_E2E_PORT'] ?? 4300);
-const PROD_PORT = Number(process.env['IMT_E2E_PROD_PORT'] ?? 4301);
-const SKIP_PROD = !!process.env['IMT_E2E_SKIP_PROD'];
+const PORT = Number(process.env['DEBRIEF_E2E_PORT'] ?? 4300);
+const PROD_PORT = Number(process.env['DEBRIEF_E2E_PROD_PORT'] ?? 4301);
+const SKIP_PROD = !!process.env['DEBRIEF_E2E_SKIP_PROD'];
 const CI = !!process.env['CI'];
 const PROD_CSP = '**/prod-csp.e2e.ts';
 // These also run against the production build with the Tauri CSP (no extra permissions needed).
@@ -22,6 +22,8 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 2 : 0,
+  // Multi-step flows (tour, live tail) outlast 30 s of wall clock on a shared WebKit runner without being broken.
+  timeout: CI ? 60_000 : 30_000,
   // Two on CI: each shard's container shares a runner host with other jobs; three made WebKit tests time out.
   workers: CI ? 2 : undefined,
   reporter: [['html', { open: 'never' }], ['list']],

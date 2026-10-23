@@ -84,7 +84,7 @@ const COMMANDS: [string, string, string?][] = [
   ['help.shortcuts', 'Keyboard shortcuts', 'F1'],
   ['help.whatsNew', "What's new"],
   ['help.notices', 'Third-party notices'],
-  ['help.about', 'About IMT'],
+  ['help.about', 'About Debrief'],
 ];
 
 const view = (id: string, title: string, category?: MenuView['category'], patch: Partial<MenuView> = {}): MenuView => ({ id, title, category, open: false, ...patch });
@@ -138,7 +138,7 @@ function state(patch: Partial<MenuState> = {}): MenuState {
     markedOnly: false,
     undoLabel: 'level filter change',
     redoLabel: null,
-    windows: [{ label: 'main', title: 'IMT', current: true }],
+    windows: [{ label: 'main', title: 'Debrief', current: true }],
     popouts: [],
     nativeAppMenu: false,
     ...patch,
@@ -211,7 +211,7 @@ describe('menu model', () => {
     const fileMenu = (s: MenuState) => menu(buildMenus(s), 'file').items;
     expect(labels(fileMenu(state()))).not.toContain('Open recent');
     const files = Array.from({ length: RECENT_MENU_FILES + 3 }, (_, i) => `C:\\logs\\web01\\app-${i}.log`);
-    const projects = Array.from({ length: RECENT_MENU_PROJECTS + 2 }, (_, i) => ({ path: `/p/proj-${i}.imtproj`, name: `Proj ${i}` }));
+    const projects = Array.from({ length: RECENT_MENU_PROJECTS + 2 }, (_, i) => ({ path: `/p/proj-${i}.debriefproj`, name: `Proj ${i}` }));
     const recent = sub(fileMenu(state({ recent: { projects, files } })), 'Open recent');
     const items = recent.map((n) => (n.kind === 'item' ? n.label : '—'));
     expect(items).toHaveLength(RECENT_MENU_PROJECTS + 1 + RECENT_MENU_FILES + 1 + 1);
@@ -219,7 +219,7 @@ describe('menu model', () => {
     expect(items[RECENT_MENU_PROJECTS]).toBe('—');
     expect(items[RECENT_MENU_PROJECTS + 1]).toBe('web01/app-0.log');
     expect(items.at(-1)).toBe('Clear recent');
-    expect(menuItems(recent).map((i) => i.id)).toContain('recent:project:/p/proj-0.imtproj');
+    expect(menuItems(recent).map((i) => i.id)).toContain('recent:project:/p/proj-0.debriefproj');
     expect(menuItems(recent).map((i) => i.id)).toContain('menu.recentClear');
     // Only files: no separator between the groups.
     const onlyFiles = sub(fileMenu(state({ recent: { projects: [], files: ['/a/b.log'] } })), 'Open recent');
@@ -247,7 +247,7 @@ describe('menu model', () => {
   });
 
   it('keeps every menu at most about 20 entries at the top level', () => {
-    const many = state({ windows: Array.from({ length: 3 }, (_, i) => ({ label: `w-${i}`, title: `IMT ${i}`, current: i === 0 })) });
+    const many = state({ windows: Array.from({ length: 3 }, (_, i) => ({ label: `w-${i}`, title: `Debrief ${i}`, current: i === 0 })) });
     for (const m of buildMenus(many)) expect(topLevelSize(m.items), m.label).toBeLessThanOrEqual(22);
   });
 
@@ -267,7 +267,7 @@ describe('menu model', () => {
       buildMenus(
         state({
           windows: [
-            { label: 'main', title: 'IMT', current: true },
+            { label: 'main', title: 'Debrief', current: true },
             { label: 'w-2', title: '', current: false },
           ],
           popouts: [{ id: 'inspector', title: 'Inspector' }],
@@ -278,7 +278,7 @@ describe('menu model', () => {
     const groups = two.filter((n) => n.kind === 'group');
     expect(groups.map((g) => g.kind === 'group' && g.items.map((i) => [i.id, i.label, i.checked]))).toEqual([
       [
-        ['win:main', 'IMT', true],
+        ['win:main', 'Debrief', true],
         ['win:w-2', 'w-2', false],
       ],
       [['popout:inspector', 'Inspector', undefined]],
@@ -331,23 +331,23 @@ describe('menu model', () => {
       'Restart in safe mode',
       '—',
       'Third-party notices',
-      'About IMT',
+      'About Debrief',
     ]);
     const updates = new Map([...state().commands, ['help.checkForUpdates', { id: 'help.checkForUpdates', title: 'Check for updates' }]]);
     const mac = buildMenus(state({ nativeAppMenu: true, commands: updates }));
-    expect(mac[0]).toMatchObject({ id: 'app', label: 'IMT' });
-    expect(labels(at(mac, 0).items)).toEqual(['About IMT', 'Check for updates…', '—', 'Settings…']);
+    expect(mac[0]).toMatchObject({ id: 'app', label: 'Debrief' });
+    expect(labels(at(mac, 0).items)).toEqual(['About Debrief', 'Check for updates…', '—', 'Settings…']);
     const ids = mac.slice(1).flatMap((m) => menuItems(m.items).map((i) => i.id));
     for (const id of ['help.about', 'help.checkForUpdates', 'settings.open']) expect(ids).not.toContain(id);
     expect(labels(menu(buildMenus(state()), 'tools').items)).toContain('Settings…');
   });
 
-  it('quits IMT from File ▸ Exit, or last in the app menu on macOS', () => {
+  it('quits Debrief from File ▸ Exit, or last in the app menu on macOS', () => {
     const commands = new Map([...state().commands, ['app.quit', { id: 'app.quit', title: 'Exit' }]]);
     const file = menu(buildMenus(state({ commands })), 'file').items;
     expect(labels(file).slice(-3)).toEqual(['Close window', '—', 'Exit']);
     const mac = buildMenus(state({ nativeAppMenu: true, commands }));
-    expect(labels(at(mac, 0).items).at(-1)).toBe('Quit IMT');
+    expect(labels(at(mac, 0).items).at(-1)).toBe('Quit Debrief');
     expect(labels(menu(mac, 'file').items)).not.toContain('Exit');
   });
 

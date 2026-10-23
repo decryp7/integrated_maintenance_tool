@@ -1,7 +1,7 @@
-import type { ImtView } from '../extensions/tokens';
+import type { DebriefView } from '../extensions/tokens';
 import { TOOL_VIEWS, viewKind } from './view-kind';
 
-const view = (id: string, defaultPosition?: string) => ({ id, defaultPosition }) as Pick<ImtView, 'id' | 'defaultPosition'>;
+const view = (id: string, defaultPosition?: string) => ({ id, defaultPosition }) as Pick<DebriefView, 'id' | 'defaultPosition'>;
 
 describe('viewKind', () => {
   it('treats the known tool views as tools whatever their position', () => {

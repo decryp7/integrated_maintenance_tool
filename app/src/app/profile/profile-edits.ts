@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { ProfileModel } from '../core/profile.model';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ProfileUndo } from '../undo/profile-undo';
@@ -12,7 +12,7 @@ import { parseProfile, stringifyProfile } from './toml';
  */
 @Injectable({ providedIn: 'root' })
 export class ProfileEdits {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly store = inject(WorkspaceStore);
   private readonly undo = inject(ProfileUndo);
 

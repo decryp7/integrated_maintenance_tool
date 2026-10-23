@@ -89,7 +89,7 @@ describe('FlameChart', () => {
     const f = mount();
     const legend = el(f, '.legend').textContent!;
     for (const k of ['Managed', 'Native', 'Kernel', 'Unknown']) expect(legend).toContain(k);
-    expect(el(f, 'imt-measurement .m').getAttribute('data-measurement')).toBe('sampled');
+    expect(el(f, 'debrief-measurement .m').getAttribute('data-measurement')).toBe('sampled');
     expect(text(f)).toContain('(Sampled, estimate)');
   });
 

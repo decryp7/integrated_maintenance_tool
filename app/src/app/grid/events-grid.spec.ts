@@ -1,7 +1,8 @@
+import { splitInstance } from './events-grid';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { Page, PageRequest, RecordView } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { tinyDataset } from '../../testing/helpers';
 import { LiveTail } from '../workspace/live-tail';
@@ -51,7 +52,7 @@ describe('EventsGrid', () => {
   });
   beforeEach(() => localStorage.clear());
 
-  async function render(backend: ImtBackend = tinyBackend()) {
+  async function render(backend: DebriefBackend = tinyBackend()) {
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
     const fixture = TestBed.createComponent(EventsGrid);
     const store = TestBed.inject(WorkspaceStore);
@@ -68,7 +69,7 @@ describe('EventsGrid', () => {
     expect(text(fixture)).toContain('of 11');
     expect(store.matchTotal()).toBe(11);
     expect(at(rows(fixture), 0).textContent).toContain('Application starting');
-    expect(all(fixture, '.row imt-marker-icon').length).toBeGreaterThan(0);
+    expect(all(fixture, '.row debrief-marker-icon').length).toBeGreaterThan(0);
     // The event without a timestamp stays in the grid, marked in its time cell.
     const untimed = all(fixture, '.time.untimed');
     expect(untimed).toHaveLength(1);
@@ -179,6 +180,16 @@ describe('EventsGrid', () => {
       expect(down({ metaKey: true })).toBe(true);
     });
 
+    it('a row is draggable except from its message cell, which stays selectable text (WebKit)', async () => {
+      const { fixture } = await render();
+      const row = at(rows(fixture), 2);
+      const press = (el: Element) => el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+      press(row.querySelector('.msg')!);
+      expect(row.draggable).toBe(false);
+      press(row.querySelector('.time')!);
+      expect(row.draggable).toBe(true);
+    });
+
     it('rows are drag sources: dragging one selects it and carries the event (for the Notes panel)', async () => {
       const { fixture } = await render();
       const row = at(rows(fixture), 3);
@@ -188,7 +199,7 @@ describe('EventsGrid', () => {
       Object.defineProperty(e, 'dataTransfer', { value: { effectAllowed: 'none', setData: (t: string, v: string) => void data.set(t, v) } });
       row.dispatchEvent(e);
       await settle(fixture);
-      const carried = JSON.parse(data.get('application/x-imt-event') ?? 'null') as { id: number; excerpt: string };
+      const carried = JSON.parse(data.get('application/x-debrief-event') ?? 'null') as { id: number; excerpt: string };
       expect(carried.id).toBeGreaterThanOrEqual(0);
       expect(data.get('text/plain')).toContain(carried.excerpt);
       expect(selectedIndexes(fixture)).toEqual([3]);
@@ -328,7 +339,7 @@ describe('EventsGrid', () => {
 
   it('tells the inspector when a filter change hides the selected event (D4)', async () => {
     const { fixture, store } = await render();
-    const info = (await TestBed.inject(ImtBackend).queryPage({ query: store.effectiveQuery(), offset: 0, limit: 50, descending: false })).rows.find((r) => r.level === 'Information')!;
+    const info = (await TestBed.inject(DebriefBackend).queryPage({ query: store.effectiveQuery(), offset: 0, limit: 50, descending: false })).rows.find((r) => r.level === 'Information')!;
     store.select(info);
     store.toggleLevel('Error');
     await settle(fixture);
@@ -463,7 +474,7 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
     return new MockBackend({ latency: false, dataset: tinyDataset, syntheticTotal: total, ...extra });
   }
 
-  async function render(backend: ImtBackend) {
+  async function render(backend: DebriefBackend) {
     TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
     const fixture = TestBed.createComponent(EventsGrid);
     const store = TestBed.inject(WorkspaceStore);
@@ -804,5 +815,12 @@ describe('EventsGrid at scale', { timeout: 30_000 }, () => {
       await flush(fixture);
       expect(selectedIds()).toEqual(before);
     });
+  });
+});
+
+describe('splitInstance', () => {
+  it('splits the name from the host and process id', () => {
+    expect(splitInstance('OrderService · WEB01 · 3312')).toEqual({ instName: 'OrderService', instRest: 'WEB01 · 3312' });
+    expect(splitInstance('worker')).toEqual({ instName: 'worker', instRest: '' });
   });
 });

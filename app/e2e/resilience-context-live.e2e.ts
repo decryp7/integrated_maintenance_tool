@@ -8,8 +8,8 @@ test.describe('context view', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('shows the original lines around the selected event, expands and copies', async ({ page }, testInfo) => {
-    await page.locator('imt-events-grid [role=row].row').nth(15).click();
-    const ctx = page.locator('imt-context-section');
+    await page.locator('debrief-events-grid [role=row].row').nth(15).click();
+    const ctx = page.locator('debrief-context-section');
     await ctx.getByRole('button', { name: 'Context' }).click();
     const lines = ctx.getByTestId('context-lines');
     await expect(lines).toBeVisible();
@@ -24,24 +24,24 @@ test.describe('context view', () => {
     await expect(ctx).toContainText('±50 lines');
     await ctx.getByRole('button', { name: 'Copy' }).click();
     await expect(ctx.getByRole('button', { name: /Copied|Copy failed/ })).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'context-view', 'imt-context-section');
+    await expectNoSeriousViolations(page, testInfo, 'context-view', 'debrief-context-section');
   });
 
   test('follows the selection and recovers from a failed request', async ({ page }) => {
-    await page.locator('imt-events-grid [role=row].row').nth(2).click();
-    const ctx = page.locator('imt-context-section');
+    await page.locator('debrief-events-grid [role=row].row').nth(2).click();
+    const ctx = page.locator('debrief-context-section');
     await ctx.getByRole('button', { name: 'Context' }).click();
     await expect(ctx.locator('.line.hit')).toHaveCount(1);
     const first = await ctx.locator('.line.hit').textContent();
-    await page.locator('imt-events-grid [role=row].row').nth(6).click();
+    await page.locator('debrief-events-grid [role=row].row').nth(6).click();
     await expect.poll(async () => ctx.locator('.line.hit').textContent()).not.toBe(first);
   });
 });
 
 test('a failed context request shows an inline error with Retry', async ({ page }) => {
   await openAppWith(page, '?mockFail=sourceContext:1&mockSnapshots=off');
-  await page.locator('imt-events-grid [role=row].row').nth(3).click();
-  const ctx = page.locator('imt-context-section');
+  await page.locator('debrief-events-grid [role=row].row').nth(3).click();
+  const ctx = page.locator('debrief-context-section');
   await ctx.getByRole('button', { name: 'Context' }).click();
   await expect(ctx.getByRole('alert')).toContainText('Simulated sourceContext failure');
   await ctx.getByRole('button', { name: 'Retry' }).click();
@@ -78,7 +78,7 @@ test.describe('live tail', () => {
     await expect(gridTotal(page)).toHaveText('0');
     await page.getByRole('button', { name: /Oldest first/ }).click();
     await page.getByRole('button', { name: 'Live tail', exact: true }).click();
-    const firstRow = page.locator('imt-events-grid [role=row].row').first();
+    const firstRow = page.locator('debrief-events-grid [role=row].row').first();
     await expect(firstRow).toContainText('Live event');
     const n1 = Number(/Live event (\d+)/.exec((await firstRow.textContent()) ?? '')![1]);
     await expect.poll(async () => Number(/Live event (\d+)/.exec((await firstRow.textContent()) ?? '')?.[1] ?? 0), { timeout: 10_000 }).toBeGreaterThan(n1);
@@ -88,19 +88,19 @@ test.describe('live tail', () => {
 
   test('the status bar Live toggle keeps the selection, passes axe while on, and is disabled with nothing to follow', async ({ page }, testInfo) => {
     await openAppWith(page, '?mockLiveMs=300');
-    const live = page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true });
+    const live = page.locator('debrief-status-bar').getByRole('button', { name: 'Live tail', exact: true });
     await expect(live).toBeEnabled();
-    const row = page.locator('imt-events-grid [role=row].row').nth(2);
+    const row = page.locator('debrief-events-grid [role=row].row').nth(2);
     await row.click();
-    await expect(page.locator('imt-events-grid .row.sel')).toHaveCount(1);
-    const selected = (await page.locator('imt-events-grid .row.sel').textContent()) ?? '';
+    await expect(page.locator('debrief-events-grid .row.sel')).toHaveCount(1);
+    const selected = (await page.locator('debrief-events-grid .row.sel').textContent()) ?? '';
     const start = parseCount(await gridTotal(page).innerText());
     await live.click();
     await expect(live).toHaveAttribute('aria-pressed', 'true');
-    await expectNoSeriousViolations(page, testInfo, 'live-on', 'imt-status-bar');
+    await expectNoSeriousViolations(page, testInfo, 'live-on', 'debrief-status-bar');
     await expect.poll(async () => parseCount(await gridTotal(page).innerText()), { timeout: 10_000 }).toBeGreaterThan(start);
     // The selection survives live refreshes.
-    await expect(page.locator('imt-events-grid .row.sel')).toHaveText(selected);
+    await expect(page.locator('debrief-events-grid .row.sel')).toHaveText(selected);
     await live.click();
     await expect(live).toHaveAttribute('aria-pressed', 'false');
 

@@ -1,7 +1,7 @@
 import type { RecordView } from './api.types';
 
 /** The drag-and-drop type for an event dragged from the events grid onto another view. */
-export const EVENT_DRAG_TYPE = 'application/x-imt-event';
+export const EVENT_DRAG_TYPE = 'application/x-debrief-event';
 
 /** Longest message carried by a drag; the rest is cut (a drop only needs the first line). */
 const MAX_EXCERPT = 300;

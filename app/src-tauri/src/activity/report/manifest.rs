@@ -1,4 +1,4 @@
-//! `manifest.json` of a diagnostics report: what kind of zip it is, its format version, which IMT made it
+//! `manifest.json` of a diagnostics report: what kind of zip it is, its format version, which Debrief made it
 //! and when, and every file with its kind. Readers parse it once into [`Manifest`] ([`parse`]): an
 //! unknown file kind is tolerated ([`FileKind::Other`]); a newer schema, a different `kind`, too many
 //! files or an unsafe file name is refused with a typed [`ManifestError`].
@@ -8,8 +8,8 @@ use serde::{Deserialize, Serialize};
 /// Name of the manifest inside the zip.
 pub const MANIFEST_NAME: &str = "manifest.json";
 /// `kind` of a diagnostics report.
-pub const MANIFEST_KIND: &str = "imt-diagnostics";
-/// Format version this IMT writes and reads.
+pub const MANIFEST_KIND: &str = "debrief-diagnostics";
+/// Format version this Debrief writes and reads.
 pub const SCHEMA_VERSION: u32 = 1;
 /// Largest manifest read.
 pub const MAX_MANIFEST_BYTES: u64 = 256 * 1024;
@@ -22,11 +22,11 @@ pub const MAX_NAME: usize = 200;
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum FileKind {
-    /// IMT's own CLEF log.
+    /// Debrief's own CLEF log.
     Log,
     /// A child process's log (`logs/children/<name>.log`).
     ChildLog,
-    /// The activity entries of IMT's log.
+    /// The activity entries of Debrief's log.
     Activity,
     SystemInfo,
     Processes,
@@ -38,7 +38,7 @@ pub enum FileKind {
     SnapshotDetails,
     Description,
     SessionRecovery,
-    /// A kind this IMT does not know (written by a later version within the same schema); ignored.
+    /// A kind this Debrief does not know (written by a later version within the same schema); ignored.
     #[serde(other)]
     Other,
 }
@@ -65,7 +65,7 @@ pub struct ManifestFile {
 pub struct Manifest {
     pub kind: String,
     pub schema_version: u32,
-    pub imt_version: String,
+    pub debrief_version: String,
     pub commit: String,
     /// RFC 3339, UTC.
     pub created_at: String,
@@ -73,11 +73,11 @@ pub struct Manifest {
 }
 
 impl Manifest {
-    pub fn new(imt_version: String, commit: String, created_at: String, files: Vec<ManifestFile>) -> Manifest {
+    pub fn new(debrief_version: String, commit: String, created_at: String, files: Vec<ManifestFile>) -> Manifest {
         Manifest {
             kind: MANIFEST_KIND.into(),
             schema_version: SCHEMA_VERSION,
-            imt_version,
+            debrief_version,
             commit,
             created_at,
             files,
@@ -95,9 +95,9 @@ impl Manifest {
 pub enum ManifestError {
     /// Not JSON, or not a manifest of any kind.
     Malformed(String),
-    /// A manifest of something else (an IMT bundle, another program's zip).
+    /// A manifest of something else (a Debrief bundle, another program's zip).
     OtherKind,
-    /// Made by a newer IMT.
+    /// Made by a newer Debrief.
     Newer(u32),
     TooLarge,
     TooManyFiles(usize),
@@ -108,10 +108,10 @@ impl std::fmt::Display for ManifestError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ManifestError::Malformed(why) => write!(f, "its manifest is not valid ({why})"),
-            ManifestError::OtherKind => write!(f, "it is not an IMT diagnostics report"),
+            ManifestError::OtherKind => write!(f, "it is not a Debrief diagnostics report"),
             ManifestError::Newer(v) => write!(
                 f,
-                "it was made by a newer IMT (report format {v}; this IMT reads format {SCHEMA_VERSION}); update IMT to open it as a report"
+                "it was made by a newer Debrief (report format {v}; this Debrief reads format {SCHEMA_VERSION}); update Debrief to open it as a report"
             ),
             ManifestError::TooLarge => write!(f, "its manifest is larger than {} KB", MAX_MANIFEST_BYTES / 1024),
             ManifestError::TooManyFiles(n) => write!(f, "its manifest lists {n} files (at most {MAX_MANIFEST_FILES})"),
@@ -168,8 +168,8 @@ mod tests {
 
     fn sample() -> serde_json::Value {
         json!({
-            "kind": "imt-diagnostics", "schemaVersion": 1, "imtVersion": "0.1.0", "commit": "abc", "createdAt": "2026-10-14T09:00:00.000Z",
-            "files": [{ "name": "logs/imt.log", "kind": "log", "bytes": 3 }, { "name": "x/y.bin", "kind": "future-kind", "bytes": 1 }],
+            "kind": "debrief-diagnostics", "schemaVersion": 1, "debriefVersion": "0.1.0", "commit": "abc", "createdAt": "2026-10-14T09:00:00.000Z",
+            "files": [{ "name": "logs/debrief.log", "kind": "log", "bytes": 3 }, { "name": "x/y.bin", "kind": "future-kind", "bytes": 1 }],
         })
     }
 
@@ -190,7 +190,7 @@ mod tests {
             s[k] = v;
             parse(s.to_string().as_bytes())
         };
-        assert_eq!(with("kind", json!("imt-bundle")), Err(ManifestError::OtherKind));
+        assert_eq!(with("kind", json!("debrief-bundle")), Err(ManifestError::OtherKind));
         assert_eq!(with("schemaVersion", json!(7)), Err(ManifestError::Newer(7)));
         assert!(matches!(with("schemaVersion", json!("one")), Err(ManifestError::Malformed(_))));
         assert!(matches!(with("files", json!("nope")), Err(ManifestError::Malformed(_))));

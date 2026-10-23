@@ -36,7 +36,7 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
  * lock waits), then threads with their stacks, modules and details. Everything is computed by the engine.
  */
 @Component({
-  selector: 'imt-dump-view',
+  selector: 'debrief-dump-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CdkListbox, CdkOption, DumpFindings, NoDump],
   template: `
@@ -56,7 +56,7 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
       @if (store.error(); as e) {
         <div class="notice err" role="alert">{{ e }}</div>
       }
-      <imt-analysis-state [loading]="overview.loading()" [error]="overview.error()" [retryable]="overview.retryable()" [hasData]="!!overview.data()" (retry)="overview.retry()">
+      <debrief-analysis-state [loading]="overview.loading()" [error]="overview.error()" [retryable]="overview.retryable()" [hasData]="!!overview.data()" (retry)="overview.retry()">
         @if (overview.data(); as o) {
           <div class="summary">
             <span>{{ o.processName ?? doc.name }}@if (o.pid !== null) { <span class="faint"> · pid {{ o.pid }}</span> }</span>
@@ -79,7 +79,7 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
             </section>
           }
         }
-      </imt-analysis-state>
+      </debrief-analysis-state>
       <div class="tabs" role="tablist" aria-label="Dump views" i18n-aria-label="@@dumps.view.tabs">
         @for (t of tabs; track t.id) {
           <button type="button" role="tab" [id]="'dump-tab-' + t.id" [attr.aria-selected]="tab() === t.id" [attr.aria-controls]="'dump-panel-' + t.id" [attr.data-testid]="'dump-tab-' + t.id" (click)="tab.set(t.id)">{{ t.label }}</button>
@@ -88,13 +88,13 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
       <div class="panel" role="tabpanel" [id]="'dump-panel-' + tab()" [attr.aria-labelledby]="'dump-tab-' + tab()">
         @switch (tab()) {
           @case ('findings') {
-            <imt-dump-findings [res]="findings" (evidence)="showEvidence($event)" (explain)="explain()" />
+            <debrief-dump-findings [res]="findings" (evidence)="showEvidence($event)" (explain)="explain()" />
           }
           @case ('threads') {
             <div class="split">
               <div class="side">
                 <div class="bar"><input type="search" [value]="threadFilter()" (input)="threadFilter.set(value($event))" placeholder="Filter threads" i18n-placeholder="@@dumps.threads.filter" aria-label="Filter threads" i18n-aria-label="@@dumps.threads.filterLabel" /></div>
-                <imt-analysis-state [loading]="threads.loading()" [error]="threads.error()" [retryable]="threads.retryable()" [hasData]="!!threads.data()" [empty]="threads.data()?.total === 0" emptyText="No threads." i18n-emptyText="@@dumps.threads.empty" (retry)="threads.retry()">
+                <debrief-analysis-state [loading]="threads.loading()" [error]="threads.error()" [retryable]="threads.retryable()" [hasData]="!!threads.data()" [empty]="threads.data()?.total === 0" emptyText="No threads." i18n-emptyText="@@dumps.threads.empty" (retry)="threads.retry()">
                   <ul cdkListbox class="threads" aria-label="Threads" i18n-aria-label="@@dumps.threads.label" data-testid="dump-threads" [cdkListboxValue]="threadValue()" (cdkListboxValueChange)="selectThread($event.value[0])">
                     @for (t of threads.data()?.rows ?? []; track t.id) {
                       <li [cdkOption]="t.id" class="thread" [class.faulted]="t.state === 'faulted'" [attr.data-state]="t.state">
@@ -105,10 +105,10 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
                       </li>
                     }
                   </ul>
-                </imt-analysis-state>
+                </debrief-analysis-state>
               </div>
               <div class="main" tabindex="0" role="region" aria-label="Stack" i18n-aria-label="@@dumps.stack.region">
-                <imt-analysis-state [loading]="stack.loading()" [error]="stack.error()" [retryable]="stack.retryable()" [hasData]="!!stack.data()" [empty]="stack.data()?.frames?.length === 0" emptyText="No frames: the thread's stack could not be read." i18n-emptyText="@@dumps.stack.empty" (retry)="stack.retry()">
+                <debrief-analysis-state [loading]="stack.loading()" [error]="stack.error()" [retryable]="stack.retryable()" [hasData]="!!stack.data()" [empty]="stack.data()?.frames?.length === 0" emptyText="No frames: the thread's stack could not be read." i18n-emptyText="@@dumps.stack.empty" (retry)="stack.retry()">
                   @if (stack.data(); as s) {
                     <table class="grid" data-testid="dump-stack" [attr.aria-label]="stackLabel(s.threadId)">
                       <thead><tr><th class="num">#</th><th i18n="@@dumps.stack.frame">Frame</th><th i18n="@@dumps.stack.source">Source</th><th i18n="@@dumps.stack.how">Found by</th></tr></thead>
@@ -125,13 +125,13 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
                     </table>
                     @if (s.truncated) { <p class="faint" i18n="@@dumps.stack.truncated">The stack is deeper; only its innermost frames are shown.</p> }
                   }
-                </imt-analysis-state>
+                </debrief-analysis-state>
               </div>
             </div>
           }
           @case ('modules') {
             <div class="bar"><input type="search" [value]="moduleFilter()" (input)="moduleFilter.set(value($event))" placeholder="Filter modules" i18n-placeholder="@@dumps.modules.filter" aria-label="Filter modules" i18n-aria-label="@@dumps.modules.filterLabel" /></div>
-            <imt-analysis-state [loading]="modules.loading()" [error]="modules.error()" [retryable]="modules.retryable()" [hasData]="!!modules.data()" [empty]="modules.data()?.total === 0" emptyText="No modules." i18n-emptyText="@@dumps.modules.empty" (retry)="modules.retry()">
+            <debrief-analysis-state [loading]="modules.loading()" [error]="modules.error()" [retryable]="modules.retryable()" [hasData]="!!modules.data()" [empty]="modules.data()?.total === 0" emptyText="No modules." i18n-emptyText="@@dumps.modules.empty" (retry)="modules.retry()">
               <div class="body">
                 <table class="grid" data-testid="dump-modules" aria-label="Modules" i18n-aria-label="@@dumps.modules.label">
                   <thead><tr><th i18n="@@dumps.modules.name">Module</th><th i18n="@@dumps.modules.version">Version</th><th i18n="@@dumps.modules.base">Base</th><th class="num" i18n="@@dumps.modules.size">Size</th><th i18n="@@dumps.modules.symbols">Symbols</th><th i18n="@@dumps.modules.path">Path</th></tr></thead>
@@ -149,7 +149,7 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
                   </tbody>
                 </table>
               </div>
-            </imt-analysis-state>
+            </debrief-analysis-state>
           }
           @case ('details') {
             @if (overview.data(); as o) {
@@ -195,7 +195,7 @@ const TRUST_LABEL: Record<FrameTrust, string> = {
         }
       </div>
     } @else {
-      <imt-no-dump text="Open a crash or memory dump (.dmp) to see why the process crashed or hung." i18n-text="@@dumps.view.none" action="Open dump…" i18n-action="@@dumps.view.open" (open)="store.pickAndOpen('dump')" />
+      <debrief-no-dump text="Open a crash or memory dump (.dmp) to see why the process crashed or hung." i18n-text="@@dumps.view.none" action="Open dump…" i18n-action="@@dumps.view.open" (open)="store.pickAndOpen('dump')" />
     }
   `,
   styles: [

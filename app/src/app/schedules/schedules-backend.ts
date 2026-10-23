@@ -13,8 +13,8 @@ export function createSchedulesBackend(): SchedulesBackend {
 }
 
 /**
- * The scheduled-collection agent's config (`imt-agent.toml`) and its runs. `path` is the config
- * file; omitted, the default one in IMT's config folder. Validation is the agent library's.
+ * The scheduled-collection agent's config (`debrief-agent.toml`) and its runs. `path` is the config
+ * file; omitted, the default one in Debrief's config folder. Validation is the agent library's.
  */
 @Injectable({ providedIn: 'root', useFactory: createSchedulesBackend })
 export abstract class SchedulesBackend {

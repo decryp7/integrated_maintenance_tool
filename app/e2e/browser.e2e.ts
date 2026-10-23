@@ -23,7 +23,7 @@ test.describe('AI browser', () => {
     await dialog.getByRole('button', { name: 'Search', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     // No panel opens: the page belongs to the user's own browser.
-    await expect(page.locator('imt-web-panel')).toHaveCount(0);
+    await expect(page.locator('debrief-web-panel')).toHaveCount(0);
 
     const chat = await openChat(page);
     await expect(chat.getByTestId('chat-capture')).toHaveCount(0);
@@ -36,7 +36,7 @@ test.describe('AI browser', () => {
     await waitAnswered(chat);
     await expect(chat.getByTestId('ai-answer-0')).toContainText('I used it as reference only');
     await expect(chat.getByTestId('chat-source')).toHaveCount(0);
-    await expectNoSeriousViolations(page, testInfo, 'browser-chat-source', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'browser-chat-source', 'debrief-ai-chat-panel');
   });
 
   test('adding the open page says so when no page is open', async ({ page }) => {
@@ -79,7 +79,7 @@ test.describe('AI browser', () => {
     await ask(chat, 'find out on the web why the gateway times out');
     const first = chat.getByTestId('agent-approval').first();
     await expect(first).toContainText('The AI wants to open google.com');
-    await expectNoSeriousViolations(page, testInfo, 'browser-agent-approval', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'browser-agent-approval', 'debrief-ai-chat-panel');
     await first.getByRole('button', { name: 'Allow this site for this chat' }).click();
     await expect(first).toContainText('this site is allowed for this chat');
     await expect(chat.getByTestId('agent-step')).toContainText('Step 1 of 25');
@@ -95,10 +95,10 @@ test.describe('AI browser', () => {
     // Stop while a step waits: the status chip shows the AI driving; its Stop denies the step and ends agent mode.
     await ask(chat, 'look up the error again');
     await expect(chat.getByTestId('agent-approval').nth(2)).toBeVisible();
-    const chip = page.locator('imt-status-bar').getByTestId('ai-browsing');
+    const chip = page.locator('debrief-status-bar').getByTestId('ai-browsing');
     await expect(chip).toBeVisible();
     await expect(chip).toHaveAttribute('role', 'status');
-    await expectNoSeriousViolations(page, testInfo, 'browser-status-chip', 'imt-status-bar');
+    await expectNoSeriousViolations(page, testInfo, 'browser-status-chip', 'debrief-status-bar');
     await chip.getByRole('button', { name: "Stop the AI's browser" }).click();
     await expect(chip).toHaveCount(0);
     await expect(chat.getByTestId('agent-paused')).toContainText('You stopped the AI');
@@ -114,15 +114,15 @@ test.describe('AI browser', () => {
     await expect(card).toContainText('https://www.google.com/search?q=System.TimeoutException+gateway');
     await card.getByRole('button', { name: 'Open', exact: true }).click();
     await expect(chat.getByRole('alert')).toHaveCount(0);
-    await expect(page.locator('imt-web-panel')).toHaveCount(0);
+    await expect(page.locator('debrief-web-panel')).toHaveCount(0);
   });
 
   test('the status chip shows research, then Stop cancels it', async ({ page }, testInfo) => {
     await openAiApp(page, 'mockDriving=research');
-    const chip = page.locator('imt-status-bar').getByTestId('ai-browsing');
+    const chip = page.locator('debrief-status-bar').getByTestId('ai-browsing');
     await expect(chip).toBeVisible();
     await expect(chip).toHaveAttribute('aria-live', 'polite');
-    await expectNoSeriousViolations(page, testInfo, 'browser-status-chip-research', 'imt-status-bar');
+    await expectNoSeriousViolations(page, testInfo, 'browser-status-chip-research', 'debrief-status-bar');
     await chip.getByRole('button', { name: "Stop the AI's browser" }).click();
     await expect(chip).toHaveCount(0);
   });

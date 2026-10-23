@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideTinyBackendBare, settle, testLogger, tinyBackend } from '../../../testing/helpers';
 import { Platform } from '../platform';
 import { WorkspaceSummary } from '../api.types';
-import { ImtBackend } from '../backend';
+import { DebriefBackend } from '../backend';
 import { provideWorkspace } from './provide-workspace';
 import { QueryStore } from './query.store';
 import { SelectionStore } from './selection.store';
@@ -12,7 +12,7 @@ import { TimelineStore } from './timeline-data.store';
 import { UiPrefsStore } from './ui-prefs.store';
 import { sameSources, WorkspaceDataStore } from './workspace-data.store';
 
-function bare(backend: ImtBackend = tinyBackend()) {
+function bare(backend: DebriefBackend = tinyBackend()) {
   TestBed.configureTestingModule({ providers: provideTinyBackendBare(backend) });
   return { data: TestBed.inject(WorkspaceDataStore), status: TestBed.inject(WorkspaceStatusStore), backend };
 }
@@ -34,7 +34,7 @@ describe('workspace stores', () => {
     await settle();
     expect(summary).toHaveBeenCalledTimes(1);
     expect(data.summary()?.total).toBe(11);
-    expect(localStorage.getItem('imt.prefs.v1')).toBeNull();
+    expect(localStorage.getItem('debrief.prefs.v1')).toBeNull();
     expect(document.documentElement.hasAttribute('data-theme')).toBe(false);
   });
 
@@ -51,7 +51,7 @@ describe('workspace stores', () => {
     await settle();
     expect(document.documentElement.getAttribute('data-scheme')).toBe('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('calm');
-    expect(JSON.parse(localStorage.getItem('imt.prefs.v1')!)).toMatchObject({ scheme: 'light', theme: null });
+    expect(JSON.parse(localStorage.getItem('debrief.prefs.v1')!)).toMatchObject({ scheme: 'light', theme: null });
     // Starting the theme again adds no second effect.
     TestBed.inject(ThemeService).start();
     prefs.setScheme('system');
@@ -147,7 +147,7 @@ describe('workspace stores', () => {
     await settle();
     expect(timeline.timeline()?.lanes).toHaveLength(3);
     expect(timeline.instanceCount()).toBe(3);
-    const spy = vi.spyOn(TestBed.inject(ImtBackend), 'queryTimeline');
+    const spy = vi.spyOn(TestBed.inject(DebriefBackend), 'queryTimeline');
     query.toggleLevel('Error');
     await settle();
     expect(spy).toHaveBeenCalledTimes(1);

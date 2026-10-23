@@ -12,7 +12,7 @@ test.describe('did you mean', () => {
     await expect(page.locator('#ql-error')).toContainText('Unknown field "MachinName"');
     const fix = page.getByTestId('did-you-mean').getByRole('button', { name: 'Replace with MachineName' });
     await expect(fix).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'did-you-mean', 'imt-query-field');
+    await expectNoSeriousViolations(page, testInfo, 'did-you-mean', 'debrief-query-field');
     await fix.click();
     await expect(input).toHaveValue('MachineName = WEB01 | stats count()');
     await expect(page.locator('#ql-error')).toHaveCount(0);
@@ -25,9 +25,9 @@ test.describe('did you mean', () => {
     const input = page.getByRole('combobox', { name: 'Type a command' });
     await input.fill('tgogle sidbar');
     await expect(page.getByTestId('palette-did-you-mean')).toContainText('Did you mean');
-    await expect(page.getByRole('option').first()).toContainText('Toggle sidebar');
+    await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText('Toggle sidebar');
     await page.keyboard.press('Enter');
     await expect(input).toHaveCount(0);
-    await expect(page.locator('imt-sidebar')).toHaveCount(0);
+    await expect(page.locator('debrief-sidebar')).toHaveCount(0);
   });
 });

@@ -3,7 +3,7 @@ import { all, buttonByText, el, provideTinyBackend, settle, SEC, T0, text, typeI
 import { at } from '../../testing/must';
 import { WorkspaceStore } from '../core/workspace.store';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { HISTORY_STORE } from '../analysis/history-store';
 import { MemoryHistory } from '../analysis/test-setup';
 import { MockAnalysisBackend, recordsFrom } from '../analysis/mock/mock-analysis-backend';
@@ -15,7 +15,7 @@ describe('FilterBar', () => {
     TestBed.configureTestingModule({
       providers: [
         provideTinyBackend(),
-        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) },
+        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) },
         { provide: HISTORY_STORE, useValue: new MemoryHistory() },
       ],
     });
@@ -49,11 +49,11 @@ describe('FilterBar', () => {
     store.setTextInput('(');
     await new Promise((r) => setTimeout(r, 300));
     await settle(fixture);
-    expect(el(fixture, 'imt-query-field .box').classList.contains('invalid')).toBe(true);
+    expect(el(fixture, 'debrief-query-field .box').classList.contains('invalid')).toBe(true);
     store.setTextInput('(?P<x>a)');
     await new Promise((r) => setTimeout(r, 300));
     await settle(fixture);
-    expect(el(fixture, 'imt-query-field .box').classList.contains('invalid')).toBe(false);
+    expect(el(fixture, 'debrief-query-field .box').classList.contains('invalid')).toBe(false);
   });
 
   it('toggles levels and shows counts', async () => {
@@ -92,24 +92,30 @@ describe('FilterBar', () => {
     const { fixture } = await render();
     const chips = all<HTMLButtonElement>(fixture, '.lvl');
     const toolbar = el(fixture, '[role=toolbar][aria-label=Levels]');
-    expect(chips.map((c) => c.tabIndex)).toEqual([0, -1, -1, -1, -1, -1]);
+    expect(chips.map((c) => c.tabIndex)).toEqual([0, -1, -1, -1, -1]);
     const press = (key: string) => toolbar.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }));
     at(chips, 0).focus();
     press('ArrowRight');
     await settle(fixture);
     expect(document.activeElement).toBe(at(chips, 1));
-    expect(chips.map((c) => c.tabIndex)).toEqual([-1, 0, -1, -1, -1, -1]);
+    expect(chips.map((c) => c.tabIndex)).toEqual([-1, 0, -1, -1, -1]);
     press('ArrowLeft');
     press('ArrowLeft');
     await settle(fixture);
-    expect(document.activeElement).toBe(at(chips, 5));
+    expect(document.activeElement).toBe(at(chips, 4));
     press('Home');
     await settle(fixture);
     expect(document.activeElement).toBe(at(chips, 0));
     press('End');
     await settle(fixture);
-    expect(document.activeElement).toBe(at(chips, 5));
+    expect(document.activeElement).toBe(at(chips, 4));
     expect(press('x')).toBe(true);
+  });
+
+  it('hides the chip of a level with no events, unless it is filtered on', async () => {
+    const { fixture } = await render();
+    expect(all(fixture, '.lvl').length).toBeLessThan(6);
+    expect(all(fixture, '.lvl').map((c) => c.getAttribute('data-level'))).not.toContain('Verbose');
   });
 
   it('edits the group-by in View options', async () => {
@@ -174,18 +180,18 @@ describe('FilterBar', () => {
     expect(text(fixture)).toContain('(1 min 30 s)');
     el<HTMLButtonElement>(fixture, '[aria-label="Remove instance filter WEB01 · 100"]').click();
     expect(store.query().groups).toEqual([]);
-    buttonByText(fixture, /14 Oct/).click();
+    buttonByText(fixture, /\d\d:\d\d/).click();
     expect(store.hasRange()).toBe(false);
     store.setTimezone('utc'); // independent of the host's zone
     store.setRange(T0, null);
     await settle(fixture);
-    expect(text(fixture)).toContain('14 Oct 09:00:00 →');
+    expect(text(fixture)).toContain('09:00 –');
     store.resetRange();
 
     el<HTMLButtonElement>(fixture, '[data-testid=view-options]').click();
     await settle(fixture);
     const switchFor = (name: RegExp) =>
-      [...fixture.nativeElement.querySelectorAll('imt-switch')].find((s: HTMLElement) => name.test(s.textContent ?? ''))!.querySelector('input[role=switch]') as HTMLInputElement;
+      [...fixture.nativeElement.querySelectorAll('debrief-switch')].find((s: HTMLElement) => name.test(s.textContent ?? ''))!.querySelector('input[role=switch]') as HTMLInputElement;
     expect(switchFor(/Marked only/).checked).toBe(false);
     switchFor(/Marked only/).click();
     expect(store.markedOnly()).toBe(true);
@@ -206,7 +212,7 @@ describe('FilterBar', () => {
     store.addFilter({ field: 'MachineName', op: 'eq', value: 'WEB01' });
     await settle(fixture);
     expect(all(fixture, '.row')).toHaveLength(2);
-    expect(all(fixture, 'imt-switch')).toHaveLength(0);
+    expect(all(fixture, 'debrief-switch')).toHaveLength(0);
   });
 
   it('focuses the search box on request', async () => {

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { ViewRegistry } from '../extensions/view-registry';
 import { CommandRegistry } from '../extensions/command-registry';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Logger } from '../core/logger';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -20,7 +20,7 @@ import { QlQuery } from '../core/api.types';
 import { EMPTY_QUERY } from '../core/workspace.store';
 import { DEMO_START } from '../core/mock/mock-data';
 
-import { at } from '../../testing/must';
+
 describe('AnalysisTargets', () => {
   it('resolves the current range: selection, then query range, then the workspace', async () => {
     TestBed.configureTestingModule({ providers: provideAnalysisTesting() });
@@ -210,7 +210,7 @@ describe('AnalysisCommands', () => {
 
 describe('analysis plugin', () => {
   it('registers views and commands through the extension points', async () => {
-    TestBed.configureTestingModule({ providers: [provideAnalysis(), { provide: ImtBackend, useFactory: () => new MockBackend({ latency: false }) }, { provide: Logger, useFactory: () => new MemoryLogger() }] });
+    TestBed.configureTestingModule({ providers: [provideAnalysis(), { provide: DebriefBackend, useFactory: () => new MockBackend({ latency: false }) }, { provide: Logger, useFactory: () => new MemoryLogger() }] });
     await loadWorkspace();
     const views = TestBed.inject(ViewRegistry);
     expect(views.all.map((v) => v.id)).toEqual(ANALYSIS_VIEWS.map((v) => v.id));

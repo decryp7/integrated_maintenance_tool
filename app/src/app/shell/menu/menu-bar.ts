@@ -6,18 +6,18 @@ import { MenuTriggerGuard } from './submenu-trigger';
 import { MenuNode, TopMenu } from './menu-model';
 
 /**
- * IMT's own menu bar (Windows, Linux and the browser build): the application menus as an ARIA menubar with real
+ * Debrief's own menu bar (Windows, Linux and the browser build): the application menus as an ARIA menubar with real
  * submenus, built on `@angular/cdk/menu` (keyboard navigation, typeahead, focus handling, overlay placement that
  * flips near the window edges). The menus come from `AppMenu`, the model the macOS native menu bar is built from too.
  */
 @Component({
-  selector: 'imt-menu-bar',
+  selector: 'debrief-menu-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkMenuBar, CdkMenu, CdkMenuItem, CdkMenuItemCheckbox, CdkMenuTrigger, MenuTriggerGuard],
   template: `
     <div cdkMenuBar class="bar" aria-label="Application menu" i18n-aria-label="@@shell.menuBar.applicationMenu">
       @for (menu of app.menus(); track menu.id) {
-        <button type="button" cdkMenuItem imtMenuTrigger class="top" [cdkMenuTriggerFor]="list" [cdkMenuTriggerData]="{ $implicit: [menu.id], label: menu.label }">{{ menu.label }}</button>
+        <button type="button" cdkMenuItem debriefMenuTrigger class="top" [cdkMenuTriggerFor]="list" [cdkMenuTriggerData]="{ $implicit: [menu.id], label: menu.label }">{{ menu.label }}</button>
       }
     </div>
 
@@ -49,7 +49,7 @@ import { MenuNode, TopMenu } from './menu-model';
               <button
                 type="button"
                 cdkMenuItem
-                imtMenuTrigger
+                debriefMenuTrigger
                 class="item"
                 [cdkMenuitemTypeaheadLabel]="node.label"
                 [cdkMenuTriggerFor]="list"
@@ -112,7 +112,7 @@ import { MenuNode, TopMenu } from './menu-model';
     .chevron { flex: none; margin-inline-start: 24px; color: var(--muted); }
     .sep { flex: none; height: 1px; margin: 4px 6px; background: var(--border-2); }
     .group { display: flex; flex-direction: column; }
-    .group-label { padding: 6px 10px 2px 28px; font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+    .group-label { padding: 6px 10px 2px 28px; font-size: var(--fs-xs); color: var(--muted); }
   `,
 })
 export class MenuBar {

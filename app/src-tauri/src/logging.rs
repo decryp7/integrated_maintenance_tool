@@ -1,8 +1,8 @@
-//! IMT's own log: `tracing` with a CLEF layer (Serilog's compact JSON, see [`crate::clef`]) writing to
-//! daily rolling files (`imt.YYYY-MM-DD.log` via `tracing-appender`) and stdout.
+//! Debrief's own log: `tracing` with a CLEF layer (Serilog's compact JSON, see [`crate::clef`]) writing to
+//! daily rolling files (`debrief.YYYY-MM-DD.log` via `tracing-appender`) and stdout.
 //!
 //! Record flow:
-//! - `log` records (IMT's own `log::info!(...)`, dependencies, and the webview's lines forwarded by the
+//! - `log` records (Debrief's own `log::info!(...)`, dependencies, and the webview's lines forwarded by the
 //!   log plugin's `log` command) go through [`ActivityLogger`] (breadcrumbs, error dedup) and then
 //!   [`TracingBridge`], which hands them to `tracing` (via `tracing-log`; key/values travel as one
 //!   `log.kv` JSON field so CLEF properties keep their types).
@@ -55,7 +55,7 @@ pub fn set_level(level: LogLevel) {
     }
 }
 
-/// The daily file IMT writes to today in `dir`.
+/// The daily file Debrief writes to today in `dir`.
 pub fn active_log_file(dir: &Path) -> PathBuf {
     dir.join(file_for(Utc::now().date_naive()))
 }
@@ -129,10 +129,10 @@ impl FileSink {
             crate::clef::format_event(
                 Utc::now(),
                 log::Level::Warn,
-                "imt_app_lib::logging",
+                "debrief_app_lib::logging",
                 &format!(
                     "The log reached its daily limit of {}; only errors are written until tomorrow",
-                    imt_plugin_api::units::bytes(self.max_bytes)
+                    debrief_plugin_api::units::bytes(self.max_bytes)
                 ),
                 Map::new(),
                 &crate::clef::Enrichment::current(),
@@ -341,8 +341,8 @@ fn subscriber(level: LogLevel, sinks: Vec<Box<dyn LineSink>>) -> (impl Subscribe
     (Registry::default().with(filter).with(ClefLayer::new(sinks)), handle)
 }
 
-/// Installs IMT's logging (see the module docs) and the log plugin (for the webview's `log` command,
-/// which logs through the `log` facade). Logging to files fails soft: without a log folder IMT logs to
+/// Installs Debrief's logging (see the module docs) and the log plugin (for the webview's `log` command,
+/// which logs through the `log` facade). Logging to files fails soft: without a log folder Debrief logs to
 /// stdout only.
 pub fn init<R: tauri::Runtime>(app: &tauri::AppHandle<R>, log_dir: Option<&Path>, limits: &LogLimits) -> tauri::Result<()> {
     app.plugin(tauri_plugin_log::Builder::new().skip_logger().build())?;
@@ -360,7 +360,7 @@ pub fn init<R: tauri::Runtime>(app: &tauri::AppHandle<R>, log_dir: Option<&Path>
     let _ = log::set_boxed_logger(Box::new(ActivityLogger::new(Box::new(TracingBridge))));
     set_level(limits.level);
     if let Some(e) = file_error {
-        log::warn!("IMT's log file is unavailable ({e}); logging to standard output only");
+        log::warn!("Debrief's log file is unavailable ({e}); logging to standard output only");
     }
     Ok(())
 }
@@ -405,12 +405,12 @@ mod tests {
             // A `log` record with key/values, as the activity logger forwards it.
             let kvs: &[(&str, log::kv::Value)] = &[
                 ("Sources", log::kv::Value::from(6u64)),
-                ("SourceContext", log::kv::Value::from("IMT.Activity")),
+                ("SourceContext", log::kv::Value::from("Debrief.Activity")),
             ];
             TracingBridge.log(
                 &log::Record::builder()
                     .level(log::Level::Info)
-                    .target("imt_app_lib::insights")
+                    .target("debrief_app_lib::insights")
                     .key_values(&kvs)
                     .args(format_args!("Workspace opened"))
                     .build(),
@@ -442,7 +442,7 @@ mod tests {
         assert!(!bridged.contains_key("@l"), "Information omits @l");
         assert_eq!(bridged["@m"], "Workspace opened");
         assert_eq!(bridged["Sources"], 6, "key/values keep their type");
-        assert_eq!(bridged["SourceContext"], "IMT.Activity");
+        assert_eq!(bridged["SourceContext"], "Debrief.Activity");
         assert_eq!(bridged["Command"], "run_query", "span fields reach bridged records too");
         assert!(!bridged.contains_key("log.kv") && !bridged.contains_key("log.target"));
         let dep = &got[2];
@@ -459,7 +459,7 @@ mod tests {
     fn global_log_dir() -> &'static Path {
         static DIR: OnceLock<PathBuf> = OnceLock::new();
         DIR.get_or_init(|| {
-            let dir = std::env::temp_dir().join(format!("imt-app-test-global-log-{}", std::process::id()));
+            let dir = std::env::temp_dir().join(format!("debrief-app-test-global-log-{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&dir);
             let files = FileSink::new(&dir, &LogLimits::default()).unwrap();
             tracing::subscriber::set_global_default(test_subscriber(vec![Box::new(files)])).expect("no other global subscriber in tests");
@@ -603,7 +603,11 @@ mod tests {
         // A new day starts a new budget.
         let tomorrow = Utc::now().date_naive().succ_opt().unwrap();
         assert_eq!(sink.admit(log::Level::Info, 10, tomorrow), (true, None));
-        assert!(active_log_file(&dir.0).file_name().unwrap().to_string_lossy().starts_with("imt.20"));
+        assert!(active_log_file(&dir.0)
+            .file_name()
+            .unwrap()
+            .to_string_lossy()
+            .starts_with("debrief.20"));
         // Without a usable folder, the file sink cannot be created (init falls back to stdout).
         std::fs::write(dir.0.join("blocker"), "a file, not a folder").unwrap();
         assert!(FileSink::new(&dir.0.join("blocker").join("logs"), &limits).is_err());

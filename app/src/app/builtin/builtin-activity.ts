@@ -1,12 +1,12 @@
 import { WorkspaceStore } from '../core/workspace.store';
-import { ImtActivityItem } from '../extensions/tokens';
+import { DebriefActivityItem } from '../extensions/tokens';
 import { whenDataOpen } from '../extensions/activity-items';
 
 /**
  * The built-in activity-bar buttons: the Explorer and Search, the core views (Timeline, Metrics, Profile editor) and
  * Settings at the bottom. Search, Timeline and Metrics show only while data is open (they stay in the View menu). Features add theirs (Analysis, Live tail, AI, Tools) the same way plugins do.
  */
-export function builtinActivityItems(store: InstanceType<typeof WorkspaceStore>): ImtActivityItem[] {
+export function builtinActivityItems(store: InstanceType<typeof WorkspaceStore>): DebriefActivityItem[] {
   return [
     { id: 'explorer', label: $localize`:@@shell.activityBar.explorer:Explorer`, icon: 'files', order: 100, toggle: true, active: () => store.sidebarOpen(), run: { command: 'view.toggleSidebar' } },
     { id: 'search', label: $localize`:@@shell.activityBar.search:Search`, icon: 'search', order: 200, keybinding: '/', when: whenDataOpen, run: { command: 'analyze.search' } },

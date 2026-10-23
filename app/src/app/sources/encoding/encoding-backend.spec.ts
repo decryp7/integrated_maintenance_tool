@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { MemoryLogger, tinyBackend } from '../../../testing/helpers';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { Logger } from '../../core/logger';
 import { mockJobs } from '../../jobs/mock-jobs';
 import { EncodingBackend, TauriEncodingBackend } from './encoding-backend';
@@ -35,7 +35,7 @@ describe('TauriEncodingBackend', () => {
   });
 
   it('is the mock in a browser, with failures logged', async () => {
-    TestBed.configureTestingModule({ providers: [{ provide: Logger, useFactory: () => new MemoryLogger() }, { provide: ImtBackend, useValue: tinyBackend() }] });
+    TestBed.configureTestingModule({ providers: [{ provide: Logger, useFactory: () => new MemoryLogger() }, { provide: DebriefBackend, useValue: tinyBackend() }] });
     const backend = TestBed.inject(EncodingBackend);
     expect((await backend.options()).map((o) => o.label)).toContain('Shift_JIS');
     await expect(backend.setSourceEncoding(99, 'GBK')).rejects.toBeDefined();
@@ -52,27 +52,27 @@ describe('MockEncodingBackend', () => {
   });
 
   it('records a choice on the source (manual, 100) as a job, and "auto" or null detects again', async () => {
-    const imt = tinyBackend({ dataset: withEncodings });
-    const b = new MockEncodingBackend(imt);
+    const debrief = tinyBackend({ dataset: withEncodings });
+    const b = new MockEncodingBackend(debrief);
     const job = await b.setSourceEncoding(0, 'windows-1252');
     expect((await mockJobs().wait(job)).state).toBe('done');
-    expect((await imt.workspaceSummary()).sources[0]?.encoding).toEqual({ label: 'windows-1252', confidence: 100, origin: 'manual' });
+    expect((await debrief.workspaceSummary()).sources[0]?.encoding).toEqual({ label: 'windows-1252', confidence: 100, origin: 'manual' });
     expect(b.chosen.get(0)).toBe('windows-1252');
 
     await b.setSourceEncoding(0, null);
-    expect((await imt.workspaceSummary()).sources[0]?.encoding?.origin).toBe('detected');
+    expect((await debrief.workspaceSummary()).sources[0]?.encoding?.origin).toBe('detected');
     await b.setSourceEncoding(0, 'GBK');
     await b.setSourceEncoding(0, 'auto');
-    expect((await imt.workspaceSummary()).sources[0]?.encoding?.origin).toBe('detected');
+    expect((await debrief.workspaceSummary()).sources[0]?.encoding?.origin).toBe('detected');
     expect(b.chosen.get(0)).toBeNull();
   });
 
   it('rejects an unknown source, a binary source, an unknown encoding and a non-mock workspace', async () => {
-    const imt = tinyBackend({ dataset: withEncodings });
-    const b = new MockEncodingBackend(imt);
+    const debrief = tinyBackend({ dataset: withEncodings });
+    const b = new MockEncodingBackend(debrief);
     await expect(b.setSourceEncoding(99, 'GBK')).rejects.toMatchObject({ code: 'notFound' });
     await expect(b.setSourceEncoding(1, 'GBK')).rejects.toMatchObject({ code: 'invalid' });
     await expect(b.setSourceEncoding(0, 'klingon')).rejects.toMatchObject({ code: 'invalid' });
-    await expect(new MockEncodingBackend({} as ImtBackend).setSourceEncoding(0, 'GBK')).rejects.toMatchObject({ code: 'invalid' });
+    await expect(new MockEncodingBackend({} as DebriefBackend).setSourceEncoding(0, 'GBK')).rejects.toMatchObject({ code: 'invalid' });
   });
 });

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
-// Runs `ng <command> …` with the build's commit and date defined as IMT_BUILD_INFO (read by
-// src/app/about/build-info.ts and shown in About IMT). Never fails the build for missing git:
+// Runs `ng <command> …` with the build's commit and date defined as DEBRIEF_BUILD_INFO (read by
+// src/app/about/build-info.ts and shown in About Debrief). Never fails the build for missing git:
 // the values fall back to 'unknown'.
 //
 // Usage: node scripts/build-info.mjs build [ng args…]   (npm run build)
@@ -30,7 +30,7 @@ export function buildInfo({ head = gitShortHead, now = () => new Date() } = {}) 
 
 /** The `--define` value for the Angular builder (a JS object literal). */
 export function defineArg(info) {
-  return `IMT_BUILD_INFO=${JSON.stringify({ commit: info.commit, date: info.date })}`;
+  return `DEBRIEF_BUILD_INFO=${JSON.stringify({ commit: info.commit, date: info.date })}`;
 }
 
 /** Arguments for `node <ng.js> …`: the command, its arguments and the define. */

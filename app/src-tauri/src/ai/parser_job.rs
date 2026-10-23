@@ -4,9 +4,9 @@
 
 use super::commands::sample_of;
 use super::error::{AiCmdError, AiResult as Ai};
-use imt_ai::StoreRef;
-use imt_core::api::{ContextRequest, SourceInfo};
-use imt_core::parser::verify::{zone, FileFacts};
+use debrief_ai::StoreRef;
+use debrief_core::api::{ContextRequest, SourceInfo};
+use debrief_core::parser::verify::{zone, FileFacts};
 use std::io::Read;
 use std::path::Path;
 
@@ -137,7 +137,7 @@ mod tests {
 
     #[test]
     fn a_source_is_read_bounded_with_its_time_and_the_offsets_of_its_folder() {
-        let dir = std::env::temp_dir().join(format!("imt-parser-job-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("debrief-parser-job-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(dir.join("other")).unwrap();
         let (app, web, far) = (dir.join("app.log"), dir.join("web.log"), dir.join("other/db.log"));

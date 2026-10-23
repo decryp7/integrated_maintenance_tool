@@ -1,7 +1,7 @@
 import { computed, effect, inject, untracked } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { Timeline } from '../api.types';
-import { ImtBackend } from '../backend';
+import { DebriefBackend } from '../backend';
 import { QueryStore } from './query.store';
 import { UiPrefsStore } from './ui-prefs.store';
 import { errorText, WorkspaceDataStore } from './workspace-data.store';
@@ -31,7 +31,7 @@ export const TimelineStore = signalStore(
   })),
   withHooks({
     onInit(store) {
-      const backend = inject(ImtBackend);
+      const backend = inject(DebriefBackend);
       const data = inject(WorkspaceDataStore);
       const query = inject(QueryStore);
       const prefs = inject(UiPrefsStore);

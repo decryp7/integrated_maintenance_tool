@@ -44,13 +44,13 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
  * several lines while focused (Shift+Enter for a new line). History, Ask AI and Save sit inside it.
  */
 @Component({
-  selector: 'imt-query-field',
+  selector: 'debrief-query-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ClickOutside, Icon],
   host: { '[class.focused]': 'focused()', '[class.query]': "field.kind() === 'query'" },
   template: `
-    <div class="box" [class.invalid]="invalid()" [class.expanded]="expanded()" (imtClickOutside)="closePopups()">
-      <imt-icon [name]="field.kind() === 'query' ? 'analysis' : 'search'" [size]="14" class="faint lead" />
+    <div class="box" [class.invalid]="invalid()" [class.expanded]="expanded()" (debriefClickOutside)="closePopups()">
+      <debrief-icon [name]="field.kind() === 'query' ? 'analysis' : 'search'" [size]="14" class="faint lead" />
       <div class="editor">
         @if (field.kind() === 'query') {
           <div class="mirror mono" aria-hidden="true" [class.wrap]="expanded()"><div class="shift" [style.transform]="shift()">@for (s of segments(); track $index) {<span [class]="s.cls" [class.err]="s.err">{{ s.text }}</span>}@if (caretError()) {<span class="err-caret"></span>}</div></div>
@@ -74,6 +74,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
           [attr.aria-invalid]="invalid() ? 'true' : null"
           [attr.aria-describedby]="describedBy()"
           [value]="field.text()"
+          [attr.title]="focused() ? null : field.text() || null"
           (input)="onInput()"
           (keydown)="onKey($event)"
           (keyup)="sync()"
@@ -93,16 +94,16 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
         }
       </div>
       @if (field.kind() === 'text' && smart.added() > 0) {
-        <span class="partial-note mono" role="status" data-testid="partial-note" [title]="partialNote()">+{{ smart.added() }}</span>
+        <span class="partial-note mono" role="status" data-testid="partial-note" [title]="partialNote()" [attr.aria-label]="partialNote()">+{{ smart.added() }}</span>
       }
       @if (field.kind() === 'text') {
         <button type="button" class="toggle mono" [class.on]="q().regex" (click)="store.setRegex(!q().regex)" title="Regular expression" i18n-title="@@workspace.filterBar.regex" [attr.aria-pressed]="q().regex">.*</button>
         <button type="button" class="toggle mono" [class.on]="q().caseSensitive" (click)="store.setCaseSensitive(!q().caseSensitive)" title="Match case" i18n-title="@@workspace.filterBar.matchCase" [attr.aria-pressed]="q().caseSensitive">Aa</button>
       }
-      <div class="anchor" (imtClickOutside)="historyOpen.set(false)">
+      <div class="anchor" (debriefClickOutside)="historyOpen.set(false)">
         <button type="button" class="ib" data-testid="query-history" aria-label="Query history" i18n-aria-label="@@analysis.queryField.history" title="Query history (Alt+↑ / Alt+↓)" i18n-title="@@analysis.queryField.historyTitle"
                 (click)="historyOpen.set(!historyOpen())" [attr.aria-expanded]="historyOpen()" aria-haspopup="true" [disabled]="!session.history.entries().length">
-          <imt-icon name="refresh" [size]="13" />
+          <debrief-icon name="refresh" [size]="13" />
         </button>
         @if (historyOpen()) {
           <ul class="popup history" aria-label="Query history" i18n-aria-label="@@analysis.queryView.historyLabel">
@@ -119,12 +120,12 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
         </button>
       }
       <button type="button" class="ib" data-testid="query-save" aria-label="Save as a saved query" i18n-aria-label="@@analysis.queryField.save" title="Save the current search and filters as a saved query" i18n-title="@@analysis.queryField.saveTitle" [disabled]="!field.text().trim()" (click)="save()">
-        <imt-icon name="note" [size]="13" />
+        <debrief-icon name="note" [size]="13" />
       </button>
       @if (field.kind() === 'query') {
         @if (session.running()) {
           <button type="button" class="ib" data-testid="query-cancel" aria-label="Cancel the running query" i18n-aria-label="@@analysis.queryField.cancel" title="Cancel the running query (Esc)" i18n-title="@@analysis.queryView.cancelTitle" [disabled]="session.cancelling()" (click)="session.cancel()">
-            <imt-icon name="stop" [size]="13" />
+            <debrief-icon name="stop" [size]="13" />
           </button>
         } @else {
           <button type="button" class="run" data-testid="query-run" [class.pending]="field.unrun()" [title]="runTitle" (click)="submit()" i18n="Run a query|Button@@analysis.queryView.run">Run</button>
@@ -133,8 +134,8 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     </div>
   `,
   styles: `
-    /* Basis 360 px: the bar's other controls shrink (the range first) before the field falls below a usable width. */
-    :host { position: relative; flex: 1 1 360px; min-width: 420px; height: 30px; display: block; }
+    /* Basis 300 px: the bar wraps before the field falls below a usable width, so the placeholder is never cut. */
+    :host { position: relative; flex: 1 1 340px; min-width: 340px; height: 30px; display: block; }
     .box {
       position: absolute; inset: 0 0 auto 0; min-height: 30px; box-sizing: border-box; z-index: 5;
       display: flex; align-items: flex-start; gap: 6px; padding: 0 4px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2);
@@ -176,7 +177,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     .popup { position: absolute; z-index: 20; top: calc(100% + 4px); left: 0; min-width: 260px; max-width: 520px; max-height: 240px; overflow: auto; margin: 0; padding: 4px 0; list-style: none; background: var(--bg-3); border: 1px solid var(--border-3); border-radius: 6px; box-shadow: var(--shadow); }
     .popup li { display: flex; gap: 10px; align-items: baseline; padding: 4px 10px; cursor: pointer; }
     .popup li.active, .popup li:hover { background: var(--bg-sel); }
-    .kind { width: 58px; flex: none; font-size: var(--fs-2xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+    .kind { width: 58px; flex: none; font-size: var(--fs-2xs); color: var(--muted); }
     .history { top: 28px; right: 0; left: auto; width: 480px; }
     .history li { padding: 0; }
     .history .item { all: unset; box-sizing: border-box; width: 100%; min-height: 24px; padding: 4px 10px; cursor: pointer; font-size: var(--fs-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -271,6 +272,8 @@ export class QueryField {
 
   protected onBlur(): void {
     this.focused.set(false);
+    // A long single-line query stays scrolled to the caret after typing; show its start again when the field is at rest.
+    this.el().scrollLeft = 0;
     queueMicrotask(() => this.resize());
   }
 
@@ -416,7 +419,7 @@ export class QueryField {
  * run in flight, a cancelled or failed run, or what the applied query matched. Renders nothing otherwise.
  */
 @Component({
-  selector: 'imt-query-status',
+  selector: 'debrief-query-status',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [QlSuggestions],
   host: { '[class.empty]': '!shown()' },
@@ -431,7 +434,7 @@ export class QueryField {
           </span>
         } @else if (errorText(); as msg) {
           <span id="ql-error" class="err" role="alert"><span aria-hidden="true">⚠ </span>{{ msg }}</span>
-          <imt-ql-suggestions [error]="session.error()" (pick)="pick.emit($event)" />
+          <debrief-ql-suggestions [error]="session.error()" (pick)="pick.emit($event)" />
         } @else if (session.runError(); as r) {
           <span id="ql-error" class="err">⚠ {{ r }}</span>
         } @else if (session.cancelled()) {

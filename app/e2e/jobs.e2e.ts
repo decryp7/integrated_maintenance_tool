@@ -6,7 +6,7 @@ import { openAppWith } from './mock-url';
 /** The app with the AI mock at `search` (its own step time: `openAiApp` fixes a fast one). */
 async function openAiApp(page: Page, search: string): Promise<void> {
   await openAppWith(page, `?${search.includes('mockAiStepMs') ? '' : 'mockAiStepMs=5&'}${search}`);
-  await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
+  await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible();
 }
 
 // Jobs, notifications and research against the mock backends (src/app/jobs/mock-jobs.ts,
@@ -14,8 +14,8 @@ async function openAiApp(page: Page, search: string): Promise<void> {
 // 2 s, a toast after 10 s) are shortened with `mockJobsVisibleMs` / `mockJobsAttentionMs` so the tests stay fast;
 // the rules themselves are tested in Rust (app/src-tauri/src/jobs).
 
-const jobsPane = (page: Page) => page.locator('imt-jobs-panel');
-const noticesPane = (page: Page) => page.locator('imt-notifications-panel');
+const jobsPane = (page: Page) => page.locator('debrief-jobs-panel');
+const noticesPane = (page: Page) => page.locator('debrief-notifications-panel');
 
 // Jobs and Notifications are status tools: they slide out of the bottom edge and slide away again when focus moves
 // elsewhere (a dialog, Escape), so each assertion on them opens them first (and does nothing when they are open).
@@ -33,7 +33,7 @@ async function openNotifications(page: Page) {
 
 /** Explains the first event: no dialog, the request runs as a job and a toast says so. */
 async function explainInBackground(page: Page): Promise<void> {
-  await page.locator('imt-events-grid [role=row].row').first().click();
+  await page.locator('debrief-events-grid [role=row].row').first().click();
   await runCommand(page, 'AI: Explain the selected event');
   const started = page.getByTestId('notice-toast').filter({ hasText: /Explaining event #\d+ — running in Jobs/ });
   await expect(started).toBeVisible();
@@ -44,7 +44,7 @@ async function explainInBackground(page: Page): Promise<void> {
 /** Exports a new incident report named `title`; the dialog closes at once while a slow export job writes it. */
 async function exportReport(page: Page, title: string): Promise<void> {
   await runCommand(page, 'New incident report');
-  const view = page.locator('imt-report-view');
+  const view = page.locator('debrief-report-view');
   await view.getByRole('textbox', { name: 'Report title' }).fill(title);
   await view.getByRole('textbox', { name: 'Report title' }).press('Tab');
   await runCommand(page, 'Export report');
@@ -64,12 +64,12 @@ test.describe('jobs', () => {
     await expect(pane.locator('li').filter({ hasText: 'Explain event' })).toBeVisible();
     await expect(pane.locator('li').filter({ hasText: 'Export report case-7.html' })).toContainText('Running');
     await expect(page.getByTestId('status-jobs')).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'jobs-pane', 'imt-jobs-panel');
+    await expectNoSeriousViolations(page, testInfo, 'jobs-pane', 'debrief-jobs-panel');
 
     // The AI answer finishes first: "Explanation ready" with View, and View opens the answer with its citations.
     const toast = page.getByTestId('notice-toast').filter({ hasText: 'Explanation ready' });
     await expect(toast).toBeVisible({ timeout: 15_000 });
-    await expectNoSeriousViolations(page, testInfo, 'jobs-toast', 'imt-notification-toasts');
+    await expectNoSeriousViolations(page, testInfo, 'jobs-toast', 'debrief-notification-toasts');
     await toast.getByTestId('notice-toast-primary').click();
     await expect(page.getByTestId('ai-narrative')).toContainText('failed order submission');
     await page.keyboard.press('Escape');
@@ -110,7 +110,7 @@ test.describe('notifications', () => {
     const pane = await openNotifications(page);
     const finished = pane.locator('li').filter({ hasText: 'Explanation ready' });
     await expect(finished).toHaveClass(/unread/);
-    await expectNoSeriousViolations(page, testInfo, 'notifications-pane', 'imt-notifications-panel');
+    await expectNoSeriousViolations(page, testInfo, 'notifications-pane', 'debrief-notifications-panel');
     await finished.getByRole('button', { name: 'View', exact: true }).click();
     await expect(page.getByTestId('ai-narrative')).toBeVisible();
     await page.keyboard.press('Escape');
@@ -118,17 +118,21 @@ test.describe('notifications', () => {
     await expect(finished).not.toHaveClass(/unread/);
 
     // Live alerts: the same kind on the same instance merges into one message with a count.
-    await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
+    await page.locator('debrief-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
     // An alert every 300 ms of live ticks, the kinds in turn: within 3 s each kind came more than once.
     await page.clock.runFor(3_000);
     await openNotifications(page);
     await expect(pane.locator('li').filter({ hasText: /\(×\d+\)/ }).first()).toBeVisible();
-    await page.locator('imt-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
-    await openNotifications(page);
-    await pane.getByTestId('notices-mark-all').dispatchEvent('click');
+    await page.locator('debrief-status-bar').getByRole('button', { name: 'Live tail', exact: true }).click();
+    // The slid-out list is still closing from the click in the status bar: open it again until it stays.
+    await expect(async () => {
+      await openNotifications(page);
+      await pane.getByTestId('notices-mark-all').dispatchEvent('click', undefined, { timeout: 2000 });
+    }).toPass({ timeout: 20_000 });
     await expect(pane.locator('li.unread')).toHaveCount(0);
     await expect(bell).not.toContainText(/\d/);
-    await expectNoSeriousViolations(page, testInfo, 'notifications-read', 'imt-notifications-panel');
+    await openNotifications(page);
+    await expectNoSeriousViolations(page, testInfo, 'notifications-read', 'debrief-notifications-panel');
   });
 });
 
@@ -149,7 +153,7 @@ test.describe('research', () => {
     // The research ran as a job: "Research finished" with View.
     await expect(page.getByTestId('notice-toast').filter({ hasText: 'Research finished' })).toBeVisible();
     await expect((await openJobs(page)).locator('li').filter({ hasText: 'Research: what does HRESULT 0x80070005' })).toContainText('Done');
-    await expectNoSeriousViolations(page, testInfo, 'research-answer', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'research-answer', 'debrief-ai-chat-panel');
   });
 
   test('Research… drafts the search text, confirms workspace data in it, and the answer opens in the chat', async ({ page }, testInfo) => {

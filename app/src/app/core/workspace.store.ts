@@ -52,6 +52,7 @@ export class WorkspaceStore {
   readonly applyImported = this.data.applyImported;
   readonly openPaths = this.data.openPaths;
   readonly pickAndOpen = this.data.pickAndOpen;
+  readonly openInRange = this.data.openInRange;
   readonly removeSource = this.data.removeSource;
   readonly clearWorkspace = this.data.clearWorkspace;
   readonly reload = this.data.reload;
@@ -115,6 +116,7 @@ export class WorkspaceStore {
   readonly toggleSort = this.prefs.toggleSort;
   readonly addColumn = this.prefs.addColumn;
   readonly removeColumn = this.prefs.removeColumn;
+  readonly setColumns = this.prefs.setColumns;
   readonly sidebarOpen = this.shell.sidebarOpen;
   readonly dropHover = this.shell.dropHover;
   readonly focusSearchNonce = this.shell.focusSearchNonce;

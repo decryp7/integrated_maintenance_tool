@@ -20,8 +20,8 @@ describe('window events', () => {
 
   it('listens with this window as the target and passes the payload', async () => {
     const handler = vi.fn();
-    const unlisten = await listenHere('imt://open', handler);
-    expect(tauri.listen).toHaveBeenCalledWith('imt://open', expect.any(Function), { target: 'w-7' });
+    const unlisten = await listenHere('debrief://open', handler);
+    expect(tauri.listen).toHaveBeenCalledWith('debrief://open', expect.any(Function), { target: 'w-7' });
     expect(handler).toHaveBeenCalledWith({ n: 1 });
     unlisten();
     expect(tauri.unlisten).toHaveBeenCalled();

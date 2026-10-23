@@ -115,7 +115,7 @@ export class MockProfileHistory {
     const at = new Date(now);
     const pad = (n: number, w = 2) => String(n).padStart(w, '0');
     const savedAt = `${at.getUTCFullYear()}${pad(at.getUTCMonth() + 1)}${pad(at.getUTCDate())}-${pad(at.getUTCHours())}${pad(at.getUTCMinutes())}${pad(at.getUTCSeconds())}${pad(at.getUTCMilliseconds(), 3)}`;
-    this.versions.unshift({ file: `${savedAt}-${++this.seq}.imtprofile.toml`, name, savedAt, savedAtMs: now, toml });
+    this.versions.unshift({ file: `${savedAt}-${++this.seq}.debriefprofile.toml`, name, savedAt, savedAtMs: now, toml });
     this.versions.length = Math.min(this.versions.length, MockProfileHistory.LIMIT);
   }
 

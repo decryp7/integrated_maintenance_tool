@@ -20,7 +20,7 @@ export interface OpenMenu {
   returnFocus: HTMLElement | null;
 }
 
-/** Opens the one context menu the app shows at a time; rendered by `imt-context-menu-host`. */
+/** Opens the one context menu the app shows at a time; rendered by `debrief-context-menu-host`. */
 @Injectable({ providedIn: 'root' })
 export class ContextMenuService {
   readonly menu = signal<OpenMenu | null>(null);

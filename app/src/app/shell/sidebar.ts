@@ -18,6 +18,7 @@ import { SourceColors } from '../sources/source-colors.store';
 import { SourceFileActions } from '../sources/source-file-actions';
 import { SourceSwatch } from '../sources/source-swatch';
 import { TimestampWarning } from './timestamp-warning';
+import { ImportRange } from '../import/import-range';
 import { AiLauncher } from '../ai/ai-launcher';
 import { AiStatusStore } from '../ai/ai-status.store';
 import { isImagePath } from '../ai/vision/image-files';
@@ -52,26 +53,27 @@ function shortPath(path: string): string {
 }
 
 @Component({
-  selector: 'imt-sidebar',
+  selector: 'debrief-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch, TimestampWarning],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@shell.sidebar.explorer">Explorer</span>
       <span class="tools">
-        <button class="icon-btn" aria-label="Open files" title="Open files" i18n-aria-label="@@shell.sidebar.openFiles" i18n-title="@@shell.sidebar.openFilesTitle" (click)="store.pickAndOpen(false)"><imt-icon name="file" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Open folder" title="Open folder" i18n-aria-label="@@shell.sidebar.openFolder" i18n-title="@@shell.sidebar.openFolderTitle" (click)="store.pickAndOpen(true)"><imt-icon name="folder" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Open for live tail" title="Open for live tail…" i18n-aria-label="@@shell.sidebar.openLive" i18n-title="@@shell.sidebar.openLiveTitle" (click)="openLive()"><imt-icon name="timeline" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Re-import all" title="Re-import all" i18n-aria-label="@@shell.sidebar.reimportAll" i18n-title="@@shell.sidebar.reimportAllTitle" (click)="store.reload()"><imt-icon name="refresh" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open files" title="Open files" i18n-aria-label="@@shell.sidebar.openFiles" i18n-title="@@shell.sidebar.openFilesTitle" (click)="store.pickAndOpen(false)"><debrief-icon name="file" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open folder" title="Open folder" i18n-aria-label="@@shell.sidebar.openFolder" i18n-title="@@shell.sidebar.openFolderTitle" (click)="store.pickAndOpen(true)"><debrief-icon name="folder" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open a time range" title="Open a time range…" i18n-aria-label="@@shell.sidebar.openRange" i18n-title="@@shell.sidebar.openRangeTitle" data-testid="open-range" (click)="importRange.pickAndOpen(true)"><debrief-icon name="metrics" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open for live tail" title="Open for live tail…" i18n-aria-label="@@shell.sidebar.openLive" i18n-title="@@shell.sidebar.openLiveTitle" (click)="openLive()"><debrief-icon name="timeline" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Re-import all" title="Re-import all" i18n-aria-label="@@shell.sidebar.reimportAll" i18n-title="@@shell.sidebar.reimportAllTitle" (click)="store.reload()"><debrief-icon name="refresh" [size]="14" /></button>
       </span>
     </div>
 
-    <div class="sources" role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="imt-sources-read-only">
-      <span id="imt-sources-read-only" class="sr">{{ readOnly }}</span>
+    <div class="sources" role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="debrief-sources-read-only">
+      <span id="debrief-sources-read-only" class="sr">{{ readOnly }}</span>
       @for (row of layout().rows; track row.item.kind === 'file' ? 'f' + row.item.source.id : 'g' + row.item.group.key) {
         @let item = row.item;
         @if (row.heading; as h) {
-          <div class="folder-head" data-testid="folder-heading" [title]="h.path"><imt-icon name="folder" [size]="12" /><span class="ellipsis">{{ h.label }}</span></div>
+          <div class="folder-head" data-testid="folder-heading" [title]="h.path"><debrief-icon name="folder" [size]="12" /><span class="ellipsis">{{ h.label }}</span></div>
         }
         @if (item.kind === 'file') {
           <ng-container *ngTemplateOutlet="file; context: { $implicit: item.source, member: false, nameOnly: layout().byFolder }" />
@@ -85,8 +87,8 @@ function shortPath(path: string): string {
               [attr.aria-expanded]="isOpen(g.key)"
               (click)="toggle(g.key)"
             >
-              <imt-icon [name]="isOpen(g.key) ? 'chevronDown' : 'chevronRight'" [size]="12" />
-              <imt-icon name="files" [size]="13" class="faint" />
+              <debrief-icon [name]="isOpen(g.key) ? 'chevronDown' : 'chevronRight'" [size]="12" />
+              <debrief-icon name="files" [size]="13" class="faint" />
               <span class="ellipsis name">{{ g.label }}</span>
               @if (g.split) {
                 <span class="badge" data-testid="split-badge" i18n="@@shell.sidebar.groupSources">{{ g.sources.length }} sources</span>
@@ -95,7 +97,7 @@ function shortPath(path: string): string {
                 <span class="sr" i18n="@@shell.sidebar.groupNewestSr">, newest {{ g.newest.name }}</span>
               }
             </button>
-            <span class="mono count">{{ compact(g.records) }}</span>
+            <span class="count">{{ compact(g.records) }}</span>
           </div>
           @if (!isOpen(g.key)) {
             @if (!g.split) {
@@ -116,17 +118,16 @@ function shortPath(path: string): string {
         </div>
       }
       @for (u of unrecognized(); track u.path) {
-        <div class="src dim" [title]="u.reason">
-          <imt-icon name="file" [size]="13" />
+        <div class="src dim unparsed" [title]="u.reason">
+          <debrief-icon name="file" [size]="13" />
           <span class="ellipsis name">{{ short(u.path) }}</span>
-          <span class="badge">—</span>
           @if (isImage(u.path)) {
             <button class="btn ghost setup" data-testid="mark-up-image" [attr.aria-label]="markUpLabel(u.name)" title="Open the image to mark areas and write notes" i18n-title="@@shell.sidebar.markUpTitle" (click)="markUp(u)" i18n="@@shell.sidebar.markUp">Mark up</button>
           }
           @if (canOpenImage(u.path)) {
             <button class="btn ghost setup" data-testid="open-image" [attr.aria-label]="openImageLabel(u.name)" title="Open the image for the AI assistant" i18n-title="@@shell.sidebar.openImageTitle" (click)="openImage(u)" i18n="@@shell.sidebar.openImage">Open image</button>
           } @else if (!isImage(u.path)) {
-            <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach IMT how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
+            <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach Debrief how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
           }
         </div>
       }
@@ -134,15 +135,15 @@ function shortPath(path: string): string {
 
     @if (sources().length) {
       <div class="divider"></div>
-      <imt-fields-panel />
+      <debrief-fields-panel />
     }
 
     <ng-template #file let-s let-member="member" let-nameOnly="nameOnly">
       <div class="src" [class.member]="member" [title]="sourceTitle(s)" (contextmenu)="sourceMenu($event, s)">
         @if (colors.forExplorer(s); as m) {
-          <imt-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="12" />
+          <debrief-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="12" />
         } @else {
-          <imt-icon name="file" [size]="13" class="faint" />
+          <debrief-icon name="file" [size]="13" class="faint" />
         }
         @let nm = splitName(member || nameOnly ? s.name : short(s.path));
         <span class="name" [title]="s.path"><span class="head">{{ nm.head }}</span><span class="tail">{{ nm.tail }}</span></span>
@@ -152,18 +153,19 @@ function shortPath(path: string): string {
         @if (s.offsetMs) {
           <span class="skew mono" data-testid="skew-badge" [title]="skewLabel(s.offsetMs)" [attr.aria-label]="skewLabel(s.offsetMs)" role="img">{{ offset(s.offsetMs) }}</span>
         }
-        <imt-timestamp-warning [source]="s" />
+        <debrief-timestamp-warning [source]="s" />
         @if (notes.bySource().get(s.path); as n) {
-          <span class="notes-badge" data-testid="source-notes-badge" role="img" [title]="notesLabel(n)" [attr.aria-label]="notesLabel(n)"><imt-icon name="note" [size]="11" />{{ n }}</span>
+          <span class="notes-badge" data-testid="source-notes-badge" role="img" [title]="notesLabel(n)" [attr.aria-label]="notesLabel(n)"><debrief-icon name="note" [size]="11" />{{ n }}</span>
         }
         @if (encodingShown(s); as enc) {
-          <span class="enc mono" data-testid="encoding-badge" [class.low]="isLowConfidence(enc)" role="img" [title]="encodingTitle(enc)" [attr.aria-label]="encodingTitle(enc)">{{ encodingBadge(enc) }}</span>
+          <span class="enc mono" data-testid="encoding-badge" [class.low]="isLowConfidence(enc)" role="img" [title]="encodingTitle(enc)" [attr.aria-label]="encodingTitle(enc)"><debrief-icon name="alert" [size]="12" /><span class="sr">{{ encodingBadge(enc) }}</span></span>
         }
-        <span class="format" data-testid="format-badge" role="img" [title]="s.importer" [attr.aria-label]="formatLabel(s.importer)"><imt-icon [name]="formatIcon(s.importer)" [size]="12" /></span>
-        <span class="mono count">{{ compact(s.records) }}</span>
-        <button class="icon-btn rm" aria-haspopup="menu" data-testid="source-actions" [attr.aria-label]="actionsLabel(s.name)" [attr.title]="actionsLabel(s.name)" (click)="sourceMenu($event, s)"><imt-icon name="drag" [size]="12" /></button>
-        <button class="icon-btn rm" [attr.aria-label]="adjustClockLabel(s.name)" [attr.title]="adjustClockTitle(s.name)" (click)="adjustClock(s)"><imt-icon name="timeline" [size]="12" /></button>
-        <button class="icon-btn rm" [attr.aria-label]="removeLabel(s.name)" (click)="store.removeSource(s.id)" [attr.title]="removeLabel(s.name)"><imt-icon name="close" [size]="12" /></button>
+        <span class="count">{{ compact(s.records) }}</span>
+        <span class="actions">
+        <button class="icon-btn rm" aria-haspopup="menu" data-testid="source-actions" [attr.aria-label]="actionsLabel(s.name)" [attr.title]="actionsLabel(s.name)" (click)="sourceMenu($event, s)"><debrief-icon name="drag" [size]="12" /></button>
+        <button class="icon-btn rm" [attr.aria-label]="adjustClockLabel(s.name)" [attr.title]="adjustClockTitle(s.name)" (click)="adjustClock(s)"><debrief-icon name="timeline" [size]="12" /></button>
+        <button class="icon-btn rm" [attr.aria-label]="removeLabel(s.name)" (click)="store.removeSource(s.id)" [attr.title]="removeLabel(s.name)"><debrief-icon name="close" [size]="12" /></button>
+        </span>
       </div>
       @if (s.error) {
         <div class="src-error">{{ s.error }}</div>
@@ -176,21 +178,24 @@ function shortPath(path: string): string {
     .tools { display: flex; gap: 2px; }
     .small { font-size: var(--fs-xs); }
     .sources { padding: 0 8px 4px; max-height: 40%; overflow: auto; flex: none; }
-    .src { display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 2px 0 6px; border-radius: 5px; color: var(--text-2); }
+    .src { position: relative; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 2px 0 6px; border-radius: 5px; color: var(--text-2); }
     .src:hover { background: var(--bg-hover); }
     /* Truncates with an ellipsis but never collapses to nothing next to the badge, count and row buttons. */
-    .src .name { flex: 1; min-width: 6ch; display: flex; }
+    .src .name { flex: 1; min-width: 0; display: flex; overflow: hidden; }
     .src .name .head { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .src .name .tail { flex: none; white-space: pre; }
-    .src .format { flex: none; display: inline-flex; color: var(--faint); }
     .folder-head { display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 6px; margin-top: 4px; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
     .group .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .src .count { font-size: var(--fs-xs); color: var(--faint); width: 38px; text-align: end; }
-    .src .rm { width: 20px; height: 20px; visibility: hidden; }
-    .src:hover .rm, .src .rm:focus-visible { visibility: visible; }
+    .src .count { flex: none; font-size: var(--fs-xs); color: var(--muted); min-width: 32px; text-align: end; font-variant-numeric: tabular-nums; }
+    /* Row buttons overlay the count on hover or focus: they never take width from the name. */
+    .src .actions { position: absolute; inset-block: 0; inset-inline-end: 2px; display: none; align-items: center; gap: 0; padding-inline-start: 8px; background: var(--bg-hover); border-radius: 5px; }
+    .src:hover .actions, .src:focus-within .actions { display: flex; }
+    .src .rm { width: 20px; height: 20px; }
     .src.dim { color: var(--faint); font-style: italic; }
-    .src.dim imt-icon { opacity: 0.6; }
-    .setup { height: 20px; padding: 0 6px; font-size: var(--fs-xs); font-style: normal; }
+    .src.dim debrief-icon { opacity: 0.6; }
+    .src.unparsed .name { flex-basis: calc(100% - 22px); }
+    .src.unparsed { flex-wrap: wrap; height: auto; min-height: 26px; padding-block: 2px; }
+    .setup { height: 20px; padding: 0 6px; font-size: var(--fs-xs); font-style: normal; margin-inline-start: 21px; }
     .src-error { margin: 0 6px 4px 27px; font-size: var(--fs-xs); color: var(--danger-text); }
     .empty { padding: 8px 6px; color: var(--muted); }
     .empty p { margin: 4px 0 10px; }
@@ -200,18 +205,20 @@ function shortPath(path: string): string {
     .group .expander { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; height: 24px; padding: 0; border: 0; background: transparent; color: inherit; font: inherit; cursor: pointer; text-align: start; }
     .group .expander:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; border-radius: 4px; }
     .newest { margin: -4px 6px 2px 46px; font-size: var(--fs-xs); }
-    .state { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--border-2); color: var(--text-2); }
+    .state { flex: none; max-width: 9ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--border-2); color: var(--text-2); }
     .state.rotated, .state.truncated { border-color: var(--warn-text); color: var(--warn-text); }
     .state.deleted { border-style: dashed; }
     .state.error { border-color: var(--danger-text); color: var(--danger-text); }
     .notes-badge { flex: none; display: inline-flex; align-items: center; gap: 2px; font-size: var(--fs-2xs); color: var(--accent-text); }
-    .enc { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--border-3); color: var(--text-2); }
-    .enc.low { border-color: var(--warn-text, var(--accent)); color: var(--warn-text, var(--text-2)); }
+    /* A guessed encoding is a small warning mark; the encoding itself is in the tooltip and read by screen readers. */
+    .enc { flex: none; display: inline-flex; color: var(--faint); }
+    .enc.low { color: var(--warn-text); }
     .skew { flex: none; font-size: var(--fs-2xs); padding: 0 5px; border-radius: 7px; border: 1px solid var(--accent); color: var(--text-2); }
   `,
 })
 export class Sidebar {
   protected readonly store = inject(WorkspaceStore);
+  protected readonly importRange = inject(ImportRange);
   private readonly dialogs = inject(DialogService);
 
   protected readonly compact = formatCompact;
@@ -235,21 +242,12 @@ export class Sidebar {
   private readonly expanded = signal<ReadonlySet<string>>(new Set());
   protected readonly unrecognized = computed(() => this.store.summary()?.unrecognized ?? []);
 
-  /** The importer's id as the small icon in a row: logs are files, a registry is a table, others are files too. */
-  protected formatIcon(importer: string): 'file' | 'columns' {
-    return /csv|tsv|registry|table/i.test(importer) ? 'columns' : 'file';
-  }
-
-  protected formatLabel(importer: string): string {
-    return $localize`:@@shell.sidebar.format:Format: ${importer}:format:`;
-  }
-
   protected sourceTitle(s: SourceInfo): string {
     const tz = this.store.timezone();
     const count = formatCount(s.records);
     const skipped = s.skipped;
     const range = `${formatDateTime(s.from, tz)} → ${formatDateTime(s.to, tz)}`;
-    const lines = [s.path, $localize`:@@shell.sidebar.sourceTitle.counts:${count}:count: events · ${skipped}:skipped: skipped`];
+    const lines = [s.path, $localize`:@@shell.sidebar.sourceTitle.format:Format: ${s.importer}:format:`, $localize`:@@shell.sidebar.sourceTitle.counts:${count}:count: events · ${skipped}:skipped: skipped`];
     if (s.dropped > 0) {
       const dropped = formatCount(s.dropped);
       lines.push($localize`:@@shell.sidebar.sourceTitle.dropped:${dropped}:dropped: dropped by pipeline`);

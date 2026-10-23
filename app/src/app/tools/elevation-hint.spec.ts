@@ -8,7 +8,7 @@ import { ToolError } from './elevation-hint';
 
 @Component({
   imports: [ToolError],
-  template: `<imt-tool-error [message]="msg()" [retry]="retry()" (dismissed)="dismissed = dismissed + 1" (retried)="retried = retried + 1" />`,
+  template: `<debrief-tool-error [message]="msg()" [retry]="retry()" (dismissed)="dismissed = dismissed + 1" (retried)="retried = retried + 1" />`,
 })
 class Host {
   msg = signal<string | null>(null);
@@ -57,7 +57,7 @@ describe('ToolError', () => {
     const mac = await setup({ platform: 'macos' });
     mac.componentInstance.msg.set('Access is denied');
     await settle(mac);
-    expect(text(mac)).toContain('Run IMT as administrator');
+    expect(text(mac)).toContain('Run Debrief as administrator');
     TestBed.resetTestingModule();
     const admin = await setup({ elevated: true });
     admin.componentInstance.msg.set('Access is denied');

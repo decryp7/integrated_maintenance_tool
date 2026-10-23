@@ -1,12 +1,12 @@
 import { Component, EnvironmentProviders, Provider, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MarkerKind, PluginInfo, Query } from '../app/core/api.types';
-import { ImtBackend } from '../app/core/backend';
+import { DebriefBackend } from '../app/core/backend';
 import { Logger, LogProps } from '../app/core/logger';
 import { DEMO_START, MockDataset, MockRecord } from '../app/core/mock/mock-data';
 import { MockBackend, MockBackendOptions } from '../app/core/mock/mock-backend';
 import { EMPTY_QUERY } from '../app/core/workspace.store';
-import { provideImtBuiltins } from '../app/builtin/provide-builtins';
+import { provideDebriefBuiltins } from '../app/builtin/provide-builtins';
 import { BUILTIN_VIEWS } from '../app/builtin/builtin-views';
 import { DockService } from '../app/dock/dock.service';
 import { provideWorkspace } from '../app/core/workspace/provide-workspace';
@@ -104,24 +104,24 @@ export function provideFakeDock(dock = new FakeDock()): Provider[] {
 }
 
 /** Backend and logger only (no built-in views/commands), for testing registries in isolation. */
-export function provideTinyBackendBare(backend: ImtBackend = tinyBackend()): Provider[] {
+export function provideTinyBackendBare(backend: DebriefBackend = tinyBackend()): Provider[] {
   return [
-    { provide: ImtBackend, useValue: backend },
+    { provide: DebriefBackend, useValue: backend },
     { provide: Logger, useFactory: () => new MemoryLogger() },
   ];
 }
 
-@Component({ selector: 'imt-stub-panel', template: 'stub panel' })
+@Component({ selector: 'debrief-stub-panel', template: 'stub panel' })
 class StubPanel {}
 
 /** The built-in views with the heavy panels (charts, profile editor) replaced by a stub, for dock tests in jsdom. */
-export function provideDockTesting(backend: ImtBackend = tinyBackend()): (Provider | EnvironmentProviders)[] {
+export function provideDockTesting(backend: DebriefBackend = tinyBackend()): (Provider | EnvironmentProviders)[] {
   const views = BUILTIN_VIEWS.map((v) => (v.id === 'metrics' || v.id === 'profile' ? { ...v, component: async () => StubPanel } : v));
-  return [provideImtBuiltins(views), provideWorkspace(), ...provideTinyBackendBare(backend)];
+  return [provideDebriefBuiltins(views), provideWorkspace(), ...provideTinyBackendBare(backend)];
 }
 
-export function provideTinyBackend(backend: ImtBackend = tinyBackend()): (Provider | EnvironmentProviders)[] {
-  return [provideImtBuiltins(), provideWorkspace(), ...provideTinyBackendBare(backend)];
+export function provideTinyBackend(backend: DebriefBackend = tinyBackend()): (Provider | EnvironmentProviders)[] {
+  return [provideDebriefBuiltins(), provideWorkspace(), ...provideTinyBackendBare(backend)];
 }
 
 /** The MemoryLogger provided by provideTinyBackend. */

@@ -18,42 +18,42 @@ import { TourOverlay } from './onboarding/tour-overlay';
 import { NarrowWindow } from './shell/narrow-window';
 
 @Component({
-  selector: 'imt-root',
+  selector: 'debrief-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, ImportToast, PartialImportBanner, TourOverlay],
   template: `
-    <imt-title-bar />
-    <imt-lifecycle-banners />
-    <imt-partial-import-banner />
+    <debrief-title-bar />
+    <debrief-lifecycle-banners />
+    <debrief-partial-import-banner />
     <div class="body">
       <!-- The regions F6 cycles through (shell/regions.ts): each a named landmark that takes focus. -->
-      <imt-activity-bar data-imt-region="activity" role="navigation" aria-label="Activity bar" i18n-aria-label="@@app.region.activity" tabindex="-1" />
+      <debrief-activity-bar data-debrief-region="activity" role="navigation" aria-label="Activity bar" i18n-aria-label="@@app.region.activity" tabindex="-1" />
       <!-- The empty Explorer says nothing the welcome page does not: it appears with the first data. -->
       @if (store.sidebarOpen() && !(welcome.visible() && !hasData())) {
-        <imt-sidebar data-imt-region="sidebar" role="complementary" aria-label="Side bar" i18n-aria-label="@@app.region.sidebar" tabindex="-1" />
+        <debrief-sidebar data-debrief-region="sidebar" role="complementary" aria-label="Side bar" i18n-aria-label="@@app.region.sidebar" tabindex="-1" />
       }
       <main class="center">
         <!-- Nothing to filter until data is open: the welcome page is the whole first screen. -->
         @if (hasData()) {
-          <imt-filter-bar data-imt-region="filters" role="search" aria-label="Filters" i18n-aria-label="@@app.region.filters" tabindex="-1" />
+          <debrief-filter-bar data-debrief-region="filters" role="search" aria-label="Filters" i18n-aria-label="@@app.region.filters" tabindex="-1" />
         }
         <div class="stage">
-          <imt-dock-host />
+          <debrief-dock-host />
           @if (welcome.visible()) {
-            <imt-welcome />
+            <debrief-welcome />
           }
         </div>
       </main>
     </div>
-    <imt-status-bar data-imt-region="status" role="region" aria-label="Status bar" i18n-aria-label="@@app.region.status" tabindex="-1" />
-    <imt-command-palette />
-    <imt-dialog-host />
-    <imt-context-menu-host />
-    <imt-import-toast />
-    <imt-tour-overlay />
+    <debrief-status-bar data-debrief-region="status" role="region" aria-label="Status bar" i18n-aria-label="@@app.region.status" tabindex="-1" />
+    <debrief-command-palette />
+    <debrief-dialog-host />
+    <debrief-context-menu-host />
+    <debrief-import-toast />
+    <debrief-tour-overlay />
 
     @if (store.dropHover()) {
-      <div class="drop" data-imt-overlay i18n="@@app.drop">Drop files or folders to add them to the workspace</div>
+      <div class="drop" data-debrief-overlay i18n="@@app.drop">Drop files or folders to add them to the workspace</div>
     }
   `,
   styles: `
@@ -63,7 +63,7 @@ import { NarrowWindow } from './shell/narrow-window';
     .stage { flex: 1; min-height: 0; position: relative; display: flex; flex-direction: column; }
     /* dockview gives its sashes and floating groups high z-indexes; keep them inside the dock so the
        welcome screen (and anything else stacked over the dock) covers them. */
-    .stage > imt-dock-host { isolation: isolate; }
+    .stage > debrief-dock-host { isolation: isolate; }
     .drop {
       position: fixed; inset: 12px; z-index: 90; border: 2px dashed var(--accent); border-radius: 12px;
       background: var(--accent-soft); display: flex; align-items: center; justify-content: center;
@@ -78,7 +78,7 @@ export class App {
 
   constructor() {
     inject(NarrowWindow).start();
-    const toasts = mountInToastStack(WorkspaceToasts, 'imt-workspace-toasts', inject(EnvironmentInjector), inject(ApplicationRef));
+    const toasts = mountInToastStack(WorkspaceToasts, 'debrief-workspace-toasts', inject(EnvironmentInjector), inject(ApplicationRef));
     inject(DestroyRef).onDestroy(() => toasts.destroy());
   }
 }

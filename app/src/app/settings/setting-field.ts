@@ -1,6 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, output } from '@angular/core';
 import { Icon } from '../shared/icon';
 import { Switch } from '../shared/switch';
+import { DebriefSelect } from './themed-select';
 import { SettingsFiles } from './settings-files';
 import { displayValue, editUnit, parseList, parseNumber, precheck, rangeHint, sameValue } from './settings-model';
 import { SettingField, SettingValue } from './settings.types';
@@ -13,16 +14,16 @@ let nextId = 0;
  * range pre-check while typing.
  */
 @Component({
-  selector: 'imt-setting-field',
+  selector: 'debrief-setting-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, Switch],
+  imports: [Icon, Switch, DebriefSelect],
   host: { class: 'setting', '[class.invalid]': '!!message()', '[attr.data-key]': 'field().key' },
   template: `
     @let f = field();
     @let k = f.kind;
     <div class="head">
       @if (k.type === 'bool') {
-        <imt-switch class="label" [inputId]="id" [checked]="value() === true" [disabled]="readOnly()" [describedBy]="describedBy()" [invalid]="!!message()" (checkedChange)="emit($event)">{{ f.label }}</imt-switch>
+        <debrief-switch class="label" [inputId]="id" [checked]="value() === true" [disabled]="readOnly()" [describedBy]="describedBy()" [invalid]="!!message()" (checkedChange)="emit($event)">{{ f.label }}</debrief-switch>
       } @else {
         <label class="label" [for]="id">{{ f.label }}</label>
       }
@@ -35,7 +36,7 @@ let nextId = 0;
       <span class="spacer"></span>
       @if (!readOnly() && !isDefault()) {
         <button class="btn ghost reset" type="button" [attr.aria-label]="resetLabel()" [title]="defaultTitle()" (click)="resetToDefault.emit()" i18n="@@settings.field.reset">
-          <imt-icon name="refresh" [size]="12" /> Reset to default
+          <debrief-icon name="refresh" [size]="12" /> Reset to default
         </button>
       }
     </div>
@@ -43,11 +44,7 @@ let nextId = 0;
       <div class="control">
         @switch (k.type) {
           @case ('enum') {
-            <select class="select" [id]="id" [disabled]="readOnly()" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="!!message()" (change)="emit($any($event.target).value)">
-              @for (o of k.options; track o.value) {
-                <option [value]="o.value" [selected]="o.value === value()">{{ o.label }}</option>
-              }
-            </select>
+            <debrief-select class="enum" [disabled]="readOnly()" [ariaLabel]="f.label" [options]="k.options" [value]="enumValue()" (valueChange)="emit($any($event))" />
           }
           @case ('text') {
             <input class="input wide" [id]="id" type="text" [value]="text()" [disabled]="readOnly()" [attr.aria-describedby]="describedBy()" [attr.aria-invalid]="!!message()" (input)="emit($any($event.target).value)" />
@@ -100,7 +97,7 @@ let nextId = 0;
     .reset { height: 22px; font-size: var(--fs-xs); }
     .control { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .input.num { width: 120px; }
-    .input.wide, .select { min-width: 260px; max-width: 100%; }
+    .input.wide, .select, .enum { min-width: 260px; max-width: 100%; }
     textarea.input.wide { width: 100%; box-sizing: border-box; font-family: var(--font-mono); }
     .unit { color: var(--text-2); }
     .hint { color: var(--muted); font-size: var(--fs-sm); }
@@ -119,7 +116,8 @@ export class SettingFieldControl {
   readonly changed = output<SettingValue>();
   readonly resetToDefault = output<void>();
 
-  protected readonly id = `imt-setting-${nextId++}`;
+  protected readonly enumValue = computed(() => String(this.value() ?? ''));
+  protected readonly id = `debrief-setting-${nextId++}`;
   protected readonly unit = computed(() => editUnit(this.field().kind));
   protected readonly unitLabel = computed(() => {
     const k = this.field().kind;

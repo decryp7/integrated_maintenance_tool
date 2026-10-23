@@ -47,7 +47,7 @@ describe('TimelinePanel as an additional timeline', () => {
     expect(dock.titles.get('timeline#2')).toBe('Timeline 2');
     expect(el(fixture, '[role=group][aria-label="Timeline settings"]')).toBeTruthy();
     expect(select(fixture, 'Events shown').value).toBe('global');
-    expect(fixture.nativeElement.querySelector('imt-live-window-controls')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-live-window-controls')).toBeNull();
     expect(fixture.nativeElement.classList).toContain('instance');
     expect(text(fixture)).toContain('3 lanes');
     expect(text(fixture)).not.toContain('Unlinked');
@@ -81,7 +81,7 @@ describe('TimelinePanel as an additional timeline', () => {
   });
 
   it('shows saved settings in its controls', async () => {
-    localStorage.setItem('imt.timelines', JSON.stringify({ version: 1, timelines: [{ id: 'timeline#2', scope: 'own', ql: 'level = fatal', lanes: 'field', laneField: 'MachineName', sync: false }] }));
+    localStorage.setItem('debrief.timelines', JSON.stringify({ version: 1, timelines: [{ id: 'timeline#2', scope: 'own', ql: 'level = fatal', lanes: 'field', laneField: 'MachineName', sync: false }] }));
     dock = new TimelineFakeDock();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(tinyBackend()), { provide: DockService, useValue: dock }, { provide: DOCK_PANEL_ID, useValue: 'timeline#2' }] });
     const fixture = TestBed.createComponent(TimelinePanel);
@@ -90,7 +90,7 @@ describe('TimelinePanel as an additional timeline', () => {
     expect(el<HTMLInputElement>(fixture, 'input[aria-label="Timeline query"]').value).toBe('level = fatal');
     expect(select(fixture, 'Lanes').value).toBe('field');
     expect(select(fixture, 'Lane field').value).toBe('MachineName');
-    expect(el<HTMLInputElement>(fixture, 'imt-switch input').checked).toBe(false);
+    expect(el<HTMLInputElement>(fixture, 'debrief-switch input').checked).toBe(false);
     expect(text(fixture)).toContain('Unlinked');
   });
 
@@ -142,7 +142,7 @@ describe('TimelinePanel as an additional timeline', () => {
     const shared = { from: store.query().from, to: store.query().to };
 
     // Unlink with the switch: the panel keeps the shared range, then moves on its own.
-    const sw = el<HTMLInputElement>(fixture, 'imt-switch input');
+    const sw = el<HTMLInputElement>(fixture, 'debrief-switch input');
     expect(sw.checked).toBe(true);
     sw.checked = false;
     sw.dispatchEvent(new Event('change'));
@@ -202,7 +202,7 @@ describe('TimelinePanel as an additional timeline', () => {
     const { fixture, store } = await render(null);
     const zoom = TestBed.inject(TimelineZoom);
     zoom.apply({ from: store.timeline()!.from + 60_000, to: store.timeline()!.from + 120_000 });
-    const other = document.createElement('imt-timeline-panel');
+    const other = document.createElement('debrief-timeline-panel');
     other.className = 'instance';
     const btn = document.createElement('button');
     other.appendChild(btn);

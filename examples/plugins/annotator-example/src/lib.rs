@@ -3,10 +3,10 @@
 //! the call; it never sees files.
 
 use anyhow::Result;
-use imt_plugin_api::annotate::{Annotation, AnnotationView, Annotator, Evidence, RecordCursor, Severity, ViewFilter};
-use imt_plugin_api::condition::{CondValue, ConditionCfg};
-use imt_plugin_api::markers::PluginMarkerKind;
-use imt_plugin_api::prelude::*;
+use debrief_plugin_api::annotate::{Annotation, AnnotationView, Annotator, Evidence, RecordCursor, Severity, ViewFilter};
+use debrief_plugin_api::condition::{CondValue, ConditionCfg};
+use debrief_plugin_api::markers::PluginMarkerKind;
+use debrief_plugin_api::prelude::*;
 
 /// Errors closer than this belong to one burst.
 pub const GAP_MS: i64 = 60_000;

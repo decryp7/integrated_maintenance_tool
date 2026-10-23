@@ -22,19 +22,22 @@ describe('GeneralSettings language', () => {
 
   it('lists System default, English (as an endonym) and Pseudo, and saves the choice', async () => {
     const { fixture, chosen } = await setup();
-    const select = el<HTMLSelectElement>(fixture, '[data-testid=language-select]');
-    expect([...select.options].map((o) => o.textContent?.trim())).toEqual(['System default', 'English', 'Pseudo']);
-    expect(select.value).toBe('system');
-    expect(select.options[1]?.getAttribute('lang')).toBe('en');
-    select.value = 'pseudo';
-    select.dispatchEvent(new Event('change'));
+    const trigger = el<HTMLButtonElement>(fixture, '[data-testid=language-select] button');
+    expect(trigger.textContent).toContain('System default');
+    trigger.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    const options = [...document.querySelectorAll<HTMLElement>('.cdk-overlay-container [role=option]')];
+    expect(options.map((o) => o.textContent?.replace(/[✓\s]+/g, ' ').trim())).toEqual(['System default', 'English', 'Pseudo']);
+    options[2]?.click();
+    fixture.detectChanges();
     expect(chosen).toEqual(['pseudo']);
     expect(fixture.nativeElement.querySelector('.pending')).toBeNull();
   });
 
   it('says a restart is pending and offers it', async () => {
     const { fixture, reloads } = await setup(true);
-    expect(el(fixture, '.pending').textContent).toContain('The new language is used after IMT restarts.');
+    expect(el(fixture, '.pending').textContent).toContain('The new language is used after Debrief restarts.');
     el<HTMLButtonElement>(fixture, '.pending button').click();
     expect(reloads()).toBe(1);
   });

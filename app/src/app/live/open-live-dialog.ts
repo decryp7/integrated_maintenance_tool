@@ -7,7 +7,7 @@ import { LiveTail } from '../workspace/live-tail';
 
 /** "Open for live tail": pick files or a folder, optionally skipping their history (start at end), and follow them. */
 @Component({
-  selector: 'imt-open-live-dialog',
+  selector: 'debrief-open-live-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p i18n="@@live.openLive.intro">Open log files or a folder and follow them as they grow. Live tail turns on.</p>

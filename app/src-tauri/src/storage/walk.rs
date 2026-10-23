@@ -101,7 +101,7 @@ pub use crate::paths::confined;
 
 /// Why something could not be deleted, in words for the UI.
 pub fn reason(e: &std::io::Error) -> String {
-    // ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION: another process (or IMT itself) has it open.
+    // ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION: another process (or Debrief itself) has it open.
     if cfg!(windows) && matches!(e.raw_os_error(), Some(32 | 33)) {
         return "in use by a running program".into();
     }
@@ -199,7 +199,7 @@ pub(crate) mod tests {
         #[cfg(windows)]
         {
             std::os::windows::fs::symlink_dir(target, link).is_ok()
-                || imt_core::process::quiet_command("cmd")
+                || debrief_core::process::quiet_command("cmd")
                     .args(["/C", "mklink", "/J"])
                     .arg(link)
                     .arg(target)

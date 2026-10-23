@@ -1,12 +1,8 @@
-import { $, $$, browser, expect } from '@wdio/globals';
-import { gridTotal, tab, waitForEvents, waitForShell } from '../support/app';
+import { $, browser, expect } from '@wdio/globals';
+import { gridTotal, waitForEvents, waitForShell } from '../support/app';
 
-/** Shows the Query view: its tab once it is docked, else Ctrl+/ (the focused first run opens it on demand). */
-async function showQuery(): Promise<void> {
-  const query = tab('Query');
-  if (await query.isExisting()) await query.click();
-  else await browser.keys(['Control', '/']);
-}
+/** The one search field of the filter bar: words search messages, a query (`level >= Error`) is applied as a filter. */
+const searchField = () => $('[data-testid=query-field]');
 
 describe('real app: query language', () => {
   it('a filter query narrows the grid to errors; clearing it restores the total', async () => {
@@ -14,18 +10,12 @@ describe('real app: query language', () => {
     await waitForEvents();
     const all = await gridTotal();
 
-    await showQuery();
-    const input = $('[role=combobox][aria-label="Query"]');
+    const input = searchField();
     await input.waitForDisplayed();
     await input.click();
     await input.setValue('level >= Error');
-    await browser.keys(['Control', 'Enter']);
-    await expect($('imt-query-view .applied')).toHaveText(
-      expect.stringContaining('level >= Error'),
-      { wait: 30_000 },
-    );
+    await browser.keys(['Enter']);
 
-    await tab('Events').click();
     // Wait for the narrowed total itself (the bar can be between two states).
     await browser.waitUntil(
       async () => {
@@ -34,14 +24,28 @@ describe('real app: query language', () => {
       },
       { timeout: 30_000, timeoutMsg: `the total did not drop below ${all}` },
     );
-    const rows = $$('imt-events-grid [role=row].row');
-    await expect(rows[0]).toHaveText(/ERR|FTL/);
-    for (const row of await rows.getElements())
-      await expect(row).not.toHaveText(/\b(INF|WRN|DBG|VRB)\b/);
+    // The rows are read in one call: a webdriver round trip per row is slow and the rows re-render while it runs.
+    // The total drops before the first page of the narrowed result is drawn, so wait for rows with text.
+    // Rows are redrawn while the narrowed page loads: take the first reading that has loaded rows, in one call.
+    let levels: string[] = [];
+    await browser.waitUntil(
+      async () => {
+        const texts = await browser.execute(() =>
+          Array.from(document.querySelectorAll('debrief-events-grid [role=row].row')).map((r) => r.textContent ?? ''),
+        );
+        levels = texts.filter((t) => t.trim().length > 0);
+        return levels.length > 0;
+      },
+      { timeout: 30_000, timeoutMsg: 'the narrowed rows were not drawn' },
+    );
+    expect(levels.length).toBeGreaterThan(0);
+    expect(levels[0]).toMatch(/ERR|FTL/);
+    for (const text of levels) expect(text).not.toMatch(/\b(INF|WRN|DBG|VRB)\b/);
 
-    await showQuery();
-    await $('imt-query-view .applied').$(`.//button[normalize-space()='Clear']`).click();
-    await tab('Events').click();
+    await searchField().click();
+    await browser.keys(['Control', 'a']);
+    await browser.keys(['Backspace']);
+    await browser.keys(['Enter']);
     await browser.waitUntil(async () => (await gridTotal()) === all, {
       timeout: 30_000,
       timeoutMsg: `the total did not return to ${all}`,

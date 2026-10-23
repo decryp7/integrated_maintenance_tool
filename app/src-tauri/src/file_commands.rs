@@ -1,11 +1,11 @@
 //! "Open file", "Open at line" and "Show in folder" for an opened source. The UI sends a source id
 //! (and the event's line); the engine resolves the file from the window's own sources
-//! (`imt_core::file_target`), so no path ever comes from the webview.
+//! (`debrief_core::file_target`), so no path ever comes from the webview.
 
 use crate::opener::{self, Invocation, Os};
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_core::file_target::{resolve, FileAction, FileTarget, OpenFileRequest};
+use debrief_core::file_target::{resolve, FileAction, FileTarget, OpenFileRequest};
 use serde::Serialize;
 use std::path::Path;
 
@@ -34,7 +34,7 @@ pub(crate) fn plan(os: Os, action: FileAction, target: &FileTarget, editor: Opti
         (FileAction::Reveal, ..) => Ok((OpenedWith::FileManager, opener::reveal(os, &target.path))),
         (FileAction::OpenAtLine, Some(line), Some(editor)) => Ok((OpenedWith::Editor, opener::open_at_line(editor, &target.path, line))),
         _ if opener::runs_on_open(&target.path) => Err(format!(
-            "IMT does not open {} with its default program, because that could run it: use Show in folder{}",
+            "Debrief does not open {} with its default program, because that could run it: use Show in folder{}",
             target.name,
             if action == FileAction::OpenAtLine { "" } else { " or Open at line" }
         )),
@@ -68,7 +68,7 @@ fn open(action: FileAction, target: &FileTarget) -> Result<FileOpened, String> {
     let (with, invocation) = plan(Os::CURRENT, action, target, editor.as_deref())?;
     let path = opener::plain_path(&target.path).to_string_lossy().into_owned();
     opener::start(&invocation).map_err(|e| format!("could not open {} ({e}); it is at {path}", target.name))?;
-    log::info!(With = format!("{with:?}").as_str(); "Source file opened outside IMT");
+    log::info!(With = format!("{with:?}").as_str(); "Source file opened outside Debrief");
     Ok(FileOpened { with, path })
 }
 
@@ -150,14 +150,14 @@ mod tests {
 
     #[test]
     fn a_moved_file_is_reported_not_opened() {
-        let missing = std::env::temp_dir().join("imt-no-such-dir").join("gone.log");
+        let missing = std::env::temp_dir().join("debrief-no-such-dir").join("gone.log");
         let e = open(FileAction::Open, &target(&missing.to_string_lossy(), None)).unwrap_err();
         assert!(e.contains("moved or deleted") && e.contains("app.log"), "{e}");
     }
 
     #[test]
     fn an_existing_file_is_handed_to_the_os() {
-        let dir = std::env::temp_dir().join(format!("imt-open-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("debrief-open-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("app.log");
         std::fs::write(&file, "x\n").unwrap();
@@ -175,7 +175,7 @@ mod tests {
 
     #[test]
     fn a_file_replaced_by_a_folder_is_reported_not_opened() {
-        let dir = std::env::temp_dir().join(format!("imt-open-dir-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("debrief-open-dir-{}", std::process::id()));
         std::fs::create_dir_all(dir.join("app.log")).unwrap();
         let e = open(FileAction::Reveal, &target(&dir.join("app.log").to_string_lossy(), None)).unwrap_err();
         assert!(e.contains("moved or deleted"), "{e}");
@@ -186,7 +186,7 @@ mod tests {
     #[test]
     fn a_locked_file_is_still_opened_and_shown() {
         use std::os::windows::fs::OpenOptionsExt;
-        let dir = std::env::temp_dir().join(format!("imt-open-locked-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("debrief-open-locked-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let file = dir.join("locked.log");
         std::fs::write(
@@ -211,7 +211,7 @@ mod tests {
     #[cfg(unix)]
     #[test]
     fn a_link_is_judged_by_the_file_it_points_at() {
-        let dir = std::env::temp_dir().join(format!("imt-open-link-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("debrief-open-link-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         std::fs::write(
             dir.join("run.sh"),

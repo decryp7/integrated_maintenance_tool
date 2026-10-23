@@ -1,7 +1,7 @@
 #![no_main]
 //! The Event Log follower's untrusted inputs: rendered event XML, the user's
 //! XPath filter and channel names, and the bookmark file.
-use imt_plugin_windows::eventlog::{query, xml, Channel, FollowerConfig, XPathFilter};
+use debrief_plugin_windows::eventlog::{query, xml, Channel, FollowerConfig, XPathFilter};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

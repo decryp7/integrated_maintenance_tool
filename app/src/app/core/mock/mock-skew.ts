@@ -4,7 +4,7 @@ import { MockRecord, MockSource } from './mock-data';
 
 /**
  * Clock-skew correction for the mock backend: mimics `set_source_offset` / `suggest_offsets` of the
- * engine (crates/imt-core/src/skew) with plausible results. The engine is the reference.
+ * engine (crates/debrief-core/src/skew) with plausible results. The engine is the reference.
  */
 
 export const MOCK_MAX_OFFSET_MS = 7 * 24 * 3_600_000;

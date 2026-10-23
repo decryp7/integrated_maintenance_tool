@@ -1,6 +1,6 @@
 /**
  * Wire contract of the AI's browser (camelCase JSON), mirrored by the Rust DTOs in `app/src-tauri/src/browser` and
- * `crates/imt-ai/src/browser`. Research and the chat's browser modes drive a real Chromium window of their own over
+ * `crates/debrief-ai/src/browser`. Research and the chat's browser modes drive a real Chromium window of their own over
  * DevTools; links open in the user's default browser. The chat events of read-along, suggested links and agent mode
  * are part of `ChatEvent` in `../ai/ai.types.ts`.
  */
@@ -71,7 +71,7 @@ export type AiDriver = { kind: 'agent'; sessionId: string } | { kind: 'research'
 /** What the AI's browser window is doing (`activity` events): the window title reads "<product> AI — <activity>: <host>". */
 export type BrowserActivityKind = 'reading' | 'searching' | 'waitingForYou';
 
-/** `imt://browser`, to the window that owns the browser and its pop-out panels. */
+/** `debrief://browser`, to the window that owns the browser and its pop-out panels. */
 export type BrowserEvent =
   | { type: 'sources'; sessionId: string; sources: SourceInfo[] }
   | ({ type: 'chatStatus' } & ChatBrowserStatus)

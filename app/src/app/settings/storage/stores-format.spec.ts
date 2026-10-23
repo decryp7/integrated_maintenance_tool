@@ -7,14 +7,14 @@ describe('stores format', () => {
   it('labels every state in words', () => {
     expect(stateLabel('open')).toBe('Open');
     expect(stateLabel('session')).toBe('Kept for session restore');
-    expect(stateLabel('running')).toBe('In use by another IMT');
+    expect(stateLabel('running')).toBe('In use by another Debrief');
     expect(stateLabel('orphaned')).toBe('Orphaned');
   });
 
   it('explains why a store cannot be selected, except an orphaned one', () => {
     expect(notSelectableReason('open')).toContain('open');
     expect(notSelectableReason('session')).toContain('session');
-    expect(notSelectableReason('running')).toContain('Another IMT');
+    expect(notSelectableReason('running')).toContain('Another Debrief');
     expect(notSelectableReason('orphaned')).toBeNull();
   });
 

@@ -21,7 +21,7 @@ test.describe('profiling perspective', () => {
     const landing = page.getByTestId('captures-landing');
     await expect(landing).toBeVisible();
     await expect(landing.getByRole('button', { name: 'Open capture…' })).toBeEnabled();
-    await expectNoSeriousViolations(page, testInfo, 'captures-landing', 'imt-captures-view');
+    await expectNoSeriousViolations(page, testInfo, 'captures-landing', 'debrief-captures-view');
     await landing.getByRole('button', { name: 'Open capture…' }).click();
     await expect(hotspots(page).locator('tbody tr[aria-rowindex]').first()).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
     await expect(page.getByTestId('captures-landing')).toHaveCount(0);
@@ -29,22 +29,22 @@ test.describe('profiling perspective', () => {
   });
 
   test('opening a capture switches to Profiling once, with an Undo that goes back', async ({ page }) => {
-    await expect(page.locator('imt-timeline-panel')).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel')).toBeVisible();
     await chooseMenu(page, 'File', 'Open performance capture…');
     await expect(hotspots(page).locator('tbody tr[aria-rowindex]').first()).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
-    await expect(page.locator('imt-timeline-panel')).toHaveCount(0);
+    await expect(page.locator('debrief-timeline-panel')).toHaveCount(0);
     const notice = toast(page);
     await expect(notice).toBeVisible();
     await expect(notice.getByTestId('notice-action')).toHaveText('Undo');
     await expectNoSeriousViolations(page, test.info(), 'profiling-switch-toast', '[data-toast]');
     await notice.getByTestId('notice-action').click();
-    await expect(page.locator('imt-timeline-panel')).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel')).toBeVisible();
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
 
     // Opened again from Investigate: it does not switch a second time.
     await chooseMenu(page, 'File', 'Open performance capture…');
     await expect(page.getByRole('tab', { name: 'Captures' })).toHaveCount(1);
-    await expect(page.locator('imt-timeline-panel')).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel')).toBeVisible();
     await expect(toast(page)).toHaveCount(0);
   });
 

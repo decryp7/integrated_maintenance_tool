@@ -6,7 +6,7 @@ async function runCommand(page: Page, name: string): Promise<void> {
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill(name);
-  await expect(page.getByRole('option').first()).toContainText(name);
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText(name);
   await page.keyboard.press('Enter');
   await expect(input).toHaveCount(0);
 }
@@ -16,13 +16,13 @@ test.describe('dashboards', () => {
 
   test('shows the profile dashboard, adds a tile and resizes one with the keyboard', async ({ page }, testInfo) => {
     await runCommand(page, 'Show dashboards');
-    const view = page.locator('imt-dashboard-view');
+    const view = page.locator('debrief-dashboard-view');
     await expect(view.getByRole('combobox', { name: 'Dashboard' })).toHaveValue('orderservice-health');
     const errors = view.locator('[data-tile=errors]');
     await expect(errors.getByTestId('stat-value')).toHaveText(/\d/);
-    await expect(view.locator('[data-tile=levels] imt-echart')).toBeVisible();
+    await expect(view.locator('[data-tile=levels] debrief-echart')).toBeVisible();
     await expect(view.locator('[data-tile=slow] table')).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'dashboard', 'imt-dashboard-view');
+    await expectNoSeriousViolations(page, testInfo, 'dashboard', 'debrief-dashboard-view');
 
     await view.getByRole('button', { name: 'Edit', exact: true }).click();
     await view.getByRole('button', { name: 'Add tile' }).click();
@@ -52,7 +52,7 @@ test.describe('dashboards', () => {
 
   test('wall mode fills the window and Escape leaves it', async ({ page }) => {
     await runCommand(page, 'Show dashboards');
-    const view = page.locator('imt-dashboard-view');
+    const view = page.locator('debrief-dashboard-view');
     await view.getByRole('button', { name: 'Wall mode' }).click();
     await expect(view).toHaveClass(/wall/);
     await view.getByRole('button', { name: 'Exit wall mode' }).click();

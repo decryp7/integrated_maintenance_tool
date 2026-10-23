@@ -13,12 +13,12 @@ async function openPane(page: import('@playwright/test').Page) {
   return section;
 }
 
-test('a declared known issue shows its fix, count and Rule badge, and Show events filters the grid', async ({ page }, testInfo) => {
+test('a declared known issue shows its fix, count and rule origin, and Show events filters the grid', async ({ page }, testInfo) => {
   await openAppWith(page, '?mockAiStepMs=5');
   const section = await openPane(page);
   const card = section.getByTestId('known-issue-payment-gateway-timeouts');
   await expect(card).toContainText('Payment gateway timeouts');
-  await expect(card.getByTestId('known-issue-origin')).toHaveText('Rule');
+  await expect(card.getByTestId('known-issue-origin')).toHaveText('From rule');
   await expect(card.getByTestId('known-issue-count')).toContainText(/\d+ events/);
   await expect(card.getByTestId('known-issue-fix')).toContainText('Raise the gateway timeout');
   await expect(section.getByTestId('known-issues-warnings')).toContainText('1 knowledge notes need fixing');
@@ -26,10 +26,10 @@ test('a declared known issue shows its fix, count and Rule badge, and Show event
   const before = await gridRows(page).count();
   await card.getByRole('button', { name: 'Show events' }).click();
   await expect(gridRows(page).first()).toBeVisible();
-  await expect(page.locator('imt-status-bar')).toContainText('events');
+  await expect(page.locator('debrief-status-bar')).toContainText('events');
   await expect.poll(async () => gridRows(page).count()).toBeLessThanOrEqual(before);
   await expect(gridRows(page).first()).toContainText(/timed out/i);
-  await expectNoSeriousViolations(page, testInfo, 'known-issues', 'imt-known-issues');
+  await expectNoSeriousViolations(page, testInfo, 'known-issues', 'debrief-known-issues');
 });
 
 test('Suggest with AI lists engine-verified suggestions with the AI badge', async ({ page }, testInfo) => {
@@ -39,7 +39,7 @@ test('Suggest with AI lists engine-verified suggestions with the AI badge', asyn
   const card = section.getByTestId('known-issue-ai-lock-rollbacks');
   await expect(card).toBeVisible();
   await expect(card.getByTestId('known-issue-origin')).toHaveText('AI suggested, verified by the engine');
-  await expectNoSeriousViolations(page, testInfo, 'known-issues-ai', 'imt-known-issues');
+  await expectNoSeriousViolations(page, testInfo, 'known-issues-ai', 'debrief-known-issues');
 });
 
 test('without an AI model the suggest button is disabled and says what to do', async ({ page }) => {

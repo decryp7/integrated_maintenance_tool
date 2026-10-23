@@ -15,7 +15,7 @@ use std::path::Path;
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
 /// Event to every window: the lists changed (payload: [`RecentLists`]).
-pub const RECENT_EVENT: &str = "imt://recent-changed";
+pub const RECENT_EVENT: &str = "debrief://recent-changed";
 /// Recent files and folders kept.
 pub const MAX_FILES: usize = 8;
 /// Recent projects kept.
@@ -333,24 +333,24 @@ mod tests {
         r.record_files(&many);
         assert_eq!(r.list().files.len(), MAX_FILES);
         for i in 0..15 {
-            r.record_project(&abs(&format!("p{i}.imtproj")), &format!("P{i}"));
+            r.record_project(&abs(&format!("p{i}.debriefproj")), &format!("P{i}"));
         }
         let projects = r.list().projects;
         assert_eq!(projects.len(), MAX_PROJECTS);
         assert_eq!(projects[0].name, "P14");
-        r.record_project(&abs("p14.imtproj"), "  ");
+        r.record_project(&abs("p14.debriefproj"), "  ");
         assert_eq!(r.list().projects[0].name, "p14", "an empty name is the file's");
-        assert!(r.record_project_at(&abs("p14.imtproj"), "P14", 7));
+        assert!(r.record_project_at(&abs("p14.debriefproj"), "P14", 7));
         assert_eq!(r.list().projects[0].opened_at, 7);
-        assert!(r.record_project(&abs("p14.imtproj"), "P14"));
+        assert!(r.record_project(&abs("p14.debriefproj"), "P14"));
         assert!(r.list().projects[0].opened_at > 1_700_000_000_000, "the real clock is used");
-        assert!(r.has_project(&abs("p14.imtproj")) && r.has_file(&abs("f0")));
-        assert!(!r.has_project(&abs("other.imtproj")));
+        assert!(r.has_project(&abs("p14.debriefproj")) && r.has_file(&abs("f0")));
+        assert!(!r.has_project(&abs("other.debriefproj")));
         // Kept across loads.
         let again = Recents::load(Some(&t.0));
         assert_eq!(again.list(), r.list());
-        assert!(again.remove(RecentKind::Projects, &abs("p14.imtproj")));
-        assert!(!again.has_project(&abs("p14.imtproj")));
+        assert!(again.remove(RecentKind::Projects, &abs("p14.debriefproj")));
+        assert!(!again.has_project(&abs("p14.debriefproj")));
         assert!(again.clear(RecentKind::Files));
         assert!(!again.clear(RecentKind::Files));
         assert!(Recents::load(Some(&t.0)).list().files.is_empty());

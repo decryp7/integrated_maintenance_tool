@@ -10,11 +10,11 @@ import { OverwriteGuard } from '../ui/overwrite-guard';
 import { plural } from '../i18n/locale';
 
 /** A saved project: one self-contained file (events, sources, profile, UI state and reports). */
-export const PROJECT_EXTENSION = '.imtz';
+export const PROJECT_EXTENSION = '.debriefz';
 export const UNTITLED = $localize`:Name of a project that was not saved yet|@@projects.untitled:Untitled`;
 
-/** What `open_project` opens: an `.imtz` project, a `.imt` project folder, or IMT's own `.imtproj` workspace file. */
-const PROJECT_PATH = /\.(imtz|imt|imtproj)$/i;
+/** What `open_project` opens: an `.debriefz` project, a `.debrief` project folder, or Debrief's own `.debriefproj` workspace file. */
+const PROJECT_PATH = /\.(debriefz|debrief|debriefproj)$/i;
 
 export function isProjectPath(path: string): boolean {
   return PROJECT_PATH.test(path);
@@ -57,8 +57,8 @@ export class ProjectService {
    * (an untitled project with nothing open has nothing to lose, e.g. after Close workspace).
    */
   readonly dirty = computed(() => this.baseline() !== null && this.baseline() !== this.key() && (this.path() !== null || !!this.store.summary()?.sources.length));
-  /** Window/tab title: "● name — IMT" while unsaved. */
-  readonly title = computed(() => `${this.dirty() ? '● ' : ''}${this.name()} — IMT`);
+  /** Window/tab title: "● name — Debrief" while unsaved. */
+  readonly title = computed(() => `${this.dirty() ? '● ' : ''}${this.name()} — Debrief`);
 
   constructor() {
     // The first loaded workspace is the clean starting point.

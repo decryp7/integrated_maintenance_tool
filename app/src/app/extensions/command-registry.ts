@@ -7,7 +7,7 @@ import { fuzzyFilter } from './fuzzy';
 import { matchesKeybinding } from './keybinding';
 import { applyOverrides } from './keybinding-overrides';
 import { KeybindingOverridesStore } from './keybinding-overrides.store';
-import { CommandContext, flattenContributions, IMT_COMMANDS, ImtCommand } from './tokens';
+import { CommandContext, flattenContributions, DEBRIEF_COMMANDS, DebriefCommand } from './tokens';
 import { WorkspaceCommandContext } from './command-context';
 
 /** The context handed to commands. Replaceable in tests. */
@@ -19,7 +19,7 @@ export const COMMAND_CONTEXT = new InjectionToken<CommandContext>('COMMAND_CONTE
 /** All registered commands (built in and from plugins), their availability and execution. */
 @Injectable({ providedIn: 'root' })
 export class CommandRegistry {
-  private readonly contributed = flattenContributions<ImtCommand>(inject(IMT_COMMANDS, { optional: true }));
+  private readonly contributed = flattenContributions<DebriefCommand>(inject(DEBRIEF_COMMANDS, { optional: true }));
   private readonly store = inject(WorkspaceStore);
   private readonly logger = inject(Logger);
   private readonly context = inject(COMMAND_CONTEXT);
@@ -45,7 +45,7 @@ export class CommandRegistry {
   });
 
   /** Every command with its effective key binding. */
-  all(): readonly ImtCommand[] {
+  all(): readonly DebriefCommand[] {
     return this.effective();
   }
 
@@ -54,11 +54,11 @@ export class CommandRegistry {
     return this.contributed.find((c) => c.id === id)?.keybinding;
   }
 
-  find(id: string): ImtCommand | undefined {
+  find(id: string): DebriefCommand | undefined {
     return this.all().find((c) => c.id === id);
   }
 
-  search(query: string): ImtCommand[] {
+  search(query: string): DebriefCommand[] {
     return fuzzyFilter(this.available(), query, (c) => (c.category ? `${c.category}: ${c.title}` : c.title));
   }
 
@@ -90,7 +90,7 @@ export class CommandRegistry {
     return true;
   }
 
-  private isAvailable(c: ImtCommand): boolean {
+  private isAvailable(c: DebriefCommand): boolean {
     try {
       return c.when ? c.when(this.context) : true;
     } catch {

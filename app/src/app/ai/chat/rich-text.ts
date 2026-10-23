@@ -9,7 +9,7 @@ import { Block, IncrementalMarkdown, Inline } from './markdown';
  * confirmation.
  */
 @Component({
-  selector: 'imt-ai-rich-text',
+  selector: 'debrief-ai-rich-text',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-template #line let-inlines>

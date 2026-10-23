@@ -8,7 +8,7 @@
 use crate::jobs::{Controls, JobId};
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_core::ports::{Filter, PartialMatches, StoreError};
+use debrief_core::ports::{Filter, PartialMatches, StoreError};
 use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};
@@ -80,7 +80,7 @@ pub async fn search_partial<R: Runtime>(app: AppHandle<R>, state: CurrentWindow,
 mod tests {
     use super::*;
     use crate::test_support::{block, main_window, samples, test_app};
-    use imt_core::query::TextMode;
+    use debrief_core::query::TextMode;
 
     #[test]
     fn counts_partial_matches_of_the_window() {
@@ -100,7 +100,7 @@ mod tests {
         assert!(found.complete);
         let page = block(crate::workspace_commands::query_page(
             main_window(&app),
-            imt_core::ports::PageQuery {
+            debrief_core::ports::PageQuery {
                 query: Filter {
                     text: "imeout".into(),
                     ..Filter::default()

@@ -21,7 +21,7 @@ internals, start in the wrong order, or fail when a provider is disabled or quar
    topological order, deactivation in reverse. Quarantining a provider deactivates its
    dependents (cascade) and the health view shows the chain.
 3. **Services.** Inter-plugin APIs are Rust traits in small, separately versioned API crates
-   (`imt-api-*`). Providers register `Arc<dyn Trait>` under a service id and version;
+   (`debrief-api-*`). Providers register `Arc<dyn Trait>` under a service id and version;
    consumers look them up by id and semver requirement and receive a **guarded proxy**
    (panics → errors, quarantine respected). Each API crate ships contract tests every provider
    must pass. Worker-process plugins provide the same traits through JSON-RPC adapters.
@@ -33,7 +33,7 @@ internals, start in the wrong order, or fail when a provider is disabled or quar
    thread under the guard; a slow subscriber drops/coalesces, never blocks.
 6. **Data over calls.** Plugins should cooperate primarily through workspace records and fields
    (queried via `LogStore`); services are for capabilities that are not records.
-7. **UI mirror.** Angular features declare `provideImtPlugin({ id, requires })`, expose services
+7. **UI mirror.** Angular features declare `provideDebriefPlugin({ id, requires })`, expose services
    via injection tokens from a shared API package, and are enabled only while their engine plugin
    is active.
 

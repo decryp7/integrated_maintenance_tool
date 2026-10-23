@@ -10,12 +10,12 @@ import { DIALOG_REF } from '../ui/dialog.service';
  * rule from the markers manager all open this one component with different inputs.
  */
 @Component({
-  selector: 'imt-mark-dialog',
+  selector: 'debrief-mark-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerEditor],
   template: `
     <p>{{ hint() }}</p>
-    <imt-marker-editor
+    <debrief-marker-editor
       [initial]="initial()"
       [suggestedLabel]="suggestedLabel()"
       [suggestedDescription]="suggestedDescription()"

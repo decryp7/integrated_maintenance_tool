@@ -1,12 +1,12 @@
 //! The global knowledge files (ADR 0029): `<config>/ai/knowledge/`, one `<id>.md` per file and `index.json`
 //! (versioned: names, order, enabled flags). Reading never fails: a missing index is no knowledge, a damaged one is
-//! rebuilt from the `.md` files found, an index from a newer IMT is read but never rewritten. Every change is
+//! rebuilt from the `.md` files found, an index from a newer Debrief is read but never rewritten. Every change is
 //! written (text first, then the index, each atomically) before it is visible.
 
 use crate::config_store::write_atomic;
 use crate::sync::lock;
-use imt_ai::knowledge::{check_id, KnowledgeChange, KnowledgeFile, KnowledgeSet, MAX_FILES, MAX_FILE_BYTES};
-use imt_ai::{AiError, Result};
+use debrief_ai::knowledge::{check_id, KnowledgeChange, KnowledgeFile, KnowledgeSet, MAX_FILES, MAX_FILE_BYTES};
+use debrief_ai::{AiError, Result};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
@@ -36,7 +36,7 @@ fn yes() -> bool {
 struct State {
     set: Arc<KnowledgeSet>,
     warnings: Vec<String>,
-    /// The index was written by a newer IMT: shown, never rewritten.
+    /// The index was written by a newer Debrief: shown, never rewritten.
     read_only: bool,
 }
 
@@ -97,7 +97,7 @@ impl GlobalKnowledge {
         let mut st = lock(&self.state);
         if st.read_only {
             return Err(AiError::Refused(
-                "the knowledge files were saved by a newer IMT and cannot be changed here: update IMT".into(),
+                "the knowledge files were saved by a newer Debrief and cannot be changed here: update Debrief".into(),
             ));
         }
         let mut next = (*st.set).clone();
@@ -151,7 +151,7 @@ fn load(dir: &Path) -> State {
         Ok(text) => match serde_json::from_str::<Index>(&text) {
             Ok(i) if i.version <= INDEX_VERSION => (i.files, false),
             Ok(i) => {
-                warnings.push("The knowledge files were saved by a newer IMT: they are used but cannot be changed here.".into());
+                warnings.push("The knowledge files were saved by a newer Debrief: they are used but cannot be changed here.".into());
                 (i.files, true)
             }
             Err(_) => {

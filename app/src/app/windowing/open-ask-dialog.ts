@@ -44,10 +44,10 @@ export class OpenAskService {
 export type OpenTarget = Exclude<OpenChoice, 'cancel'>;
 
 @Component({
-  selector: 'imt-open-ask-dialog',
+  selector: 'debrief-open-ask-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <p i18n="@@windowing.openAsk.question">Where should IMT open {ask().count, plural, =1 {this file} other {these files}}?</p>
+    <p i18n="@@windowing.openAsk.question">Where should Debrief open {ask().count, plural, =1 {this file} other {these files}}?</p>
     @if (ask().names.length) {
       <ul class="names mono" aria-label="Files to open" i18n-aria-label="@@windowing.openAsk.files">
         @for (name of ask().names; track $index) {

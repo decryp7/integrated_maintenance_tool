@@ -22,7 +22,7 @@ export interface RunHover {
  * menu lists every run in view, which is the keyboard path and the equivalent control (WCAG 2.5.8).
  */
 @Component({
-  selector: 'imt-run-track',
+  selector: 'debrief-run-track',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (v of items(); track v.id) {
@@ -62,14 +62,14 @@ export interface RunHover {
           </span>
         }
       </button>
-      @if (v.status === 'open' && !v.clippedRight) {
+      @if (v.status === 'open' && !v.clippedRight && v.stillFits) {
         <!-- Outside the button, so its accessible name stays the label (WCAG 2.5.3); the status is in that name too. -->
         <span class="still" [style.--row]="v.row" [style.right.%]="100 - v.left - v.width" aria-hidden="true" i18n="Label at the open end of a run band@@runs.track.stillRunning">still running</span>
       }
     }
   `,
   styles: `
-    :host { position: absolute; left: 0; right: 0; top: var(--lane-h); bottom: 0; pointer-events: none; }
+    :host { position: absolute; left: 0; right: 0; top: calc(var(--lane-h) + 3px); bottom: 0; pointer-events: none; }
     .run {
       --run-color: var(--accent);
       --row: 0;

@@ -17,7 +17,7 @@ function lit(text: string): string {
 /** A dialog by its title (the dialog host labels `role=dialog` with its heading). */
 export function dialog(title: string) {
   return $(
-    `//*[@role='dialog'][.//*[starts-with(@id,'imt-dialog-title-')][normalize-space()=${lit(title)}]]`,
+    `//*[@role='dialog'][.//*[starts-with(@id,'debrief-dialog-title-')][normalize-space()=${lit(title)}]]`,
   );
 }
 
@@ -29,7 +29,7 @@ export function button(name: string, scope = '') {
 /** A dock tab by its label. */
 export function tab(name: string) {
   return $(
-    `//*[@role='tab'][.//*[contains(concat(' ',normalize-space(@class),' '),' imt-tab-label ')][normalize-space()=${lit(name)}]]`,
+    `//*[@role='tab'][.//*[contains(concat(' ',normalize-space(@class),' '),' debrief-tab-label ')][normalize-space()=${lit(name)}]]`,
   );
 }
 
@@ -37,7 +37,7 @@ export function tab(name: string) {
 export async function waitForShell(): Promise<void> {
   await $('[role=menubar][aria-label="Application menu"]').waitForDisplayed({ timeout: 60_000 });
   // The lifecycle extras are mounted into the title bar after start-up (the crash check has run by then).
-  await $('imt-title-extras').waitForExist({ timeout: 30_000 });
+  await $('debrief-title-extras').waitForExist({ timeout: 30_000 });
   // A build that includes the AI worker offers its set-up on a fresh profile; close it so it doesn't cover the app.
   const aiSetup = dialog('Set up the AI assistant');
   if (await aiSetup.waitForExist({ timeout: 3_000 }).then(() => true, () => false)) {
@@ -48,9 +48,9 @@ export async function waitForShell(): Promise<void> {
 
 /** Waits until the workspace shows events: grid rows, an event count and at least one timeline lane. */
 export async function waitForEvents(): Promise<void> {
-  await $('imt-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
-  await expect($('imt-status-bar')).toHaveText(/\d[\d,]* events/, { wait: 30_000 });
-  await $('imt-timeline-panel .lane').waitForDisplayed({ timeout: 30_000 });
+  await $('debrief-events-grid [role=row].row').waitForDisplayed({ timeout: 60_000 });
+  await expect($('debrief-status-bar')).toHaveText(/\d[\d,]* events/, { wait: 30_000 });
+  await $('debrief-timeline-panel .lane').waitForDisplayed({ timeout: 30_000 });
 }
 
 /** Visible error surfaces with a message: toasts, banners and inline errors all use `role=alert` (empty live regions don't count). */
@@ -90,7 +90,7 @@ export function parseCount(text: string): number {
 
 /** The grid's total of matching events. */
 export async function gridTotal(): Promise<number> {
-  const total = $('imt-events-grid .bar .total');
+  const total = $('debrief-events-grid .bar .total');
   await expect(total).toHaveText(/^\d[\d,]*$/, { wait: 30_000 });
   return parseCount(await total.getText());
 }
@@ -106,12 +106,12 @@ export async function isRunning(): Promise<boolean> {
 }
 
 /**
- * Quits IMT the way a user does: File ▸ Close window on the last window, then Quit in the close prompt (with
+ * Quits Debrief the way a user does: File ▸ Close window on the last window, then Quit in the close prompt (with
  * "Remember my choice" cleared so the user's setting is not changed). Resolves once the process is gone and
  * its running marker removed: a clean exit.
  */
 /** Runs a click that may end the app: WebKitWebDriver reports "Session terminated without a reply" when the app
- *  exits before it answers the click (msedgedriver answers first). Whether IMT really quit is checked afterwards. */
+ *  exits before it answers the click (msedgedriver answers first). Whether Debrief really quit is checked afterwards. */
 async function mayEndApp(click: () => Promise<unknown>): Promise<void> {
   try {
     await click();
@@ -120,9 +120,9 @@ async function mayEndApp(click: () => Promise<unknown>): Promise<void> {
   }
 }
 
-/** Leaves the driver on IMT's only window: a spec may have closed the window the driver was on, and an extra window
- *  (e.g. the activity log) keeps IMT running after its main window's "Close window" ▸ Quit. Extra windows are closed
- *  through IMT's own menu, never the driver's closeWindow (WebKitWebDriver closed the wrong window). */
+/** Leaves the driver on Debrief's only window: a spec may have closed the window the driver was on, and an extra window
+ *  (e.g. the activity log) keeps Debrief running after its main window's "Close window" ▸ Quit. Extra windows are closed
+ *  through Debrief's own menu, never the driver's closeWindow (WebKitWebDriver closed the wrong window). */
 async function oneWindowLeft(): Promise<void> {
   let handles = await browser.getWindowHandles().catch(() => [] as string[]);
   const current = await browser.getWindowHandle().catch(() => '');
@@ -143,7 +143,7 @@ async function oneWindowLeft(): Promise<void> {
 export async function quitApp(): Promise<void> {
   await oneWindowLeft();
   await mayEndApp(() => chooseMenu('File', 'Close window'));
-  const prompt = dialog('Close IMT?');
+  const prompt = dialog('Close Debrief?');
   // A remembered "quit" choice closes without asking.
   const asked = await prompt.waitForDisplayed({ timeout: 10_000 }).then(
     () => true,
@@ -156,10 +156,10 @@ export async function quitApp(): Promise<void> {
   }
   await browser.waitUntil(async () => !(await isRunning()), {
     timeout: 30_000,
-    timeoutMsg: 'IMT did not exit after Quit',
+    timeoutMsg: 'Debrief did not exit after Quit',
   });
   await browser.waitUntil(async () => !existsSync(runningMarker()), {
     timeout: 15_000,
-    timeoutMsg: `IMT exited but left ${runningMarker()} behind (an unclean shutdown)`,
+    timeoutMsg: `Debrief exited but left ${runningMarker()} behind (an unclean shutdown)`,
   });
 }

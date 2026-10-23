@@ -21,7 +21,7 @@ async function paletteOffers(page: Page, title: string): Promise<boolean> {
   // The list renders the query on the next frame: reading it earlier sees the unfiltered list, whose rows
   // are then removed while being read (or, for a negative check, passes without having filtered).
   await nextRender(page);
-  const first = page.locator('imt-command-palette').getByRole('option').first();
+  const first = page.locator('debrief-command-palette').getByRole('option').first();
   const offered = (await first.count()) > 0 && (await first.innerText({ timeout: 2_000 })).includes(title);
   await page.keyboard.press('Escape');
   return offered;
@@ -40,7 +40,7 @@ test.describe('tools without the tools plugin', () => {
     // Core features still work.
     await openView(page, 'Plugins');
     await page.getByTestId('plugins-tab-health').click();
-    await expect(page.locator('imt-plugin-health-view')).toBeVisible();
+    await expect(page.locator('debrief-plugin-health-view')).toBeVisible();
     await expect(page.getByRole('alert').filter({ hasText: /safe mode|failed/i })).toHaveCount(0);
   });
 
@@ -62,19 +62,19 @@ test.describe('tools of an unavailable plugin', () => {
   test('a quarantined tools plugin keeps its panels but says why and blocks the actions', async ({ page }) => {
     await openAppWith(page, '?mock-tools=quarantined');
     await openView(page, 'Process Monitor');
-    const monitor = page.locator('imt-monitor-view');
+    const monitor = page.locator('debrief-monitor-view');
     await expect(monitor.getByTestId('tool-unavailable')).toContainText('disabled after repeated crashes');
     await monitor.getByLabel('Target value 1').fill('OrderService*');
     await expect(monitor.getByRole('button', { name: 'Start' })).toBeDisabled();
 
     await openView(page, 'Performance Monitor');
-    const perfmon = page.locator('imt-perfmon-view');
+    const perfmon = page.locator('debrief-perfmon-view');
     await expect(perfmon.getByTestId('tool-unavailable')).toContainText('disabled after repeated crashes');
     await expect(perfmon.getByRole('button', { name: 'Generate XML' })).toBeDisabled();
     await expect(perfmon.getByRole('button', { name: /Install/ })).toHaveCount(0);
 
     await runCommand(page, 'Collect diagnostics bundle');
-    const dialog = page.locator('imt-collector-dialog');
+    const dialog = page.locator('debrief-collector-dialog');
     await expect(dialog.getByTestId('tool-unavailable')).toContainText('repeated crashes');
     await expect(dialog.getByRole('button', { name: 'Collect', exact: true })).toBeDisabled();
   });
@@ -82,6 +82,6 @@ test.describe('tools of an unavailable plugin', () => {
   test('an inactive tools plugin shows its dependency reason', async ({ page }) => {
     await openAppWith(page, '?mock-tools=inactive');
     await openView(page, 'Process Monitor');
-    await expect(page.locator('imt-monitor-view').getByTestId('tool-unavailable')).toContainText('inactive: needs net.decryptology.windows');
+    await expect(page.locator('debrief-monitor-view').getByTestId('tool-unavailable')).toContainText('inactive: needs net.decryptology.windows');
   });
 });

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 16 16">
+  <title>Debrief tray</title>
+  <defs></defs>
+  <g><g opacity="0.45"><path d="M2 3.5H8" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></g><path d="M1.5 9H4.5L6.25 5L8.75 13L10.5 9H14.5" fill="none" stroke="#000000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M10.5 3.5a2 2 0 1 1 4 0a2 2 0 1 1 -4 0Z" fill="#000000"/></g>
+  
+</svg>

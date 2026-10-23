@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { MarkerKind, WorkspaceSummary } from '../api.types';
-import { ImtBackend } from '../backend';
+import { DebriefBackend } from '../backend';
 import { failureText } from '../cmd-error';
 import { Logger } from '../logger';
 import { Platform } from '../platform';
@@ -63,7 +63,7 @@ export const WorkspaceDataStore = signalStore(
   withMethods(
     (
       store,
-      backend = inject(ImtBackend),
+      backend = inject(DebriefBackend),
       platform = inject(Platform),
       logger = inject(Logger),
       recent = inject(RECENT_STORE),
@@ -166,6 +166,23 @@ export const WorkspaceDataStore = signalStore(
           patchState(store, (s) => ({ importVersion: s.importVersion + 1 }));
         },
         openPaths: (paths: string[]): Promise<void> => open(paths),
+        /**
+         * Opens `paths`, reading only the events inside a time range (epoch ms; either end may be null): events
+         * outside it never reach the store (ADR 0047). The range applies to this open only.
+         */
+        async openInRange(paths: string[], range: { from: number | null; to: number | null }): Promise<void> {
+          try {
+            await backend.setImportWindow(range.from, range.to);
+          } catch (e) {
+            status.setError(errorText(e));
+            return;
+          }
+          try {
+            await open(paths);
+          } finally {
+            await backend.setImportWindow(null, null).catch(() => undefined);
+          }
+        },
         async pickAndOpen(directory: boolean) {
           try {
             const paths = await platform.pickPaths(directory);

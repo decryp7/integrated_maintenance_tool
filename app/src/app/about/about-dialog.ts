@@ -16,16 +16,16 @@ const DOC_TITLES: Record<LegalDoc, string> = {
   apache: 'LICENSE-APACHE',
 };
 
-/** About IMT: version, licence and the third-party notices in a searchable, virtualised viewer. */
+/** About Debrief: version, licence and the third-party notices in a searchable, virtualised viewer. */
 @Component({
-  selector: 'imt-about',
+  selector: 'debrief-about',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AppLogo],
   template: `
     <div class="id">
-      <imt-app-logo [size]="48" />
+      <debrief-app-logo [size]="48" />
       <div>
-        <h3 class="name">IMT — Integrated Maintenance Tool</h3>
+        <h3 class="name">Debrief</h3>
         <p class="meta" i18n="@@about.meta">
           Version <strong class="version">{{ version() ?? unknown }}</strong>
           · commit <span class="mono commit">{{ build.commit }}</span>
@@ -153,14 +153,14 @@ export class AboutDialog {
   }
 }
 
-/** Opens the About dialog (Help → About IMT, the "About IMT" palette command). */
+/** Opens the About dialog (Help → About Debrief, the "About Debrief" palette command). */
 @Injectable({ providedIn: 'root' })
 export class AboutService {
   private readonly dialogs = inject(DialogService);
 
   open(): void {
     if (this.dialogs.stack().some((d) => d.component === AboutDialog)) return;
-    this.dialogs.open(AboutDialog, { title: $localize`:@@about.title:About IMT`, width: 720
+    this.dialogs.open(AboutDialog, { title: $localize`:@@about.title:About Debrief`, width: 720
  });
   }
 }

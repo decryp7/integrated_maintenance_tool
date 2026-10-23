@@ -2,7 +2,7 @@ import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { LifecycleBackend } from '../../core/tools-backend';
 import { PluginInfo, SubscriberMetrics } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { LifecycleService } from '../../lifecycle/lifecycle.service';
 import { errorMessage } from '../tool-errors';
@@ -54,7 +54,7 @@ export const PluginHealthStore = signalStore(
       return by;
     }),
   })),
-  withMethods((store, backend = inject(LifecycleBackend), life = inject(LifecycleService), engine = inject(ImtBackend)) => {
+  withMethods((store, backend = inject(LifecycleBackend), life = inject(LifecycleService), engine = inject(DebriefBackend)) => {
     const run = async (label: string, op: () => Promise<void>) => {
       patchState(store, { busy: label, error: null });
       try {

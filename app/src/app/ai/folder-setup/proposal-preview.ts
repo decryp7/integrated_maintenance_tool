@@ -7,7 +7,7 @@ const LANES_SHOWN = 8;
 
 /** What the engine measured for one proposal on the sampled events (counts, lanes, before/after examples). */
 @Component({
-  selector: 'imt-folder-setup-preview',
+  selector: 'debrief-folder-setup-preview',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let p = preview();

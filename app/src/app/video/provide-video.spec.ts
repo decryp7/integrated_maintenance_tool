@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 import { settle } from '../../testing/helpers';
 import { DROPPED_FILES_HANDLERS } from '../core/dropped-files';
-import { flattenContributions, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { flattenContributions, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { MOCK_VIDEO_PATHS } from './mock/mock-video-backend';
 import { provideVideo, showOpened, VideoCommands, videoViews } from './provide-video';
 import { setupVideo } from './testing/video-test-support';
@@ -50,8 +50,8 @@ describe('video view and commands', () => {
   it('provides the backend, view, commands, drop handler and the start-up refresh', async () => {
     const t = setupVideo();
     TestBed.configureTestingModule({ providers: [provideVideo(), { provide: VideoBackend, useValue: t.backend }] });
-    expect(flattenContributions<ImtView>(TestBed.inject(IMT_VIEWS)).map((v) => v.id)).toContain('video');
-    expect(flattenContributions<ImtCommand>(TestBed.inject(IMT_COMMANDS)).map((c) => c.id)).toEqual(expect.arrayContaining(['video.open', 'video.show']));
+    expect(flattenContributions<DebriefView>(TestBed.inject(DEBRIEF_VIEWS)).map((v) => v.id)).toContain('video');
+    expect(flattenContributions<DebriefCommand>(TestBed.inject(DEBRIEF_COMMANDS)).map((c) => c.id)).toEqual(expect.arrayContaining(['video.open', 'video.show']));
     const [drop] = TestBed.inject(DROPPED_FILES_HANDLERS);
     const claimed = await drop!([MOCK_VIDEO_PATHS[0]!, '/x/app.log']);
     expect(claimed).toEqual([MOCK_VIDEO_PATHS[0]]);

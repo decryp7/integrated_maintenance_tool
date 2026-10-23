@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ProfileVersionInfo } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { formatFull } from '../../core/format';
 import { describeError } from '../../core/logger';
 import { UxBackend } from '../../core/ux-backend';
@@ -15,7 +15,7 @@ import { lineDiff, stampToMs } from './line-diff';
  * current profile, and restore it through the engine's validated save (undoable).
  */
 @Component({
-  selector: 'imt-profile-history',
+  selector: 'debrief-profile-history',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (error(); as e) {
@@ -96,7 +96,7 @@ import { lineDiff, stampToMs } from './line-diff';
 export class ProfileHistory {
   protected readonly draft = inject(ProfileDraft);
   private readonly ux = inject(UxBackend);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly undo = inject(ProfileUndo);
   private readonly store = inject(WorkspaceStore);
   private readonly settings = inject(SettingsStore);

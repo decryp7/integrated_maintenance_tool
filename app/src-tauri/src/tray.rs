@@ -5,9 +5,9 @@
 //!
 //! The menu is a pure model ([`menu_model`]) turned into a Tauri menu, and is
 //! rebuilt only when that model changes. Without a tray (e.g. Linux without an
-//! app indicator) IMT degrades: closing the last window quits.
+//! app indicator) Debrief degrades: closing the last window quits.
 //!
-//! Recent projects come from [`crate::recent`]. Event: `imt://capture` (to the target window).
+//! Recent projects come from [`crate::recent`]. Event: `debrief://capture` (to the target window).
 
 use crate::background::{BackgroundTasks, TaskInfo};
 use crate::window_manager::{list, open_new, quit, reveal, target, WindowInfo};
@@ -17,9 +17,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};
 
-const TRAY_ID: &str = "imt";
+const TRAY_ID: &str = "debrief";
 /// Event asking a window to capture a diagnostic screenshot.
-pub const CAPTURE_EVENT: &str = "imt://capture";
+pub const CAPTURE_EVENT: &str = "debrief://capture";
 const MAX_TEXT: usize = 80;
 
 /// Managed state: whether the tray exists, and the last menu shown.
@@ -65,8 +65,8 @@ fn short(text: &str) -> String {
 pub fn menu_model(windows: &[WindowInfo], recents: &[crate::recent::RecentProject], tasks: &[TaskInfo]) -> Vec<MenuEntry> {
     let mut menu = Vec::new();
     match windows {
-        [] => menu.push(item("new-window", "Show IMT")),
-        [only] => menu.push(item(format!("window:{}", only.label), "Show IMT")),
+        [] => menu.push(item("new-window", "Show Debrief")),
+        [only] => menu.push(item(format!("window:{}", only.label), "Show Debrief")),
         many => {
             for w in many {
                 menu.push(item(format!("window:{}", w.label), format!("Show \u{201c}{}\u{201d}", w.title)));
@@ -109,7 +109,7 @@ pub fn menu_model(windows: &[WindowInfo], recents: &[crate::recent::RecentProjec
     menu.push(MenuEntry::Separator);
     menu.push(item("capture", "Capture diagnostic screenshot"));
     menu.push(MenuEntry::Separator);
-    menu.push(item("quit", "Quit IMT"));
+    menu.push(item("quit", "Quit Debrief"));
     menu
 }
 
@@ -143,13 +143,13 @@ pub fn parse_action(id: &str) -> Option<TrayAction> {
 
 pub fn tooltip(running: usize) -> String {
     match running {
-        0 => "IMT".into(),
-        1 => "IMT \u{2014} 1 background task running".into(),
-        n => format!("IMT \u{2014} {n} background tasks running"),
+        0 => "Debrief".into(),
+        1 => "Debrief \u{2014} 1 background task running".into(),
+        n => format!("Debrief \u{2014} {n} background tasks running"),
     }
 }
 
-/// Whether a tray icon exists (closing the last window may keep IMT running in it).
+/// Whether a tray icon exists (closing the last window may keep Debrief running in it).
 pub fn available<R: Runtime>(app: &AppHandle<R>) -> bool {
     app.try_state::<TrayState>().is_some_and(|t| t.available.load(Ordering::SeqCst))
 }
@@ -161,11 +161,11 @@ pub fn set_available<R: Runtime>(app: &AppHandle<R>, on: bool) {
     }
 }
 
-/// Creates the tray icon. A failure (no tray on this desktop) is logged and IMT runs without one.
+/// Creates the tray icon. A failure (no tray on this desktop) is logged and Debrief runs without one.
 pub fn create<R: Runtime>(app: &AppHandle<R>) {
     // Without a taskbar (a service session, a CI runner) the tray calls would have nowhere to go.
     if !host_available() {
-        log::info!("No taskbar to hold a tray icon; IMT runs without one");
+        log::info!("No taskbar to hold a tray icon; Debrief runs without one");
         return;
     }
     if let Err(e) = build(app) {
@@ -367,10 +367,10 @@ mod tests {
             ids(&empty),
             ["new-window", "-", "new-window", "none", "none", "-", "capture", "-", "quit"]
         );
-        let one = menu_model(&[win("main", "IMT")], &[], &[]);
+        let one = menu_model(&[win("main", "Debrief")], &[], &[]);
         assert_eq!(ids(&one)[0], "window:main");
         let recents = [RecentProject {
-            path: "/p/a.imtproj".into(),
+            path: "/p/a.debriefproj".into(),
             name: "Incident".into(),
             opened_at: 0,
         }];
@@ -416,9 +416,9 @@ mod tests {
         for bad in ["none", "recent:x", "window:", "stop:", "other:1", ""] {
             assert_eq!(parse_action(bad), None, "{bad}");
         }
-        assert_eq!(tooltip(0), "IMT");
-        assert_eq!(tooltip(1), "IMT \u{2014} 1 background task running");
-        assert_eq!(tooltip(3), "IMT \u{2014} 3 background tasks running");
+        assert_eq!(tooltip(0), "Debrief");
+        assert_eq!(tooltip(1), "Debrief \u{2014} 1 background task running");
+        assert_eq!(tooltip(3), "Debrief \u{2014} 3 background tasks running");
     }
 
     #[test]
@@ -429,7 +429,7 @@ mod tests {
         let root = if cfg!(windows) { "C:/p" } else { "/p" };
         let main = window(&app, "main");
         for i in (0..3).rev() {
-            crate::recent::recents(&h).record_project(&format!("{root}/{i}.imtproj"), &format!("P{i}"));
+            crate::recent::recents(&h).record_project(&format!("{root}/{i}.debriefproj"), &format!("P{i}"));
         }
         let recents = crate::recent::recents(&h).list().projects;
         assert_eq!(recents.len(), 3);

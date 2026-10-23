@@ -38,7 +38,7 @@ impl NoticesRecord {
             Some(n) if n > u64::from(VERSION) => {
                 return (
                     Vec::new(),
-                    Some(format!("the notifications were saved by a newer IMT (version {n})")),
+                    Some(format!("the notifications were saved by a newer Debrief (version {n})")),
                 );
             }
             _ => return damaged(),
@@ -93,7 +93,12 @@ mod tests {
     fn notices() -> Vec<Notice> {
         let mut c = Centre::new(10);
         c.post(
-            NewNotice::new(NoticeSource::Update, NoticeSeverity::Info, "IMT 1.2 is available", NoticeScope::App),
+            NewNotice::new(
+                NoticeSource::Update,
+                NoticeSeverity::Info,
+                "Debrief 1.2 is available",
+                NoticeScope::App,
+            ),
             NoticeId(1),
             5,
         );
@@ -101,7 +106,7 @@ mod tests {
             NewNotice::new(
                 NoticeSource::Session,
                 NoticeSeverity::Warning,
-                "IMT did not close properly",
+                "Debrief did not close properly",
                 NoticeScope::App,
             ),
             NoticeId(2),

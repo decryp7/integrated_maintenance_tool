@@ -141,7 +141,7 @@ const MOCK_TOOLS: Omit<ToolEntry, 'availability'>[] = [
   {
     id: TOOL_IDS.elevation,
     title: 'Administrator rights',
-    description: 'Whether IMT runs elevated.',
+    description: 'Whether Debrief runs elevated.',
     platforms: [],
     needsElevation: false,
     ops: [{ name: 'info', title: 'Elevation and platform', args: ANY_ARGS, budgetMs: 10_000 }],
@@ -341,7 +341,7 @@ export class MockToolsBackend implements ToolsBackend {
     private readonly setOffset?: (source: number, offsetMs: number) => Promise<unknown>,
   ) {}
 
-  /** Non-zero clock offsets of the open sources, by path (an `.imtproj` version 2 `clock`). */
+  /** Non-zero clock offsets of the open sources, by path (an `.debriefproj` version 2 `clock`). */
   private async clockOf(): Promise<ClockByPath> {
     try {
       const summary = await this.summaryOf();
@@ -421,7 +421,7 @@ export class MockToolsBackend implements ToolsBackend {
     const p = MOCK_PROCESSES.find((x) => x.pid === a.pid);
     if (!p) throw new Error(`process ${a.pid} is not running (any more)`);
     if (p.pid === 4 || (this.options.denied && !this.options.elevated && p.name === 'lsass.exe')) {
-      throw new Error(`Access to process ${a.pid} was denied: it runs as another user or as administrator. Restart IMT as administrator to dump it.`);
+      throw new Error(`Access to process ${a.pid} was denied: it runs as another user or as administrator. Restart Debrief as administrator to dump it.`);
     }
     const sep = a.folder.includes('/') ? '/' : String.fromCharCode(92);
     return { file: `${a.folder}${sep}${p.name}.${p.pid}.${a.kind}.20261014-104124.dmp`, bytes: a.kind === 'full' ? 412 << 20 : 2 << 20 };
@@ -577,7 +577,7 @@ export class MockToolsBackend implements ToolsBackend {
     }
     if (!outDir.trim()) throw new Error('choose an output folder');
     // The mock's bundle name has no timestamp, so a second run into the same folder meets the first bundle.
-    const bundle = `${outDir}/${parsed.name}.imtz`;
+    const bundle = `${outDir}/${parsed.name}.debriefz`;
     this.files.write(bundle, overwrite);
     return this.slow({ bundle, manifest: mockManifest(parsed) });
   }
@@ -630,7 +630,7 @@ export class MockToolsBackend implements ToolsBackend {
 
   async lastSession(): Promise<string | null> {
     return this.session !== null || this.options.previousCrash
-      ? '/demo/session/last-session.imtproj'
+      ? '/demo/session/last-session.debriefproj'
       : null;
   }
 
@@ -641,8 +641,8 @@ export class MockToolsBackend implements ToolsBackend {
     reports?: Report[],
     overwrite = false,
   ): Promise<ProjectSaved> {
-    // Like the engine: a project is one self-contained `.imtz` file.
-    if (!path.toLowerCase().endsWith('.imtz')) throw new Error('a project must be saved as an .imtz file');
+    // Like the engine: a project is one self-contained `.debriefz` file.
+    if (!path.toLowerCase().endsWith('.debriefz')) throw new Error('a project must be saved as an .debriefz file');
     this.files.write(path, overwrite);
     this.projects.set(path, {
       name,
@@ -657,7 +657,7 @@ export class MockToolsBackend implements ToolsBackend {
   async openProject(path: string): Promise<ProjectOpened> {
     const found =
       this.projects.get(path) ??
-      (path.endsWith('last-session.imtproj')
+      (path.endsWith('last-session.debriefproj')
         ? {
             name: 'Last session',
             ui: this.session,
@@ -665,7 +665,7 @@ export class MockToolsBackend implements ToolsBackend {
             clock: this.sessionClock,
           }
         : null);
-    if (!found) throw new Error(`${path} is not an IMT project`);
+    if (!found) throw new Error(`${path} is not a Debrief project`);
     return {
       path,
       name: found.name,

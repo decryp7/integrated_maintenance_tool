@@ -1,5 +1,5 @@
 /**
- * Wire types of an opened IMT diagnostics report (the zip "Report a problem" and `imt-app --export-diagnostics`
+ * Wire types of an opened Debrief diagnostics report (the zip "Report a problem" and `debrief-app --export-diagnostics`
  * write). Mirrors `app/src-tauri/src/activity/report/open.rs` (camelCase JSON); re-exported by `core/api.types.ts`.
  *
  *   diagnostics_report       {}      -> DiagnosticsReportState (the calling window's report, if it opened one)
@@ -29,20 +29,20 @@ export interface ReportManifestFile {
   bytes: number;
 }
 
-/** The report's `manifest.json` (kind `imt-diagnostics`). */
+/** The report's `manifest.json` (kind `debrief-diagnostics`). */
 export interface ReportManifest {
   schemaVersion: number;
-  imtVersion: string;
+  debriefVersion: string;
   commit: string;
   /** RFC 3339, UTC. */
   createdAt: string;
   files: ReportManifestFile[];
 }
 
-/** Kind of a child process IMT supervises. */
+/** Kind of a child process Debrief supervises. */
 export type ChildKind = 'ai-worker' | 'llama-server' | 'plugin-host' | 'plugin' | 'store-worker';
 
-/** `running`: alive when the report was made; `unknown`: the log ended without an exit line (IMT itself stopped). */
+/** `running`: alive when the report was made; `unknown`: the log ended without an exit line (Debrief itself stopped). */
 export type ChildRunState = 'running' | 'exited' | 'stopped' | 'crashed' | 'quarantined' | 'unknown';
 
 /** One child process in `processes.json`. */
@@ -54,10 +54,10 @@ export interface ProcessSummary {
   /** Of the newest run. */
   pid: number | null;
   state: ChildRunState;
-  /** Starts in the newest IMT session (the first is not a restart). */
+  /** Starts in the newest Debrief session (the first is not a restart). */
   starts: number;
   restarts: number;
-  /** "exit code 3", "signal 11", "stopped by IMT". */
+  /** "exit code 3", "signal 11", "stopped by Debrief". */
   lastExit: string | null;
   /** RFC 3339, UTC. */
   lastExitAt: string | null;
@@ -83,7 +83,7 @@ export interface DiagnosticsReportView {
   /** The zip's file name. */
   name: string;
   manifest: ReportManifest;
-  /** OS, IMT version and build, memory, plugins, settings without secrets. */
+  /** OS, Debrief version and build, memory, plugins, settings without secrets. */
   systemInfo: Record<string, unknown>;
   processes: ProcessSummary[];
   steps: string[];

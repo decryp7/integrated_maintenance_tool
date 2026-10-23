@@ -34,13 +34,13 @@ describe('MarkersManager', () => {
     expect(text(fixture)).toContain('level is "Fatal"');
     const row = el(fixture, 'tr[data-kind="error"]');
     expect(row.querySelector('.num')!.textContent!.trim()).toBe('1');
-    expect(row.querySelector('imt-marker-glyph')).not.toBeNull();
+    expect(row.querySelector('debrief-marker-glyph')).not.toBeNull();
   });
 
   it('holds the highlight rules, which are line markers (K6)', async () => {
     const { fixture } = await mount();
     expect(el(fixture, 'section.highlights h2').textContent).toBe('Highlight rules');
-    expect(el(fixture, 'section.highlights imt-highlight-editor')).toBeTruthy();
+    expect(el(fixture, 'section.highlights debrief-highlight-editor')).toBeTruthy();
   });
 
   it('reorders with the move buttons and saves the new priority', async () => {
@@ -63,14 +63,14 @@ describe('MarkersManager', () => {
     expect(at((await model(backend)).marker as MarkerRuleX[], 0).kind).toBe('warning');
   });
 
-  it('disables a rule into imt_disabled_markers and re-enables it at the same place', async () => {
+  it('disables a rule into debrief_disabled_markers and re-enables it at the same place', async () => {
     const { fixture, backend } = await mount();
     btn(fixture, 'Disable Start').click();
     await settle(fixture, 8);
     await applied(fixture);
     let m = await model(backend);
     expect((m.marker as MarkerRuleX[]).map((r) => r.kind)).not.toContain('start');
-    expect((m['imt_disabled_markers'] as MarkerRuleX[])[0]).toMatchObject({ kind: 'start', imt_index: 1 });
+    expect((m['debrief_disabled_markers'] as MarkerRuleX[])[0]).toMatchObject({ kind: 'start', debrief_index: 1 });
     expect(kinds(fixture)[1]).toBe('start');
     expect(el(fixture, 'tr[data-kind="start"]').classList).toContain('off');
     expect(el(fixture, 'tr[data-kind="start"] .num').textContent!.trim()).toBe('–');
@@ -79,7 +79,7 @@ describe('MarkersManager', () => {
     await applied(fixture);
     m = await model(backend);
     expect((m.marker as MarkerRuleX[]).map((r) => r.kind).slice(0, 3)).toEqual(['fatal', 'start', 'stop']);
-    expect(m).not.toHaveProperty('imt_disabled_markers');
+    expect(m).not.toHaveProperty('debrief_disabled_markers');
   });
 
   it('duplicates a rule without its badge', async () => {

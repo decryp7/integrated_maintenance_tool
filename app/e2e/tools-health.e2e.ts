@@ -6,7 +6,7 @@ test('Plugin health lists plugins and offers Restart to apply after a change', a
   await openAppWith(page);
   await openView(page, 'Plugins');
   await page.getByTestId('plugins-tab-health').click();
-  const panel = page.locator('imt-plugin-health-view');
+  const panel = page.locator('debrief-plugin-health-view');
   const items = panel.getByRole('list', { name: 'Plugin health' }).locator(':scope > li');
   await expect(items).toHaveCount(4);
   await expect(items.first().getByTestId('plugin-status')).toHaveText('active');
@@ -22,7 +22,7 @@ test('Plugin health shows dependencies, why a plugin is inactive and event-bus c
   await openAppWith(page);
   await openView(page, 'Plugins');
   await page.getByTestId('plugins-tab-health').click();
-  const panel = page.locator('imt-plugin-health-view');
+  const panel = page.locator('debrief-plugin-health-view');
   const otel = panel.locator('.plugin[data-status=inactive]');
   await expect(otel.getByTestId('inactive-reason')).toContainText('needs net.decryptology.collector');
   const web = panel.getByRole('listitem').filter({ hasText: 'Web server logs' }).first();

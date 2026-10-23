@@ -13,25 +13,25 @@ import { MENU_MODE } from './menu/app-menu.service';
 import { NativeMenuBridge } from './menu/native-menu';
 
 @Component({
-  selector: 'imt-title-bar',
+  selector: 'debrief-title-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AppLogo, Icon, MenuBar, TitleExtras],
   template: `
     <div class="brand">
-      <imt-app-logo [size]="20" />
-      <span class="name">IMT</span>
+      <debrief-app-logo [size]="20" />
+      <span class="name">Debrief</span>
     </div>
     @if (mode === 'in-app') {
-      <imt-menu-bar class="menus" />
+      <debrief-menu-bar class="menus" />
     }
     <div class="palette-wrap">
       <button class="palette" (click)="openPalette()" [title]="paletteTitle">
-        <imt-icon name="search" [size]="13" />
-        <span class="ellipsis" data-testid="command-centre-name"><span class="where">{{ where() }}</span> <ng-container i18n="@@shell.titleBar.palettePromptShort">— type a command</ng-container></span>
+        <debrief-icon name="search" [size]="13" />
+        <span class="ellipsis" data-testid="command-centre-name"><span class="where">{{ where() }}</span>&ngsp;<ng-container i18n="@@shell.titleBar.palettePromptShort">— type a command</ng-container></span>
         <span class="mono faint kbd">{{ paletteKey }}</span>
       </button>
     </div>
-    <imt-title-extras />
+    <debrief-title-extras />
   `,
   host: { '(document:keydown)': 'onKey($event)' },
   styles: `
@@ -57,7 +57,9 @@ export class TitleBar {
   protected readonly where = computed(() => {
     if (this.projects.path()) return this.projects.name();
     const sources = this.store.summary()?.sources ?? [];
-    return sources.length ? openedFolderName(sources.map((s) => s.path)) : $localize`:@@shell.titleBar.noFolder:No folder open`;
+    if (!sources.length) return $localize`:@@shell.titleBar.noFolder:No folder open`;
+    // Sources from unrelated folders have no common name to show: say how many there are instead of a bare "/".
+    return openedFolderName(sources.map((s) => s.path)) || $localize`:@@shell.titleBar.manySources:${sources.length}:count: sources`;
   });
   private readonly registry = inject(CommandRegistry);
   private readonly palette = inject(PaletteService);
@@ -100,7 +102,10 @@ export function isTextEntry(el: HTMLElement | null): boolean {
   return el.tagName === 'INPUT' && TEXT_INPUTS.has((el.getAttribute('type') ?? '').toLowerCase());
 }
 
-/** The name of the deepest folder holding every path ("logs" for /data/logs/a.log and /data/logs/web/b.log). */
+/**
+ * The name of the deepest folder holding every path ("logs" for /data/logs/a.log and /data/logs/web/b.log); a lone file
+ * is its own name, and paths with no common folder give "".
+ */
 export function openedFolderName(paths: string[]): string {
   const split = (p: string) => p.split(/[\\/]/).filter(Boolean);
   const dirs = paths.map((p) => split(p).slice(0, -1));
@@ -110,5 +115,5 @@ export function openedFolderName(paths: string[]): string {
     while (i < common.length && i < d.length && common[i] === d[i]) i++;
     common = common.slice(0, i);
   }
-  return common.at(-1) ?? (paths.length === 1 ? (split(paths[0] ?? '').at(-1) ?? '') : '/');
+  return common.at(-1) ?? (paths.length === 1 ? (split(paths[0] ?? '').at(-1) ?? '') : '');
 }

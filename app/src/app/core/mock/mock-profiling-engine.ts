@@ -27,7 +27,7 @@ import { ProfilingFailure } from '../../profiling/profiling-errors';
 
 /**
  * Plausible stand-ins for the engine's profile queries over the synthetic data. Only for the
- * browser demo and UI tests: the reference behaviour is `crates/imt-profile`, not this file.
+ * browser demo and UI tests: the reference behaviour is `crates/debrief-profile`, not this file.
  */
 
 type Values = MetricValues;

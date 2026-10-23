@@ -8,7 +8,7 @@ import { JobsStore } from './jobs.store';
  * be closed (the job goes on and its message tells when it is done).
  */
 @Component({
-  selector: 'imt-job-wait',
+  selector: 'debrief-job-wait',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="wait" role="status" data-testid="job-wait">

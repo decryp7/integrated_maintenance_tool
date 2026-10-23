@@ -3,7 +3,7 @@
 
 use serde::Serialize;
 
-/// Downloads larger than this are refused (an IMT installer is well under 200 MB).
+/// Downloads larger than this are refused (a Debrief installer is well under 200 MB).
 pub const MAX_DOWNLOAD_BYTES: u64 = 512 * 1024 * 1024;
 
 /// Why checking, downloading or installing an update failed.
@@ -27,7 +27,7 @@ pub enum UpdateError {
     InvalidManifest {
         detail: String,
     },
-    /// The downloaded update does not carry a valid signature from the IMT signing key: refused.
+    /// The downloaded update does not carry a valid signature from the Debrief signing key: refused.
     SignatureInvalid {
         detail: String,
     },
@@ -83,15 +83,15 @@ impl UpdateError {
     pub fn message(&self) -> String {
         match self {
             UpdateError::NotAvailable => "Updates are not available in this build.".into(),
-            UpdateError::Offline => "IMT could not reach the network.".into(),
+            UpdateError::Offline => "Debrief could not reach the network.".into(),
             UpdateError::Unreachable { .. } => "The update server could not be reached.".into(),
             UpdateError::NoRelease => "The update server has no release information.".into(),
             UpdateError::NoPlatform { .. } => "The latest release has no update for this system.".into(),
-            UpdateError::InvalidManifest { .. } => "The update information from the server is invalid, so IMT ignored it.".into(),
-            UpdateError::SignatureInvalid { .. } => "The update's signature is not valid, so IMT refused to install it.".into(),
+            UpdateError::InvalidManifest { .. } => "The update information from the server is invalid, so Debrief ignored it.".into(),
+            UpdateError::SignatureInvalid { .. } => "The update's signature is not valid, so Debrief refused to install it.".into(),
             UpdateError::TooLarge { limit } => format!(
-                "The update is larger than {}, so IMT did not download it.",
-                imt_plugin_api::units::bytes(*limit)
+                "The update is larger than {}, so Debrief did not download it.",
+                debrief_plugin_api::units::bytes(*limit)
             ),
             UpdateError::DiskFull => "There is not enough disk space to install the update.".into(),
             UpdateError::InstallFailed { .. } => "The update could not be installed.".into(),
@@ -108,9 +108,9 @@ impl UpdateError {
             UpdateError::Unreachable { .. } => "Try again later. If it keeps failing, download the new version from the releases page.",
             UpdateError::NoRelease => "There may be no published release yet. Try again later or look at the releases page.",
             UpdateError::NoPlatform { .. } => "Download the installer for your system from the releases page.",
-            UpdateError::InvalidManifest { .. } => "Try again later; if it persists, report it to the IMT maintainers.",
+            UpdateError::InvalidManifest { .. } => "Try again later; if it persists, report it to the Debrief maintainers.",
             UpdateError::SignatureInvalid { .. } => {
-                "The download was discarded. Do not install it by hand; report this to the IMT maintainers."
+                "The download was discarded. Do not install it by hand; report this to the Debrief maintainers."
             }
             UpdateError::TooLarge { .. } => "Download the installer from the releases page.",
             UpdateError::DiskFull => "Free some disk space, then try again.",

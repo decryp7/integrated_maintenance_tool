@@ -1,0 +1,20 @@
+[package]
+name = "debrief-plugin-web"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+
+[dependencies]
+debrief-plugin-api = { path = "../debrief-plugin-api" }
+anyhow.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+chrono.workspace = true
+regex.workspace = true
+
+[dev-dependencies]
+# Snapshot tests of the importers against /samples (tests/samples.rs, snapshots in tests/snapshots/).
+insta.workspace = true
+proptest.workspace = true

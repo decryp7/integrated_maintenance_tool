@@ -46,7 +46,7 @@ describe('PopoutShell', () => {
     await settle(fixture);
     await vi.waitFor(async () => {
       await settle(fixture);
-      expect((fixture.nativeElement as HTMLElement).querySelector('imt-inspector')).not.toBeNull();
+      expect((fixture.nativeElement as HTMLElement).querySelector('debrief-inspector')).not.toBeNull();
     });
     return { fixture, el: fixture.nativeElement as HTMLElement, commands, host };
   }
@@ -103,7 +103,7 @@ describe('PopoutShell', () => {
   it('keeps the window title on the panel even when something else sets it', async () => {
     await shell();
     await vi.waitFor(() => expect(document.title).toBe('Inspector \u2014 Incident 42'));
-    document.title = 'Untitled \u2014 IMT';
+    document.title = 'Untitled \u2014 Debrief';
     await vi.waitFor(() => expect(document.title).toBe('Inspector \u2014 Incident 42'));
   });
 
@@ -120,7 +120,7 @@ describe('PopoutShell', () => {
 
   it('dragging the title bar in a browser sends the pointer screen position to the host', async () => {
     const { el, commands } = await shell((b) => (b.chrome = 'browser'));
-    const handle = el.querySelector<HTMLElement>('imt-popout-title-bar .bar')!;
+    const handle = el.querySelector<HTMLElement>('debrief-popout-title-bar .bar')!;
     handle.dispatchEvent(new PointerEvent('pointerdown', { button: 2, bubbles: true }));
     handle.dispatchEvent(new PointerEvent('pointerdown', { button: 0, bubbles: true, pointerId: 7 }));
     await settle();

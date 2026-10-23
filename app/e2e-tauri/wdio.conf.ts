@@ -15,7 +15,7 @@ import {
   tauriDriver,
 } from './support/paths';
 
-// Smoke tests of the real IMT app (Rust engine + Tauri shell + production UI build, no mock backend), driven by
+// Smoke tests of the real Debrief app (Rust engine + Tauri shell + production UI build, no mock backend), driven by
 // WebdriverIO through tauri-driver: WebView2 via msedgedriver on Windows, WebKitGTK via WebKitWebDriver on
 // Linux. macOS has no WebDriver for WKWebView, so these do not run there. See docs/testing-manual.md.
 //
@@ -35,16 +35,16 @@ if (WINDOWS) {
   process.env['TEMP'] = process.env['TMP'] = tmp;
 }
 
-// Every run keeps IMT's data, config and logs and the webview's profile in a fresh temp folder, never the
-// user's: debug builds take that root from IMT_DATA_DIR (app_dirs.rs). The launcher creates the folder; the
+// Every run keeps Debrief's data, config and logs and the webview's profile in a fresh temp folder, never the
+// user's: debug builds take that root from DEBRIEF_DATA_DIR (app_dirs.rs). The launcher creates the folder; the
 // workers load this file again with the launcher's environment, so they reuse it. `onComplete` removes it.
-const runDir = (process.env[RUN_DIR_VAR] ??= mkdtempSync(join(tmpdir(), 'imt-e2e-')));
+const runDir = (process.env[RUN_DIR_VAR] ??= mkdtempSync(join(tmpdir(), 'debrief-e2e-')));
 const layout = runLayout(runDir);
-process.env['IMT_DATA_DIR'] = layout.imt;
-// Every spec starts with the CLEF samples open, through the debug build's IMT_OPEN_PATHS (inherited by the app
+process.env['DEBRIEF_DATA_DIR'] = layout.debrief;
+// Every spec starts with the CLEF samples open, through the debug build's DEBRIEF_OPEN_PATHS (inherited by the app
 // through tauri-driver and the native driver). Command-line arguments are not reliable: msedgedriver turns them
 // into `--switches`, and WebKitWebDriver did not deliver them in a CI container.
-process.env['IMT_OPEN_PATHS'] = SAMPLES;
+process.env['DEBRIEF_OPEN_PATHS'] = SAMPLES;
 if (!WINDOWS) {
   // Linux: WebKitGTK and GTK also write to the XDG folders.
   process.env['XDG_DATA_HOME'] = layout.xdg.data;
@@ -55,7 +55,7 @@ if (!WINDOWS) {
 /**
  * Whether this Windows process runs elevated (High or System integrity). WebView2 ignores the
  * WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS variable (and HKCU overrides) for elevated hosts, and that variable is how
- * msedgedriver turns on the remote debugging port. Debug builds of IMT hand the value to WebView2 through its
+ * msedgedriver turns on the remote debugging port. Debug builds of Debrief hand the value to WebView2 through its
  * API themselves (dev_overrides.rs), so only a release binary cannot be driven from an elevated terminal.
  */
 function elevated(): boolean {
@@ -86,8 +86,8 @@ function freePort(): number {
 // tauri-driver's port and its native driver's, chosen per run so parallel runs on one machine (a CI runner with
 // capacity > 1, or a developer's run next to CI) never meet. Kept in the environment like the run folder, so the
 // workers that load this file again use the launcher's ports.
-const DRIVER_PORT = Number((process.env['IMT_E2E_DRIVER_PORT'] ??= String(freePort())));
-const NATIVE_PORT = Number((process.env['IMT_E2E_NATIVE_PORT'] ??= String(freePort())));
+const DRIVER_PORT = Number((process.env['DEBRIEF_E2E_DRIVER_PORT'] ??= String(freePort())));
+const NATIVE_PORT = Number((process.env['DEBRIEF_E2E_NATIVE_PORT'] ??= String(freePort())));
 
 /** Resolves once something listens on the port (tauri-driver takes a moment to bind). */
 function portOpen(port: number): Promise<boolean> {
@@ -109,18 +109,18 @@ async function ensureDriverPortsFree(): Promise<void> {
     if (Date.now() > deadline)
       throw new Error(
         `Port ${busy.join(' and ')} is already in use: a leftover tauri-driver or msedgedriver/WebKitWebDriver is running ` +
-          '(e.g. from a smoke run that hung). Stop that process, or pick other ports with IMT_E2E_DRIVER_PORT and ' +
-          'IMT_E2E_NATIVE_PORT, and run again.',
+          '(e.g. from a smoke run that hung). Stop that process, or pick other ports with DEBRIEF_E2E_DRIVER_PORT and ' +
+          'DEBRIEF_E2E_NATIVE_PORT, and run again.',
       );
     await new Promise((r) => setTimeout(r, 250));
   }
 }
 
-/** WebView2 browser processes of the previous spec's IMT (they use this run's data folder) that are still running. */
+/** WebView2 browser processes of the previous spec's Debrief (they use this run's data folder) that are still running. */
 function lingeringWebViews(): number {
   if (!WINDOWS) return 0;
   try {
-    const dir = layout.imt.replace(/'/g, "''");
+    const dir = layout.debrief.replace(/'/g, "''");
     const out = execFileSync(
       'powershell.exe',
       [
@@ -136,15 +136,15 @@ function lingeringWebViews(): number {
   }
 }
 
-/** A new IMT whose WebView2 starts while the previous one's browser processes still hold the data folder stayed
+/** A new Debrief whose WebView2 starts while the previous one's browser processes still hold the data folder stayed
  *  white for ~2 minutes on the CI runner: wait (bounded) until they are gone, and say how long it took. */
 async function previousWebViewGone(): Promise<void> {
   const started = Date.now();
   while (lingeringWebViews() > 0 && Date.now() - started < 30_000) await new Promise((r) => setTimeout(r, 500));
   const left = lingeringWebViews();
   const waited = Date.now() - started;
-  if (left > 0) console.warn(`${left} WebView2 process(es) of the previous IMT still running after ${waited} ms`);
-  else if (waited > 1_000) console.log(`Waited ${waited} ms for the previous IMT's WebView2 to exit`);
+  if (left > 0) console.warn(`${left} WebView2 process(es) of the previous Debrief still running after ${waited} ms`);
+  else if (waited > 1_000) console.log(`Waited ${waited} ms for the previous Debrief's WebView2 to exit`);
 }
 
 async function waitForPort(port: number, timeoutMs: number): Promise<void> {
@@ -166,13 +166,13 @@ export const config: WebdriverIO.Config = {
   maxInstances: 1,
   capabilities: [
     {
-      // The samples come from IMT_OPEN_PATHS (above), not the command line. On Windows the one argument is the
+      // The samples come from DEBRIEF_OPEN_PATHS (above), not the command line. On Windows the one argument is the
       // webview's data folder: without it msedgedriver makes one in its temp folder, which is
       // C:\Windows\SystemTemp (not writable) when the runner's service starts jobs in session 0. It is the folder
-      // the debug build gives WebView2 anyway (`app_dirs::webview_data_dir`), and IMT ignores the switch itself.
+      // the debug build gives WebView2 anyway (`app_dirs::webview_data_dir`), and Debrief ignores the switch itself.
       'tauri:options': {
         application: app,
-        args: WINDOWS ? [`--user-data-dir=${join(layout.imt, 'local')}`] : [],
+        args: WINDOWS ? [`--user-data-dir=${join(layout.debrief, 'local')}`] : [],
       },
     } as WebdriverIO.Capabilities,
   ],
@@ -190,12 +190,12 @@ export const config: WebdriverIO.Config = {
   onPrepare() {
     if (!existsSync(app))
       fail(
-        `No IMT binary at ${app}. Build it first: npm run e2e:tauri:build (or set IMT_E2E_APP).`,
+        `No Debrief binary at ${app}. Build it first: npm run e2e:tauri:build (or set DEBRIEF_E2E_APP).`,
       );
-    // The built-in plugins run in their own processes of `imt-plugins`, found next to the app (ADR 0017).
-    const plugins = join(dirname(app), platform() === 'win32' ? 'imt-plugins.exe' : 'imt-plugins');
-    if (!process.env['IMT_PLUGINS'] && !existsSync(plugins))
-      fail(`No plugins binary at ${plugins}. Build it with npm run e2e:tauri:build (or set IMT_PLUGINS).`);
+    // The built-in plugins run in their own processes of `debrief-plugins`, found next to the app (ADR 0017).
+    const plugins = join(dirname(app), platform() === 'win32' ? 'debrief-plugins.exe' : 'debrief-plugins');
+    if (!process.env['DEBRIEF_PLUGINS'] && !existsSync(plugins))
+      fail(`No plugins binary at ${plugins}. Build it with npm run e2e:tauri:build (or set DEBRIEF_PLUGINS).`);
     const td = tauriDriver();
     if (!existsSync(td))
       fail(
@@ -210,9 +210,9 @@ export const config: WebdriverIO.Config = {
           'WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS to WebView2 itself. A release binary cannot be driven elevated ' +
           '("DevToolsActivePort file doesn\'t exist"): build with npm run e2e:tauri:build or use a non-elevated terminal.',
       );
-    mkdirSync(layout.imt, { recursive: true });
+    mkdirSync(layout.debrief, { recursive: true });
     if (!WINDOWS) for (const d of Object.values(layout.xdg)) mkdirSync(d, { recursive: true });
-    console.log(`IMT data for this run: ${layout.imt}`);
+    console.log(`Debrief data for this run: ${layout.debrief}`);
   },
 
   // One tauri-driver per spec file (sessions run one after another).
@@ -254,10 +254,10 @@ export const config: WebdriverIO.Config = {
   },
 
   // The run's folder goes with it (WebView2 can hold files for a moment after the app exits); set
-  // IMT_E2E_KEEP_DATA=1 to keep it (IMT's logs are in its `logs` folder).
+  // DEBRIEF_E2E_KEEP_DATA=1 to keep it (Debrief's logs are in its `logs` folder).
   onComplete() {
-    if (process.env['IMT_E2E_KEEP_DATA'])
-      return console.log(`Kept IMT data of this run: ${layout.imt}`);
+    if (process.env['DEBRIEF_E2E_KEEP_DATA'])
+      return console.log(`Kept Debrief data of this run: ${layout.debrief}`);
     rmSync(runDir, { recursive: true, force: true, maxRetries: 10, retryDelay: 500 });
   },
 };

@@ -1,4 +1,14 @@
-import { cancelHintRect, cueHint, DRAG_CANCEL_CLASS, FLOAT_MAX, FLOAT_MIN, FloatCue, ghostRect, previewSize, tabDropOutcome } from './float-cue';
+import { floatedSize, FLOAT_ORIGIN, cancelHintRect, cueHint, DRAG_CANCEL_CLASS, FLOAT_MAX, FLOAT_MIN, FloatCue, ghostRect, previewSize, tabDropOutcome } from './float-cue';
+
+describe('floatedSize', () => {
+  it('is roomy on a big window, capped, and stays inside a small one', () => {
+    expect(floatedSize({ width: 1440, height: 900 })).toEqual({ width: 864, height: 630 });
+    expect(floatedSize({ width: 3000, height: 2000 })).toEqual({ width: 960, height: 640 });
+    const small = floatedSize({ width: 600, height: 400 });
+    expect(FLOAT_ORIGIN.x + small.width).toBeLessThanOrEqual(600);
+    expect(FLOAT_ORIGIN.y + small.height).toBeLessThanOrEqual(400);
+  });
+});
 
 describe('float cue geometry', () => {
   it('decides what a release does', () => {
@@ -59,7 +69,7 @@ describe('FloatCue', () => {
   beforeEach(() => (cue = new FloatCue()));
   afterEach(() => cue.dispose());
 
-  const ghost = () => document.querySelector<HTMLElement>('.imt-float-cue')!;
+  const ghost = () => document.querySelector<HTMLElement>('.debrief-float-cue')!;
   const live = () => document.querySelector<HTMLElement>('[aria-live="polite"].sr-only')!;
   const rect = { x: 10, y: 20, width: 300, height: 200 };
 
@@ -106,7 +116,7 @@ describe('FloatCue', () => {
     expect(ghost().hidden).toBe(true);
     expect(ghost().dataset['outcome']).toBeUndefined();
     cue.dispose();
-    expect(document.querySelector('.imt-float-cue')).toBeNull();
+    expect(document.querySelector('.debrief-float-cue')).toBeNull();
     cue = new FloatCue();
   });
 });

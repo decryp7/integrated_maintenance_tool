@@ -5,22 +5,22 @@ use super::dto::*;
 use super::Installed;
 use crate::paths::WindowGrants;
 use crate::{AppState, CmdError, CmdResult, State};
-use imt_ipc::supervisor::ChildState;
-use imt_plugin_api::manifest::Permission;
-use imt_plugin_host::installed::{InstallRecord, PluginsDir};
-use imt_plugin_host::PluginProcess;
-use imt_plugin_package::manifest::valid_id;
-use imt_plugin_package::Trust;
+use debrief_ipc::supervisor::ChildState;
+use debrief_plugin_api::manifest::Permission;
+use debrief_plugin_host::installed::{InstallRecord, PluginsDir};
+use debrief_plugin_host::PluginProcess;
+use debrief_plugin_package::manifest::valid_id;
+use debrief_plugin_package::Trust;
 use std::sync::Arc;
 
 /// The file extension of packages.
-pub const PACKAGE_EXTENSION: &str = "imtplugin";
+pub const PACKAGE_EXTENSION: &str = "debriefplugin";
 
 fn dir(installed: &Installed) -> CmdResult<PluginsDir> {
     installed
         .dir
         .clone()
-        .ok_or_else(|| CmdError::unavailable("IMT has no data folder to install plugins into"))
+        .ok_or_else(|| CmdError::unavailable("Debrief has no data folder to install plugins into"))
 }
 
 pub(super) fn check_id(id: &str) -> CmdResult<()> {
@@ -65,7 +65,7 @@ pub fn installed_dto(
     } else if safe_mode {
         (
             InstalledState::Unavailable,
-            Some("IMT runs in safe mode: no plugins are loaded".to_string()),
+            Some("Debrief runs in safe mode: no plugins are loaded".to_string()),
         )
     } else {
         match loaded {

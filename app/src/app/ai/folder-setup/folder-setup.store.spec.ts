@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { Logger } from '../../core/logger';
 import { JobsBackend } from '../../jobs/jobs-backend';
 import { JobOutcome } from '../../jobs/jobs.types';
@@ -68,7 +68,7 @@ function setup(options: MockFolderSetupOptions = { stageMs: 0 }) {
   const backend = new MockFolderSetupBackend(workspace, options);
   TestBed.configureTestingModule({
     providers: [
-      { provide: ImtBackend, useValue: workspace },
+      { provide: DebriefBackend, useValue: workspace },
       { provide: FolderSetupBackend, useValue: backend },
       { provide: Logger, useClass: MemoryLogger },
     ],
@@ -157,7 +157,7 @@ describe('FolderSetupStore', () => {
     expect(store.phase()).toBe('proposals');
     expect(store.error()).toContain('boom');
     await store.review();
-    vi.spyOn(TestBed.inject(ImtBackend), 'saveProfile').mockRejectedValueOnce(new Error('refused'));
+    vi.spyOn(TestBed.inject(DebriefBackend), 'saveProfile').mockRejectedValueOnce(new Error('refused'));
     expect(await store.apply()).toBe(false);
     expect(store.phase()).toBe('review');
     expect(store.error()).toBe('refused');
@@ -237,7 +237,7 @@ describe('FolderSetupStore as background jobs', () => {
     };
     TestBed.configureTestingModule({
       providers: [
-        { provide: ImtBackend, useValue: workspace },
+        { provide: DebriefBackend, useValue: workspace },
         { provide: FolderSetupBackend, useValue: backend },
         { provide: JobsBackend, useValue: jobs },
         { provide: Logger, useClass: MemoryLogger },

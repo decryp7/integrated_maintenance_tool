@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { describeError } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
 import { ProfileEdits } from '../profile/profile-edits';
@@ -22,7 +22,7 @@ export type RulesResult = { ok: true } | { ok: false; failure: RulesFailure };
 @Injectable({ providedIn: 'root' })
 export class LiveRulesProfile {
   private readonly edits = inject(ProfileEdits);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly store = inject(WorkspaceStore);
   private readonly undo = inject(ProfileUndo);
 

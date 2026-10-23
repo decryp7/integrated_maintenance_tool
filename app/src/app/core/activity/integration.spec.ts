@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MemoryLogger, provideFakeDock, provideTinyBackendBare, FakeDock } from '../../../testing/helpers';
 import { COMMAND_CONTEXT, CommandRegistry } from '../../extensions/command-registry';
-import { CommandContext, IMT_COMMANDS, ImtCommand } from '../../extensions/tokens';
+import { CommandContext, DEBRIEF_COMMANDS, DebriefCommand } from '../../extensions/tokens';
 import { PANEL_WINDOWS, PanelWindows } from '../../dock/panel-windows';
 import { DockService } from '../../dock/dock.service';
 import { Logger, withFailureLogging } from '../logger';
@@ -17,7 +17,7 @@ import { at } from '../../../testing/must';
 
 function entries(): { message: string; props: Record<string, string> }[] {
   return (TestBed.inject(Logger) as MemoryLogger).entries
-    .filter((e) => e.category === 'IMT.Activity')
+    .filter((e) => e.category === 'Debrief.Activity')
     .map((e) => ({ message: e.message, props: e.props as Record<string, string> }));
 }
 
@@ -41,15 +41,15 @@ describe('activity: trigger attribution of command entry paths', () => {
   });
   afterEach(() => (document.body.innerHTML = ''));
 
-  function setup(commands: ImtCommand[]) {
+  function setup(commands: DebriefCommand[]) {
     TestBed.configureTestingModule({
-      providers: [provideTinyBackendBare(), provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: IMT_COMMANDS, multi: true, useValue: commands }],
+      providers: [provideTinyBackendBare(), provideFakeDock(), { provide: COMMAND_CONTEXT, useValue: ctx }, { provide: DEBRIEF_COMMANDS, multi: true, useValue: commands }],
     });
     TestBed.inject(ActivityLog);
     const stop = activity.triggers.install(document);
     return { registry: TestBed.inject(CommandRegistry), stop };
   }
-  const cmd = (id: string, extra: Partial<ImtCommand> = {}): ImtCommand => ({ id, title: `Do ${id}`, category: 'File', run: () => void ran.push(id), ...extra });
+  const cmd = (id: string, extra: Partial<DebriefCommand> = {}): DebriefCommand => ({ id, title: `Do ${id}`, category: 'File', run: () => void ran.push(id), ...extra });
 
   /** Simulates a click on the element matched by `selector` in `html`, then runs the command (as its handler would). */
   async function clickThenRun(registry: CommandRegistry, html: string, selector: string, id: string) {
@@ -62,7 +62,7 @@ describe('activity: trigger attribution of command entry paths', () => {
 
   it('attributes menu, context menu, button, palette, shortcut and native menu runs', async () => {
     const { registry, stop } = setup([cmd('a', { keybinding: 'Mod+Shift+K' })]);
-    await clickThenRun(registry, '<imt-title-bar><div role="menu"><button role="menuitem" id="i">A</button></div></imt-title-bar>', '#i', 'a');
+    await clickThenRun(registry, '<debrief-title-bar><div role="menu"><button role="menuitem" id="i">A</button></div></debrief-title-bar>', '#i', 'a');
     await clickThenRun(registry, '<div role="menu"><button role="menuitem" id="i">A</button></div>', '#i', 'a');
     await clickThenRun(registry, '<div><button id="i">A</button></div>', '#i', 'a');
     await registry.run('a', 'palette');
@@ -89,7 +89,7 @@ describe('activity: trigger attribution of command entry paths', () => {
     ]);
     expect(await registry.run('bad', 'menu')).toBe(false);
     const all = (TestBed.inject(Logger) as MemoryLogger).entries;
-    const entry = all.find((e) => e.category === 'IMT.Activity')!;
+    const entry = all.find((e) => e.category === 'Debrief.Activity')!;
     const failure = all.find((e) => e.category === 'ui.command')!;
     expect(entry.props).toMatchObject({ Outcome: 'error', ErrorCode: 'E_IO' });
     expect(failure.props?.['Command']).toBe('bad');

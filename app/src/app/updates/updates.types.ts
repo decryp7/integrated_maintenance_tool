@@ -7,12 +7,12 @@ import { CmdError } from '../core/cmd-error';
  *   updates_download                    -> UpdateStatus   (progress arrives as events)
  *   updates_discard                     -> UpdateStatus   (drops a downloaded update; a download is cancelled through its job)
  *   updates_install_on_quit { enabled } -> UpdateStatus
- *   updates_restart                     -> void           (IMT quits, installs and starts again)
+ *   updates_restart                     -> void           (Debrief quits, installs and starts again)
  *   updates_open_releases               -> void
- *   event imt://updates                 -> UpdateStatus   (to every window)
+ *   event debrief://updates                 -> UpdateStatus   (to every window)
  */
 
-export const UPDATES_EVENT = 'imt://updates';
+export const UPDATES_EVENT = 'debrief://updates';
 
 export type UpdateErrorKind =
   | 'notAvailable'

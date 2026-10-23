@@ -1,7 +1,7 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
 import { ErrorDetails } from '../ui/error-details';
 import { RecordView } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { formatCount, formatDateTime } from '../core/format';
 import { describeError } from '../core/logger';
 import { QueryStore } from '../core/workspace/query.store';
@@ -56,6 +56,12 @@ let gridSeq = 0;
 /** Anchor requests survive the grid being destroyed (tab switch); only act on new ones (per store). */
 const handledAnchorNonce = new WeakMap<object, number>();
 
+/** "OrderService · WEB01 · 3312" as the name and the muted rest (host, process id). */
+export function splitInstance(group: string): { instName: string; instRest: string } {
+  const i = group.indexOf(' · ');
+  return i < 0 ? { instName: group, instRest: '' } : { instName: group.slice(0, i), instRest: group.slice(i + 3) };
+}
+
 /** What one rendered row shows: everything the template needs, computed once per change instead of per binding. */
 export interface RowVm {
   kind: 'row';
@@ -78,6 +84,11 @@ export interface RowVm {
   untimed: boolean;
   levelVar: string;
   levelCode: string;
+  /** Information, debug and verbose rows show the dot only: the code appears where a level is notable. */
+  quietLevel: boolean;
+  /** The instance's name, then its host and process id, muted. */
+  instName: string;
+  instRest: string;
   /** The extra columns' texts, in column order. */
   cells: { column: string; text: string }[];
 }
@@ -92,41 +103,41 @@ export interface PlaceholderVm {
 export type GridRowVm = RowVm | PlaceholderVm;
 
 @Component({
-  selector: 'imt-events-grid',
+  selector: 'debrief-events-grid',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[style.--row-h.px]': 'rowH()' },
   imports: [Icon, MarkerIcon, ClickOutside, VirtualList, NewEventsPill, NextSteps, ErrorDetails],
   template: `
     <div class="bar">
       <span class="section-title" i18n="@@grid.title">Events</span>
-      <span class="mono total">{{ fmt(total()) }}</span>
+      <span class="total">{{ fmt(total()) }}</span>
       <span class="faint" i18n="@@grid.subtitle">of {{ fmt(data.summary()?.total ?? 0) //i18n(ph="total") }} · sorted by time {{ prefs.descending() ? '↓' : '↑' //i18n(ph="direction") }}</span>
       @if (sel.anchorMissed()) {
         <span class="warn" i18n="@@grid.anchorMissed">That event is hidden by the current filters.</span>
       }
       <span class="spacer"></span>
       <button class="btn ghost" (click)="prefs.toggleSort()" title="Toggle sort order" i18n-title="@@grid.sortToggle">
-        <imt-icon [name]="prefs.descending() ? 'sortDesc' : 'sortAsc'" [size]="14" /> {{ sortLabel() }}
+        <debrief-icon [name]="prefs.descending() ? 'sortDesc' : 'sortAsc'" [size]="14" /> {{ sortLabel() }}
       </button>
-      <div class="anchor" (imtClickOutside)="colsOpen.set(false)">
-        <button class="btn ghost" (click)="colsOpen.set(!colsOpen())" [attr.aria-expanded]="colsOpen()" i18n="@@grid.columns"><imt-icon name="columns" [size]="14" /> Columns</button>
+      <div class="anchor" (debriefClickOutside)="colsOpen.set(false)">
+        <button class="btn ghost" (click)="colsOpen.set(!colsOpen())" [attr.aria-expanded]="colsOpen()" i18n="@@grid.columns"><debrief-icon name="columns" [size]="14" /> Columns</button>
         @if (colsOpen()) {
           <div class="popover cols">
             <input class="input" placeholder="Filter fields" i18n-placeholder="@@grid.filterFields.placeholder" aria-label="Filter fields" i18n-aria-label="@@grid.filterFields.aria" [value]="colFilter()" (input)="colFilter.set($any($event.target).value)" />
-            <imt-virtual-list [items]="colChoices()" [itemHeight]="24" [maxHeight]="300" label="Columns" i18n-label="@@grid.columns.listLabel">
+            <debrief-virtual-list [items]="colChoices()" [itemHeight]="24" [maxHeight]="300" label="Columns" i18n-label="@@grid.columns.listLabel">
               <ng-template let-f>
                 <label class="col-opt">
                   <input type="checkbox" [checked]="prefs.extraColumns().includes(f)" (change)="toggleColumn(f)" />
                   <span class="mono ellipsis">{{ f }}</span>
                 </label>
               </ng-template>
-            </imt-virtual-list>
+            </debrief-virtual-list>
           </div>
         }
       </div>
     </div>
 
-    <imt-new-events-pill />
+    <debrief-new-events-pill />
     <div
       class="viewport"
       #viewport
@@ -179,33 +190,33 @@ export type GridRowVm = RowVm | PlaceholderVm;
                 @if (v.mark; as m) {
                   <span class="srcmark" role="img" data-testid="source-stripe" [style.background]="v.stripe" [attr.data-pattern]="m.swatch.pattern" [attr.aria-label]="m.label" [title]="m.label"></span>
                 }
-                @if (v.marker; as mk) { <imt-marker-icon [kind]="mk.kind" [color]="mk.color" [label]="mk.label" /> }
+                @if (v.marker; as mk) { <debrief-marker-icon [kind]="mk.kind" [color]="mk.color" [label]="mk.label" /> }
               </span>
               @if (v.untimed) {
                 <span class="mono time untimed" role="gridcell" title="This event has no timestamp, so it is not on the timeline" i18n-title="@@grid.untimedTitle" i18n="@@grid.untimed">no time</span>
               } @else {
                 <span class="mono time" role="gridcell">{{ v.time }}</span>
               }
-              <span class="lvl" role="gridcell"><span class="dot" [style.background]="v.levelVar"></span><span class="mono">{{ v.levelCode }}</span></span>
-              <span class="mono inst ellipsis" role="gridcell" [title]="v.row.group">{{ v.row.group }}</span>
+              <span class="lvl" role="gridcell" [title]="v.levelCode"><span class="dot" [style.background]="v.levelVar"></span><span [class]="v.quietLevel ? 'sr' : 'code'">{{ v.levelCode }}</span></span>
+              <span class="inst ellipsis" role="gridcell" [title]="v.row.group"><span class="inst-name">{{ v.instName }}</span>@if (v.instRest) { <span class="inst-rest"> · {{ v.instRest }}</span> }</span>
               @for (c of v.cells; track c.column) {
                 <span class="mono extra ellipsis" role="gridcell" [title]="c.text">{{ c.text }}</span>
               }
-              <span class="msg ellipsis" role="gridcell">@if (v.note; as n) {<span class="note-glyph" role="img" data-testid="note-glyph" [attr.aria-label]="n" [title]="n"><imt-icon name="note" [size]="12" /></span>}@if (v.row.searchMatch === 'partial') {<span class="partial" data-testid="partial-match" title="Partial match: the search text appears inside a word" i18n-title="@@grid.partialMatchTitle" i18n="@@grid.partialMatch">partial</span>}{{ v.row.message }}</span>
+              <span class="msg ellipsis" role="gridcell">@if (v.note; as n) {<span class="note-glyph" role="img" data-testid="note-glyph" [attr.aria-label]="n" [title]="n"><debrief-icon name="note" [size]="12" /></span>}@if (v.row.searchMatch === 'partial') {<span class="partial" data-testid="partial-match" title="Partial match: the search text appears inside a word" i18n-title="@@grid.partialMatchTitle" i18n="@@grid.partialMatch">partial</span>}{{ v.row.message }}</span>
             </div>
           } @else {
             <div class="row placeholder" role="row" [attr.aria-rowindex]="v.index + 2" [style.top.px]="v.y"><span role="gridcell" class="skeleton" aria-label="Loading" i18n-aria-label="@@grid.loading"></span></div>
           }
         }
         @if (rows.loaded() && total() === 0 && !rows.error()) {
-          <div class="none faint" role="row" aria-rowindex="2"><span role="gridcell">{{ emptyMessage() }}<imt-next-steps /></span></div>
+          <div class="none faint" role="row" aria-rowindex="2"><span role="gridcell">{{ emptyMessage() }}<debrief-next-steps /></span></div>
         }
       </div>
       <div aria-hidden="true" [style.height.px]="spacerH()"></div>
     </div>
     @if (pageError(); as err) {
       <div class="err-card" role="alert">
-        <imt-error-details summary="Couldn't load events." i18n-summary="@@grid.error.summary" [detail]="err" (retry)="retry()" />
+        <debrief-error-details summary="Couldn't load events." i18n-summary="@@grid.error.summary" [detail]="err" (retry)="retry()" />
       </div>
     }
   `,
@@ -251,7 +262,11 @@ export type GridRowVm = RowVm | PlaceholderVm;
     .time.untimed { font-style: italic; color: var(--faint); }
     .partial { font-size: var(--fs-xs); color: var(--faint); border: 1px dashed var(--border-2); border-radius: 4px; padding: 0 4px; margin-right: 6px; }
     .lvl { display: flex; align-items: center; gap: 6px; font-size: var(--fs-xs); color: var(--text-2); }
-    .inst, .extra { font-size: var(--fs-sm); color: var(--text-2); }
+    .extra { font-size: var(--fs-sm); color: var(--text-2); }
+    .inst { font-size: var(--fs-sm); color: var(--text-2); font-variant-numeric: tabular-nums; }
+    .inst-rest { color: var(--muted); }
+    .lvl .code { font-weight: 500; font-variant-numeric: tabular-nums; }
+    .lvl .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
     .extra { color: var(--muted); }
     .msg { color: var(--text); }
     .placeholder { display: flex; }
@@ -264,7 +279,7 @@ export class EventsGrid {
   private readonly queryStore = inject(QueryStore);
   protected readonly sel = inject(SelectionStore);
   protected readonly prefs = inject(UiPrefsStore);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly formatters = inject(FieldFormatters);
   private readonly actions = inject(RecordActions);
   private readonly settings = inject(SettingsStore);
@@ -392,6 +407,8 @@ export class EventsGrid {
         untimed: row.tsState === 'untimed' || row.ts === null,
         levelVar: LEVEL_VARS[row.level],
         levelCode: LEVEL_CODES[row.level],
+        quietLevel: row.level === 'Information' || row.level === 'Debug' || row.level === 'Verbose',
+        ...splitInstance(row.group),
         cells: columns.map((column) => ({ column, text: this.cell(row, column) })),
       };
     });
@@ -599,6 +616,9 @@ export class EventsGrid {
 
   /** Keeps shift/ctrl-click from also selecting text across rows. */
   protected onRowMouseDown(e: MouseEvent): void {
+    // A draggable row cannot start a text selection in WebKit: the message cell is for selecting, the rest of the row for dragging.
+    const row = e.currentTarget as HTMLElement | null;
+    if (row && e.target instanceof Element) row.draggable = !e.target.closest('.msg');
     if (e.shiftKey || e.ctrlKey || e.metaKey) e.preventDefault();
   }
 

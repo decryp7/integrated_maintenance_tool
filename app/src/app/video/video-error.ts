@@ -10,7 +10,7 @@ const AI_SETTINGS = 'ai';
  * may help and, when the AI is not ready for it, the way to Settings ▸ AI.
  */
 @Component({
-  selector: 'imt-video-error',
+  selector: 'debrief-video-error',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="err" role="alert">

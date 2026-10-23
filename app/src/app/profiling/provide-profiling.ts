@@ -2,7 +2,7 @@ import { EnvironmentProviders, inject, Injectable, Injector, makeEnvironmentProv
 import { CaptureSummary } from '../core/api.types';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { DROPPED_FILES_HANDLERS, DroppedFilesHandler } from '../core/dropped-files';
-import { CommandContext, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { CommandContext, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { CapturesStore } from './captures.store';
 import { ProfilingPersistence } from './profiling-persistence';
@@ -17,7 +17,7 @@ import { NativeCommands } from './native/native-commands';
 const CATEGORY = $localize`:@@profiling.category:Profiling`;
 
 /** The profiling views. Same extension point as plugin views; none opens until a capture is. */
-export const PROFILING_VIEWS: ImtView[] = [
+export const PROFILING_VIEWS: DebriefView[] = [
   { id: V.captures, category: 'Profiling', title: $localize`:@@profiling.views.captures:Captures`, icon: 'files', defaultPosition: 'right', component: () => import('./captures/captures-view').then((m) => m.CapturesView) },
   { id: V.hotspots, category: 'Profiling', title: $localize`:@@profiling.views.hotspots:Hotspots`, icon: 'columns', defaultPosition: 'center', component: () => import('./hotspots/hotspots-view').then((m) => m.HotspotsView) },
   { id: V.tree, category: 'Profiling', title: $localize`:@@profiling.views.tree:Call tree`, icon: 'group', defaultPosition: 'center', component: () => import('./tree/call-tree-view').then((m) => m.CallTreeView) },
@@ -35,11 +35,11 @@ export const PROFILING_VIEWS: ImtView[] = [
 export class ProfilingCommands {
   private readonly captures = inject(CapturesStore);
 
-  private show(id: string, title: string, view: string): ImtCommand {
+  private show(id: string, title: string, view: string): DebriefCommand {
     return { id, title, category: CATEGORY, view, run: (ctx) => ctx.showView(view) };
   }
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'profiling.open', title: $localize`:@@profiling.cmd.open:Open performance capture…`, category: 'File', run: (ctx) => this.open(ctx) },
     this.show('profiling.captures', $localize`:@@profiling.cmd.captures:Profiling: show captures`, V.captures),
     this.show('profiling.hotspots', $localize`:@@profiling.cmd.hotspots:Profiling: hotspots`, V.hotspots),
@@ -96,10 +96,10 @@ export function provideProfiling(): EnvironmentProviders {
     ...provideProfilingBackend(),
     ...provideDotnetBackend(),
     ...provideNativeBackend(),
-    { provide: IMT_VIEWS, multi: true, useValue: PROFILING_VIEWS },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(ProfilingCommands).commands },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(DotnetCommands).commands },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(NativeCommands).commands },
+    { provide: DEBRIEF_VIEWS, multi: true, useValue: PROFILING_VIEWS },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(ProfilingCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(DotnetCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(NativeCommands).commands },
     { provide: DROPPED_FILES_HANDLERS, multi: true, useFactory: profilingDropHandler },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(ProfilingPersistence).contribution] },
     provideAppInitializer(() => startProfiling()),

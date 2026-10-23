@@ -1,6 +1,6 @@
 //! The shell edge of third-party plugins: argument checks, the trust section, errors with their reasons, the state
 //! an installed plugin shows, and the commands against an install folder (installing itself is tested end to end
-//! in `imt-plugin-e2e`, which can build a plugin program).
+//! in `debrief-plugin-e2e`, which can build a plugin program).
 
 use super::commands::checks::{check_digest, check_id, permissions};
 use super::commands::{installed_dto, list};
@@ -8,10 +8,10 @@ use super::dto::*;
 use super::trust_section::parse_keys;
 use super::{Installed, TrustSection};
 use crate::ErrorCode;
-use imt_core::settings::Configurable;
-use imt_plugin_api::manifest::{Permission, PermissionRequest};
-use imt_plugin_host::installed::{InstallRecord, PluginsDir, RECORD_FILE, RECORD_FORMAT};
-use imt_plugin_package::{PackageError, SecretKey};
+use debrief_core::settings::Configurable;
+use debrief_plugin_api::manifest::{Permission, PermissionRequest};
+use debrief_plugin_host::installed::{InstallRecord, PluginsDir, RECORD_FILE, RECORD_FORMAT};
+use debrief_plugin_package::{PackageError, SecretKey};
 use std::sync::Arc;
 
 fn record(id: &str) -> InstallRecord {
@@ -68,7 +68,7 @@ fn trusted_keys_are_parsed_and_bad_lines_named() {
     let section = TrustSection { trust: Arc::clone(&trust) };
     let s = section.settings_section();
     s.check().unwrap();
-    let values = imt_core::settings::validate(
+    let values = debrief_core::settings::validate(
         &s,
         &serde_json::json!({ "developerMode": true, "trustedKeys": [format!("Me = {}", key.to_text())] }),
     )
@@ -76,7 +76,7 @@ fn trusted_keys_are_parsed_and_bad_lines_named() {
     section.apply_settings(&values).unwrap();
     assert!(crate::sync::read(&trust).developer_mode);
     assert_eq!(crate::sync::read(&trust).keys.len(), 1);
-    let bad = imt_core::settings::validate(&s, &serde_json::json!({ "trustedKeys": ["Me = nope"] })).unwrap();
+    let bad = debrief_core::settings::validate(&s, &serde_json::json!({ "trustedKeys": ["Me = nope"] })).unwrap();
     assert!(section.apply_settings(&bad).is_err());
 }
 
@@ -125,7 +125,7 @@ fn an_installed_plugin_shows_its_state_in_this_run() {
     assert_eq!(dto.signature.kind, SignatureKind::Trusted);
     let loaded = (
         r.clone(),
-        Err::<Arc<imt_plugin_host::PluginProcess>, _>("its program is missing".to_string()),
+        Err::<Arc<debrief_plugin_host::PluginProcess>, _>("its program is missing".to_string()),
     );
     let dto = installed_dto(&r, Some(&loaded), false);
     assert_eq!(
@@ -176,7 +176,7 @@ fn the_list_reads_the_install_folder_and_reports_damaged_records() {
 #[test]
 fn nothing_is_loaded_in_safe_mode_and_a_missing_folder_is_empty() {
     let t = crate::test_support::TempDir::new("plugin-packages-load");
-    let mut b = imt_plugin_host::Builtins::none();
+    let mut b = debrief_plugin_host::Builtins::none();
     let i = Installed::load(Some(t.0.as_path().join("plugins")), true, &mut b);
     assert!(i.loaded.is_empty() && i.safe_mode && b.processes().is_empty());
     let i = Installed::load(Some(t.0.as_path().join("none")), false, &mut b);
@@ -187,15 +187,15 @@ fn nothing_is_loaded_in_safe_mode_and_a_missing_folder_is_empty() {
 
 #[test]
 fn the_store_worker_gets_the_loaded_importers_still_installed_with_their_grants_now() {
-    use imt_plugin_api::manifest::{ImporterCap, Manifest};
-    use imt_plugin_host::{PluginProcess, PluginSpec};
+    use debrief_plugin_api::manifest::{ImporterCap, Manifest};
+    use debrief_plugin_host::{PluginProcess, PluginSpec};
     let t = crate::test_support::TempDir::new("plugin-packages-worker");
     let dir = PluginsDir::new(t.0.as_path());
     let manifest = |id: &str, importer: bool| Manifest {
         id: id.into(),
         name: "Kv".into(),
         version: "1.0.0".into(),
-        protocol: imt_plugin_api::PROTOCOL,
+        protocol: debrief_plugin_api::PROTOCOL,
         permissions: Vec::new(),
         memory_limit: None,
         importers: if importer {

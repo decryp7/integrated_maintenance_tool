@@ -59,9 +59,9 @@ describe('did you mean (query language)', () => {
 
 /** The filter bar's field with the status line under it, where the did-you-mean fix shows. */
 @Component({
-  selector: 'imt-test-bar',
+  selector: 'debrief-test-bar',
   imports: [QueryField, QueryStatus],
-  template: `<imt-query-field #f /><imt-query-status (pick)="f.useSuggestion($event)" />`,
+  template: `<debrief-query-field #f /><debrief-query-status (pick)="f.useSuggestion($event)" />`,
 })
 class Bar {}
 
@@ -79,7 +79,7 @@ describe('did you mean in the query bar and QL inputs', () => {
     await settle(fixture);
     expect(text(fixture)).toContain('Unknown field "MachinName"');
     // The fix sits in the status line under the bar, beside the error.
-    expect(fixture.nativeElement.querySelector('imt-query-status [data-testid=did-you-mean]')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-query-status [data-testid=did-you-mean]')).not.toBeNull();
     el<HTMLButtonElement>(fixture, '[data-testid=did-you-mean] button').click();
     await wait(CHECK_DELAY_MS + 80);
     await settle(fixture);

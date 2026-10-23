@@ -3,8 +3,8 @@
 //! details and plugin rules, plugins, export formats) and the last import's time.
 
 use super::Host;
-use imt_core::api::{MarkerKind, WorkspaceSummary};
-use imt_core::ports::{ImportReport, SummaryReply};
+use debrief_core::api::{MarkerKind, WorkspaceSummary};
+use debrief_core::ports::{ImportReport, SummaryReply};
 
 /// The summary of a store's `reply` for the window's `host`.
 pub(crate) fn compose(reply: SummaryReply, host: &Host, last: Option<&ImportReport>) -> WorkspaceSummary {
@@ -45,7 +45,7 @@ pub(crate) fn compose(reply: SummaryReply, host: &Host, last: Option<&ImportRepo
         fields: reply.fields,
         default_group_by: reply.default_group_by,
         marker_kinds,
-        charts: imt_core::chart::chart_defs(&compiled.profile),
+        charts: debrief_core::chart::chart_defs(&compiled.profile),
         profile_name: reply.profile_name,
         load_ms: last.map_or(0, |r| r.elapsed_ms),
         icons: compiled.icons.clone(),
@@ -53,6 +53,7 @@ pub(crate) fn compose(reply: SummaryReply, host: &Host, last: Option<&ImportRepo
         plugins: registry.plugins(),
         exporters: registry.exporter_infos(),
         dashboards: compiled.profile.dashboard.clone(),
+        lenses: compiled.profile.lens.clone(),
         redacted_view: host.redacted_view().is_some(),
     }
 }
@@ -60,7 +61,7 @@ pub(crate) fn compose(reply: SummaryReply, host: &Host, last: Option<&ImportRepo
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::{PluginRegistry, Profile};
+    use debrief_core::{PluginRegistry, Profile};
 
     #[test]
     fn the_summary_joins_the_store_and_the_host() {

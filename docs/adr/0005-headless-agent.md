@@ -1,4 +1,4 @@
-# 5. Headless collection agent (`imt-agent`)
+# 5. Headless collection agent (`debrief-agent`)
 
 - Status: accepted
 - Date: 2026-10-17
@@ -6,25 +6,25 @@
 ## Context
 
 Servers need diagnostics collected on a schedule or when something goes wrong (a memory spike,
-an error in a log), without anyone running the IMT app. The collector (`imt-collect`) and the
-process monitor (`imt-monitor`) already exist as libraries, and the engine can tail logs.
+an error in a log), without anyone running the Debrief app. The collector (`debrief-collect`) and the
+process monitor (`debrief-monitor`) already exist as libraries, and the engine can tail logs.
 
 ## Decision
 
-- **A separate crate and binary, `imt-agent`**, built on the `imt-collect`, `imt-monitor` and
-  `imt-core` libraries (and the tools plugin's `logman` controller for PerfMon). The IMT app only
+- **A separate crate and binary, `debrief-agent`**, built on the `debrief-collect`, `debrief-monitor` and
+  `debrief-core` libraries (and the tools plugin's `logman` controller for PerfMon). The Debrief app only
   edits its config and browses its output through the same library; it never hosts the agent.
-- **One versioned config file, `imt-agent.toml`** (camelCase keys, `version = 1`, newer versions
+- **One versioned config file, `debrief-agent.toml`** (camelCase keys, `version = 1`, newer versions
   refused). It is parsed once into typed values; every problem is reported with its key path
   (`schedules[0].cron`), which the UI shows next to the field. The UI form is driven by a schema
-  that the agent library generates. The documented example is `crates/imt-agent/imt-agent.example.toml`.
+  that the agent library generates. The documented example is `crates/debrief-agent/debrief-agent.example.toml`.
 - **Schedules** are cron expressions (`croner`, MIT: POSIX/Vixie five or six fields, aliases,
   `L`/`W`/`#`, local time or UTC), fixed intervals, or triggers (a process metric above a
   threshold for a while, with re-arm and cooldown; a new event matching a query in a tailed log).
   Missed timer slots are caught up once, not once per slot.
 - **One run never overlaps itself.** Each schedule takes a lock file (exclusive create) holding the
   owner's PID and process start time; a lock whose owner is gone or whose PID was reused is stale
-  and taken over. This also covers a manual `imt-agent once` racing the service.
+  and taken over. This also covers a manual `debrief-agent once` racing the service.
 - **Every run gets a folder** (`yyyyMMdd-HHmmss-<schedule>`) with a versioned `manifest.json`,
   written at start (`running`) and at the end, atomically. Retention after each run deletes
   only run folders, by count, age and total size, never the current or a running run.
@@ -41,9 +41,9 @@ process monitor (`imt-monitor`) already exist as libraries, and the engine can t
 
 ## Consequences
 
-- Servers can collect unattended, and the output opens in IMT like any folder.
+- Servers can collect unattended, and the output opens in Debrief like any folder.
 - Windows service start/stop has only been type-checked off Windows (`cargo check --target
-  x86_64-pc-windows-msvc -p imt-agent`); its runtime is verified on the Windows CI runner or by hand.
+  x86_64-pc-windows-msvc -p debrief-agent`); its runtime is verified on the Windows CI runner or by hand.
 - Config comments are kept when the UI saves the file: `toml_merge` (with `toml_edit`, MIT OR
   Apache-2.0) rewrites only the values whose meaning changed, in place; an unreadable file is replaced
   by a fresh document. Saving over a file other than the one loaded asks first (no silent overwrite).

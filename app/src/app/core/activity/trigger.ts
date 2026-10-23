@@ -11,10 +11,10 @@ const DRAG_PX = 8;
 export function classifyTarget(target: EventTarget | null): Trigger {
   const el = target instanceof Element ? target : null;
   if (!el) return 'unknown';
-  if (el.closest('imt-command-palette, [data-activity-trigger="palette"]')) return 'palette';
+  if (el.closest('debrief-command-palette, [data-activity-trigger="palette"]')) return 'palette';
   const inMenu = el.closest('[role="menu"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="menubar"]');
   // The application menu's dropdowns are overlays outside the title bar, marked with `data-menu`.
-  if (inMenu) return el.closest('imt-title-bar, imt-menu-bar, [role="menubar"], [data-menu]') ? 'menu' : 'context-menu';
+  if (inMenu) return el.closest('debrief-title-bar, debrief-menu-bar, [role="menubar"], [data-menu]') ? 'menu' : 'context-menu';
   if (el.closest('dialog, [role="dialog"], [role="alertdialog"]')) return 'dialog';
   if (el.closest('button, [role="button"], a[href], [role="tab"], input[type="checkbox"], input[type="radio"], select')) return 'button';
   return 'pointer';

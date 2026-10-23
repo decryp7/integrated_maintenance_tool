@@ -9,10 +9,10 @@ use super::runtime_commands::*;
 use super::*;
 use crate::test_support::{block, main_window, samples, test_app, window, TempDir};
 use crate::windows::CurrentWindow;
-use imt_video::align::UserAlignment;
-use imt_video::api::*;
-use imt_video::record::{key_of, FrameRecord, VideoRecord, RECORD_VERSION};
-use imt_video::select::SelectOptions;
+use debrief_video::align::UserAlignment;
+use debrief_video::api::*;
+use debrief_video::record::{key_of, FrameRecord, VideoRecord, RECORD_VERSION};
+use debrief_video::select::SelectOptions;
 use tauri::http::{header, Request, StatusCode};
 use tauri::test::MockRuntime;
 
@@ -52,7 +52,7 @@ fn app_with_video(tag: &str) -> (TempDir, tauri::App<MockRuntime>, VideoRecord, 
         options: SelectOptions::default(),
         user_alignment: UserAlignment::Auto,
         clock: None,
-        alignment: imt_video::align::align(&Default::default()),
+        alignment: debrief_video::align::align(&Default::default()),
         selection_notes: vec![],
         frames: (0..3)
             .map(|i| FrameRecord {
@@ -82,7 +82,7 @@ fn code<T: std::fmt::Debug>(r: crate::CmdResult<T>) -> crate::ErrorCode {
     r.unwrap_err().code
 }
 
-fn frames_source(win: &CurrentWindow) -> Option<imt_core::api::SourceInfo> {
+fn frames_source(win: &CurrentWindow) -> Option<debrief_core::api::SourceInfo> {
     crate::test_support::store_summary(win)
         .sources
         .into_iter()
@@ -92,7 +92,7 @@ fn frames_source(win: &CurrentWindow) -> Option<imt_core::api::SourceInfo> {
 #[test]
 fn engine_errors_become_typed_command_errors() {
     use crate::ErrorCode as C;
-    use imt_video::{AiUnavailable, VideoError as V};
+    use debrief_video::{AiUnavailable, VideoError as V};
     let cases = [
         (V::Invalid("x".into()), C::Invalid),
         (V::NotFound("x".into()), C::NotFound),
@@ -441,7 +441,7 @@ fn the_runtime_commands_report_validate_and_refuse_what_cannot_work() {
     app.manage(VideoState::new(dir.0.join("video")));
     let h = app.handle().clone();
     let v = block(video_runtime(h.clone())).unwrap();
-    assert_eq!(v.status.mode, imt_video::runtime::RuntimeMode::None);
+    assert_eq!(v.status.mode, debrief_video::runtime::RuntimeMode::None);
     assert!(!v.platform.is_empty());
     assert_eq!(
         v.can_download,
@@ -473,7 +473,7 @@ fn the_runtime_commands_report_validate_and_refuse_what_cannot_work() {
     assert_eq!(code(block(video_runtime_rollback(h.clone()))), crate::ErrorCode::NotFound);
     assert_eq!(
         block(video_runtime_clear_custom(h)).unwrap().status.mode,
-        imt_video::runtime::RuntimeMode::None
+        debrief_video::runtime::RuntimeMode::None
     );
 }
 
@@ -565,7 +565,7 @@ fn a_generated_clip_is_analysed_end_to_end_when_ffmpeg_is_installed() {
     let h = app.handle().clone();
     let v =
         block(video_runtime_set_custom(h.clone(), ffmpeg.to_string_lossy().into_owned())).expect("the real ffmpeg passes the self-test");
-    assert_eq!(v.status.mode, imt_video::runtime::RuntimeMode::Custom);
+    assert_eq!(v.status.mode, debrief_video::runtime::RuntimeMode::Custom);
     let win = main_window(&app);
     let grants = crate::paths::WindowGrants::of(app.handle(), "main");
     let view = block(video_open(
@@ -580,7 +580,7 @@ fn a_generated_clip_is_analysed_end_to_end_when_ffmpeg_is_installed() {
     ))
     .expect("the clip is analysed");
     assert!(view.record.frames.len() >= 2, "{:?}", view.record.frames);
-    assert_eq!(view.record.alignment.by, imt_core::importers::video::AlignedBy::FileName);
+    assert_eq!(view.record.alignment.by, debrief_core::importers::video::AlignedBy::FileName);
     let source = frames_source(&win).expect("the frames are a source");
     assert_eq!(source.records, view.record.frames.len());
     assert_eq!(Some(source.id), view.source_id);

@@ -9,7 +9,7 @@ import { at } from '../../testing/must';
 
 @Component({
   imports: [PopoutTitleBar],
-  template: `<imt-popout-title-bar title="Inspector" host="Incident" [onTop]="onTop()" (dockBack)="docked = docked + 1" (toggleOnTop)="onTop.set(!onTop())" />`,
+  template: `<debrief-popout-title-bar title="Inspector" host="Incident" [onTop]="onTop()" (dockBack)="docked = docked + 1" (toggleOnTop)="onTop.set(!onTop())" />`,
 })
 class Host {
   readonly onTop = signal(false);

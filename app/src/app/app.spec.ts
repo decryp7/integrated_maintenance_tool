@@ -4,7 +4,7 @@ import { provideDockTesting, settle, text } from '../testing/helpers';
 import { App } from './app';
 import { MockAnalysisBackend, recordsFrom } from './analysis/mock/mock-analysis-backend';
 import { AnalysisBackend } from './core/analysis-backend';
-import { ImtBackend } from './core/backend';
+import { DebriefBackend } from './core/backend';
 import { WorkspaceStore } from './core/workspace.store';
 import { DockService } from './dock/dock.service';
 import { provideToolsBackend } from './core/tools-backend';
@@ -14,13 +14,13 @@ describe('App', () => {
   beforeEach(() => localStorage.clear());
 
   async function render() {
-    TestBed.configureTestingModule({ providers: [provideDockTesting(), provideToolsBackend(), { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) }] });
+    TestBed.configureTestingModule({ providers: [provideDockTesting(), provideToolsBackend(), { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) }] });
     const fixture = TestBed.createComponent(App);
     await settle(fixture, 8);
     // The panels load lazily: a busy machine needs more than the default second.
     await vi.waitFor(
       () => {
-        for (const tag of ['imt-timeline-panel', 'imt-events-grid']) expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
+        for (const tag of ['debrief-timeline-panel', 'debrief-events-grid']) expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
       },
       { timeout: 10_000 },
     );
@@ -29,28 +29,28 @@ describe('App', () => {
 
   it('lays out the workbench with the default dock panels', async () => {
     const { fixture, dock } = await render();
-    for (const tag of ['imt-title-bar', 'imt-activity-bar', 'imt-sidebar', 'imt-filter-bar', 'imt-dock-host', 'imt-status-bar', 'imt-command-palette']) {
+    for (const tag of ['debrief-title-bar', 'debrief-activity-bar', 'debrief-sidebar', 'debrief-filter-bar', 'debrief-dock-host', 'debrief-status-bar', 'debrief-command-palette']) {
       expect(fixture.nativeElement.querySelector(tag), tag).not.toBeNull();
     }
     // Only the core views: the inspector waits auto-hidden on the right; metrics, the profile editor, analysis and
     // tool windows open on demand.
     expect([...dock.openIds()].sort()).toEqual(['events', 'inspector', 'timeline']);
     expect(dock.autoHide().items.map((i) => i.id)).toEqual(['inspector']);
-    expect(fixture.nativeElement.querySelector('imt-timeline-panel')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('imt-inspector')).toBeNull();
-    expect(fixture.nativeElement.querySelector('imt-events-grid')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-timeline-panel')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-inspector')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-events-grid')).not.toBeNull();
   });
 
   it('shows the welcome over the dock when the workspace is empty', async () => {
     const { fixture, store } = await render();
-    expect(fixture.nativeElement.querySelector('imt-welcome')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-welcome')).toBeNull();
     await store.clearWorkspace();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('imt-welcome')).not.toBeNull();
-    expect(fixture.nativeElement.querySelector('imt-dock-host')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-welcome')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-dock-host')).not.toBeNull();
     // Nothing to filter yet: the welcome page is the whole first screen.
-    expect(fixture.nativeElement.querySelector('imt-filter-bar')).toBeNull();
-    expect(fixture.nativeElement.querySelector('imt-fields-panel')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-filter-bar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-fields-panel')).toBeNull();
     expect(fixture.nativeElement.querySelector('[data-testid=folder-setup-hint]')).toBeNull();
   });
 
@@ -58,7 +58,7 @@ describe('App', () => {
     const { fixture, store } = await render();
     store.toggleSidebar();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('imt-sidebar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-sidebar')).toBeNull();
   });
 
   it('shows errors, notices as dismissible toasts and the drop overlay', async () => {
@@ -68,7 +68,7 @@ describe('App', () => {
     store.setDropHover(true);
     await settle(fixture);
     // In the toast stack, one above the other.
-    const stack = document.querySelector('.imt-toast-stack')!;
+    const stack = document.querySelector('.debrief-toast-stack')!;
     expect(stack.querySelector('.toast[role=alert]')?.textContent).toContain('Something failed');
     expect(stack.querySelector('.toast[role=status]')?.textContent).toContain('Exported 3 events');
     expect(text(fixture)).toContain('Drop files or folders');
@@ -77,15 +77,15 @@ describe('App', () => {
     await settle(fixture);
     expect(stack.querySelector('.toast')).toBeNull();
     fixture.destroy();
-    expect(document.querySelector('imt-workspace-toasts')).toBeNull();
+    expect(document.querySelector('debrief-workspace-toasts')).toBeNull();
   });
 
   it('renders the lifecycle banners right below the title bar, as part of the shell', async () => {
     const { fixture } = await render();
     const host = fixture.nativeElement as HTMLElement;
-    const banners = host.querySelector('imt-lifecycle-banners');
-    expect(banners?.previousElementSibling?.tagName.toLowerCase()).toBe('imt-title-bar');
-    expect(host.querySelector('imt-title-bar imt-title-extras')).not.toBeNull();
+    const banners = host.querySelector('debrief-lifecycle-banners');
+    expect(banners?.previousElementSibling?.tagName.toLowerCase()).toBe('debrief-title-bar');
+    expect(host.querySelector('debrief-title-bar debrief-title-extras')).not.toBeNull();
     TestBed.inject(LifecycleService).status.set({ version: '0.1.0', safeMode: true, previousCrash: false, sessionAvailable: false });
     await settle(fixture);
     expect(banners?.querySelector('[data-testid=safe-mode-banner]')).not.toBeNull();

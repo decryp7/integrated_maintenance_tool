@@ -6,11 +6,11 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { DockService } from '../../dock/dock.service';
 import { loadDockview } from '../../dock/dockview-loader';
 import { LAYOUT_STORE, LayoutStore } from '../../dock/layout-store';
-import { provideImtPlugin } from '../../extensions';
+import { provideDebriefPlugin } from '../../extensions';
 
 beforeAll(() => loadDockview());
 
-@Component({ selector: 'imt-test-stub', template: 'stub' })
+@Component({ selector: 'debrief-test-stub', template: 'stub' })
 class Stub {}
 
 /** The startup layout is the core views only; conditional views open by themselves only when they ask to. */
@@ -23,7 +23,7 @@ describe('default layout', () => {
       providers: [
         provideDockTesting(new MockBackend({ latency: false, dataset: tinyDataset })),
         { provide: LAYOUT_STORE, useValue: store },
-        provideImtPlugin({
+        provideDebriefPlugin({
           views: [
             { id: 'offered', title: 'Offered', icon: 'file', category: 'Analysis', component: async () => Stub, when: (s) => s.total > 0 },
             { id: 'viewer', title: 'Viewer', icon: 'file', component: async () => Stub, when: (s) => s.total > 0, autoOpen: true },

@@ -16,14 +16,14 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
  * texts come from the engine and are shown as plain text.
  */
 @Component({
-  selector: 'imt-known-issues',
+  selector: 'debrief-known-issues',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, NgTemplateOutlet],
   template: `
     <section class="issues" aria-labelledby="known-issues-title" data-testid="known-issues">
       <div class="head">
         <button type="button" class="icon-btn" data-testid="known-issues-toggle" [attr.aria-expanded]="expanded()" aria-controls="known-issues-body" aria-label="Show or hide the known issues" i18n-aria-label="@@known.issues.toggle" (click)="toggle()">
-          <imt-icon [name]="expanded() ? 'chevronDown' : 'chevronRight'" [size]="12" />
+          <debrief-icon [name]="expanded() ? 'chevronDown' : 'chevronRight'" [size]="12" />
         </button>
         <h3 id="known-issues-title" i18n="@@known.issues.title">Known issues ({{ total() }})</h3>
         <span class="spacer"></span>
@@ -35,11 +35,11 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
           [attr.title]="ai.hasModel() ? null : noModelHint"
           (click)="store.suggest()"
         >
-          <imt-icon name="ai" [size]="12" />
+          <debrief-icon name="ai" [size]="12" />
           <span>{{ store.suggesting() ? suggestingLabel : suggestLabel }}</span>
         </button>
         <button type="button" class="icon-btn" data-testid="known-issues-refresh" aria-label="Check known issues again" i18n-aria-label="@@known.issues.refresh" title="Check again" i18n-title="@@known.issues.refreshTitle" [disabled]="store.loading()" (click)="store.load()">
-          <imt-icon name="refresh" [size]="13" />
+          <debrief-icon name="refresh" [size]="13" />
         </button>
       </div>
       <div id="known-issues-body" class="body" [hidden]="!expanded()">
@@ -55,7 +55,7 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
       @if (store.suggestError(); as error) {
         <div class="error" role="alert" data-testid="known-issues-suggest-error">
           <span>{{ error }}</span>
-          <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@known.issues.dismiss" (click)="store.clearSuggestions()"><imt-icon name="close" [size]="12" /></button>
+          <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@known.issues.dismiss" (click)="store.clearSuggestions()"><debrief-icon name="close" [size]="12" /></button>
         </div>
       }
       @if (store.suggesting()) {
@@ -99,7 +99,7 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
     </section>
 
     <ng-template #card let-m>
-      <li class="card" [attr.data-testid]="'known-issue-' + m.issue.id">
+      <li class="card" [attr.data-testid]="'known-issue-' + m.issue.id" (click)="cardClick($event, m)">
         <div class="line">
           <strong class="name">{{ m.issue.title }}</strong>
           <span class="badge" [class.ai]="m.origin === 'ai'" data-testid="known-issue-origin">{{ originLabel(m) }}</span>
@@ -109,17 +109,19 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
         <div class="line meta">
           <span class="faint" i18n="@@known.issues.file">From {{ m.issue.file }}</span>
           <span class="spacer"></span>
+          <span class="row-actions">
           @if (m.origin === 'ai') {
             <button type="button" class="btn" data-testid="known-issue-accept" [attr.aria-pressed]="isAccepted(m)" (click)="store.toggleAccepted(m.issue.id)">{{ isAccepted(m) ? acceptedLabel : acceptLabel }}</button>
           }
-          <button type="button" class="btn" data-testid="known-issue-show" (click)="show(m)" i18n="@@known.issues.show">Show events</button>
-          <button type="button" class="btn" data-testid="known-issue-select" (click)="selectEvidence(m)" i18n="@@known.issues.selectEvidence">Select evidence</button>
+          <button type="button" class="btn ghost" data-testid="known-issue-show" (click)="show(m)" i18n="@@known.issues.show">Show events</button>
+          <button type="button" class="btn ghost" data-testid="known-issue-select" (click)="selectEvidence(m)" i18n="@@known.issues.selectEvidence">Select evidence</button>
+          </span>
         </div>
       </li>
     </ng-template>
   `,
   styles: `
-    :host { display: block; flex: none; max-height: min(40%, 320px); min-height: 0; overflow: auto; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-2); }
+    :host { display: block; flex: none; border-bottom: 1px solid var(--border); font-size: var(--fs-sm); color: var(--text-2); }
     .issues { padding: 6px 12px; }
     .body[hidden] { display: none; }
     .head { display: flex; align-items: center; gap: 8px; }
@@ -133,11 +135,16 @@ export const KNOWN_ISSUE_EXAMPLE = '```known-issue\ntitle: Payment gateway timeo
     .card { border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; background: var(--bg-2); }
     .line { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
     .name { color: var(--text); }
-    .badge { font-size: var(--fs-2xs); color: var(--text-2); border: 1px solid currentColor; border-radius: 8px; padding: 0 6px; }
+    .badge { font-size: var(--fs-xs); color: var(--muted); }
     .badge.ai { color: var(--accent-text); }
     .count { color: var(--muted); font-size: var(--fs-xs); }
     .fix { white-space: pre-wrap; margin: 4px 0; color: var(--text); }
     .meta { font-size: var(--fs-xs); }
+    .card { cursor: pointer; }
+    /* A card's actions show on hover and keyboard focus; clicking the card shows its events. */
+    .row-actions { display: flex; gap: 4px; opacity: 0; }
+    .card:hover .row-actions, .card:focus-within .row-actions { opacity: 1; }
+    @media (hover: none) { .row-actions { opacity: 1; } }
     .example { margin: 4px 0; padding: 6px 8px; background: var(--bg-2); border: 1px solid var(--border); border-radius: 4px; overflow: auto; user-select: text; }
     .warnings { margin: 6px 0; }
     .warnings summary { cursor: pointer; }
@@ -170,7 +177,7 @@ export class KnownIssues {
   }
 
   protected originLabel(m: IssueMatch): string {
-    return m.origin === 'ai' ? $localize`:@@known.issues.origin.ai:AI suggested, verified by the engine` : $localize`:@@known.issues.origin.rule:Rule`;
+    return m.origin === 'ai' ? $localize`:@@known.issues.origin.ai:AI suggested, verified by the engine` : $localize`:@@known.issues.origin.rule:From rule`;
   }
 
   protected countLabel(m: IssueMatch): string {
@@ -184,6 +191,11 @@ export class KnownIssues {
 
   protected toggle(): void {
     this.userExpanded.set(!this.expanded());
+  }
+
+  /** A click on the card (not on one of its buttons) shows its events. */
+  protected cardClick(e: Event, m: IssueMatch): void {
+    if (!(e.target as HTMLElement).closest('button')) this.show(m);
   }
 
   /** Filters the events to the match's query and selects its first sample event (the evidence) in the grid. */

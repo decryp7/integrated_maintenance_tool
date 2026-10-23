@@ -1,5 +1,5 @@
 import { inject, Injectable, Injector } from '@angular/core';
-import { ImtEvents } from '../extensions/events';
+import { DebriefEvents } from '../extensions/events';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { Logger } from '../core/logger';
 import { DiagnosticsReportStore } from './diagnostics-report.store';
@@ -8,12 +8,12 @@ import { DiagnosticsReportStore } from './diagnostics-report.store';
 export const DIAGNOSTICS_REPORT_VIEW = 'diagnostics-report';
 
 /**
- * Watches the workspace for an opened IMT diagnostics zip. When the engine recognises one, the report is loaded
+ * Watches the workspace for an opened Debrief diagnostics zip. When the engine recognises one, the report is loaded
  * into the store and its view is revealed; a zip that looked like a report but could not be read is announced once.
  */
 @Injectable({ providedIn: 'root' })
 export class DiagnosticsReportService {
-  private readonly events = inject(ImtEvents);
+  private readonly events = inject(DebriefEvents);
   private readonly store = inject(DiagnosticsReportStore);
   private readonly logger = inject(Logger);
   private readonly injector = inject(Injector);

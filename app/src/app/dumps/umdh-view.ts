@@ -35,7 +35,7 @@ export function insertChildren(items: readonly TreeItem[], parent: TreeItem, chi
  * logs grouped by stack, module or function, a stack's frames, and the top-down tree of growing stacks.
  */
 @Component({
-  selector: 'imt-umdh-view',
+  selector: 'debrief-umdh-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CdkTreeModule, DumpFindings, NoDump],
   template: `
@@ -68,7 +68,7 @@ export function insertChildren(items: readonly TreeItem[], parent: TreeItem, chi
       <div class="panel" role="tabpanel">
         @switch (tab()) {
           @case ('findings') {
-            <imt-dump-findings [res]="findings" emptyText="No leak suspects: nothing grows past the thresholds." i18n-emptyText="@@umdh.findings.empty" (evidence)="showStack($event)" (explain)="explain()" />
+            <debrief-dump-findings [res]="findings" emptyText="No leak suspects: nothing grows past the thresholds." i18n-emptyText="@@umdh.findings.empty" (evidence)="showStack($event)" (explain)="explain()" />
           }
           @case ('growth') {
             <div class="bar">
@@ -84,7 +84,7 @@ export function insertChildren(items: readonly TreeItem[], parent: TreeItem, chi
             </div>
             <div class="split">
               <div class="main" tabindex="0" role="region" aria-label="Growth table" i18n-aria-label="@@umdh.growth.region">
-                <imt-analysis-state [loading]="diff.loading()" [error]="diff.error()" [retryable]="diff.retryable()" [hasData]="!!diff.data()" [empty]="diff.data()?.total === 0" emptyText="No allocations." i18n-emptyText="@@umdh.growth.empty" (retry)="diff.retry()">
+                <debrief-analysis-state [loading]="diff.loading()" [error]="diff.error()" [retryable]="diff.retryable()" [hasData]="!!diff.data()" [empty]="diff.data()?.total === 0" emptyText="No allocations." i18n-emptyText="@@umdh.growth.empty" (retry)="diff.retry()">
                   <table class="grid" data-testid="umdh-growth" aria-label="Growth" i18n-aria-label="@@umdh.growth.label">
                     <thead><tr><th>{{ groupLabel() }}</th><th class="num" i18n="@@umdh.growth.delta">Growth</th><th class="num" i18n="@@umdh.growth.deltaCount">Allocations</th><th class="num" i18n="@@umdh.growth.bytes">Alive</th><th class="num" i18n="@@umdh.growth.stacks">Stacks</th></tr></thead>
                     <tbody>
@@ -99,11 +99,11 @@ export function insertChildren(items: readonly TreeItem[], parent: TreeItem, chi
                       }
                     </tbody>
                   </table>
-                </imt-analysis-state>
+                </debrief-analysis-state>
               </div>
               @if (group() === 'stack' && stackKey() !== null) {
                 <div class="side" tabindex="0" role="region" aria-label="Allocation stack" i18n-aria-label="@@umdh.stack.region">
-                  <imt-analysis-state [loading]="stack.loading()" [error]="stack.error()" [retryable]="stack.retryable()" [hasData]="!!stack.data()" (retry)="stack.retry()">
+                  <debrief-analysis-state [loading]="stack.loading()" [error]="stack.error()" [retryable]="stack.retryable()" [hasData]="!!stack.data()" (retry)="stack.retry()">
                     @if (stack.data(); as s) {
                       <table class="grid" data-testid="umdh-stack" aria-label="Allocation stack" i18n-aria-label="@@umdh.stack.label">
                         <thead><tr><th class="num">#</th><th i18n="@@umdh.stack.frame">Frame</th></tr></thead>
@@ -117,13 +117,13 @@ export function insertChildren(items: readonly TreeItem[], parent: TreeItem, chi
                         </tbody>
                       </table>
                     }
-                  </imt-analysis-state>
+                  </debrief-analysis-state>
                 </div>
               }
             </div>
           }
           @case ('tree') {
-            <imt-analysis-state [loading]="treeLoading()" [error]="treeError()" [hasData]="tree().length > 0" [empty]="!treeLoading() && tree().length === 0" emptyText="No allocation stacks." i18n-emptyText="@@umdh.tree.empty" (retry)="loadRoots()">
+            <debrief-analysis-state [loading]="treeLoading()" [error]="treeError()" [hasData]="tree().length > 0" [empty]="!treeLoading() && tree().length === 0" emptyText="No allocation stacks." i18n-emptyText="@@umdh.tree.empty" (retry)="loadRoots()">
               <div class="body">
                 <cdk-tree #cdkTree [dataSource]="tree()" [levelAccessor]="level" [trackBy]="trackBy" [expansionKey]="track" class="tree" aria-label="Growing stacks, outermost caller first" i18n-aria-label="@@umdh.tree.label" data-testid="umdh-tree">
                   <cdk-tree-node *cdkTreeNodeDef="let item" [isExpandable]="item.node.hasChildren" (expandedChange)="expanded(item, $event)" [cdkTreeNodeTypeaheadLabel]="item.node.label" class="node" [class.framework]="item.node.framework" [style.padding-left.px]="8 + item.level * 16">
@@ -137,12 +137,12 @@ export function insertChildren(items: readonly TreeItem[], parent: TreeItem, chi
                   </cdk-tree-node>
                 </cdk-tree>
               </div>
-            </imt-analysis-state>
+            </debrief-analysis-state>
           }
         }
       </div>
     } @else {
-      <imt-no-dump text="Open UMDH snapshots (umdh -p:PID -f:file) or a UMDH diff to find what leaks." i18n-text="@@umdh.none" action="Open UMDH snapshots…" i18n-action="@@umdh.open" (open)="store.pickAndOpen('umdh')" />
+      <debrief-no-dump text="Open UMDH snapshots (umdh -p:PID -f:file) or a UMDH diff to find what leaks." i18n-text="@@umdh.none" action="Open UMDH snapshots…" i18n-action="@@umdh.open" (open)="store.pickAndOpen('umdh')" />
     }
   `,
   styles: [

@@ -36,7 +36,7 @@ export class FolderSetupNotice {
       source: 'workspace',
       severity: 'info',
       title: $localize`:@@ai.folderSetup.notice.title:New folder? Set up analysis`,
-      body: $localize`:@@ai.folderSetup.hint.text:New folder? IMT can survey it and propose lanes, markers, extractors and charts for you to review.`,
+      body: $localize`:@@ai.folderSetup.hint.text:New folder? Debrief can survey it and propose lanes, markers, extractors and charts for you to review.`,
       actionLabel: $localize`:@@ai.folderSetup.hint.open:Set up analysis…`,
       run: () => this.launcher.open(),
     });

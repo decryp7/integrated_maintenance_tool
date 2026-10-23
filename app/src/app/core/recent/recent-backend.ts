@@ -7,7 +7,7 @@ import { listenHere, PayloadListenFn, Unlisten } from '../../windowing/window-ev
 import { RecentFile, RecentKind, RecentLists, RecentProject } from '../api.types';
 
 /** Emitted to every window when a recent list changed (payload: `RecentLists`). */
-export const RECENT_EVENT = 'imt://recent-changed';
+export const RECENT_EVENT = 'debrief://recent-changed';
 
 /** The real backend inside Tauri, the in-memory mock in a plain browser; failures are logged. */
 export function createRecentBackend(): RecentBackend {

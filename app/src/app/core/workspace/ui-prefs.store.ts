@@ -19,7 +19,7 @@ interface UiPrefsState {
   extraColumns: string[];
 }
 
-const PREFS_KEY = 'imt.prefs.v1';
+const PREFS_KEY = 'debrief.prefs.v1';
 /** The preferences kept across sessions. */
 export type Prefs = Pick<UiPrefsState, 'timezone' | 'theme' | 'scheme' | 'uiFont' | 'extraColumns' | 'alwaysShowLifecycle'>;
 
@@ -82,6 +82,8 @@ export const UiPrefsStore = signalStore(
     addColumn(field: string) {
       if (!store.extraColumns().includes(field)) patchState(store, { extraColumns: [...store.extraColumns(), field] });
     },
+    /** Replaces the extra columns (a lens switch); duplicates are dropped. */
+    setColumns: (fields: readonly string[]) => patchState(store, { extraColumns: [...new Set(fields)] }),
     removeColumn: (field: string) => patchState(store, { extraColumns: store.extraColumns().filter((c) => c !== field) }),
     /** The preferences to persist. */
     snapshot: (): Prefs => ({

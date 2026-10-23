@@ -9,9 +9,9 @@ import { MarkerIcon } from './marker-icon';
 @Component({
   imports: [MarkerIcon, Icon, ClickOutside],
   template: `
-    <imt-marker-icon id="b" [kind]="kind()" [color]="color()" label="Lbl" />
-    <imt-icon id="i" [name]="icon()" [size]="20" />
-    <div id="pop" (imtClickOutside)="outside = outside + 1"><span id="inner">x</span></div>
+    <debrief-marker-icon id="b" [kind]="kind()" [color]="color()" label="Lbl" />
+    <debrief-icon id="i" [name]="icon()" [size]="20" />
+    <div id="pop" (debriefClickOutside)="outside = outside + 1"><span id="inner">x</span></div>
   `,
 })
 class Host {
@@ -22,8 +22,8 @@ class Host {
 }
 
 describe('shared components', () => {
-  it('focuses an imtAutoFocus host once it is rendered', async () => {
-    @Component({ imports: [AutoFocus], template: `<button id="other">x</button>@if (on()) { <input id="auto" imtAutoFocus /> }` })
+  it('focuses a debriefAutoFocus host once it is rendered', async () => {
+    @Component({ imports: [AutoFocus], template: `<button id="other">x</button>@if (on()) { <input id="auto" debriefAutoFocus /> }` })
     class FocusHost {
       readonly on = signal(false);
     }

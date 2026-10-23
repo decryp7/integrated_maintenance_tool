@@ -1,0 +1,54 @@
+---
+source: crates/debrief-plugin-syslog/tests/samples.rs
+expression: "snapshot_of(RFC5424, &SyslogImporter)"
+---
+sample: linux/k8s-node-2/rsyslog-rfc5424.log
+importer: syslog
+records: 458
+skipped: 0
+first_ts: 1791968420115
+last_ts: 1791979128279
+fields:
+  - App
+  - Facility
+  - Host
+  - MsgId
+  - ProcId
+  - Severity
+  - sd.k8s@32473.container
+  - sd.k8s@32473.exitCode
+  - sd.k8s@32473.namespace
+  - sd.k8s@32473.pod
+  - sd.k8s@32473.probe
+  - sd.k8s@32473.restartCount
+first:
+  - ts: 1791968420115
+    level: Information
+    message: "SyncLoop (PLEG): event for pod; ContainerStarted"
+    fields:
+      Facility: daemon
+      Severity: info
+      Host: k8s-node-2
+      App: kubelet
+      ProcId: 1380
+      MsgId: SYNC
+      sd.k8s@32473.namespace: shop
+      sd.k8s@32473.pod: order-events-7c9d8b5f4-x2k4p
+  - ts: 1791968440106
+    level: Information
+    message: shim disconnected id=9ee58997bd773553 namespace=k8s.io
+    fields:
+      Facility: daemon
+      Severity: info
+      Host: k8s-node-2
+      App: containerd
+      ProcId: 902
+  - ts: 1791968573842
+    level: Information
+    message: shim disconnected id=39f9e32399ebad10 namespace=k8s.io
+    fields:
+      Facility: daemon
+      Severity: info
+      Host: k8s-node-2
+      App: containerd
+      ProcId: 902

@@ -1,8 +1,8 @@
 import { Component, signal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { parse } from 'smol-toml';
 import { all, buttonByText, el, provideTinyBackend, settle, testLogger, text, tinyBackend, typeInto } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { MOCK_PROFILE_TOML } from '../core/mock/mock-profile';
 import { Platform } from '../core/platform';
@@ -37,12 +37,22 @@ const fakePlatform = {
   },
 };
 
-function configure(backend: ImtBackend = tinyBackend()) {
+function configure(backend: DebriefBackend = tinyBackend()) {
   TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), { provide: Platform, useValue: fakePlatform }, ProfileDraft] });
   return { backend, store: TestBed.inject(WorkspaceStore), draft: TestBed.inject(ProfileDraft) };
 }
 
 const wait = (ms = 360) => new Promise((r) => setTimeout(r, ms));
+
+/** Opens the "..." menu of the profile editor and triggers the item with this label. */
+async function menuItem(fixture: ComponentFixture<unknown>, label: string): Promise<void> {
+  (fixture.nativeElement.querySelector('[data-testid=profile-more]') as HTMLButtonElement).click();
+  fixture.detectChanges();
+  await fixture.whenStable();
+  const item = [...document.querySelectorAll<HTMLButtonElement>('.cdk-overlay-container [cdkMenuItem]')].find((b) => b.textContent?.trim() === label);
+  if (!item) throw new Error(`No menu item "${label}"`);
+  item.click();
+}
 
 describe('ProfileDraft', () => {
   it('loads, tracks dirty state and validates', async () => {
@@ -151,8 +161,8 @@ describe('ProfileDraft', () => {
 @Component({
   imports: [StringList, ConditionsEditor],
   template: `
-    <imt-string-list label="glob" [values]="values()" (changed)="values.set($event)" />
-    <imt-conditions-editor [conditions]="conds()" (changed)="conds.set($event)" />
+    <debrief-string-list label="glob" [values]="values()" (changed)="values.set($event)" />
+    <debrief-conditions-editor [conditions]="conds()" (changed)="conds.set($event)" />
   `,
 })
 class ListHost {
@@ -165,7 +175,7 @@ describe('StringList and ConditionsEditor', () => {
     const fixture = TestBed.createComponent(ListHost);
     await settle(fixture);
     const host = fixture.componentInstance;
-    typeInto(at(all<HTMLInputElement>(fixture, 'imt-string-list .input'), 1), 'B');
+    typeInto(at(all<HTMLInputElement>(fixture, 'debrief-string-list .input'), 1), 'B');
     expect(host.values()).toEqual(['a', 'B']);
     await settle(fixture);
     el<HTMLButtonElement>(fixture, '[aria-label="Move glob 2 up"]').click();
@@ -177,7 +187,7 @@ describe('StringList and ConditionsEditor', () => {
     el<HTMLButtonElement>(fixture, '[aria-label="Remove glob 1"]').click();
     expect(host.values()).toEqual(['a', '']);
 
-    const cond = el(fixture, 'imt-conditions-editor');
+    const cond = el(fixture, 'debrief-conditions-editor');
     typeInto(cond.querySelector<HTMLInputElement>('.field')!, 'Level');
     await settle(fixture);
     typeInto(cond.querySelector<HTMLInputElement>('.value')!, '2');
@@ -216,7 +226,7 @@ describe('ProfileEditor', () => {
     expect(buttonByText(fixture, 'Save & apply').disabled).toBe(true);
     buttonByText(fixture, 'TOML').click();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('imt-toml-editor')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-toml-editor')).not.toBeNull();
     draft.setText('[broken');
     await settle(fixture);
     expect(text(fixture)).toContain('Line 1');
@@ -225,7 +235,7 @@ describe('ProfileEditor', () => {
     expect(text(fixture)).toContain("syntax error, so the form can't show it");
     buttonByText(fixture, 'Fix in TOML view').click();
     await settle(fixture);
-    buttonByText(fixture, 'Revert').click();
+    await menuItem(fixture, 'Revert');
     await settle(fixture);
     expect(draft.dirty()).toBe(false);
   });
@@ -246,11 +256,11 @@ describe('ProfileEditor', () => {
     expect(store.summary()?.profileName).toBe('Via keyboard');
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 's', ctrlKey: true, bubbles: true }));
     fixture.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', ctrlKey: true, bubbles: true }));
-    buttonByText(fixture, 'Import…').click();
+    await menuItem(fixture, 'Import…');
     await settle(fixture);
     expect(text(fixture)).toContain('/p/in.toml');
     vi.spyOn(backend, 'exportProfile').mockResolvedValue();
-    buttonByText(fixture, 'Export…').click();
+    await menuItem(fixture, 'Export…');
     await settle(fixture);
     expect(backend.exportProfile).toHaveBeenCalled();
   });
@@ -320,7 +330,7 @@ describe('ProfileForm', () => {
     await settle(fixture);
     expect(preview).toHaveBeenCalled();
     expect(all(fixture, '.outputs .cap').map((c) => c.textContent)).toEqual(['cpu', 'ws', 'threads']);
-    const ed = el(fixture, 'imt-extractor-editor');
+    const ed = el(fixture, 'debrief-extractor-editor');
     typeInto(ed.querySelector<HTMLInputElement>('.grid2 input')!, 'stats');
     expect(m().extract?.[0]?.name).toBe('stats');
     typeInto(at(ed.querySelectorAll<HTMLInputElement>('.grid2 input'), 1), '@exception');

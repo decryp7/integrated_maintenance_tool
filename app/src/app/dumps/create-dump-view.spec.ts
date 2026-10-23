@@ -65,7 +65,7 @@ describe('CreateDumpView', () => {
     await view.chooseFolder();
     await view.create();
     await settle(fixture, 4);
-    expect(text(fixture)).toContain('Restart IMT as administrator');
+    expect(text(fixture)).toContain('Restart Debrief as administrator');
   });
 
   it('says when the tool cannot run on this platform', async () => {

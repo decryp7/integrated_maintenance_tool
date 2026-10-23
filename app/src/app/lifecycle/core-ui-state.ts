@@ -42,7 +42,7 @@ export class CoreUiState {
     {
       key: 'layout',
       tracksChanges: false,
-      capture: () => ({ id: `imt.layout.v${LAYOUT_VERSION}`, openViews: [...this.dock.openIds()].sort() }),
+      capture: () => ({ id: `debrief.layout.v${LAYOUT_VERSION}`, openViews: [...this.dock.openIds()].sort() }),
       restore: (v) => {
         const open = (v as { openViews?: unknown } | null)?.openViews;
         if (!Array.isArray(open)) return;

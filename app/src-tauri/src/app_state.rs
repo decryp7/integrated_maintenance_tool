@@ -4,7 +4,7 @@
 use crate::engine::{Engine, Host, StoreHost};
 use crate::profile::{load_profile, ProfileDoc};
 use crate::windows::{WindowFactory, WindowState};
-use imt_plugin_host::Builtins;
+use debrief_plugin_host::Builtins;
 use std::path::PathBuf;
 use std::sync::Arc;
 
@@ -32,11 +32,11 @@ pub(crate) struct AppState {
     pub(crate) performance: Arc<crate::performance::live::Live>,
 }
 
-/// The folder of scratch stores under IMT's data folder (the temp folder when there is none).
+/// The folder of scratch stores under Debrief's data folder (the temp folder when there is none).
 pub(crate) fn store_root(data: Option<&std::path::Path>) -> PathBuf {
     match data {
         Some(d) => d.join("stores"),
-        None => std::env::temp_dir().join(format!("imt-stores-{}", std::process::id())),
+        None => std::env::temp_dir().join(format!("debrief-stores-{}", std::process::id())),
     }
 }
 
@@ -53,7 +53,7 @@ impl AppState {
         let mut plugins = if safe_mode {
             Builtins::none()
         } else {
-            Builtins::load(&imt_plugin_host::builtins::default_binary())
+            Builtins::load(&debrief_plugin_host::builtins::default_binary())
         };
         let installed = crate::plugin_packages::Installed::load(plugins_dir, safe_mode, &mut plugins);
         let config_dir = profile_dir.as_ref().and_then(|d| d.parent()).map(PathBuf::from);

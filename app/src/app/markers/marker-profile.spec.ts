@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle, tinyBackend } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MarkerPreviewService } from './marker-preview';
 import { MarkerProfile } from './marker-profile';
 import { writeRows } from './marker-rules';
@@ -23,7 +23,7 @@ describe('MarkerProfile', () => {
     expect(res.ok).toBe(true);
     await settle();
     expect((await backend.getProfile()).toml).toContain('badge = "1"');
-    expect(TestBed.inject(ImtBackend)).toBe(backend);
+    expect(TestBed.inject(DebriefBackend)).toBe(backend);
   });
 
   it('reports engine validation errors with the offending line', async () => {

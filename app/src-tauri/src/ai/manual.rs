@@ -1,13 +1,13 @@
-//! "Download manually" for a model or an inference runtime that IMT cannot download itself (a TLS-inspecting
-//! proxy such as Zscaler, a blocked host): which files to get, from where, with which SHA-256, and where IMT
+//! "Download manually" for a model or an inference runtime that Debrief cannot download itself (a TLS-inspecting
+//! proxy such as Zscaler, a blocked host): which files to get, from where, with which SHA-256, and where Debrief
 //! keeps them once checked. The UI names only the model or build id; the addresses come from the catalogs,
-//! so the webview can never make IMT open an arbitrary URL.
+//! so the webview can never make Debrief open an arbitrary URL.
 
 use super::commands::{check_link, core};
 use super::core::AiCore;
 use super::error::{AiCmdError, AiResult};
-use imt_ai::manual::{model_file, projector_file, runtime_files, ManualFile};
-use imt_ai::runtimes::builds::{is_build_id, label};
+use debrief_ai::manual::{model_file, projector_file, runtime_files, ManualFile};
+use debrief_ai::runtimes::builds::{is_build_id, label};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Runtime};
 
@@ -25,7 +25,7 @@ pub enum ManualKind {
     Runtime,
 }
 
-/// The files of a manual download and where IMT keeps them after the check.
+/// The files of a manual download and where Debrief keeps them after the check.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ManualDownload {

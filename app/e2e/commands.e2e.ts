@@ -13,7 +13,7 @@ test.describe('commands without another spec', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
   test('Analyze ▸ Previous / Next time range and Fit time range move through the zoom history', async ({ page }) => {
-    const header = page.locator('imt-timeline-header').first();
+    const header = page.locator('debrief-timeline-header').first();
     const fit = header.getByRole('button', { name: 'Fit', exact: true });
     const back = header.getByRole('button', { name: 'Previous range' });
     const forward = header.getByRole('button', { name: 'Next range' });
@@ -49,7 +49,7 @@ test.describe('commands without another spec', () => {
   });
 
   test('Analyze ▸ Time zone ▸ UTC and Local switch the status bar zone and the check mark', async ({ page }) => {
-    const tz = page.locator('imt-status-bar .tz');
+    const tz = page.locator('debrief-status-bar .tz:not(.details)');
     await chooseMenu(page, 'Analyze', 'Time zone', 'Local');
     await expect(tz).not.toHaveText('UTC');
     await chooseMenu(page, 'Analyze', 'Time zone', 'UTC');
@@ -61,12 +61,12 @@ test.describe('commands without another spec', () => {
 
   test('Edit ▸ Find and the "Search events" command focus the search box', async ({ page }) => {
     const search = page.getByTestId('query-field');
-    await page.locator('imt-events-grid [role=row].row').first().click();
+    await page.locator('debrief-events-grid [role=row].row').first().click();
     await expect(search).not.toBeFocused();
     await chooseMenu(page, 'Edit', 'Find');
     await expect(search).toBeFocused();
 
-    await page.locator('imt-events-grid [role=row].row').first().click();
+    await page.locator('debrief-events-grid [role=row].row').first().click();
     await expect(search).not.toBeFocused();
     await runCommand(page, 'Search events');
     await expect(search).toBeFocused();
@@ -82,7 +82,7 @@ test.describe('commands without another spec', () => {
     await expect(menuItem(themes, 'Calm')).toHaveAttribute('aria-checked', 'true');
     await page.keyboard.press('Escape');
 
-    const stripes = page.locator('imt-events-grid [data-testid=source-stripe]');
+    const stripes = page.locator('debrief-events-grid [data-testid=source-stripe]');
     await chooseMenu(page, 'View', 'Source colours', 'Off');
     await expect(stripes).toHaveCount(0);
     await chooseMenu(page, 'View', 'Source colours', 'By file');
@@ -99,7 +99,7 @@ test.describe('commands without another spec', () => {
 
     await chooseMenu(page, 'Tools', 'Manage parsers…');
     await expect(dialog).toHaveCount(0);
-    await expect(page.locator('imt-parsers-view').getByRole('heading', { name: 'Parsers' })).toBeVisible();
+    await expect(page.locator('debrief-parsers-view').getByRole('heading', { name: 'Parsers' })).toBeVisible();
   });
 
   test('Analyze ▸ Edit live alert rules… opens the rules editor and Escape closes it', async ({ page }) => {
@@ -113,8 +113,8 @@ test.describe('commands without another spec', () => {
 
   test('Show live alerts and Show tail status open their views', async ({ page }) => {
     await runCommand(page, 'Show live alerts');
-    await expect(page.locator('imt-dock-host').getByRole('tab', { name: /Alerts/ }).first()).toBeVisible();
+    await expect(page.locator('debrief-dock-host').getByRole('tab', { name: /Alerts/ }).first()).toBeVisible();
     await runCommand(page, 'Show tail status');
-    await expect(page.locator('imt-dock-host').getByRole('tab', { name: /Tail status/i }).first()).toBeVisible();
+    await expect(page.locator('debrief-dock-host').getByRole('tab', { name: /Tail status/i }).first()).toBeVisible();
   });
 });

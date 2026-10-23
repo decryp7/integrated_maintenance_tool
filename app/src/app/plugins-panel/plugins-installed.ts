@@ -1,11 +1,15 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
-import { PluginMemory } from './plugin-memory';
+import { PluginsTable } from './plugins-table';
+import { PluginHealthStore } from '../tools/health/plugin-health.store';
+import { ToolError } from '../tools/elevation-hint';
+import { Icon } from '../shared/icon';
 import { PluginMemoryStore } from '../settings/performance/plugin-memory.store';
 import { ExporterInfo, PluginInfo } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
+import { PluginPackagesStore } from './plugin-packages.store';
 import { InstalledPackages } from './installed-packages';
 
-/** Importers that ship with IMT (plugins can add more). */
+/** Importers that ship with Debrief (plugins can add more). */
 export const BUILTIN_IMPORTERS = [
   { id: 'json', name: $localize`:@@pluginsPanel.importer.json:JSON lines / CLEF (Serilog)` },
   { id: 'text', name: $localize`:@@pluginsPanel.importer.text:Plain text logs (output templates and regexes)` },
@@ -19,29 +23,29 @@ export function contributionLabel(contribution: string): string {
 
 /** The Installed tab of the Plugins view: backend plugins reported by the engine, third-party packages, plus what is built in. */
 @Component({
-  selector: 'imt-plugins-installed',
+  selector: 'debrief-plugins-installed',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [InstalledPackages, PluginMemory],
+  imports: [InstalledPackages, PluginsTable, ToolError, Icon],
   template: `
     <div class="scroll" tabindex="0" role="region" aria-label="Plugins overview" i18n-aria-label="@@pluginsPanel.region">
       <h2 class="section-title" i18n="@@pluginsPanel.installed">Installed plugins</h2>
-      @if (plugins().length) {
-        <ul class="list" aria-label="Installed plugins" i18n-aria-label="@@pluginsPanel.installed.aria">
-          @for (p of plugins(); track p.id) {
-            <li class="plugin">
-              <div class="top"><strong>{{ p.name }}</strong> <span class="mono faint">v{{ p.version }}</span> <span class="mono faint id">{{ p.id }}</span></div>
-              <div class="badges">
-                @for (c of p.contributes; track c) { <span class="badge" [title]="c">{{ label(c) }}</span> }
-              </div>
-              <imt-plugin-memory [pluginId]="p.id" [pluginName]="p.name" />
-            </li>
-          }
-        </ul>
-      } @else {
-        <p class="faint" i18n="@@pluginsPanel.none">No plugins are installed. IMT works with its built-in importers and exporters.</p>
+      <debrief-tool-error [message]="health.error()" (dismissed)="health.dismissError()" />
+      @if (health.needsRestart()) {
+        <div class="restart" role="status">
+          <span i18n="@@pluginsPanel.restartNote">Plugin changes apply after a restart.</span>
+          <button type="button" class="btn primary" (click)="health.restart()" i18n="@@pluginsPanel.restartApply">Restart to apply</button>
+        </div>
       }
-
-      <imt-installed-packages />
+      <debrief-installed-packages />
+      @if (plugins().length || packages.plugins().length) {
+        <debrief-plugins-table />
+      } @else {
+        <div class="empty" data-testid="plugins-empty">
+          <debrief-icon name="puzzle" [size]="32" />
+          <h3 i18n="@@pluginsPanel.empty.title">No plugins installed</h3>
+          <p i18n="@@pluginsPanel.none">Debrief works with its built-in importers and exporters. Install a plugin from a file to add more.</p>
+        </div>
+      }
 
       <h2 class="section-title" i18n="@@pluginsPanel.builtIn">Built in</h2>
       <div class="builtin">
@@ -55,22 +59,21 @@ export function contributionLabel(contribution: string): string {
 
       <h2 class="section-title" i18n="@@pluginsPanel.about">About plugins</h2>
       <div class="help">
-        <p i18n="@@pluginsPanel.about.p1">A plugin extends IMT without changing the app. Backend plugins can add <strong>importers</strong> (read a new file format), <strong>transforms</strong> (a step you can use in the profile pipeline), <strong>exporters</strong> (write events to a new format) and <strong>hooks</strong> (react to events such as a finished import).</p>
+        <p i18n="@@pluginsPanel.about.p1">A plugin extends Debrief without changing the app. Backend plugins can add <strong>importers</strong> (read a new file format), <strong>transforms</strong> (a step you can use in the profile pipeline), <strong>exporters</strong> (write events to a new format) and <strong>hooks</strong> (react to events such as a finished import).</p>
         <p i18n="@@pluginsPanel.about.p2">Plugins are loaded by the engine when it starts; what it found is listed above. A plugin's importer shows up in the Explorer as the format badge of its files, and a transform can be added from the Pipeline section of the profile.</p>
         <p i18n="@@pluginsPanel.about.p3">UI plugins add panels (like the Registry viewer), commands, inspector sections and field formatters, and are registered when the app is built.</p>
       </div>
     </div>
   `,
   styles: `
-    :host { flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
+    :host { position: relative; flex: 1; min-width: 0; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
     .scroll { flex: 1; min-height: 0; overflow: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 10px; }
     .scroll:focus-visible { outline-offset: -2px; }
     h2 { margin: 8px 0 0; }
-    .list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-    .plugin { padding: 8px 10px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); display: flex; flex-direction: column; gap: 6px; }
-    .top { display: flex; gap: 8px; align-items: baseline; }
-    .id { margin-left: auto; font-size: var(--fs-xs); }
-    .badges { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+    .restart { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 6px; background: var(--bg-3); }
+    .empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 24px 0; color: var(--muted); text-align: center; }
+    .empty h3 { margin: 0; font-size: var(--fs-lg); font-weight: 600; color: var(--text); }
+    .empty p { margin: 0; max-width: 360px; }
     .builtin { display: flex; gap: 32px; flex-wrap: wrap; }
     .help { max-width: 640px; color: var(--text-2); font-size: var(--fs-md); line-height: 1.5; }
     .help p { margin: 0 0 8px; }
@@ -79,13 +82,14 @@ export function contributionLabel(contribution: string): string {
 export class PluginsInstalled {
   private readonly store = inject(WorkspaceStore);
   private readonly memory = inject(PluginMemoryStore);
+  protected readonly health = inject(PluginHealthStore);
+  protected readonly packages = inject(PluginPackagesStore);
 
   constructor() {
     void this.memory.load();
   }
 
   protected readonly importers = BUILTIN_IMPORTERS;
-  protected readonly label = contributionLabel;
   protected readonly plugins = computed<PluginInfo[]>(() => this.store.summary()?.plugins ?? []);
   protected readonly exporters = computed<ExporterInfo[]>(() => this.store.summary()?.exporters ?? []);
 }

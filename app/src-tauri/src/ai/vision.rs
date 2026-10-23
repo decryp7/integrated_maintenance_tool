@@ -9,12 +9,12 @@ use super::core::ModelDto;
 use super::error::{AiCmdError, AiResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::windows::{CurrentWindow, WindowState};
-use imt_ai::assistant::{Assistant, Narrative};
-use imt_ai::llm::LlmProvider;
-use imt_ai::vision::image::{sanitize, ImageLimits, SanitizedImage, SourceFormat};
-use imt_ai::vision::{RelatedOutcome, RelatedStage};
-use imt_ai::{AiError, StoreAccess, StoreRef};
-use imt_core::related::{find_related, ExifStamp, QuerySource, RelatedRequest, RelatedResult, TimeEvidence};
+use debrief_ai::assistant::{Assistant, Narrative};
+use debrief_ai::llm::LlmProvider;
+use debrief_ai::vision::image::{sanitize, ImageLimits, SanitizedImage, SourceFormat};
+use debrief_ai::vision::{RelatedOutcome, RelatedStage};
+use debrief_ai::{AiError, StoreAccess, StoreRef};
+use debrief_core::related::{find_related, ExifStamp, QuerySource, RelatedRequest, RelatedResult, TimeEvidence};
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::path::Path;
@@ -69,10 +69,10 @@ impl ImageCache {
 
     /// The images `ids`, or which one is gone.
     pub fn get_all(&self, ids: &[u32]) -> Ai<Vec<Arc<OpenImage>>> {
-        if ids.len() > imt_ai::worker::protocol::MAX_IMAGES {
+        if ids.len() > debrief_ai::worker::protocol::MAX_IMAGES {
             return Err(AiCmdError::invalid(format!(
                 "attach at most {} images to one question",
-                imt_ai::worker::protocol::MAX_IMAGES
+                debrief_ai::worker::protocol::MAX_IMAGES
             )));
         }
         ids.iter().map(|id| self.get(*id).ok_or_else(gone)).collect()
@@ -139,7 +139,7 @@ fn clean_name(name: &str) -> String {
     }
 }
 
-fn image_error(e: imt_ai::vision::ImageError) -> AiCmdError {
+fn image_error(e: debrief_ai::vision::ImageError) -> AiCmdError {
     AiCmdError::invalid(e.to_string())
 }
 
@@ -245,7 +245,7 @@ pub async fn ai_model_install_projector<R: Runtime>(app: AppHandle<R>, file_name
     core.availability()?;
     // Fails fast for a model the catalog has no projector for.
     core.projector_download_bytes(&file_name)?;
-    let progress = Arc::new(imt_ai::models::Progress::new());
+    let progress = Arc::new(debrief_ai::models::Progress::new());
     let (p, q) = (progress.clone(), progress.clone());
     let controls = Controls::cancel(move || p.cancel()).with_probe(move || {
         let s = q.snapshot();
@@ -276,7 +276,7 @@ pub async fn ai_model_add_projector<R: Runtime>(
     let core = core(&app)?;
     core.availability()?;
     let file = grants.read_file(&path, &["gguf"])?.path().to_path_buf();
-    let progress = Arc::new(imt_ai::models::Progress::new());
+    let progress = Arc::new(debrief_ai::models::Progress::new());
     let (p, q) = (progress.clone(), progress.clone());
     let controls = Controls::cancel(move || p.cancel()).with_probe(move || {
         let s = q.snapshot();
@@ -297,7 +297,7 @@ pub async fn ai_model_add_projector<R: Runtime>(
 // ---- the use cases ----
 
 /// The engine's "find related logs" over the window's store, borrowed for the search only.
-pub(crate) fn search_in(store: StoreRef<'_>) -> impl FnMut(&RelatedRequest) -> imt_ai::Result<RelatedResult> + '_ {
+pub(crate) fn search_in(store: StoreRef<'_>) -> impl FnMut(&RelatedRequest) -> debrief_ai::Result<RelatedResult> + '_ {
     move |req| {
         store
             .with(|s| find_related(&QuerySource(s), req))
@@ -307,7 +307,7 @@ pub(crate) fn search_in(store: StoreRef<'_>) -> impl FnMut(&RelatedRequest) -> i
 
 /// The time zone for times without one: the generic parser's (formats are parsers, ADR 0026).
 pub(crate) fn timezone(_store: StoreRef<'_>) -> String {
-    imt_core::parser::builtin::generic().format.assume_timezone
+    debrief_core::parser::builtin::generic().format.assume_timezone
 }
 
 /// "Explain with AI" on an image.
@@ -343,7 +343,7 @@ pub(crate) fn link_of(img: &OpenImage) -> Option<JobLink> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_ai::vision::image::testing::screenshot_png;
+    use debrief_ai::vision::image::testing::screenshot_png;
 
     fn clean() -> SanitizedImage {
         sanitize(&screenshot_png(64, 40), 1 << 20, &ImageLimits::default()).unwrap()
@@ -368,7 +368,7 @@ mod tests {
     fn the_ui_gets_the_clean_copy_only() {
         let c = ImageCache::default();
         let mut img = clean();
-        img.capture = Some(imt_ai::vision::exif::ExifTime {
+        img.capture = Some(debrief_ai::vision::exif::ExifTime {
             local: "2026-10-21 09:14:03".into(),
             offset: None,
         });

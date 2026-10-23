@@ -1,3 +1,4 @@
+import { plural } from '../i18n/locale';
 import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { AnnotationDto, MarkerKind } from '../core/api.types';
@@ -14,9 +15,9 @@ import { TIMELINE_SOURCE } from './timeline-source';
 /** At most this many annotations are listed in the Evidence menu (the rest: zoom in). */
 const MAX_ANN_MENU = 50;
 /** Marker kinds shown before "+N more". */
-export const LEGEND_COLLAPSED = 6;
+export const LEGEND_COLLAPSED = 4;
 /** Run kinds and annotation kinds each shown before "+N more" (one pressed "more" shows everything). */
-export const LEGEND_COLLAPSED_GROUP = 3;
+export const LEGEND_COLLAPSED_GROUP = 0;
 
 let legendSeq = 0;
 
@@ -25,13 +26,15 @@ let legendSeq = 0;
  * shows them), and the Evidence menu, the keyboard path to the annotations and runs in view.
  */
 @Component({
-  selector: 'imt-timeline-legend',
+  selector: 'debrief-timeline-legend',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerGlyph, SeverityBadge],
   host: { style: 'display: contents' },
   template: `
     @if (legendItems().length > 0 || ann.kinds().length || ann.runKinds().length || ann.error()) {
-      <div class="legend-row" [id]="listId" [class.collapsed]="!expanded()">
+      <!-- A one-line strip; "+N more" opens the whole legend as a popover over the lanes (no layout shift). -->
+      <div class="legend-host">
+      <div class="legend-row" [id]="listId" [class.collapsed]="!expanded()" (keydown.escape)="expanded.set(false)">
         <div class="legend" role="group" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [class.filtering]="src.markers().length > 0" [class.collapsed]="!expanded()">
           @for (k of shownItems(); track k.kind.kind) {
             <button
@@ -41,13 +44,8 @@ let legendSeq = 0;
               [attr.aria-describedby]="k.descId"
               [title]="k.title"
               (click)="toggleKind(k.kind.kind, k.active)"
-            ><span class="pill"><imt-marker-glyph [kind]="k.kind.kind" [size]="16" />{{ k.kind.label }}</span></button>
+            ><span class="pill"><debrief-marker-glyph [kind]="k.kind.kind" [size]="16" />{{ k.kind.label }}</span></button>
             @if (k.descId; as id) { <span class="sr" [id]="id">{{ k.title }}</span> }
-          }
-          @if (hidden() > 0 || expanded()) {
-            <button type="button" class="lg more" data-testid="legend-more" [attr.aria-expanded]="expanded()" [attr.aria-controls]="listId" (click)="expanded.set(!expanded())">
-              <span class="pill">{{ expanded() ? fewerLabel : moreLabel(hidden()) }}</span>
-            </button>
           }
         </div>
         @if (ann.runKinds().length) {
@@ -96,7 +94,7 @@ let legendSeq = 0;
                 [attr.data-kind]="k.kind"
                 [title]="annKindTitle(k)"
                 (click)="ann.toggle(k.kind)"
-              ><span class="pill"><imt-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</span></button>
+              ><span class="pill"><debrief-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</span></button>
             }
             @if (inView().length) {
               <!-- The keyboard path to every annotation, and the equivalent control (WCAG 2.5.8) for bands under markers. -->
@@ -115,13 +113,30 @@ let legendSeq = 0;
             }
           </div>
         }
+        @if (hidden() > 0 || expanded()) {
+          <button type="button" class="lg more" data-testid="legend-more" [attr.aria-label]="moreTitle(hidden())" [title]="moreTitle(hidden())" [attr.aria-expanded]="expanded()" [attr.aria-controls]="listId" (click)="expanded.set(!expanded())">
+            <span class="pill">{{ expanded() ? fewerLabel : moreLabel(hidden()) }}</span>
+          </button>
+        }
+      </div>
       </div>
     }
   `,
   styles: `
-    /* The legend is one row until "+N more" is pressed; clipped sideways only, so the 24px hit areas are not cut. */
+    /* Each group is one line until "+N more" is pressed (clipped sideways only, so the 24px hit areas are not cut). The
+       groups themselves wrap onto a second line when the panel is narrow (a document open beside the timeline), so none
+       is pushed out of reach. */
+    .legend-host { position: relative; flex: none; height: 30px; container-type: inline-size; }
+    /* The strip shows only whole chips: the narrower the panel, the fewer marker kinds before Runs / Annotations / "+N more". */
+    @container (max-width: 700px) { .legend-row.collapsed .legend > .lg:nth-of-type(n + 4):not(.more) { display: none; } }
+    @container (max-width: 615px) { .legend-row.collapsed .legend > .lg:nth-of-type(n + 3):not(.more) { display: none; } }
+    @container (max-width: 530px) { .legend-row.collapsed .legend > .lg:nth-of-type(n + 2):not(.more) { display: none; } }
+    @container (max-width: 445px) { .legend-row.collapsed .legend > .lg:nth-of-type(n + 1):not(.more) { display: none; } }
     .legend-row.collapsed { flex-wrap: nowrap; overflow-x: clip; }
     .legend-row.collapsed > div { flex-wrap: nowrap; flex: none; }
+    .legend-row.collapsed > .legend { flex: 0 1 auto; overflow-x: clip; }
+    .legend-row > .more { flex: none; margin-left: auto; }
+    .legend-row:not(.collapsed) { position: absolute; left: 6px; right: 6px; top: 0; z-index: 6; padding: 4px 8px 8px; border: 1px solid var(--border-3); border-radius: var(--r-2, 6px); background: var(--bg-3); box-shadow: var(--shadow-pop); }
     .legend-row { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 14px 6px; }
     .legend, .ann-legend, .run-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: var(--fs-sm); color: var(--muted); min-width: 0; }
     /* The button is a transparent 24px hit area (WCAG 2.5.8) around the visible pill; the negative margin keeps the row height. */
@@ -203,6 +218,16 @@ export class TimelineLegend {
       (this.ann.runsShown() ? this.ann.runKinds().length - this.shownRunKinds().length : 0) +
       (this.ann.kinds().length - this.shownAnnKinds().length),
   );
+
+  /** What the "+N more" button does, for its tooltip and screen readers. */
+  protected moreTitle(n: number): string {
+    return this.expanded()
+      ? $localize`:@@timeline.legend.fewerTitle:Show fewer legend entries`
+      : plural(n, {
+          one: $localize`:@@timeline.legend.moreTitleOne:Show ${n}:count: more legend entry`,
+          other: $localize`:@@timeline.legend.moreTitleMany:Show ${n}:count: more legend entries`,
+        });
+  }
 
   protected moreLabel(n: number): string {
     return $localize`:@@timeline.legend.more:+${n}:count: more`;

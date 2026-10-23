@@ -52,11 +52,11 @@ describe('VideoSettings on macOS with Homebrew', () => {
     expect(store.runtime()?.status.customPath).toBe('/usr/local/bin/ffmpeg');
     t.picker.ffmpeg = '/opt/broken/ffmpeg';
     await click(fixture, 'video-choose');
-    expect(el(fixture, 'imt-video-error [role="alert"]').textContent).toContain('did not pass the self-test');
-    expect(el(fixture, 'imt-video-error').textContent).toContain('Choose another ffmpeg.');
+    expect(el(fixture, 'debrief-video-error [role="alert"]').textContent).toContain('did not pass the self-test');
+    expect(el(fixture, 'debrief-video-error').textContent).toContain('Choose another ffmpeg.');
     buttonByText(fixture, 'Dismiss').click();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('imt-video-error')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-video-error')).toBeNull();
   });
 });
 
@@ -112,7 +112,7 @@ describe('VideoSettings with a download', () => {
     expect(id(fixture, 'video-settings-mode')).toBeTruthy();
   });
 
-  it('says so on a computer IMT has no build for', async () => {
+  it('says so on a computer Debrief has no build for', async () => {
     const t = setupVideo();
     const real = (t.backend as MockVideoBackend).getRuntime.bind(t.backend);
     (t.backend as MockVideoBackend).getRuntime = async () => ({ ...(await real()), platform: 'linux-riscv64' });
@@ -124,7 +124,7 @@ describe('VideoSettings with a download', () => {
   });
 
   it('says what each mode means', () => {
-    expect(modeText('managed')).toBe("IMT's downloaded FFmpeg is used.");
+    expect(modeText('managed')).toBe("Debrief's downloaded FFmpeg is used.");
     expect(modeText('custom')).toBe('The ffmpeg you chose is used.');
     expect(modeText('none')).toBe('No FFmpeg is set up yet.');
   });

@@ -13,7 +13,7 @@ async function runCommand(page: Page, title: string): Promise<void> {
 
 test('shares the workspace as a project file and opens an old bundle read-only', async ({ page }, testInfo) => {
   await openApp(page);
-  // Sharing saves the project: the .imtz is self-contained and opens anywhere (no bundle dialog any more).
+  // Sharing saves the project: the .debriefz is self-contained and opens anywhere (no bundle dialog any more).
   await runCommand(page, 'Share as project file');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(page.getByRole('status').filter({ hasText: 'Saved Untitled' })).toBeVisible();

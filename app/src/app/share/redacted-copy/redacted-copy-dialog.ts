@@ -19,11 +19,11 @@ export const PREVIEW_DEBOUNCE_MS = 200;
  * copy as a project file. The engine builds and redacts everything; this only collects the choices and shows the answers.
  */
 @Component({
-  selector: 'imt-redacted-copy-dialog',
+  selector: 'debrief-redacted-copy-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="intro" i18n="@@share.redactedCopy.dialog.intro">
-      Creates a copy of this project (.imtz) that you can share. It is built from the redacted text of every text source (JSON and text logs), so its events, field statistics, search index, notes, AI chats,
+      Creates a copy of this project (.debriefz) that you can share. It is built from the redacted text of every text source (JSON and text logs), so its events, field statistics, search index, notes, AI chats,
       saved queries and reports contain none of the values the selected rules find.
     </p>
     @if (loadError(); as e) {
@@ -79,7 +79,7 @@ export const PREVIEW_DEBOUNCE_MS = 200;
           <legend i18n="@@share.redactedCopy.mode">How to replace values</legend>
           @for (m of modes; track m.mode) {
             <label class="choice">
-              <input type="radio" name="imt-rc-mode" [value]="m.mode" [checked]="mode() === m.mode" [disabled]="busy()" (change)="setMode(m.mode)" [attr.data-mode]="m.mode" />
+              <input type="radio" name="debrief-rc-mode" [value]="m.mode" [checked]="mode() === m.mode" [disabled]="busy()" (change)="setMode(m.mode)" [attr.data-mode]="m.mode" />
               <span class="name">{{ m.label }}</span>
               <span class="hint">{{ m.hint }}</span>
             </label>
@@ -178,7 +178,7 @@ export const PREVIEW_DEBOUNCE_MS = 200;
     .samples li { display: grid; gap: 2px; }
     code { font-family: var(--font-mono, monospace); font-size: var(--fs-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
     .before { color: var(--muted); }
-    .leftout, .warn { border-left: 3px solid var(--warning, #c90); padding-left: 8px; }
+    .leftout, .warn { border-left: 3px solid var(--lvl-warn); padding-left: 8px; }
     .leftout ul, .notes, .result ul { margin: 2px 0 0; padding-left: 18px; }
     .notes { color: var(--muted); font-size: var(--fs-xs); }
     .hits { list-style: none; padding: 0; }
@@ -297,7 +297,7 @@ export class RedactedCopyDialog implements OnInit {
     this.busy.set(true);
     try {
       const path = await this.platform.pickSavePath($localize`:@@share.redactedCopy.pickTitle:Save redacted copy`, `${this.project.name()}-redacted${PROJECT_EXTENSION}`, [
-        { name: $localize`:@@share.redactedCopy.filter:IMT project`, extensions: ['imtz'] },
+        { name: $localize`:@@share.redactedCopy.filter:Debrief project`, extensions: ['debriefz'] },
       ]);
       if (!path) return;
       const options = this.options();

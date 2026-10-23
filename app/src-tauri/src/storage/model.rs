@@ -2,20 +2,20 @@
 
 use serde::Serialize;
 
-/// One kind of thing IMT keeps on disk. The UI only ever names these; paths never come from the webview.
+/// One kind of thing Debrief keeps on disk. The UI only ever names these; paths never come from the webview.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum CategoryId {
-    /// `.imtz` bundles extracted to be opened (the system temp folder).
+    /// `.debriefz` bundles extracted to be opened (the system temp folder).
     BundleExtracts,
     /// The webview's HTTP, code and GPU caches.
     WebviewCache,
-    /// Inference runtime builds of releases IMT no longer pins.
+    /// Inference runtime builds of releases Debrief no longer pins.
     AiRuntimesOutdated,
     /// Inference runtime builds of the pinned release.
     AiRuntimes,
     AiModels,
-    /// IMT's own rolling logs (never today's file).
+    /// Debrief's own rolling logs (never today's file).
     Logs,
     ErrorSnapshots,
     /// Autosaved sessions older than this run.
@@ -71,7 +71,7 @@ impl CategoryId {
             CategoryId::AiRuntimesOutdated => "Outdated AI runtimes",
             CategoryId::AiRuntimes => "AI runtimes",
             CategoryId::AiModels => "AI models",
-            CategoryId::Logs => "IMT logs",
+            CategoryId::Logs => "Debrief logs",
             CategoryId::ErrorSnapshots => "Error snapshots",
             CategoryId::Sessions => "Session backups",
             CategoryId::Stores => "Persistent stores",
@@ -79,7 +79,7 @@ impl CategoryId {
     }
 }
 
-/// Whether IMT can rebuild it (`cache`: cleared together by "Clear cache") or it is the user's (`data`:
+/// Whether Debrief can rebuild it (`cache`: cleared together by "Clear cache") or it is the user's (`data`:
 /// each needs its own confirmation).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "lowercase")]
@@ -95,7 +95,7 @@ pub struct StorageCategory {
     pub id: CategoryId,
     pub label: String,
     pub kind: Kind,
-    /// The folder, for display and "Show in folder"; `None` when IMT cannot resolve it.
+    /// The folder, for display and "Show in folder"; `None` when Debrief cannot resolve it.
     pub path: Option<String>,
     /// Whether the folder exists (nothing to show in the file manager otherwise).
     pub exists: bool,

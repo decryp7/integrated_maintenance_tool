@@ -11,7 +11,7 @@ import { HeapSelection } from './heap-selection';
 
 /** Instances of a type by retained size, and "why is this alive": paths from a GC root as a chain. */
 @Component({
-  selector: 'imt-heap-instances',
+  selector: 'debrief-heap-instances',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState],
   template: `
@@ -27,7 +27,7 @@ import { HeapSelection } from './heap-selection';
         @if (!sel.typeName()) {
           <div class="state" role="status" i18n="@@profiling.heapInstances.pick">Pick a type (in the Types tab, or type its name) to list its instances.</div>
         } @else {
-          <imt-analysis-state [loading]="list.loading()" [error]="list.error()" [hasData]="!!list.data()" [empty]="list.data()?.totalRows === 0" emptyText="No instances of this type." i18n-emptyText="@@profiling.heapInstances.empty" (retry)="list.retry()">
+          <debrief-analysis-state [loading]="list.loading()" [error]="list.error()" [hasData]="!!list.data()" [empty]="list.data()?.totalRows === 0" emptyText="No instances of this type." i18n-emptyText="@@profiling.heapInstances.empty" (retry)="list.retry()">
             <div class="body tight" tabindex="0" role="region" aria-label="Instance rows" i18n-aria-label="@@profiling.heapInstances.rowsRegion">
               <table class="grid" aria-label="Instances by retained size" i18n-aria-label="@@profiling.heapInstances.tableLabel">
                 <thead><tr><th scope="col" i18n="@@profiling.heapInstances.col.object">Object</th><th scope="col" class="num" i18n="@@profiling.heapInstances.col.retained">Retained</th><th scope="col" class="num" i18n="@@profiling.heapInstances.col.shallow">Shallow</th></tr></thead>
@@ -42,7 +42,7 @@ import { HeapSelection } from './heap-selection';
                 </tbody>
               </table>
             </div>
-          </imt-analysis-state>
+          </debrief-analysis-state>
         }
       </section>
       <section class="pane paths" tabindex="0" aria-label="Paths to GC roots" i18n-aria-label="@@profiling.heapInstances.pathsSection">
@@ -50,7 +50,7 @@ import { HeapSelection } from './heap-selection';
         @if (sel.object() === null) {
           <div class="state" role="status" i18n="@@profiling.heapInstances.choose">Choose an object to see the references that keep it alive.</div>
         } @else {
-          <imt-analysis-state [loading]="paths.loading()" [error]="paths.error()" [hasData]="!!paths.data()" (retry)="paths.retry()">
+          <debrief-analysis-state [loading]="paths.loading()" [error]="paths.error()" [hasData]="!!paths.data()" (retry)="paths.retry()">
             @if (paths.data(); as p) {
               @if (p.unreachable) { <p class="muted" role="status" i18n="@@profiling.heapInstances.unreachable">Unreachable: nothing on a path from a GC root keeps it alive (it is garbage).</p> }
               @if (p.truncated) { <p class="muted" role="status" i18n="@@profiling.heapInstances.truncated">More paths exist; the shortest are shown.</p> }
@@ -66,7 +66,7 @@ import { HeapSelection } from './heap-selection';
                 </ol>
               }
             }
-          </imt-analysis-state>
+          </debrief-analysis-state>
         }
       </section>
     </div>

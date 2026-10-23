@@ -1,4 +1,4 @@
-//! Research jobs (research mode, `imt_ai::browser::research`): the AI searches with the user's engine in the
+//! Research jobs (research mode, `debrief_ai::browser::research`): the AI searches with the user's engine in the
 //! window's visible browser and reads the result pages by itself, read-only, as a job of kind `research` (one at
 //! a time, cancellable from the Jobs pane and the Browser panel's Stop).
 //!
@@ -14,13 +14,13 @@ use super::ActivityLog;
 use crate::ai::error::{AiCmdError, AiErrorCode, AiResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobId, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::windows::{CurrentWindow, WindowState};
-use imt_ai::browser::policy::ScrollDirection;
-use imt_ai::browser::research::{self, ResearchEnv, ResearchModel, ResearchStep, WithModel};
-use imt_ai::browser::{
+use debrief_ai::browser::policy::ScrollDirection;
+use debrief_ai::browser::research::{self, ResearchEnv, ResearchModel, ResearchStep, WithModel};
+use debrief_ai::browser::{
     draft_or, AgentLimits, BrowserError, ChatBrowser, CheckedQuery, Drafted, Element, PageDriver, QueryDrafter, QuerySource,
     ResearchReport, ResearchRequest, ResearchSettings, Researcher, WebUrl,
 };
-use imt_ai::{StoreAccess, StoreRef};
+use debrief_ai::{StoreAccess, StoreRef};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::sync::Arc;
@@ -172,7 +172,7 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
         settings(&self.app)
     }
 
-    fn research(&self, question: &str, query: &str, max_results: u8) -> imt_ai::Result<ResearchReport> {
+    fn research(&self, question: &str, query: &str, max_results: u8) -> debrief_ai::Result<ResearchReport> {
         let req = ResearchRequest {
             question: question.to_string(),
             query: query.to_string(),
@@ -181,7 +181,7 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
         let jobs = self
             .app
             .try_state::<jobs::Jobs>()
-            .ok_or_else(|| imt_ai::AiError::Engine("IMT is not ready yet".into()))?;
+            .ok_or_else(|| debrief_ai::AiError::Engine("Debrief is not ready yet".into()))?;
         let (app, owner) = (self.app.clone(), self.owner.clone());
         let r2 = req.clone();
         let handle = jobs
@@ -193,14 +193,14 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
                     Ok(Done::new(report))
                 },
             )
-            .map_err(|e| imt_ai::AiError::Engine(e.to_string()))?;
+            .map_err(|e| debrief_ai::AiError::Engine(e.to_string()))?;
         match handle.wait() {
             Ok(Ok(report)) => Ok(report),
-            Ok(Err(e)) if e.code == AiErrorCode::Cancelled => Err(imt_ai::AiError::Cancelled),
-            Ok(Err(e)) if e.code == AiErrorCode::Browser => Err(imt_ai::AiError::Browser(e.message)),
-            Ok(Err(e)) => Err(imt_ai::AiError::Engine(e.message)),
-            Err(jobs::Stopped::Cancelled | jobs::Stopped::Interrupted(_)) => Err(imt_ai::AiError::Cancelled),
-            Err(e) => Err(imt_ai::AiError::Engine(e.to_string())),
+            Ok(Err(e)) if e.code == AiErrorCode::Cancelled => Err(debrief_ai::AiError::Cancelled),
+            Ok(Err(e)) if e.code == AiErrorCode::Browser => Err(debrief_ai::AiError::Browser(e.message)),
+            Ok(Err(e)) => Err(debrief_ai::AiError::Engine(e.message)),
+            Err(jobs::Stopped::Cancelled | jobs::Stopped::Interrupted(_)) => Err(debrief_ai::AiError::Cancelled),
+            Err(e) => Err(debrief_ai::AiError::Engine(e.to_string())),
         }
     }
 }
@@ -325,7 +325,7 @@ fn prepare<R: Runtime>(
     let event_query = match args.record_id {
         Some(id) if args.query.is_none() => Some(
             store
-                .with(|s| imt_ai::browser::query::search_for_event(s, id))
+                .with(|s| debrief_ai::browser::query::search_for_event(s, id))
                 .map_err(AiCmdError::not_found)?
                 .query,
         ),
@@ -337,13 +337,13 @@ fn prepare<R: Runtime>(
         (None, None) => return Err(AiCmdError::invalid("give the question to research")),
     };
     let raw = args.query.clone().or(event_query).unwrap_or_else(|| question.clone());
-    let checked = imt_ai::browser::check_store_query(store, &raw).map_err(AiCmdError::invalid)?;
+    let checked = debrief_ai::browser::check_store_query(store, &raw).map_err(AiCmdError::invalid)?;
     if checked.needs_confirm && !args.confirmed {
         return Ok(Err(ResearchStarted::Confirm { checked, question }));
     }
     let max = args
         .max_results
-        .map_or(settings(app).max_results, |n| imt_ai::browser::clamp_results(Some(n)));
+        .map_or(settings(app).max_results, |n| debrief_ai::browser::clamp_results(Some(n)));
     Ok(Ok(ResearchRequest {
         question,
         query: checked.query,
@@ -368,14 +368,14 @@ pub(crate) fn draft_search<R: Runtime>(
     let event = match record_id {
         Some(id) => Some(
             store
-                .with(|s| imt_ai::browser::query::event_text_of(s, id))
+                .with(|s| debrief_ai::browser::query::event_text_of(s, id))
                 .ok_or_else(|| AiCmdError::not_found(format!("there is no event #{id} in the loaded logs")))?,
         ),
         None => None,
     };
     let engine = record_id.and_then(|id| {
         store
-            .with(|s| imt_ai::browser::query::search_for_event(s, id))
+            .with(|s| debrief_ai::browser::query::search_for_event(s, id))
             .ok()
             .map(|q| q.query)
     });
@@ -389,7 +389,7 @@ pub(crate) fn draft_search<R: Runtime>(
     let fallback = engine.or_else(|| record_id.is_none().then(|| question.clone()));
     let cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let assistant = crate::ai::commands::core(app).ok().and_then(|c| {
-        let focus = imt_notes::context::Focus {
+        let focus = debrief_notes::context::Focus {
             events: record_id.map(u64::from).into_iter().collect(),
             ..Default::default()
         };
@@ -440,7 +440,7 @@ pub async fn ai_research_draft<R: Runtime>(app: AppHandle<R>, win: CurrentWindow
         let (question, drafted) = draft_search(&app, &w, args.question.as_deref(), args.record_id)?;
         let access = crate::ai::commands::WindowStore(w.clone());
         let checked =
-            imt_ai::browser::check_store_query((&access as &dyn StoreAccess).into(), &drafted.query).map_err(AiCmdError::invalid)?;
+            debrief_ai::browser::check_store_query((&access as &dyn StoreAccess).into(), &drafted.query).map_err(AiCmdError::invalid)?;
         Ok(ResearchDraft {
             question,
             checked,

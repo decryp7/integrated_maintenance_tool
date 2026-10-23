@@ -10,7 +10,7 @@ import { PlaybookStore } from './playbook.store';
  * fields. Required fields are checked early for convenience; the engine validates on save and its message is shown.
  */
 @Component({
-  selector: 'imt-playbook-editor',
+  selector: 'debrief-playbook-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, NgTemplateOutlet],
   template: `
@@ -43,7 +43,7 @@ import { PlaybookStore } from './playbook.store';
               <button type="button" class="icon-btn" aria-label="Move step down" i18n-aria-label="@@playbooks.editor.down" [disabled]="last" (click)="move(i, 1)">
                 <span aria-hidden="true">↓</span>
               </button>
-              <button type="button" class="icon-btn" aria-label="Remove step" i18n-aria-label="@@playbooks.editor.remove" (click)="removeStep(i)"><imt-icon name="trash" [size]="12" /></button>
+              <button type="button" class="icon-btn" aria-label="Remove step" i18n-aria-label="@@playbooks.editor.remove" (click)="removeStep(i)"><debrief-icon name="trash" [size]="12" /></button>
             </div>
             <label class="field">
               <span i18n="@@playbooks.editor.stepTitle">Step title</span>
@@ -102,7 +102,7 @@ import { PlaybookStore } from './playbook.store';
         </label>
       </ng-template>
 
-      <button type="button" class="btn" data-testid="pb-add-step" (click)="addStep()"><imt-icon name="plus" [size]="12" /> <span i18n="@@playbooks.editor.addStep">Add step</span></button>
+      <button type="button" class="btn" data-testid="pb-add-step" (click)="addStep()"><debrief-icon name="plus" [size]="12" /> <span i18n="@@playbooks.editor.addStep">Add step</span></button>
 
       @if (problem(); as p) {
         <div class="error" role="alert" data-testid="pb-editor-problem">{{ p }}</div>

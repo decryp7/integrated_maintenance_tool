@@ -4,7 +4,7 @@ import { buttonByText, FakeDock, provideFakeDock, provideTinyBackend, settle, te
 import { FakeECharts } from '../../testing/fake-echarts';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { Finding, fullCoverage, HomeSummary } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MockAnalysisBackend, recordsFrom } from '../mock-backends';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT, CommandRegistry } from '../extensions/command-registry';
@@ -115,7 +115,7 @@ describe('HomeView', () => {
     const answer = typeof findings === 'function' ? findings : async () => findings;
     const overview = vi.fn(async () => ({ result: await answer(), coverage: fullCoverage(3) }));
     const ctx = new FakeCtx();
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) }, { provide: ShareBackend, useValue: { overview } }, { provide: COMMAND_CONTEXT, useValue: ctx }] });
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) }, { provide: ShareBackend, useValue: { overview } }, { provide: COMMAND_CONTEXT, useValue: ctx }] });
     const fixture = TestBed.createComponent(HomeView);
     return { fixture, overview, ctx };
   }
@@ -129,7 +129,7 @@ describe('HomeView', () => {
     const t = text(fixture);
     expect(t).toContain('Events');
     expect(t).toContain('Exception groups');
-    expect(t).toContain('1 file not opened');
+    expect(t).toContain('Needs attention');
     expect(t).toContain('Events over time');
     expect(charts.instances).toHaveLength(1);
     expect(t).toContain('Crash');
@@ -145,6 +145,17 @@ describe('HomeView', () => {
     expect(ctx.calls.at(-1)).toBe('query:{"from":10,"to":20}');
   });
 
+  it('keeps Recent activity collapsed so the first screen fits, and puts attention beside the health check', async () => {
+    const { fixture } = setup([crash, file]);
+    await settle(fixture, 8);
+    const feed = fixture.nativeElement.querySelector('details.feed') as HTMLDetailsElement;
+    expect(feed.open).toBe(false);
+    expect(feed.textContent).toContain('Recent activity');
+    const pair = fixture.nativeElement.querySelector('.pair') as HTMLElement;
+    expect(pair.querySelector('.attention')).toBeTruthy();
+    expect(pair.querySelector('.health')).toBeTruthy();
+  });
+
   it('asks the health check once when the timeline headline and Home both show it', async () => {
     const { fixture, overview } = setup([crash, file]);
     const headline = TestBed.createComponent(HealthHeadline);
@@ -154,7 +165,7 @@ describe('HomeView', () => {
     expect(TestBed.inject(HomeStore).health.result()).toHaveLength(2);
     expect(text(headline)).toContain('crash');
     // Refresh still asks the engine again (once, for both).
-    buttonByText(fixture, 'Refresh').click();
+    (fixture.nativeElement.querySelector('[data-testid=home-refresh]') as HTMLButtonElement).click();
     await settle(fixture, 8);
     expect(overview).toHaveBeenCalledTimes(2);
     expect(TestBed.inject(HomeStore).health).toBe(TestBed.inject(HealthFindingsStore).findings);
@@ -174,7 +185,7 @@ describe('HomeView', () => {
     await settle(fixture, 8);
     expect(text(fixture)).toContain('Nothing alarming found');
     const calls = overview.mock.calls.length;
-    buttonByText(fixture, 'Refresh').click();
+    (fixture.nativeElement.querySelector('[data-testid=home-refresh]') as HTMLButtonElement).click();
     await settle(fixture, 8);
     expect(overview.mock.calls.length).toBe(calls + 1);
   });
@@ -202,8 +213,8 @@ describe('HomeView', () => {
     const run = vi.spyOn(TestBed.inject(CommandRegistry), 'run');
     buttonByText(fixture, 'Open files…').click();
     expect(run).toHaveBeenCalledWith('file.openFiles', 'button');
-    const last = fixture.nativeElement.querySelector('[data-testid=home-open-last]') as HTMLButtonElement;
-    expect(last.disabled).toBe(true);
+    // Without a recent project the shortcut is not offered at all (no disabled ghost button).
+    expect(fixture.nativeElement.querySelector('[data-testid=home-open-last]')).toBeNull();
   });
 
   it('toggles opening after imports', async () => {
@@ -233,7 +244,7 @@ describe('HomeStore', () => {
         provideTinyBackend(),
         provideFakeDock(),
         charts.provider,
-        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) },
+        { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) },
         { provide: HomeBackend, useValue: { querySummary } },
         { provide: ShareBackend, useValue: { overview: async () => ({ result: [], coverage: fullCoverage(0) }) } },
         { provide: COMMAND_CONTEXT, useValue: new FakeCtx() },
@@ -340,7 +351,7 @@ describe('HomeView tiles link to the views instead of repeating their lists', ()
     const charts = new FakeECharts();
     const ctx = new FakeCtx();
     TestBed.configureTestingModule({
-      providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(ImtBackend))) }, { provide: ShareBackend, useValue: { overview: async () => ({ result: [], coverage: fullCoverage(0) }) } }, { provide: COMMAND_CONTEXT, useValue: ctx }],
+      providers: [provideTinyBackend(), provideFakeDock(), charts.provider, { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) }, { provide: ShareBackend, useValue: { overview: async () => ({ result: [], coverage: fullCoverage(0) }) } }, { provide: COMMAND_CONTEXT, useValue: ctx }],
     });
     const fixture = TestBed.createComponent(HomeView);
     await settle(fixture, 8);

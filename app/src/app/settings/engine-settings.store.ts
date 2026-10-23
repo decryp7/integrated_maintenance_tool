@@ -289,7 +289,7 @@ export const EngineSettingsStore = signalStore(
           }));
           patchState(store, { overview: await backend.sections() });
         }),
-      /** Relaunches IMT (reopening the session) so restart-only settings take effect. */
+      /** Relaunches Debrief (reopening the session) so restart-only settings take effect. */
       restart: () => injector.get(LifecycleService).restartKeepingSession(),
     };
   }),

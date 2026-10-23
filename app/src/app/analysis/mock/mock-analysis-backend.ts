@@ -1,4 +1,4 @@
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { EMPTY_QUERY } from '../../core/workspace.store';
 import { RecordView } from '../../core/api.types';
 import { AnalysisBackend } from '../../core/analysis-backend';
@@ -11,6 +11,7 @@ import {
   mockExceptions,
   mockFieldStats,
   mockMoment,
+  mockOutliers,
   mockPatterns,
   mockRequests,
   mockTraces,
@@ -32,7 +33,7 @@ function analysed<T>(result: T, matched: number): Analyzed<T> {
 }
 
 /** Loads every record of the (mock) workspace through the regular backend, so ids match the grid. */
-export function recordsFrom(backend: ImtBackend): () => Promise<RecordView[]> {
+export function recordsFrom(backend: DebriefBackend): () => Promise<RecordView[]> {
   return async () => (await backend.queryPage({ query: EMPTY_QUERY, offset: 0, limit: 1_000_000, descending: false })).rows;
 }
 
@@ -122,6 +123,10 @@ export class MockAnalysisBackend extends AnalysisBackend {
   async queryAnomalies(query: QlQuery) {
     const m = await this.matched(query);
     return analysed(mockAnomalies(m), m.length);
+  }
+  async queryOutliers(query: QlQuery, _subset: string, fields: readonly string[]) {
+    const m = await this.matched(query);
+    return analysed(mockOutliers(m, fields), m.length);
   }
   async compareWindows(a: QlQuery, b: QlQuery) {
     const [ma, mb] = [await this.matched(a), await this.matched(b)];

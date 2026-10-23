@@ -8,7 +8,7 @@ export function stateLabel(state: StoreFolderState): string {
     case 'session':
       return $localize`:Store state@@settings.storage.stores.state.session:Kept for session restore`;
     case 'running':
-      return $localize`:Store state@@settings.storage.stores.state.running:In use by another IMT`;
+      return $localize`:Store state@@settings.storage.stores.state.running:In use by another Debrief`;
     case 'orphaned':
       return $localize`:Store state@@settings.storage.stores.state.orphaned:Orphaned`;
   }
@@ -22,7 +22,7 @@ export function notSelectableReason(state: StoreFolderState): string | null {
     case 'session':
       return $localize`:@@settings.storage.stores.why.session:An autosaved session reopens this store; it is kept so the session can be restored.`;
     case 'running':
-      return $localize`:@@settings.storage.stores.why.running:Another IMT is using this store.`;
+      return $localize`:@@settings.storage.stores.why.running:Another Debrief is using this store.`;
     case 'orphaned':
       return null;
   }

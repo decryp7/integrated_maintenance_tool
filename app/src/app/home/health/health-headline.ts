@@ -1,8 +1,8 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, Injector, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, Injector, untracked } from '@angular/core';
 import { Finding } from '../../core/api.types';
 import { formatCount } from '../../core/format';
 import { ConsumerGate } from '../../core/panel-visibility';
-import { EMPTY_QUERY, QueryStore } from '../../core/workspace/query.store';
+import { QueryStore } from '../../core/workspace/query.store';
 import { WorkspaceDataStore } from '../../core/workspace/workspace-data.store';
 import { DockService } from '../../dock/dock.service';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
@@ -60,14 +60,14 @@ export class HealthHeadlineStore {
  * Review opens Home. Hidden when nothing is notable and while Home itself is open.
  */
 @Component({
-  selector: 'imt-health-headline',
+  selector: 'debrief-health-headline',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   host: { style: 'display: contents' },
   template: `
     @if (shown(); as h) {
       <div class="headline" role="toolbar" aria-label="Health check" i18n-aria-label="@@overview.headline.aria" data-testid="health-headline">
-        <imt-icon name="alert" [size]="13" class="warn" />
+        <debrief-icon name="alert" [size]="13" class="warn" />
         @if (h.crashes.length) {
           <button type="button" class="count bad" data-testid="headline-crashes" [title]="crashTitle" (click)="next('crash', h.crashes)">{{ crashesText(h.crashes.length) }}</button>
         }

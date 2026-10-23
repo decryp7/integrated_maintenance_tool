@@ -1,21 +1,21 @@
 [package]
-name = "imt-example-collector"
+name = "debrief-example-collector"
 version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 publish = false
-description = "An example IMT collector plugin"
+description = "An example Debrief collector plugin"
 
-# What `cargo imt-plugin package` puts in the package manifest (name, version and description come from above;
+# What `cargo debrief-plugin package` puts in the package manifest (name, version and description come from above;
 # permissions from the plugin itself).
-[package.metadata.imt-plugin]
+[package.metadata.debrief-plugin]
 id = "net.decryptology.example.collector"
-publisher = "IMT examples"
+publisher = "Debrief examples"
 
 [dependencies]
-imt-plugin-api = { path = "../../../crates/imt-plugin-api" }
+debrief-plugin-api = { path = "../../../crates/debrief-plugin-api" }
 anyhow = "1"
 serde_json = "1"
 
 [dev-dependencies]
-imt-plugin-test = { path = "../../../crates/imt-plugin-test" }
+debrief-plugin-test = { path = "../../../crates/debrief-plugin-test" }

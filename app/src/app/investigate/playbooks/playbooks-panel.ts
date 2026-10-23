@@ -14,12 +14,12 @@ const JSON_FILES = [{ name: 'JSON', extensions: ['json'] }];
  * started as a run whose steps run against the open data and are recorded in the project, or edited.
  */
 @Component({
-  selector: 'imt-playbooks-panel',
+  selector: 'debrief-playbooks-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, PlaybookEditor, PlaybookRunView],
   template: `
     <div class="bar">
-      <button type="button" class="btn" data-testid="pb-new" (click)="store.startNew()"><imt-icon name="plus" [size]="12" /> <span i18n="@@playbooks.new">New playbook</span></button>
+      <button type="button" class="btn" data-testid="pb-new" (click)="store.startNew()"><debrief-icon name="plus" [size]="12" /> <span i18n="@@playbooks.new">New playbook</span></button>
       <button type="button" class="btn" data-testid="pb-import" (click)="importFile()" i18n="@@playbooks.import">Import</button>
       <span class="spacer"></span>
       @if (store.loading()) {
@@ -35,7 +35,7 @@ const JSON_FILES = [{ name: 'JSON', extensions: ['json'] }];
     @if (store.notice(); as notice) {
       <div class="notice" role="status" data-testid="pb-notice">
         {{ notice }}
-        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@playbooks.dismissNotice" (click)="store.dismissNotice()"><imt-icon name="close" [size]="12" /></button>
+        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@playbooks.dismissNotice" (click)="store.dismissNotice()"><debrief-icon name="close" [size]="12" /></button>
       </div>
     }
     @for (w of warnings(); track $index) {
@@ -56,7 +56,7 @@ const JSON_FILES = [{ name: 'JSON', extensions: ['json'] }];
       </nav>
       <section class="details" data-testid="pb-details" aria-live="polite">
         @if (store.editing()) {
-          <imt-playbook-editor />
+          <debrief-playbook-editor />
         } @else if (store.selected(); as pb) {
           <h2 class="title">{{ pb.title }}</h2>
           @if (pb.description) {
@@ -75,12 +75,12 @@ const JSON_FILES = [{ name: 'JSON', extensions: ['json'] }];
           @if (store.actionError(); as e) {
             <div class="error" role="alert" data-testid="pb-action-error">
               <span>{{ e }}</span>
-              <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@playbooks.dismissError" (click)="store.dismissError()"><imt-icon name="close" [size]="12" /></button>
+              <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@playbooks.dismissError" (click)="store.dismissError()"><debrief-icon name="close" [size]="12" /></button>
             </div>
           }
           @if (store.activeRun(); as run) {
             <h3 i18n="@@playbooks.runHeading">Run</h3>
-            <imt-playbook-run [run]="run" />
+            <debrief-playbook-run [run]="run" />
           } @else {
             <ol class="outline" data-testid="pb-outline">
               @for (s of pb.steps; track s.id) {
@@ -119,7 +119,7 @@ const JSON_FILES = [{ name: 'JSON', extensions: ['json'] }];
     .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(180px, 30%) 1fr; }
     @container (max-width: 560px) { .body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; } .details { border-left: 0; border-top: 1px solid var(--border); } }
     .list { min-height: 0; overflow: auto; padding: 4px 0; display: flex; flex-direction: column; }
-    .list h3 { margin: 8px 12px 2px; font-size: var(--fs-xs); color: var(--muted); text-transform: uppercase; }
+    .list h3 { margin: 8px 12px 2px; font-size: var(--fs-xs); color: var(--muted); }
     .list p { margin: 2px 12px; }
     .item { text-align: left; border: 0; background: transparent; color: var(--text-2); padding: 4px 12px; min-height: 24px; cursor: pointer; font-size: var(--fs-sm); }
     .item:hover { background: var(--bg-hover); }

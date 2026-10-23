@@ -2,11 +2,11 @@ import { TestBed } from '@angular/core/testing';
 import { all, el, provideFakeDock, provideTinyBackendBare, settle, typeInto } from '../../../testing/helpers';
 import { CommandRegistry } from '../../extensions/command-registry';
 import { KeybindingOverridesStore } from '../../extensions/keybinding-overrides.store';
-import { IMT_COMMANDS, ImtCommand } from '../../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../../extensions/tokens';
 import { KeyboardSettings } from './keyboard-settings';
 import { shortcutRows } from './shortcut-rows';
 
-const cmd = (id: string, title: string, extra: Partial<ImtCommand> = {}): ImtCommand => ({ id, title, run: () => undefined, ...extra });
+const cmd = (id: string, title: string, extra: Partial<DebriefCommand> = {}): DebriefCommand => ({ id, title, run: () => undefined, ...extra });
 const COMMANDS = [
   cmd('t.open', 'Open files', { category: 'File', keybinding: 'Mod+O' }),
   cmd('t.save', 'Save', { category: 'File', keybinding: 'Mod+S', when: () => true }),
@@ -34,7 +34,7 @@ describe('KeyboardSettings', () => {
 
   async function setup() {
     TestBed.configureTestingModule({
-      providers: [provideTinyBackendBare(), provideFakeDock(), { provide: IMT_COMMANDS, multi: true, useValue: COMMANDS }],
+      providers: [provideTinyBackendBare(), provideFakeDock(), { provide: DEBRIEF_COMMANDS, multi: true, useValue: COMMANDS }],
     });
     const fixture = TestBed.createComponent(KeyboardSettings);
     await settle(fixture);

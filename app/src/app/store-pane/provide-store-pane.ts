@@ -1,9 +1,9 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
-import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { STORE_VIEW } from './store-pane-model';
 import { StorePaneStore } from './store-pane.store';
 
-export function storePaneViews(): ImtView[] {
+export function storePaneViews(): DebriefView[] {
   return [
     {
       id: STORE_VIEW,
@@ -17,7 +17,7 @@ export function storePaneViews(): ImtView[] {
   ];
 }
 
-export function storePaneCommands(pane: InstanceType<typeof StorePaneStore>): ImtCommand[] {
+export function storePaneCommands(pane: InstanceType<typeof StorePaneStore>): DebriefCommand[] {
   const category = $localize`:Command palette category@@store.category:View`;
   return [
     {
@@ -44,7 +44,7 @@ export function storePaneCommands(pane: InstanceType<typeof StorePaneStore>): Im
 /** One line in `app.config.ts`: View ▸ Store (the Store pane and its SQL console) and its palette commands. */
 export function provideStorePane(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useFactory: storePaneViews },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => storePaneCommands(inject(StorePaneStore)) },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: storePaneViews },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => storePaneCommands(inject(StorePaneStore)) },
   ]);
 }

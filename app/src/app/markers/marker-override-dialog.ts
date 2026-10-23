@@ -11,13 +11,13 @@ import { OverrideStyle, PluginKindRow, styleProblems } from './marker-overrides'
  * (the plugin's rule itself stays read-only). Closes with the style, or undefined when cancelled.
  */
 @Component({
-  selector: 'imt-marker-override-dialog',
+  selector: 'debrief-marker-override-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerGlyph],
   template: `
     <p class="faint" i18n="@@markers.override.intro">This marker belongs to the plugin <span class="mono">{{ row().owner }}</span>. Its rule cannot be edited; you can change how it looks. Empty fields keep the plugin's style.</p>
     <div class="top">
-      <imt-marker-glyph [glyph]="preview()" [size]="32" [label]="previewLabel" />
+      <debrief-marker-glyph [glyph]="preview()" [size]="32" [label]="previewLabel" />
       <div class="grow">
         <label class="lbl"><ng-container i18n="@@markers.override.label">Label</ng-container><input class="input" name="label" [value]="label()" [placeholder]="row().info?.label ?? ''" (input)="label.set($any($event.target).value)" /></label>
         <label class="lbl"><ng-container i18n="@@markers.override.description">Description</ng-container><input class="input" name="description" [value]="description()" (input)="description.set($any($event.target).value)" /></label>

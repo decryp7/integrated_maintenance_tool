@@ -1,0 +1,56 @@
+---
+source: crates/debrief-plugin-web/tests/samples.rs
+expression: "snapshot_of(\"web/har/checkout-slow.har\", &debrief_plugin_web::HarImporter)"
+---
+sample: web/har/checkout-slow.har
+importer: har
+records: 10
+skipped: 0
+first_ts: 1791974292204
+last_ts: 1791974334024
+fields:
+  - Method
+  - MimeType
+  - RequestBytes
+  - ResponseBytes
+  - ServerIp
+  - Status
+  - TimeMs
+  - Url
+first:
+  - ts: 1791974292204
+    level: Information
+    message: "GET https://shop.contoso.com/checkout → 200 (148.9 ms)"
+    fields:
+      Method: GET
+      Url: "https://shop.contoso.com/checkout"
+      Status: 200
+      MimeType: text/html
+      TimeMs: 148.868
+      RequestBytes: 0
+      ResponseBytes: 18662
+      ServerIp: 20.50.2.14
+  - ts: 1791974292356
+    level: Information
+    message: "GET https://shop.contoso.com/static/app.js?v=3.14.2 → 200 (32.4 ms)"
+    fields:
+      Method: GET
+      Url: "https://shop.contoso.com/static/app.js?v=3.14.2"
+      Status: 200
+      MimeType: application/javascript
+      TimeMs: 32.377
+      RequestBytes: 0
+      ResponseBytes: 68397
+      ServerIp: 20.50.2.14
+  - ts: 1791974292360
+    level: Information
+    message: "GET https://shop.contoso.com/static/app.css?v=3.14.2 → 200 (32.4 ms)"
+    fields:
+      Method: GET
+      Url: "https://shop.contoso.com/static/app.css?v=3.14.2"
+      Status: 200
+      MimeType: text/css
+      TimeMs: 32.436
+      RequestBytes: 0
+      ResponseBytes: 89989
+      ServerIp: 20.50.2.14

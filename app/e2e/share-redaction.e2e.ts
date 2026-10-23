@@ -14,7 +14,7 @@ async function runCommand(page: Page, title: string): Promise<void> {
 test('the redacted view masks the grid until it is turned off', async ({ page }, testInfo) => {
   await openAppWith(page, '');
   await page.getByTestId('query-field').fill('listening');
-  const row = page.locator('imt-events-grid [role=row].row').first();
+  const row = page.locator('debrief-events-grid [role=row].row').first();
   await expect(row).toContainText('0.0.0.0');
 
   await runCommand(page, 'Toggle redacted view');
@@ -60,7 +60,7 @@ test('exports can be redacted with a preview of what is masked', async ({ page }
   await page.keyboard.press('ControlOrMeta+Shift+e');
   const dialog = page.getByRole('dialog', { name: 'Export events' });
   await dialog.getByLabel("Redact with the profile's rules").check();
-  await expect(dialog.locator('imt-redaction-summary')).toContainText('events change');
+  await expect(dialog.locator('debrief-redaction-summary')).toContainText('events change');
   await dialog.getByRole('button', { name: 'Export…' }).click();
   const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Export events' });
   await expect(done).toContainText('(redacted,', { timeout: 15_000 });

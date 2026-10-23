@@ -12,7 +12,7 @@ import { PROFILING_STYLES } from '../profiling-styles';
 
 /** The open captures: kind, source, duration, threads and import notes (truncations and limits). */
 @Component({
-  selector: 'imt-captures-view',
+  selector: 'debrief-captures-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">

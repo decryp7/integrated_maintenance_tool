@@ -9,13 +9,13 @@ import { showView } from './menu-support';
  */
 export async function openAppWith(page: Page, search = ''): Promise<void> {
   // These tests are about the tools, not Home (which opens by itself after an import and would take the document tab).
-  await page.addInitScript(() => localStorage.setItem('imt.home.autoOpen.v1', 'false'));
+  await page.addInitScript(() => localStorage.setItem('debrief.home.autoOpen.v1', 'false'));
   await page.goto(`/${search}`);
   await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
-  await expect(page.locator('imt-status-bar')).toContainText('events');
-  await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
+  await expect(page.locator('debrief-status-bar')).toContainText('events');
+  await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible();
   // The lifecycle extras are mounted into the title bar after start-up.
-  await expect(page.locator('imt-title-extras')).toBeAttached();
+  await expect(page.locator('debrief-title-extras')).toBeAttached();
 }
 
 /** Runs a command from the palette by (part of) its title. */
@@ -23,15 +23,17 @@ export async function runCommand(page: Page, title: string): Promise<void> {
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill(title);
-  await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText(title);
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText(title);
   await page.keyboard.press('Enter');
   await expect(input).toHaveCount(0);
 }
 
-/** The number of sources shown in the status bar. */
+/** The number of sources, from the status bar's Details popover. */
 export async function sourceCount(page: Page): Promise<number> {
-  const text = await page.locator('imt-status-bar').innerText();
-  return Number(/(\d+) sources?/.exec(text)?.[1] ?? 0);
+  await page.getByTestId('status-details').click();
+  const text = await page.getByTestId('status-details-popover').innerText();
+  await page.keyboard.press('Escape');
+  return Number(/Sources\s+(\d+)/.exec(text)?.[1] ?? 0);
 }
 
 /** Opens a panel (View ▸ Other windows…, which lists every view). */

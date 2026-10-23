@@ -1,26 +1,26 @@
-//! `samples/diagnostics/imt-diagnostics-sample.zip`: a diagnostics report for demos and tests, written by
+//! `samples/diagnostics/debrief-diagnostics-sample.zip`: a diagnostics report for demos and tests, written by
 //! the real report writer so it never drifts from the format. Fully reproducible: fixed times on
 //! 14 Oct 2026 (an analyst looking into the samples' incident that afternoon), fixed pids, synthetic
 //! system information, and zip entries in a fixed order with a fixed time.
 //!
-//! Scenario: IMT starts, the user opens the incident samples and runs a query; the AI engine starts and
+//! Scenario: Debrief starts, the user opens the incident samples and runs a query; the AI engine starts and
 //! its llama-server crashes (exit code 3) and is restarted; the out-of-process plugin
 //! `com.example.orderaudit` crashes three times and is quarantined, which leaves an error snapshot.
 //!
-//! Regenerate: `IMT_REGEN_SAMPLES=1 cargo test -p imt-app --lib activity::report::sample` (the test fails
+//! Regenerate: `DEBRIEF_REGEN_SAMPLES=1 cargo test -p debrief-app --lib activity::report::sample` (the test fails
 //! when the committed file differs from what the writer makes now).
 
 use super::{breadcrumbs_from_log, write, PluginLine, ReportInputs};
 use crate::snapshots::{Limits, LogRef, Sidecar, SnapshotStore};
 use chrono::{TimeZone, Utc};
-use imt_ipc::child_log::{ChildEvent, ChildKind, ChildLog, ChildLogSpec, Exit};
+use debrief_ipc::child_log::{ChildEvent, ChildKind, ChildLog, ChildLogSpec, Exit};
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// The committed sample.
 pub fn sample_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/diagnostics/imt-diagnostics-sample.zip")
+    PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../samples/diagnostics/debrief-diagnostics-sample.zip")
 }
 
 /// 2026-10-14T13:00:00Z plus `secs` (and `ms`).
@@ -29,7 +29,7 @@ fn at(secs: u64, ms: u64) -> SystemTime {
 }
 
 fn t(secs: u64, ms: u64) -> String {
-    imt_ipc::child_log::rfc3339(at(secs, ms))
+    debrief_ipc::child_log::rfc3339(at(secs, ms))
 }
 
 /// The snapshot's id (a valid `SnapshotStore` id: time and 8 hex digits).
@@ -116,7 +116,7 @@ fn activity(secs: u64, op: &str, trigger: &str, extra: serde_json::Value) -> ser
         "@t": t(secs, 0),
         "@mt": "User {Operation} via {Trigger}",
         "@m": format!("User {op} via {trigger}"),
-        "SourceContext": "IMT.Activity",
+        "SourceContext": "Debrief.Activity",
         "Operation": op,
         "Trigger": trigger,
         "Window": "main",
@@ -128,24 +128,39 @@ fn activity(secs: u64, op: &str, trigger: &str, extra: serde_json::Value) -> ser
     v
 }
 
-fn imt_line(secs: u64, level: &str, context: &str, message: &str) -> serde_json::Value {
+fn debrief_line(secs: u64, level: &str, context: &str, message: &str) -> serde_json::Value {
     json!({ "@t": t(secs, 0), "@l": level, "@m": message, "SourceContext": context, "Version": "0.1.0", "SessionId": "00000000-0000-4000-8000-000000000001" })
 }
 
-fn imt_log() -> String {
+fn debrief_log() -> String {
     let lines = [
-        imt_line(0, "Information", "imt_app", "Application starting — IMT 0.1.0"),
+        debrief_line(0, "Information", "debrief_app", "Application starting — Debrief 0.1.0"),
         activity(5, "file.open", "menu", json!({ "Files": "6", "Folders": "3" })),
-        imt_line(9, "Information", "imt_app::workspace_commands", "Workspace opened"),
+        debrief_line(9, "Information", "debrief_app::workspace_commands", "Workspace opened"),
         activity(70, "query.change", "keyboard", json!({ "QueryKind": "ql", "DurationMs": 38 })),
         activity(115, "ai.chat.send", "button", json!({ "View": "AI assistant" })),
-        imt_line(180, "Warning", "imt_app::plugin_config", "Plugin process crashed and was restarted"),
-        imt_line(220, "Warning", "imt_app::plugin_config", "Plugin process crashed and was restarted"),
-        imt_line(250, "Error", "imt_app::plugin_config", "Plugin quarantined after repeated failures"),
-        imt_line(
+        debrief_line(
+            180,
+            "Warning",
+            "debrief_app::plugin_config",
+            "Plugin process crashed and was restarted",
+        ),
+        debrief_line(
+            220,
+            "Warning",
+            "debrief_app::plugin_config",
+            "Plugin process crashed and was restarted",
+        ),
+        debrief_line(
+            250,
+            "Error",
+            "debrief_app::plugin_config",
+            "Plugin quarantined after repeated failures",
+        ),
+        debrief_line(
             332,
             "Error",
-            "imt_ai",
+            "debrief_ai",
             "AI engine call failed: the engine crashed and was restarted",
         ),
         activity(340, "ai.chat.send", "button", json!({ "View": "AI assistant", "Outcome": "ok" })),
@@ -153,7 +168,7 @@ fn imt_log() -> String {
     lines.iter().map(|l| format!("{l}\n")).collect()
 }
 
-fn child_logs(dir: &Path) -> Vec<imt_ipc::child_log::ProcessSummary> {
+fn child_logs(dir: &Path) -> Vec<debrief_ipc::child_log::ProcessSummary> {
     let worker = ChildLog::open(
         Some(dir),
         &ChildLogSpec::new("ai-worker", ChildKind::AiWorker).with_version("0.1.0"),
@@ -274,9 +289,9 @@ pub fn build(work: &Path) -> PathBuf {
     let _ = std::fs::remove_dir_all(work);
     let logs = work.join("logs");
     std::fs::create_dir_all(&logs).unwrap();
-    std::fs::write(logs.join("imt.2026-10-14.log"), imt_log()).unwrap();
+    std::fs::write(logs.join("debrief.2026-10-14.log"), debrief_log()).unwrap();
     let live = child_logs(&super::children_dir(&logs));
-    let crumbs = breadcrumbs_from_log(imt_log().as_bytes(), 200);
+    let crumbs = breadcrumbs_from_log(debrief_log().as_bytes(), 200);
     snapshot(&logs.join("snapshots"), &crumbs[..crumbs.len().min(3)]);
     let inputs = ReportInputs {
         log_dir: Some(logs.clone()),
@@ -293,7 +308,7 @@ pub fn build(work: &Path) -> PathBuf {
         system_override: Some(system_info()),
         ..ReportInputs::empty()
     };
-    let out = work.join("imt-diagnostics-sample.zip");
+    let out = work.join("debrief-diagnostics-sample.zip");
     write(
         &inputs,
         "The order-audit plugin keeps crashing after I open the incident samples, and the AI assistant restarted once.",
@@ -307,7 +322,7 @@ pub fn build(work: &Path) -> PathBuf {
 mod tests {
     use super::super::open::{detect, divert_in, Detected, REPORTS_DIR};
     use super::*;
-    use imt_ipc::child_log::ChildRunState;
+    use debrief_ipc::child_log::ChildRunState;
 
     #[test]
     fn the_png_is_valid() {
@@ -321,12 +336,12 @@ mod tests {
 
     #[test]
     fn the_committed_sample_is_reproducible() {
-        let base = std::env::temp_dir().join(format!("imt-diag-sample-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("debrief-diag-sample-{}", std::process::id()));
         let a = std::fs::read(build(&base.join("a"))).unwrap();
         let b = std::fs::read(build(&base.join("b"))).unwrap();
         assert!(a == b, "two builds differ");
         let committed = sample_path();
-        if std::env::var_os("IMT_REGEN_SAMPLES").is_some_and(|v| v == "1") {
+        if std::env::var_os("DEBRIEF_REGEN_SAMPLES").is_some_and(|v| v == "1") {
             std::fs::create_dir_all(committed.parent().unwrap()).unwrap();
             std::fs::write(&committed, &a).unwrap();
         }
@@ -334,7 +349,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&base);
         assert!(
             on_disk == a,
-            "{} is out of date; regenerate it with IMT_REGEN_SAMPLES=1 cargo test -p imt-app --lib activity::report::sample",
+            "{} is out of date; regenerate it with DEBRIEF_REGEN_SAMPLES=1 cargo test -p debrief-app --lib activity::report::sample",
             committed.display()
         );
     }
@@ -346,7 +361,7 @@ mod tests {
             panic!("the sample is not detected as a report")
         };
         assert_eq!(m.created_at, "2026-10-14T13:06:00.000Z");
-        let work = std::env::temp_dir().join(format!("imt-diag-sample-open-{}", std::process::id()));
+        let work = std::env::temp_dir().join(format!("debrief-diag-sample-open-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&work);
         let done = divert_in(&work.join(REPORTS_DIR), vec![zip.to_string_lossy().into_owned()]);
         let o = done.opened.expect("opened as a report");
@@ -374,7 +389,7 @@ mod tests {
             .starts_with("data:image/png;base64,"));
 
         // The workspace: one source (lane) per log, the JSON files not imported, crash and restart markers.
-        let mut ws = imt_core::workspace::Workspace::new(imt_core::Profile::default_profile()).unwrap();
+        let mut ws = debrief_core::workspace::Workspace::new(debrief_core::Profile::default_profile()).unwrap();
         ws.open(std::slice::from_ref(&o.logs)).unwrap();
         let s = ws.summary();
         let mut names: Vec<String> = s.sources.iter().map(|x| x.name.replace('\\', "/")).collect();
@@ -386,7 +401,7 @@ mod tests {
                 "children/ai-worker.log",
                 "children/llama-server.log",
                 &format!("children/plugin-{PLUGIN}.log"),
-                "imt.2026-10-14.log",
+                "debrief.2026-10-14.log",
             ],
             "{:?}",
             s.unrecognized

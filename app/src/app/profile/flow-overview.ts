@@ -14,7 +14,7 @@ interface Stage {
 
 /** The ingest flow at a glance: Import -> Extract -> Pipeline -> Markers, with counts; each stage opens its section. */
 @Component({
-  selector: 'imt-flow-overview',
+  selector: 'debrief-flow-overview',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ol class="flow" aria-label="How events are processed" i18n-aria-label="@@profile.flow.label">

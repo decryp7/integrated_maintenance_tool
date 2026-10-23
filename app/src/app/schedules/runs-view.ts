@@ -16,7 +16,7 @@ const STATUS_LABEL: Record<RunStatus, string> = {
 
 /** "Runs": the folders the headless agent wrote, newest first; open one in a new window. */
 @Component({
-  selector: 'imt-runs-view',
+  selector: 'debrief-runs-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
@@ -26,7 +26,7 @@ const STATUS_LABEL: Record<RunStatus, string> = {
           @if (store.outputDir(); as dir) { <ng-container i18n="@@schedules.runs.output">Output: <span class="mono">{{ dir }}</span></ng-container> } @else { <ng-container i18n="@@schedules.runs.runsOf">Runs of the collection schedules.</ng-container> }
         </span>
         <span class="spacer"></span>
-        <button type="button" class="btn" [disabled]="store.loading()" (click)="store.refresh()" i18n="@@schedules.runs.refresh"><imt-icon name="refresh" [size]="12" />Refresh</button>
+        <button type="button" class="btn" [disabled]="store.loading()" (click)="store.refresh()" i18n="@@schedules.runs.refresh"><debrief-icon name="refresh" [size]="12" />Refresh</button>
       </div>
       @if (store.error(); as e) { <div class="err" role="alert">{{ e }}</div> }
       @if (store.notice(); as n) { <div class="note" role="status">{{ n }}</div> }
@@ -78,7 +78,7 @@ const STATUS_LABEL: Record<RunStatus, string> = {
         </table>
         @if (store.truncated()) { <p class="faint" i18n="@@schedules.runs.truncated">{{ store.truncated() }} older runs are not listed.</p> }
       } @else if (!store.loading() && !store.error()) {
-        <p class="faint" i18n="@@schedules.runs.none">No runs yet. They appear here once the agent has run a schedule (or after <span class="mono">imt-agent once</span>).</p>
+        <p class="faint" i18n="@@schedules.runs.none">No runs yet. They appear here once the agent has run a schedule (or after <span class="mono">debrief-agent once</span>).</p>
       }
     </div>
   `,

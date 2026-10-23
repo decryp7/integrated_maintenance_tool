@@ -6,11 +6,11 @@ import { SETTINGS_COMMAND } from './error-snapshots-view';
 import { REPORT_PROBLEM_COMMAND, SNAPSHOT_NOTICE } from './snapshot.types';
 
 /**
- * After an error: "Something went wrong in Timeline." with Details and Report a problem…; Details holds what IMT did
+ * After an error: "Something went wrong in Timeline." with Details and Report a problem…; Details holds what Debrief did
  * about it (a local screenshot, nothing sent) and its links. Mounted once in the toast stack.
  */
 @Component({
-  selector: 'imt-snapshot-toast',
+  selector: 'debrief-snapshot-toast',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { 'data-snapshot-ignore': '' },
   template: `
@@ -23,11 +23,11 @@ import { REPORT_PROBLEM_COMMAND, SNAPSHOT_NOTICE } from './snapshot.types';
           } @else {
             <strong class="line">{{ headline() }}</strong>
             <span class="actions">
-              <button type="button" class="link" [attr.aria-expanded]="details()" aria-controls="imt-snapshot-details" (click)="details.set(!details())" data-testid="snapshot-details-toggle" i18n="@@diagnostics.toast.details">Details</button>
+              <button type="button" class="link" [attr.aria-expanded]="details()" aria-controls="debrief-snapshot-details" (click)="details.set(!details())" data-testid="snapshot-details-toggle" i18n="@@diagnostics.toast.details">Details</button>
               <button type="button" class="link" (click)="report()" data-testid="toast-report-problem" i18n="@@diagnostics.toast.report">Report a problem…</button>
             </span>
             @if (details()) {
-              <span class="note" id="imt-snapshot-details" data-testid="snapshot-notice">{{ notice }}
+              <span class="note" id="debrief-snapshot-details" data-testid="snapshot-notice">{{ notice }}
                 <button type="button" class="link" (click)="view()" i18n="@@diagnostics.toast.viewSnapshot">View snapshot</button> ·
                 <button type="button" class="link" (click)="folder()" i18n="@@diagnostics.toast.openFolder">Open folder</button> ·
                 <button type="button" class="link" (click)="settings()" i18n="@@diagnostics.toast.settings">Settings…</button></span>

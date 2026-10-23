@@ -121,11 +121,11 @@ describe('query history', () => {
     expect(s.load()).toEqual([]);
     s.save(['x', 'y']);
     expect(s.load()).toEqual(['x', 'y']);
-    localStorage.setItem('imt.queryHistory.v1', '{"a":1}');
+    localStorage.setItem('debrief.queryHistory.v1', '{"a":1}');
     expect(s.load()).toEqual([]);
-    localStorage.setItem('imt.queryHistory.v1', 'not json');
+    localStorage.setItem('debrief.queryHistory.v1', 'not json');
     expect(s.load()).toEqual([]);
-    localStorage.setItem('imt.queryHistory.v1', JSON.stringify(['a', 3, 'b']));
+    localStorage.setItem('debrief.queryHistory.v1', JSON.stringify(['a', 3, 'b']));
     expect(s.load()).toEqual(['a', 'b']);
     const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('full');
@@ -180,7 +180,7 @@ describe('TimeCursor', () => {
   });
 
   it('the directive publishes the hovered time', () => {
-    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [imtTimeCursor]="range()"></div>` })
+    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [debriefTimeCursor]="range()"></div>` })
     class Host {
       readonly range = signal<{ from: number; to: number } | null>({ from: 0, to: 1000 });
     }
@@ -204,7 +204,7 @@ describe('TimeCursor', () => {
   });
 
   it('the directive maps only the plot box given by its insets', () => {
-    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [imtTimeCursor]="{ from: 0, to: 1000 }" [imtTimeCursorLeft]="50" [imtTimeCursorRight]="50"></div>` })
+    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [debriefTimeCursor]="{ from: 0, to: 1000 }" [debriefTimeCursorLeft]="50" [debriefTimeCursorRight]="50"></div>` })
     class Host {}
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
@@ -225,7 +225,7 @@ describe('TimeCursor', () => {
   });
 
   it('the directive takes an explicit plot width', () => {
-    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [imtTimeCursor]="{ from: 0, to: 1000 }" [imtTimeCursorLeft]="100" [imtTimeCursorWidth]="400"></div>` })
+    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [debriefTimeCursor]="{ from: 0, to: 1000 }" [debriefTimeCursorLeft]="100" [debriefTimeCursorWidth]="400"></div>` })
     class Host {}
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
@@ -239,7 +239,7 @@ describe('TimeCursor', () => {
   });
 
   it('the directive publishes at most once per frame, and a leave drops a move still waiting', () => {
-    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [imtTimeCursor]="{ from: 0, to: 1000 }"></div>` })
+    @Component({ imports: [TimeCursorSource], template: `<div id="plot" [debriefTimeCursor]="{ from: 0, to: 1000 }"></div>` })
     class Host {}
     const fixture = TestBed.createComponent(Host);
     fixture.detectChanges();
@@ -267,8 +267,8 @@ describe('TimeCursor', () => {
     let renders = 0;
     @Component({
       imports: [TimeCursorLine],
-      template: `{{ count() }}<div class="line" [imtTimeCursorLine]="{ from: 0, to: 1000 }" [imtTimeCursorLineWidth]="width" [imtTimeCursorLineLabel]="label"><span data-cursor-label></span></div>
-        <div class="pct" [imtTimeCursorLine]="{ from: 0, to: 1000 }" [imtTimeCursorLineLeft]="10" [imtTimeCursorLineRight]="30"></div>`,
+      template: `{{ count() }}<div class="line" [debriefTimeCursorLine]="{ from: 0, to: 1000 }" [debriefTimeCursorLineWidth]="width" [debriefTimeCursorLineLabel]="label"><span data-cursor-label></span></div>
+        <div class="pct" [debriefTimeCursorLine]="{ from: 0, to: 1000 }" [debriefTimeCursorLineLeft]="10" [debriefTimeCursorLineRight]="30"></div>`,
     })
     class Host {
       width = 200;

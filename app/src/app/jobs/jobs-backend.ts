@@ -6,7 +6,7 @@ import { isTauri } from '../core/platform';
 import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
 import { JobInfo, JobOutcome, JobResult, JobsDelta, JobsRecord, JobsSnapshot, RestoredJobs } from './jobs.types';
 
-export const JOBS_EVENT = 'imt://jobs';
+export const JOBS_EVENT = 'debrief://jobs';
 
 /**
  * The window's jobs (contract: `jobs.types.ts`). Injected as a class token: the Tauri commands in the desktop

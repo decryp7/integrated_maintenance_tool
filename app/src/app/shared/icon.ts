@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
-import { ImtIconSet } from './material/imt-icons';
+import { DebriefIconSet } from './material/debrief-icons';
 
 /**
- * An icon from IMT's themed SVG set, rendered by `<mat-icon>` from literals registered in the
- * `imt` namespace. Decorative (hidden from assistive tech) unless `label` is set.
+ * An icon from Debrief's themed SVG set, rendered by `<mat-icon>` from literals registered in the
+ * `debrief` namespace. Decorative (hidden from assistive tech) unless `label` is set.
  */
 @Component({
-  selector: 'imt-icon',
+  selector: 'debrief-icon',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MatIcon],
   template: `<mat-icon
@@ -32,7 +32,7 @@ import { ImtIconSet } from './material/imt-icons';
   `,
 })
 export class Icon {
-  private readonly icons = inject(ImtIconSet);
+  private readonly icons = inject(DebriefIconSet);
 
   readonly name = input.required<string>();
   readonly size = input(16);

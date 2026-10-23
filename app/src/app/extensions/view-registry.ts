@@ -2,14 +2,14 @@ import { computed, inject, Injectable } from '@angular/core';
 import { WorkspaceSummary } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { withInjectedFaults } from '../core/activity/fault-injection';
-import { flattenContributions, IMT_VIEWS, ImtView } from './tokens';
+import { flattenContributions, DEBRIEF_VIEWS, DebriefView } from './tokens';
 
 /** Every registered view and which of them the current workspace offers. */
 @Injectable({ providedIn: 'root' })
 export class ViewRegistry {
   private readonly store = inject(WorkspaceStore);
   // `withInjectedFaults`: the error-capture test hook (browser builds only, see core/activity/fault-injection.ts).
-  readonly all: readonly ImtView[] = withInjectedFaults(dedupe(flattenContributions<ImtView>(inject(IMT_VIEWS, { optional: true }))));
+  readonly all: readonly DebriefView[] = withInjectedFaults(dedupe(flattenContributions<DebriefView>(inject(DEBRIEF_VIEWS, { optional: true }))));
 
   /** Views whose `when` holds for the current workspace (views without `when` always). */
   readonly available = computed(() => {
@@ -18,7 +18,7 @@ export class ViewRegistry {
   });
 
   /** The view by id; `<view id>#<key>` (one more panel of a view that allows several) finds that view. */
-  find(id: string): ImtView | undefined {
+  find(id: string): DebriefView | undefined {
     const exact = this.all.find((v) => v.id === id);
     if (exact) return exact;
     const at = id.indexOf('#');
@@ -28,7 +28,7 @@ export class ViewRegistry {
   }
 }
 
-export function isViewAvailable(view: ImtView, summary: WorkspaceSummary | null): boolean {
+export function isViewAvailable(view: DebriefView, summary: WorkspaceSummary | null): boolean {
   try {
     if (view.enabled && !view.enabled()) return false;
   } catch {
@@ -43,7 +43,7 @@ export function isViewAvailable(view: ImtView, summary: WorkspaceSummary | null)
   }
 }
 
-function dedupe(views: ImtView[]): ImtView[] {
+function dedupe(views: DebriefView[]): DebriefView[] {
   const seen = new Set<string>();
   return views.filter((v) => !seen.has(v.id) && !!seen.add(v.id));
 }

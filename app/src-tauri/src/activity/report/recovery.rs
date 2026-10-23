@@ -28,7 +28,7 @@ fn marker(data: &Path) -> Value {
     }
 }
 
-/// The recovery information from IMT's data folder (none without one). `previous_crash` is what this run
+/// The recovery information from Debrief's data folder (none without one). `previous_crash` is what this run
 /// decided at start, when known.
 pub fn session_recovery(data: Option<&Path>, previous_crash: Option<bool>) -> Value {
     let Some(data) = data else {
@@ -53,8 +53,8 @@ pub fn summary(v: &Value) -> String {
         Some(true) => "The previous run did not close properly",
         Some(false) => "The previous run closed properly",
         None => match v["runningMarker"]["state"].as_str() {
-            Some("found") if v["runningMarker"]["processAlive"] == json!(false) => "IMT did not close properly last time",
-            Some("found") => "IMT is running",
+            Some("found") if v["runningMarker"]["processAlive"] == json!(false) => "Debrief did not close properly last time",
+            Some("found") => "Debrief is running",
             Some("unreadable") => "The running marker is damaged",
             _ => "No crash marker",
         },
@@ -72,11 +72,11 @@ mod tests {
         let v = session_recovery(Some(&d), None);
         assert_eq!(v["runningMarker"]["state"], "missing");
         assert_eq!(summary(&v), "No crash marker; 0 sessions to restore");
-        // A dead process's marker (pid 0 never runs IMT) and one recovered session.
+        // A dead process's marker (pid 0 never runs Debrief) and one recovered session.
         std::fs::write(d.join("running.marker"), r#"{"version":1,"pid":4000000000,"startedAt":1}"#).unwrap();
         let s = d.join("recovered").join("main");
         std::fs::create_dir_all(&s).unwrap();
-        std::fs::write(s.join("last-session.imtproj"), "{}").unwrap();
+        std::fs::write(s.join("last-session.debriefproj"), "{}").unwrap();
         std::fs::write(d.join("recovered").join("manifest.json"), r#"{"version":2,"windows":["main"]}"#).unwrap();
         let v = session_recovery(Some(&d), None);
         assert_eq!(
@@ -84,8 +84,8 @@ mod tests {
             (Some(4_000_000_000), Some(false))
         );
         assert_eq!(v["recoverableSessions"], json!(["main"]));
-        assert!(!v.to_string().contains("imtproj"));
-        assert_eq!(summary(&v), "IMT did not close properly last time; 1 session to restore");
+        assert!(!v.to_string().contains("debriefproj"));
+        assert_eq!(summary(&v), "Debrief did not close properly last time; 1 session to restore");
         std::fs::write(d.join("running.marker"), "garbage").unwrap();
         assert_eq!(session_recovery(Some(&d), None)["runningMarker"]["state"], "unreadable");
         assert_eq!(

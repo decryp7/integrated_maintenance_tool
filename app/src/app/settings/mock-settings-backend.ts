@@ -29,33 +29,33 @@ export function mockSections(): SettingsSection[] {
     section({
       id: 'window',
       title: 'Window & tray',
-      description: 'Windows, the system tray and what happens when IMT is closed.',
+      description: 'Windows, the system tray and what happens when Debrief is closed.',
       owner: { kind: 'app' },
       group: 'app',
       fields: [
         f('openFilesIn', 'Open files from other apps in', options(['newWindow', 'A new window'], ['currentWindow', 'The current window'], ['ask', 'Ask every time']), 'newWindow', {
           description: 'Where files opened from Explorer, Finder or another app appear.',
         }),
-        f('onClose', 'When the last window is closed', options(['ask', 'Ask'], ['quit', 'Quit IMT'], ['tray', 'Keep running in the tray']), 'ask', {
-          description: 'Keeping IMT in the tray lets live tail and monitors continue in the background.',
+        f('onClose', 'When the last window is closed', options(['ask', 'Ask'], ['quit', 'Quit Debrief'], ['tray', 'Keep running in the tray']), 'ask', {
+          description: 'Keeping Debrief in the tray lets live tail and monitors continue in the background.',
         }),
         f('notifications', 'Notifications', options(['off', 'Off'], ['alerts', 'Alerts only'], ['all', 'All']), 'alerts', {
-          description: 'System notifications while IMT runs in the background.',
+          description: 'System notifications while Debrief runs in the background.',
         }),
-        f('startMinimized', 'Start in the system tray', { type: 'bool' }, false, { description: 'Start IMT without opening a window.' }),
+        f('startMinimized', 'Start in the system tray', { type: 'bool' }, false, { description: 'Start Debrief without opening a window.' }),
       ],
     }),
     section({
       id: 'diagnostics',
       title: 'Diagnostics',
-      description: "IMT's own log files and the screenshots taken when something fails. Nothing is sent anywhere.",
+      description: "Debrief's own log files and the screenshots taken when something fails. Nothing is sent anywhere.",
       owner: { kind: 'app' },
       group: 'diagnostics',
       fields: [
         f('logLevel', 'Log level', { type: 'enum', options: ['error', 'warn', 'info', 'debug', 'trace'].map((v) => ({ value: v, label: v.charAt(0).toUpperCase() + v.slice(1) })) }, 'info', {
-          description: 'How much IMT writes to its own log. Debug and Trace help when reporting a problem.',
+          description: 'How much Debrief writes to its own log. Debug and Trace help when reporting a problem.',
         }),
-        f('logMaxFileMb', 'Log file size', int(1, 100, 'MB'), 10, { description: 'IMT starts a new log file every day. Past this size in one day, only errors are written until the next day.', restartRequired: true }),
+        f('logMaxFileMb', 'Log file size', int(1, 100, 'MB'), 10, { description: 'Debrief starts a new log file every day. Past this size in one day, only errors are written until the next day.', restartRequired: true }),
         f('logKeepFiles', 'Old log files kept', int(1, 50), 5, { description: 'How many older daily log files are kept besides the current one.', restartRequired: true }),
         f('logMaxAgeDays', 'Delete logs older than', int(0, 3650, 'days'), 30, { description: 'Old log files are deleted at startup. 0 keeps them regardless of age.', restartRequired: true, advanced: true }),
         f('activityDetail', 'Activity log detail', { type: 'enum', options: [{ value: 'normal', label: 'Normal' }, { value: 'detailed', label: 'Detailed' }] }, 'normal', {
@@ -66,7 +66,7 @@ export function mockSections(): SettingsSection[] {
           description: 'Frequent read-only requests (pages, timeline, charts) are logged only at the Debug level.',
           advanced: true,
         }),
-        f('snapshotsEnabled', 'Error snapshots', { type: 'bool' }, true, { description: 'Save a screenshot of IMT locally when an error is shown, to attach to a bug report.' }),
+        f('snapshotsEnabled', 'Error snapshots', { type: 'bool' }, true, { description: 'Save a screenshot of Debrief locally when an error is shown, to attach to a bug report.' }),
         f('snapshotsMaxCount', 'Snapshots kept', int(1, 500), 50, { description: 'The newest snapshots are kept; older ones are deleted.' }),
         f('snapshotsMaxTotalMb', 'Snapshot storage', int(10, 2000, 'MB'), 100, { description: 'Total disk space snapshots may use.', advanced: true }),
         f('snapshotsMaxAgeDays', 'Delete snapshots older than', int(0, 3650, 'days'), 30, { description: '0 keeps snapshots regardless of age.', advanced: true }),
@@ -89,7 +89,7 @@ export function mockSections(): SettingsSection[] {
     section({
       id: 'performance',
       title: 'Performance',
-      description: "How much memory and processor IMT's background processes may use.",
+      description: "How much memory and processor Debrief's background processes may use.",
       owner: { kind: 'app' },
       group: 'performance',
       fields: [
@@ -105,7 +105,7 @@ export function mockSections(): SettingsSection[] {
       id: 'symbols',
       title: 'Symbols',
       description:
-        'Where IMT finds the symbols (PDB files) that name the functions in a crash dump. A PDB is used only when it matches the module identity (name, GUID and age). Downloads are off until you turn them on.',
+        'Where Debrief finds the symbols (PDB files) that name the functions in a crash dump. A PDB is used only when it matches the module identity (name, GUID and age). Downloads are off until you turn them on.',
       owner: { kind: 'app' },
       group: 'symbols',
       fields: [
@@ -119,7 +119,7 @@ export function mockSections(): SettingsSection[] {
       id: 'browser',
       title: 'Web browser',
       description:
-        "The AI's browser: research, Read along and Agent mode drive a real Chromium-based browser (its own throwaway profile; the window shows next to IMT). The AI sees a page only through read-only extraction.",
+        "The AI's browser: research, Read along and Agent mode drive a real Chromium-based browser (its own throwaway profile; the window shows next to Debrief). The AI sees a page only through read-only extraction.",
       owner: { kind: 'app' },
       group: 'app',
       fields: [
@@ -145,7 +145,7 @@ export function mockSections(): SettingsSection[] {
     section({
       id: 'workspace',
       title: 'Live tail',
-      description: 'How IMT follows files that change while they are open.',
+      description: 'How Debrief follows files that change while they are open.',
       owner: { kind: 'app' },
       group: 'advanced',
       fields: [
@@ -181,7 +181,7 @@ export function mockSections(): SettingsSection[] {
       note: 'This plugin is disabled. Enable it under Plugins and restart to change its settings.',
       fields: [
         f('ratio', 'Sample ratio', { type: 'float', min: 0, max: 1, step: 0.05, unit: null }, 0.5),
-        f('prefix', 'Prefix', { type: 'text', maxLen: 16, pattern: '[A-Z]+' }, 'IMT'),
+        f('prefix', 'Prefix', { type: 'text', maxLen: 16, pattern: '[A-Z]+' }, 'Debrief'),
         f('outDir', 'Output folder', { type: 'path', dir: true }, ''),
         f('cache', 'Cache size', { type: 'size', minBytes: 1 << 20, maxBytes: 1 << 30 }, 64 << 20),
         f('hosts', 'Hosts', { type: 'stringList', maxItems: 10 }, []),

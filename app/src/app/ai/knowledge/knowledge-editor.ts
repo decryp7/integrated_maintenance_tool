@@ -22,7 +22,7 @@ export function openKnowledgeEditor(dialogs: DialogService, file: KnowledgeInfo 
  * refuses. Closes with `true` once saved.
  */
 @Component({
-  selector: 'imt-knowledge-editor',
+  selector: 'debrief-knowledge-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkdownView],
   template: `
@@ -37,7 +37,7 @@ export function openKnowledgeEditor(dialogs: DialogService, file: KnowledgeInfo 
       <span class="size" [class.over]="tooLarge()" data-testid="knowledge-size">{{ sizeLine() }}</span>
     </div>
     @if (preview()) {
-      <imt-markdown-view class="preview" [text]="text()" [placeholder]="emptyPreview" data-testid="knowledge-preview" />
+      <debrief-markdown-view class="preview" [text]="text()" [placeholder]="emptyPreview" data-testid="knowledge-preview" />
     } @else {
       <textarea
         class="input mono"

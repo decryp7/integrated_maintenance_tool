@@ -33,7 +33,7 @@ export function svgImageUrl(svg: string): string {
  * and move/remove actions. Alt+ArrowUp/Down on the focused block moves it.
  */
 @Component({
-  selector: 'imt-report-block',
+  selector: 'debrief-report-block',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, MarkdownView],
   host: {
@@ -50,12 +50,12 @@ export function svgImageUrl(svg: string): string {
       <span class="spacer"></span>
       <button type="button" class="icon-btn" [attr.aria-label]="moveUpLabel()" title="Move up (Alt+↑)" i18n-title="@@share.reportBlock.moveUpTitle" [disabled]="first()" (click)="move(-1)"><span aria-hidden="true">↑</span></button>
       <button type="button" class="icon-btn" [attr.aria-label]="moveDownLabel()" title="Move down (Alt+↓)" i18n-title="@@share.reportBlock.moveDownTitle" [disabled]="last()" (click)="move(1)"><span aria-hidden="true">↓</span></button>
-      <button type="button" class="icon-btn" [attr.aria-label]="removeLabel()" title="Remove" i18n-title="@@share.reportBlock.removeTitle" (click)="reports.removeBlock(block().id)"><imt-icon name="trash" [size]="13" /></button>
+      <button type="button" class="icon-btn" [attr.aria-label]="removeLabel()" title="Remove" i18n-title="@@share.reportBlock.removeTitle" (click)="reports.removeBlock(block().id)"><debrief-icon name="trash" [size]="13" /></button>
     </div>
     @switch (block().type) {
       @case ('text') {
         <textarea class="input text" rows="4" [attr.aria-label]="textLabel()" placeholder="Write Markdown: # heading, **bold**, - list…" i18n-placeholder="@@share.reportBlock.textPlaceholder" [value]="$any(block()).markdown" (change)="patch({ markdown: val($event) })"></textarea>
-        <imt-markdown-view class="md" [text]="$any(block()).markdown" />
+        <debrief-markdown-view class="md" [text]="$any(block()).markdown" />
       }
       @case ('events') {
         <ul class="ids" aria-label="Events in this block" i18n-aria-label="@@share.reportBlock.eventsAria">
@@ -91,7 +91,7 @@ export function svgImageUrl(svg: string): string {
         } @else if (block().type === 'chart' || block().type === 'timeline') {
           <p class="faint" i18n="@@share.reportBlock.noSnapshot">No snapshot.</p>
         } @else {
-          <p class="faint" i18n="@@share.reportBlock.unknown">A "{{ block().type }}" block (from a newer IMT) — kept as it is.</p>
+          <p class="faint" i18n="@@share.reportBlock.unknown">A "{{ block().type }}" block (from a newer Debrief) — kept as it is.</p>
         }
       }
     }
@@ -103,14 +103,14 @@ export function svgImageUrl(svg: string): string {
     :host { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); }
     :host(:focus-visible) { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .head { display: flex; align-items: center; gap: 4px; }
-    .kind { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .kind { font-size: var(--fs-xs); color: var(--muted); }
     .spacer { flex: 1; }
     .text { width: 100%; box-sizing: border-box; resize: vertical; font-family: var(--font-mono); }
     .md { padding: 4px 2px; }
     .ids { display: flex; flex-wrap: wrap; gap: 4px; list-style: none; margin: 0; padding: 0; }
     .link { padding: 0 6px; font-family: var(--font-mono); }
     .finding, .detail, .q { margin: 0; }
-    .sev { text-transform: uppercase; font-size: var(--fs-xs); }
+    .sev { font-size: var(--fs-xs); }
     .sev.critical { color: var(--danger-text); }
     .sev.warning { color: var(--warn-text); }
     .table-wrap { overflow: auto; max-height: 240px; }

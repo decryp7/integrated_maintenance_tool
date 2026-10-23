@@ -2,7 +2,7 @@ import { DEMO_PARSER_IMPORT } from '../../settings/parsers/parser-files';
 
 /**
  * The browser demo's parser library: simplified stand-ins for the engine's built-in parsers
- * (crates/imt-core/parsers, which are the reference) and a few parser files the demo "picks" from disk.
+ * (crates/debrief-core/parsers, which are the reference) and a few parser files the demo "picks" from disk.
  * Every format carries a regex or JSON/CSV hints `mockPreviewParse` understands. Invented data only.
  */
 
@@ -49,7 +49,7 @@ const LOG4NET_CSV: BuiltinSpec = {
 };
 
 const SPECS: BuiltinSpec[] = [
-  { id: 'generic', name: 'Generic', category: 'Generic', description: 'The formats IMT understands out of the box: JSON lines, CSV with a header and timestamped text. The fallback for any file.', kind: 'auto', priority: -100, regex: String.raw`^(?P<timestamp>${ISO})\s+(?:\[?(?P<level>[A-Za-z]+)\]?\s+)?(?P<message>.*)$` },
+  { id: 'generic', name: 'Generic', category: 'Generic', description: 'The formats Debrief understands out of the box: JSON lines, CSV with a header and timestamped text. The fallback for any file.', kind: 'auto', priority: -100, regex: String.raw`^(?P<timestamp>${ISO})\s+(?:\[?(?P<level>[A-Za-z]+)\]?\s+)?(?P<message>.*)$` },
   { id: 'serilog-clef', name: 'Serilog CLEF', category: '.NET', description: 'Compact JSON written by Serilog.Formatting.Compact: @t, @l, @mt and @x.', kind: 'json', files: ['*.clef', '*.jsonl'], extra: '\n[format.json]\ntimestamp = ["@t"]\nlevel = ["@l"]\nmessage = ["@m", "@mt"]\nexception = ["@x"]' },
   { id: 'serilog-json', name: 'Serilog JSON', category: '.NET', description: 'JSON written by Serilog.Formatting.Json.JsonFormatter: Timestamp, Level, MessageTemplate and RenderedMessage.', kind: 'json', files: ['*.json'], priority: -1, extra: '\n[format.json]\ntimestamp = ["Timestamp"]\nlevel = ["Level"]\nmessage = ["RenderedMessage", "MessageTemplate"]\nexception = ["Exception"]' },
   { id: 'serilog-text', name: 'Serilog text', category: '.NET', description: 'Plain text from the Serilog console or file sink with the default output template.', kind: 'text', files: ['*.log', '*.txt'], regex: String.raw`^(?P<timestamp>${ISO})\s+\[(?P<level>[A-Z]{3})\]\s+(?P<message>.*)$` },

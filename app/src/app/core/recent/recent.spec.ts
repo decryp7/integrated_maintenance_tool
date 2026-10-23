@@ -16,16 +16,16 @@ describe('MockRecentBackend', () => {
     const off = await b.onChanged((l) => seen.push(l));
     await b.opened(['/a', '/b']);
     clock = 2000;
-    await b.opened(['/b', '/c'], { path: '/p.imtproj', name: 'P' });
+    await b.opened(['/b', '/c'], { path: '/p.debriefproj', name: 'P' });
     expect((await b.list()).files).toEqual([
       { path: '/b', openedAt: 2000 },
       { path: '/c', openedAt: 2000 },
       { path: '/a', openedAt: 1000 },
     ]);
-    expect((await b.list()).projects).toEqual([{ path: '/p.imtproj', name: 'P', openedAt: 2000 }]);
+    expect((await b.list()).projects).toEqual([{ path: '/p.debriefproj', name: 'P', openedAt: 2000 }]);
     for (let i = 0; i < 20; i++) await b.opened([`/p${i}`]);
     expect((await b.list()).files).toHaveLength(MOCK_RECENT_FILES_MAX);
-    await b.remove('projects', '/p.imtproj');
+    await b.remove('projects', '/p.debriefproj');
     expect((await b.list()).projects).toEqual([]);
     await b.clear('files');
     expect((await b.list()).files).toEqual([]);
@@ -111,10 +111,10 @@ describe('RecentService and its adapters', () => {
     expect(files).toBeInstanceOf(BackendRecentStore);
     expect(projects).toBeInstanceOf(BackendRecentProjects);
     files.add(['/a']);
-    projects.add({ path: '/p.imtproj', name: 'P' });
+    projects.add({ path: '/p.debriefproj', name: 'P' });
     await vi.waitFor(() => expect(files.list().map((f) => f.path)).toEqual(['/a']));
-    await vi.waitFor(() => expect(projects.list()).toEqual([{ path: '/p.imtproj', name: 'P', openedAt: expect.any(Number) }]));
-    projects.remove('/p.imtproj');
+    await vi.waitFor(() => expect(projects.list()).toEqual([{ path: '/p.debriefproj', name: 'P', openedAt: expect.any(Number) }]));
+    projects.remove('/p.debriefproj');
     await vi.waitFor(() => expect(projects.list()).toEqual([]));
     files.clear();
     projects.clear();

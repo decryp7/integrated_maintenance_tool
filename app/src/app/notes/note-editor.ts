@@ -22,7 +22,7 @@ export function parseTags(text: string): string[] {
  * refuses. Closes with the note's id once saved.
  */
 @Component({
-  selector: 'imt-note-editor',
+  selector: 'debrief-note-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkdownView],
   template: `
@@ -34,7 +34,7 @@ export function parseTags(text: string): string[] {
       <span class="size" [class.over]="tooLarge()">{{ bytes() }} / {{ maxBytes() }}</span>
     </div>
     @if (preview()) {
-      <imt-markdown-view class="preview" [text]="text()" [placeholder]="emptyPreview" data-testid="note-preview" />
+      <debrief-markdown-view class="preview" [text]="text()" [placeholder]="emptyPreview" data-testid="note-preview" />
     } @else {
       <textarea
         class="input"
@@ -72,7 +72,7 @@ export function parseTags(text: string): string[] {
   styles: `
     :host { display: flex; flex-direction: column; gap: 10px; }
     .anchor { margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
-    .kind { font-size: var(--fs-xs); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-right: 4px; }
+    .kind { font-size: var(--fs-xs); color: var(--muted); margin-right: 4px; }
     .tabs { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); }
     .tab { border: 0; background: none; padding: 4px 10px; color: var(--text-2); cursor: pointer; border-bottom: 2px solid transparent; }
     .tab[aria-selected='true'] { color: var(--text); border-bottom-color: var(--accent); }

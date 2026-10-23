@@ -2,9 +2,9 @@
 //! diagnostics workspace instead of a plain archive.
 //!
 //! [`divert`] runs before every open (File ▸ Open, drag and drop, the command line all go through
-//! `open_paths`): a zip whose `manifest.json` says `imt-diagnostics` ([`detect`]) has only its logs
-//! (IMT's, the activity log, each child process's) copied out, within the archive limits of
-//! `imt_core::archive`, into `<data>/diagnostics-reports/<name>-<hash>/logs`, and that folder is opened
+//! `open_paths`): a zip whose `manifest.json` says `debrief-diagnostics` ([`detect`]) has only its logs
+//! (Debrief's, the activity log, each child process's) copied out, within the archive limits of
+//! `debrief_core::archive`, into `<data>/diagnostics-reports/<name>-<hash>/logs`, and that folder is opened
 //! instead, so each log is a source with its own timeline lane and imports through the usual importers.
 //! The JSON files are never imported as events: [`read_view`] reads them (bounded, typed) into the
 //! "Diagnostics report" panel's [`DiagnosticsReportView`], and snapshot images are read from the zip on
@@ -17,7 +17,7 @@ use super::manifest::{self, FileKind, Manifest, ManifestError, ManifestFile, MAN
 use crate::activity::Breadcrumb;
 use crate::windows::CurrentWindow;
 use crate::{err, CmdResult};
-use imt_ipc::child_log::ProcessSummary;
+use debrief_ipc::child_log::ProcessSummary;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -26,7 +26,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, Runtime};
 
-/// Folder (under IMT's data folder) of the logs copied out of opened reports.
+/// Folder (under Debrief's data folder) of the logs copied out of opened reports.
 pub const REPORTS_DIR: &str = "diagnostics-reports";
 /// Copied-out reports kept (the oldest are removed).
 pub const KEEP_EXTRACTED: usize = 8;
@@ -51,7 +51,7 @@ use crate::sync::lock;
 #[serde(rename_all = "camelCase")]
 pub struct ManifestView {
     pub schema_version: u32,
-    pub imt_version: String,
+    pub debrief_version: String,
     pub commit: String,
     pub created_at: String,
     pub files: Vec<ManifestFile>,
@@ -147,7 +147,7 @@ fn open_zip(path: &Path) -> Result<zip::ZipArchive<std::fs::File>, String> {
 /// Whether `path` is a diagnostics report. Reads the zip's directory and its manifest only.
 pub fn detect(path: &Path) -> Detected {
     let mut magic = [0u8; 4];
-    let is_zip = std::fs::File::open(path).and_then(|mut f| f.read_exact(&mut magic)).is_ok() && imt_core::archive::is_zip(&magic);
+    let is_zip = std::fs::File::open(path).and_then(|mut f| f.read_exact(&mut magic)).is_ok() && debrief_core::archive::is_zip(&magic);
     if !is_zip {
         return Detected::Plain;
     }
@@ -179,7 +179,7 @@ fn folder_key(path: &Path) -> String {
         .map(|d| d.as_secs())
         .hash(&mut h);
     let stem = path.file_stem().map(|s| s.to_string_lossy().into_owned()).unwrap_or_default();
-    format!("{}-{:016x}", imt_ipc::child_log::log_name(&stem), h.finish())
+    format!("{}-{:016x}", debrief_ipc::child_log::log_name(&stem), h.finish())
 }
 
 /// Removes all but the newest [`KEEP_EXTRACTED`] copied-out reports (never `keep`). Never fails.
@@ -206,12 +206,12 @@ pub fn extract_logs(zip_path: &Path, m: &Manifest, reports_dir: &Path) -> Result
     let mut total = 0u64;
     let mut copied = 0usize;
     for f in m.files.iter().filter(|f| f.kind.is_log() && f.name.starts_with("logs/")) {
-        let data = read_entry(&mut zip, &f.name, imt_core::archive::MAX_ENTRY_BYTES)?;
+        let data = read_entry(&mut zip, &f.name, debrief_core::archive::MAX_ENTRY_BYTES)?;
         total += data.len() as u64;
-        if total > imt_core::archive::MAX_ARCHIVE_BYTES {
+        if total > debrief_core::archive::MAX_ARCHIVE_BYTES {
             return Err(format!(
                 "its logs expand to more than {} MiB",
-                imt_core::archive::MAX_ARCHIVE_BYTES >> 20
+                debrief_core::archive::MAX_ARCHIVE_BYTES >> 20
             ));
         }
         if data.is_empty() {
@@ -331,7 +331,7 @@ pub fn read_view(zip_path: &Path, m: &Manifest) -> DiagnosticsReportView {
         name: display_name(zip_path),
         manifest: ManifestView {
             schema_version: m.schema_version,
-            imt_version: m.imt_version.clone(),
+            debrief_version: m.debrief_version.clone(),
             commit: m.commit.clone(),
             created_at: m.created_at.clone(),
             files: m.files.iter().filter(|f| f.kind != FileKind::Other).cloned().collect(),
@@ -564,7 +564,7 @@ mod tests {
 
     fn report_zip(d: &Path) -> PathBuf {
         let inputs = inputs_in(d);
-        let out = d.join("imt-diagnostics-test.zip");
+        let out = d.join("debrief-diagnostics-test.zip");
         crate::activity::report::write(&inputs, "It froze", &out).unwrap();
         out
     }
@@ -599,12 +599,12 @@ mod tests {
         assert_eq!(done.paths[0], o.logs.to_string_lossy());
         assert!(done.paths[1].ends_with("other.log"));
         // Only logs were copied out.
-        assert!(o.logs.join("imt.log").is_file() && o.logs.join("activity.log").is_file());
+        assert!(o.logs.join("debrief.log").is_file() && o.logs.join("activity.log").is_file());
         assert!(!o.logs.join("../system-info.json").exists());
-        assert_eq!(report_root_of(&o.logs.join("imt.log")).unwrap(), o.logs.parent().unwrap());
+        assert_eq!(report_root_of(&o.logs.join("debrief.log")).unwrap(), o.logs.parent().unwrap());
         // The panel's data.
         let v = &o.view;
-        assert_eq!(v.name, "imt-diagnostics-test.zip");
+        assert_eq!(v.name, "debrief-diagnostics-test.zip");
         assert_eq!(v.description.as_deref(), Some("It froze"));
         assert_eq!(v.steps, ["1. Opened files from the menu", "2. Applied query from the menu"]);
         assert_eq!(v.breadcrumbs.len(), 2);
@@ -617,7 +617,7 @@ mod tests {
         assert!(read_image(&zip, &m, "../x").is_err());
         assert!(read_image(&zip, &m, "20261017T083000123-1a2b3c4d").is_err());
         // After a restart the report is found again from the workspace's sources.
-        let again = recover(&[o.logs.join("imt.log").to_string_lossy().into_owned()]).unwrap();
+        let again = recover(&[o.logs.join("debrief.log").to_string_lossy().into_owned()]).unwrap();
         assert_eq!(again.view, o.view);
         assert!(recover(&[d.join("x.log").to_string_lossy().into_owned()]).is_none());
         std::fs::remove_dir_all(d).unwrap();
@@ -631,9 +631,9 @@ mod tests {
             .unwrap()
             .replace("\"schemaVersion\":1", "\"schemaVersion\":99");
         let plain = zip_with(&d, "plain.zip", &[("a.log", b"x")]);
-        let bundle = zip_with(&d, "bundle.zip", &[("manifest.json", b"{\"kind\":\"imt-bundle\"}")]);
+        let bundle = zip_with(&d, "bundle.zip", &[("manifest.json", b"{\"kind\":\"debrief-bundle\"}")]);
         let alien = zip_with(&d, "alien.zip", &[("manifest.json", b"<xml/>")]);
-        let broken = zip_with(&d, "broken.zip", &[("manifest.json", b"{\"kind\":\"imt-diagnostics\",")]);
+        let broken = zip_with(&d, "broken.zip", &[("manifest.json", b"{\"kind\":\"debrief-diagnostics\",")]);
         let future = zip_with(&d, "future.zip", &[("manifest.json", newer.as_bytes())]);
         let huge_manifest = vec![b' '; manifest::MAX_MANIFEST_BYTES as usize + 10];
         let huge = zip_with(&d, "huge.zip", &[("manifest.json", &huge_manifest)]);
@@ -644,7 +644,7 @@ mod tests {
         assert_eq!(detect(&alien), Detected::Plain);
         assert_eq!(detect(&d.join("text.zip")), Detected::Plain);
         assert_eq!(detect(&d.join("missing.zip")), Detected::Plain);
-        for (zip, want) in [(&broken, "not valid"), (&future, "newer IMT"), (&huge, "larger than")] {
+        for (zip, want) in [(&broken, "not valid"), (&future, "newer Debrief"), (&huge, "larger than")] {
             match detect(zip) {
                 Detected::Fallback(n) => assert!(n.contains(want) && n.contains("plain archive"), "{n}"),
                 other => panic!("{other:?}"),
@@ -667,7 +667,7 @@ mod tests {
         let d = temp("open-bad-files");
         let files = vec![
             ManifestFile {
-                name: "logs/imt.log".into(),
+                name: "logs/debrief.log".into(),
                 kind: FileKind::Log,
                 bytes: 3,
             },
@@ -699,7 +699,7 @@ mod tests {
             "r.zip",
             &[
                 ("manifest.json", &m),
-                ("logs/imt.log", b"{}\n"),
+                ("logs/debrief.log", b"{}\n"),
                 ("processes.json", b"not json"),
                 ("system-info.json", &big),
                 ("snapshots/bad.json", b"{\"id\":\"../../x\"}"),
@@ -757,11 +757,11 @@ mod tests {
         let bad = zip_with(
             &d,
             "bad.zip",
-            &[("manifest.json", b"{\"kind\":\"imt-diagnostics\",\"schemaVersion\":5}")],
+            &[("manifest.json", b"{\"kind\":\"debrief-diagnostics\",\"schemaVersion\":5}")],
         );
         tauri::async_runtime::block_on(divert(&handle, crate::windows::MAIN, vec![bad.to_string_lossy().into_owned()]));
         let st = tauri::async_runtime::block_on(diagnostics_report(handle.clone(), crate::test_support::main_window(&app))).unwrap();
-        assert!(st.notice.unwrap().contains("newer IMT"));
+        assert!(st.notice.unwrap().contains("newer Debrief"));
         let st = tauri::async_runtime::block_on(diagnostics_report(handle.clone(), crate::test_support::main_window(&app))).unwrap();
         assert!(st.notice.is_none());
         std::fs::remove_dir_all(d).unwrap();

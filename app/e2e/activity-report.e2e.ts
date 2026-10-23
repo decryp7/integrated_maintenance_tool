@@ -14,7 +14,7 @@ test('an error leads to a problem report the user reviews and saves', async ({ p
   await openApp(page);
   // Some activity to reproduce.
   await runFromPalette(page, 'Show error snapshots');
-  await expect(page.locator('imt-error-snapshots-view')).toBeVisible();
+  await expect(page.locator('debrief-error-snapshots-view')).toBeVisible();
 
   await page.evaluate(() => void setTimeout(() => { throw new Error('e2e report boom'); }, 0));
   const toast = page.locator('[data-testid=snapshot-toast]');
@@ -24,7 +24,7 @@ test('an error leads to a problem report the user reviews and saves', async ({ p
   const dialog = page.getByRole('dialog', { name: 'Report a problem' });
   await expect(dialog).toBeVisible();
   const contents = dialog.locator('[data-testid=report-contents]');
-  for (const name of ['description.txt', 'steps-to-reproduce.txt', 'system-info.json', 'logs/activity.log', 'logs/imt.log']) {
+  for (const name of ['description.txt', 'steps-to-reproduce.txt', 'system-info.json', 'logs/activity.log', 'logs/debrief.log']) {
     await expect(contents).toContainText(name);
   }
   // The snapshot of the error is part of the report.
@@ -39,10 +39,10 @@ test('an error leads to a problem report the user reviews and saves', async ({ p
   await dialog.getByRole('button', { name: 'Save report…' }).click();
   // Saved by a job: the dialog may close; the message says when the zip is ready, with "Show in folder".
   await expect(page.getByTestId('notice-toast').filter({ hasText: 'Saving the problem report — running in Jobs' })).toBeVisible();
-  await expect(dialog.locator('[data-testid=report-saved]')).toContainText('imt-problem-report.zip');
+  await expect(dialog.locator('[data-testid=report-saved]')).toContainText('debrief-problem-report.zip');
   await dialog.getByRole('button', { name: 'Close' }).first().click();
   await expect(dialog).toBeHidden();
-  const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Save problem report imt-problem-report.zip' });
+  const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Save problem report debrief-problem-report.zip' });
   await expect(done).toBeVisible({ timeout: 15_000 });
   await expect(done).toContainText('files zipped.');
   await expect(done.getByTestId('notice-toast-primary')).toHaveText('Show in folder');

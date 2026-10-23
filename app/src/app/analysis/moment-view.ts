@@ -18,19 +18,18 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
 
 /** Everything that happened in a time window: levels, instances, metrics, users, activity and anomalies. */
 @Component({
-  selector: 'imt-moment-view',
+  selector: 'debrief-moment-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileMomentSection, AiButton, CoverageNote],
   template: `
     <div class="bar">
-      <span class="section-title" i18n="@@analysis.moment.title">Moment</span>
       <span class="mono">{{ time.range(range()) }}</span>
       <span class="spacer"></span>
       <button class="btn" type="button" [disabled]="!range()" (click)="zoom()" i18n="@@analysis.moment.zoom">Zoom to this range</button>
-      <imt-ai-button label="Summarize" i18n-label="@@analysis.moment.summarize" hint="The local model summarizes what happened in this range" i18n-hint="@@analysis.moment.summarizeHint" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
+      <debrief-ai-button label="Summarize" i18n-label="@@analysis.moment.summarize" hint="The local model summarizes what happened in this range" i18n-hint="@@analysis.moment.summarizeHint" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
       @if (res.result(); as m) {
         <div class="body" tabindex="0" role="region" aria-label="Moment details" i18n-aria-label="@@analysis.moment.region">
           <div class="summary">
@@ -46,7 +45,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
               @for (i of m.instances; track i.key) {
                 <section class="card" [attr.aria-label]="instanceLabel(i.key)">
                   <div class="head"><strong class="ellipsis" [title]="i.key">{{ i.key }}</strong></div>
-                  <div class="counts mono">
+                  <div class="counts">
                     <span i18n="@@analysis.moment.events">{{ count(i.events) }} events</span>
                     <span class="warn" i18n="@@analysis.moment.warnings">{{ count(i.warnings) }} warnings</span>
                     <span [class.errs]="i.errors" i18n="@@analysis.moment.errors">{{ count(i.errors) }} errors</span>
@@ -57,7 +56,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
                     }
                   </ul>
                   @if (i.firstError !== null) {
-                    <button class="btn" type="button" (click)="select(i.firstError)" i18n="@@analysis.moment.firstError">Go to first error</button>
+                    <button class="btn ghost first" type="button" (click)="select(i.firstError)" i18n="@@analysis.moment.firstError">Go to first error</button>
                   }
                 </section>
               }
@@ -132,10 +131,10 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
             <p class="muted" i18n="@@analysis.moment.none">None.</p>
           }
 
-          <imt-profile-moment [range]="range()" />
+          <debrief-profile-moment [range]="range()" />
         </div>
       }
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,
@@ -143,7 +142,9 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
       .summary { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       .total { font-size: var(--fs-lg); color: var(--text); margin-right: 6px; }
       .head { margin-bottom: 4px; color: var(--text); }
-      .counts { display: flex; gap: 12px; font-size: var(--fs-xs); margin-bottom: 6px; }
+      .counts { display: flex; flex-wrap: wrap; gap: 2px 12px; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; margin-bottom: 6px; white-space: nowrap; }
+      .card { display: flex; flex-direction: column; }
+      .card .first { align-self: flex-start; margin-top: auto; }
       .warn { color: var(--warn-text); }
       .errs { color: var(--danger-text); }
       .pats li { display: flex; gap: 8px; padding: 2px 0; font-size: var(--fs-xs); }

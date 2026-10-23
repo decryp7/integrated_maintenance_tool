@@ -98,7 +98,7 @@ export const PerfmonStore = signalStore(
 
       /** Asks for a file and has the engine write the XML there (an existing file only after confirming). */
       async saveXml(): Promise<void> {
-        const path = await platform.pickExportPath(`${store.draft().name.trim() || 'IMT'}.xml`, XML_FORMATS);
+        const path = await platform.pickExportPath(`${store.draft().name.trim() || 'Debrief'}.xml`, XML_FORMATS);
         if (!path) return;
         await run($localize`:@@tools.perfmon.busy.saving:Saving…`, async () => {
           const generated = await guard.write(path, (overwrite) => backend.perfmonGenerate(template(), path, overwrite));

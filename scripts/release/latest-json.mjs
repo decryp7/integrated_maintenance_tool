@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Writes latest.json, the release information IMT's updater reads (see docs/releasing.md and
+// Writes latest.json, the release information Debrief's updater reads (see docs/releasing.md and
 // app/src-tauri/src/updater/manifest.rs), from the signed updater artifacts of a release.
 //
 //   node scripts/release/latest-json.mjs --dir artifacts --version 1.2.0 \

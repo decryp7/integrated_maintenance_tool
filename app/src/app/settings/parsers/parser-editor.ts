@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit, output, signal, untracked } from '@angular/core';
 import { ParserDocDto, ParserLibraryDto, ParsePreview, SourceInfo } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { CmdError } from '../../core/cmd-error';
 import { formatFull } from '../../core/format';
 import { describeError } from '../../core/logger';
@@ -23,7 +23,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
  * save, or without a result.
  */
 @Component({
-  selector: 'imt-parser-editor',
+  selector: 'debrief-parser-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[class.embedded]': '!ref' },
   imports: [TomlEditor],
@@ -35,7 +35,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
       <p class="note" role="note" i18n="@@settings.parsers.editor.overrideNote">You are editing your override of a built-in parser.</p>
     }
     <div class="toml">
-      <imt-toml-editor label="Parser TOML" i18n-label="@@settings.parsers.editor.tomlLabel" />
+      <debrief-toml-editor label="Parser TOML" i18n-label="@@settings.parsers.editor.tomlLabel" />
     </div>
     <div class="status" role="status" data-testid="parser-validation">
       @if (draft.validating()) {
@@ -103,7 +103,7 @@ export class ParserEditor implements OnInit {
   readonly closed = output<ParserLibraryDto | undefined>();
   protected readonly draft = inject(ParserDraft);
   private readonly parsers = inject(ParsersBackend);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly workspace = inject(WorkspaceStore);
   private readonly settings = inject(SettingsStore);
   private readonly dialogs = inject(DialogService);

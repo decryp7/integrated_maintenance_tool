@@ -9,7 +9,7 @@ test('an empty grid says why and offers the next step', async ({ page }, testInf
   const grid = page.getByRole('grid', { name: 'Events' });
   await expect(grid).toContainText('No events match the current filters.');
   await expect(grid).toContainText('Filters may be hiding events.');
-  await expectNoSeriousViolations(page, testInfo, 'empty-grid', 'imt-events-grid');
+  await expectNoSeriousViolations(page, testInfo, 'empty-grid', 'debrief-events-grid');
   await grid.getByRole('button', { name: 'Clear all filters' }).click();
   await expect(gridTotal(page)).toHaveText(total);
   await expect(page.getByTestId('query-field')).toHaveValue('');
@@ -21,7 +21,7 @@ test('an empty analysis view suggests what to do', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+k');
   await page.getByRole('combobox', { name: 'Type a command' }).fill('Show exceptions');
   await page.keyboard.press('Enter');
-  const view = page.locator('imt-exceptions-view');
+  const view = page.locator('debrief-exceptions-view');
   await expect(view).toContainText('No exceptions in the current query.');
   await expect(view).toContainText('grouped here by type and top frame');
   await view.getByRole('button', { name: 'Clear all filters' }).click();

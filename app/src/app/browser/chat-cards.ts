@@ -5,7 +5,7 @@ import { handOffText, leakText } from './browser-text';
 
 /** Text with the leak guard's findings highlighted (and named for screen readers). */
 @Component({
-  selector: 'imt-segments',
+  selector: 'debrief-segments',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `@for (s of segments(); track $index) {@if (s.leak) {<mark [class]="s.leak" [title]="label(s)">{{ s.text }}<span class="sr-only"> ({{ label(s) }})</span></mark>} @else {{{ s.text }}}}`,
   styles: `
@@ -40,7 +40,7 @@ function askHeading(kind: AgentApprovalView['request']['ask']['kind'], site: str
 
 /** An agent step waiting for the user: what it does, exactly, with workspace data highlighted. */
 @Component({
-  selector: 'imt-agent-approval',
+  selector: 'debrief-agent-approval',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Segments],
   template: `
@@ -50,10 +50,10 @@ function askHeading(kind: AgentApprovalView['request']['ask']['kind'], site: str
         <p class="muted small">{{ el }}</p>
       }
       @if (a().request.urlSegments.length) {
-        <p class="line"><span class="muted small" i18n="@@browser.approval.address">Address: </span><imt-segments [segments]="a().request.urlSegments" /></p>
+        <p class="line"><span class="muted small" i18n="@@browser.approval.address">Address: </span><debrief-segments [segments]="a().request.urlSegments" /></p>
       }
       @if (a().request.textSegments.length) {
-        <p class="line"><span class="muted small" i18n="@@browser.approval.text">Text: </span><imt-segments [segments]="a().request.textSegments" /></p>
+        <p class="line"><span class="muted small" i18n="@@browser.approval.text">Text: </span><debrief-segments [segments]="a().request.textSegments" /></p>
         @if (ask().submit) {
           <p class="muted small" i18n="@@browser.approval.thenSubmit">…and then press Enter.</p>
         }
@@ -107,13 +107,13 @@ export class AgentApprovalCard {
 
 /** A search or page the AI suggests: the full address; nothing loads until the user opens it. */
 @Component({
-  selector: 'imt-link-card',
+  selector: 'debrief-link-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Segments],
   template: `
     <section class="card" role="group" [attr.aria-label]="link().title" data-testid="link-card">
       <p><strong>{{ link().title }}</strong> <span class="muted small">{{ kindText() }}</span></p>
-      <p><imt-segments [segments]="segments()" /></p>
+      <p><debrief-segments [segments]="segments()" /></p>
       <div class="row">
         <button type="button" class="btn ghost" (click)="open.emit(link().url)" title="Opens the link in your default browser" i18n-title="@@browser.link.openTitle" i18n="@@browser.link.open">Open</button>
         <button type="button" class="btn" (click)="read.emit(link().url)" data-testid="link-card-read" title="Opens the page in the AI's browser window, adds it to this chat as untrusted web content, and the AI goes on with it" i18n-title="@@browser.link.readTitle" i18n="@@browser.link.read">Open and let AI read it</button>
@@ -139,13 +139,13 @@ export class LinkCard {
 
 /** The AI offers to research the web (automatic research is off, or the search text has workspace data in it). */
 @Component({
-  selector: 'imt-research-offer',
+  selector: 'debrief-research-offer',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Segments],
   template: `
     <section class="card" role="group" [attr.aria-label]="heading()" data-testid="research-offer">
       <p><strong>{{ heading() }}</strong></p>
-      <p><span class="muted small" i18n="@@browser.research.searchText">Search text: </span><imt-segments [segments]="segments()" /></p>
+      <p><span class="muted small" i18n="@@browser.research.searchText">Search text: </span><debrief-segments [segments]="segments()" /></p>
       @if (offer().needsConfirm) {
         <p class="warn small" role="note" i18n="@@browser.research.confirmNote">Highlighted parts come from your logs or look private: check the search text before it is sent.</p>
       }
@@ -173,7 +173,7 @@ export class ResearchOfferCard {
 
 /** Why agent mode stopped, with Continue after the step cap. */
 @Component({
-  selector: 'imt-agent-paused',
+  selector: 'debrief-agent-paused',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="paused" role="status" data-testid="agent-paused">

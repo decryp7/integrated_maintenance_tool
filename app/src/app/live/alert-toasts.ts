@@ -7,7 +7,7 @@ import { SeverityBadge } from './severity-badge';
 
 /** Toasts for live alerts (newest at the bottom), with "Show" and "Mute this kind for 15 min". Mounted once over the app. */
 @Component({
-  selector: 'imt-alert-toasts',
+  selector: 'debrief-alert-toasts',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SeverityBadge],
   host: { 'data-snapshot-ignore': '' },
@@ -16,7 +16,7 @@ import { SeverityBadge } from './severity-badge';
       @for (t of alerts.toasts(); track t.id) {
         <div class="toast" [class]="t.alert.severity" data-toast data-testid="alert-toast">
           <div class="head">
-            <imt-severity-badge [severity]="t.alert.severity" />
+            <debrief-severity-badge [severity]="t.alert.severity" />
             <strong class="kind">{{ kind(t) }}</strong>
             @if (t.alert.instance) { <span class="mono faint inst">{{ t.alert.instance }}</span> }
             <span class="mono faint time">{{ time(t) }}</span>

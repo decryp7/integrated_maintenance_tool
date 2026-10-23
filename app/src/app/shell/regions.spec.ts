@@ -9,12 +9,12 @@ const all = () => true;
 function shell(): HTMLElement {
   const root = document.createElement('div');
   root.innerHTML = `
-    <nav data-imt-region="activity" tabindex="-1"><button>Explorer</button></nav>
-    <aside data-imt-region="sidebar" tabindex="-1"><button>Open files</button></aside>
-    <div data-imt-region="filters" tabindex="-1"><input aria-label="Search" /></div>
+    <nav data-debrief-region="activity" tabindex="-1"><button>Explorer</button></nav>
+    <aside data-debrief-region="sidebar" tabindex="-1"><button>Open files</button></aside>
+    <div data-debrief-region="filters" tabindex="-1"><input aria-label="Search" /></div>
     <div class="dv-groupview" id="g1"><div class="dv-tab" role="tab" tabindex="-1">Events</div><div class="dv-tab dv-active-tab" role="tab" tabindex="0">Timeline</div></div>
     <div class="dv-groupview" id="g2"><div class="dv-tab dv-active-tab" role="tab" tabindex="0">Inspector</div></div>
-    <footer data-imt-region="status" tabindex="-1"><button>Live</button></footer>`;
+    <footer data-debrief-region="status" tabindex="-1"><button>Live</button></footer>`;
   document.body.append(root);
   return root;
 }
@@ -33,7 +33,7 @@ describe('regions (G1)', () => {
 
   it('lists the regions in F6 order and finds the one holding the focus', () => {
     const regions = regionsOf(root, all);
-    expect(regions.map((r) => r.dataset['imtRegion'] ?? r.id)).toEqual(['activity', 'sidebar', 'filters', 'g1', 'g2', 'status']);
+    expect(regions.map((r) => r.dataset['debriefRegion'] ?? r.id)).toEqual(['activity', 'sidebar', 'filters', 'g1', 'g2', 'status']);
     expect(regionIndex(regions, root.querySelector('input'))).toBe(2);
     expect(regionIndex(regions, null)).toBe(-1);
     // Off-screen regions (a closed side bar, a hidden group) are skipped.
@@ -43,11 +43,11 @@ describe('regions (G1)', () => {
   it('F6 / Shift+F6 cycle the regions, wrapping, and a dock group takes focus on its active tab', () => {
     (document.activeElement as HTMLElement | null)?.blur();
     nav.cycle(1, root, all);
-    expect(document.activeElement?.getAttribute('data-imt-region')).toBe('activity');
+    expect(document.activeElement?.getAttribute('data-debrief-region')).toBe('activity');
     nav.cycle(-1, root, all);
-    expect(document.activeElement?.getAttribute('data-imt-region')).toBe('status');
+    expect(document.activeElement?.getAttribute('data-debrief-region')).toBe('status');
     nav.cycle(1, root, all);
-    expect(document.activeElement?.getAttribute('data-imt-region')).toBe('activity');
+    expect(document.activeElement?.getAttribute('data-debrief-region')).toBe('activity');
     // From inside a region (the search box) to the next one: the first dock group's active tab.
     root.querySelector<HTMLInputElement>('input')!.focus();
     nav.cycle(1, root, all);

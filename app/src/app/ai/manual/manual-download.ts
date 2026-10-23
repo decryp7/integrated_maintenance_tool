@@ -20,13 +20,13 @@ import { failureHeadline, hostOf } from './manual-download-view';
 let nextId = 0;
 
 /**
- * "Download manually": when IMT cannot download a model or an inference runtime itself (a TLS-inspecting
+ * "Download manually": when Debrief cannot download a model or an inference runtime itself (a TLS-inspecting
  * proxy such as Zscaler, a blocked host), the user downloads the exact files in the browser and hands them
  * back; the engine checks their SHA-256 before using them. Shows the failure kind, the files with their
  * expected SHA-256, step-by-step instructions and the button that adds the downloaded files.
  */
 @Component({
-  selector: 'imt-ai-manual-download',
+  selector: 'debrief-ai-manual-download',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="manual" [attr.aria-labelledby]="titleId" data-testid="ai-manual-download">
@@ -74,7 +74,7 @@ let nextId = 0;
                 </div>
               } @else {
                 <p class="muted" data-testid="ai-manual-sha-unknown" i18n="@@ai.manual.shaUnknown">
-                  The SHA-256 of this file is not known, so IMT cannot check it.
+                  The SHA-256 of this file is not known, so Debrief cannot check it.
                 </p>
               }
             </li>
@@ -85,11 +85,11 @@ let nextId = 0;
           @if (d.kind === 'model') {
             <li i18n="@@ai.manual.model.step1">Choose <strong>Download manually</strong>: your browser downloads {{ d.files[0]?.name }} from {{ host() }}. Wait until it has finished; the file is large.</li>
             <li i18n="@@ai.manual.model.step2">Choose <strong>Add downloaded file…</strong> below (or <strong>Add local GGUF…</strong> in the model manager) and pick the file.</li>
-            <li i18n="@@ai.manual.model.step3">IMT checks its SHA-256 against the value above, files it in the models folder and lists it under Installed models; then choose Retry or Use.</li>
+            <li i18n="@@ai.manual.model.step3">Debrief checks its SHA-256 against the value above, files it in the models folder and lists it under Installed models; then choose Retry or Use.</li>
           } @else {
             <li i18n="@@ai.manual.runtime.step1">Choose <strong>Download manually</strong> for each file above: your browser downloads it from {{ host() }}.</li>
             <li i18n="@@ai.manual.runtime.step2">Choose <strong>Add downloaded files…</strong> below and pick all of them (do not unzip them).</li>
-            <li i18n="@@ai.manual.runtime.step3">IMT checks their SHA-256 against the values above and unpacks them into the folder below.</li>
+            <li i18n="@@ai.manual.runtime.step3">Debrief checks their SHA-256 against the values above and unpacks them into the folder below.</li>
           }
         </ol>
         <div class="line folder">

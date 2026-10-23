@@ -10,8 +10,8 @@
 
 ## UI (in app/)
 - `npm ci`, `npm run i18n` (commit regenerated `src/locale/messages.xlf` / `messages.pseudo.json`), `npm run lint`, `npx ng build`, `npx ng test --watch=false`.
-- Playwright: `npx playwright test --project=chromium <specs>`; parallel runs need `IMT_E2E_PORT`/`IMT_E2E_PROD_PORT`; set `CI=true` in a git worktree (else the Angular cache lands in the main checkout and crashes).
-- Real-app smoke: `npm run e2e:tauri:build` then `npm run e2e:tauri` (wdio; `IMT_E2E_APP` to use another binary; `IMT_E2E_KEEP_DATA=1` keeps IMT's logs).
+- Playwright: `npx playwright test --project=chromium <specs>`; parallel runs need `DEBRIEF_E2E_PORT`/`DEBRIEF_E2E_PROD_PORT`; set `CI=true` in a git worktree (else the Angular cache lands in the main checkout and crashes).
+- Real-app smoke: `npm run e2e:tauri:build` then `npm run e2e:tauri` (wdio; `DEBRIEF_E2E_APP` to use another binary; `DEBRIEF_E2E_KEEP_DATA=1` keeps Debrief's logs).
 - NEVER `npx prettier --write`: the code is not prettier-formatted (~140 cols); lint is the gate.
 
 ## Windows quirks

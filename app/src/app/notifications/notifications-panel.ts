@@ -3,6 +3,8 @@ import { formatDateTime } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { JobsStore } from '../jobs/jobs.store';
 import { actionAvailable, actionLabel, jobClearedNote, listedJobs, NoticeActions } from './notice-actions';
+import { Icon } from '../shared/icon';
+import { PanelEmpty } from '../jobs/panel-empty';
 import { KindFilter, KindOption } from '../ui/kind-filter';
 import { NotificationsStore } from './notifications.store';
 import { Notice, NOTICE_SOURCES, NoticeAction } from './notifications.types';
@@ -14,16 +16,16 @@ import { sourceLabel, titleWithCount } from './notifications-text';
  * message's action, Dismiss and Mark all read. The engine keeps the list (dedupe with counts, caps, read state).
  */
 @Component({
-  selector: 'imt-notifications-panel',
+  selector: 'debrief-notifications-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [KindFilter],
+  imports: [KindFilter, Icon, PanelEmpty],
   template: `
     <div class="bar" role="toolbar" aria-label="Notification filters" i18n-aria-label="@@notifications.panel.filters">
       <div class="seg" role="group" aria-label="Show" i18n-aria-label="@@notifications.panel.show" data-testid="notices-view">
         <button type="button" class="btn small" [attr.aria-pressed]="store.read() === 'all'" (click)="store.setRead('all')" data-testid="notices-view-all" i18n="@@notifications.panel.view.all">All</button>
         <button type="button" class="btn small" [attr.aria-pressed]="store.read() === 'unread'" (click)="store.setRead('unread')" data-testid="notices-unread-only" i18n="@@notifications.panel.view.unread">Unread</button>
       </div>
-      <imt-kind-filter label="Source" i18n-label="@@notifications.panel.source" [options]="sourceOptions()" [selected]="store.sources()" (toggled)="store.toggleSource($any($event))" (cleared)="clearSources()" />
+      <debrief-kind-filter label="Source" i18n-label="@@notifications.panel.source" [options]="sourceOptions()" [selected]="store.sources()" (toggled)="store.toggleSource($any($event))" (cleared)="clearSources()" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.unread()" (click)="store.markAllRead()" data-testid="notices-mark-all" i18n="@@notifications.panel.markAll">Mark all read</button>
     </div>
@@ -38,7 +40,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
     }
     <p class="sr-only" aria-live="polite" data-testid="notices-live">{{ announcement() }}</p>
     @if (!store.notices().length) {
-      <p class="muted empty" data-testid="notices-empty" i18n="@@notifications.panel.empty">Nothing needs your attention.</p>
+      <debrief-panel-empty class="empty" data-testid="notices-empty" icon="bell" title="Nothing needs your attention" i18n-title="@@notifications.panel.empty.title"><ng-container i18n="@@notifications.panel.empty">Finished jobs, alerts and problems with your files show up here.</ng-container></debrief-panel-empty>
     }
     @for (g of store.groups(); track g.source) {
       <h3 [id]="'notices-h-' + g.source">{{ sourceLabel(g.source) }}</h3>
@@ -49,20 +51,26 @@ import { sourceLabel, titleWithCount } from './notifications-text';
               <span class="dot" aria-hidden="true"></span>
               <strong class="title">{{ titleWithCount(n) }}</strong>
               <span class="muted small time">{{ time(n.at) }}</span>
+              <span class="row-actions">
+                @if (!n.read) {
+                  <button type="button" class="icon-btn" (click)="store.markRead(n.id)" [attr.aria-label]="markReadLabel(n)" [title]="markReadLabel(n)" [attr.data-testid]="'notice-read-' + n.id"><debrief-icon name="check" [size]="14" /></button>
+                }
+                <button type="button" class="icon-btn" (click)="store.dismiss(n.id)" [attr.aria-label]="dismissLabel(n)" [title]="dismissLabel(n)" [attr.data-testid]="'notice-dismiss-' + n.id"><debrief-icon name="close" [size]="14" /></button>
+              </span>
             </div>
             @if (n.body) {
-              <p class="body imt-selectable">{{ n.body }}</p>
+              <p class="body debrief-selectable">{{ n.body }}</p>
             }
             @if (cleared(n)) {
               <p class="muted small cleared" [attr.data-testid]="'notice-cleared-' + n.id">{{ clearedNote }}</p>
             }
             <div class="actions">
               @if (store.localAction(n.id); as label) {
-                <button type="button" class="btn small primary" (click)="store.runLocal(n.id)" [attr.data-testid]="'notice-primary-' + n.id">{{ label }}</button>
+                <button type="button" class="btn small" (click)="store.runLocal(n.id)" [attr.data-testid]="'notice-primary-' + n.id">{{ label }}</button>
               }
               @if (n.primary; as a) {
                 @if (available(a)) {
-                  <button type="button" class="btn small primary" (click)="act(n, a)" [attr.data-testid]="'notice-primary-' + n.id">{{ actionLabel(a) }}</button>
+                  <button type="button" class="btn small" (click)="act(n, a)" [attr.data-testid]="'notice-primary-' + n.id">{{ actionLabel(a) }}</button>
                 }
               }
               @if (n.secondary; as a) {
@@ -75,10 +83,6 @@ import { sourceLabel, titleWithCount } from './notifications-text';
                   <button type="button" class="btn small" (click)="act(n, a)" [attr.data-testid]="'notice-tertiary-' + n.id">{{ actionLabel(a) }}</button>
                 }
               }
-              @if (!n.read) {
-                <button type="button" class="btn ghost small" (click)="store.markRead(n.id)" [attr.aria-label]="markReadLabel(n)" i18n="@@notifications.panel.markRead">Mark read</button>
-              }
-              <button type="button" class="btn ghost small" (click)="store.dismiss(n.id)" [attr.aria-label]="dismissLabel(n)" [attr.data-testid]="'notice-dismiss-' + n.id" i18n="@@notifications.panel.dismiss">Dismiss</button>
             </div>
           </li>
         }
@@ -89,11 +93,8 @@ import { sourceLabel, titleWithCount } from './notifications-text';
     :host { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; overflow: auto; height: 100%; box-sizing: border-box; font-size: var(--fs-md); }
     .bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
     .spacer, .grow { flex: 1; }
-    .chip { border: 1px solid var(--border-2); background: transparent; color: var(--text-2); border-radius: 10px; padding: 1px 8px; font-size: var(--fs-xs); cursor: pointer; }
-    .chip[aria-pressed='true'] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-    .chip:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
     .err { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--lvl-error); margin: 0; }
-    h3 { margin: 8px 0 2px; font-size: var(--fs-xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-2); }
+    h3 { margin: 8px 0 2px; font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); }
     ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
     .notice { border: 1px solid var(--border); border-left: 3px solid var(--border-2); border-radius: 6px; padding: 6px 8px; display: flex; flex-direction: column; gap: 4px; }
     .notice[data-severity='error'] { border-left-color: var(--lvl-error); }
@@ -108,7 +109,9 @@ import { sourceLabel, titleWithCount } from './notifications-text';
     .time { white-space: nowrap; }
     .body { margin: 0; color: var(--text-2); overflow-wrap: anywhere; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-    .empty { margin: 12px 0; }
+    .row-actions { display: flex; gap: 2px; opacity: 0; }
+    .notice:hover .row-actions, .notice:focus-within .row-actions { opacity: 1; }
+    @media (hover: none) { .row-actions { opacity: 1; } }
     .cleared { margin: 0; }
     .small { font-size: var(--fs-xs); }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

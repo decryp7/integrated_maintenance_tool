@@ -1,18 +1,18 @@
 {
-  // Build, run and check IMT from VS Code (Terminal ▸ Run Task…, or Ctrl+Shift+B for the default build).
+  // Build, run and check Debrief from VS Code (Terminal ▸ Run Task…, or Ctrl+Shift+B for the default build).
   // Prerequisites: Rust (MSVC toolchain on Windows), Node.js ≥ 24.15, the Tauri system dependencies
-  // (WebView2 on Windows; webkit2gtk on Linux). Run "IMT: install UI dependencies" once after cloning.
+  // (WebView2 on Windows; webkit2gtk on Linux). Run "Debrief: install UI dependencies" once after cloning.
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "IMT: install UI dependencies",
+      "label": "Debrief: install UI dependencies",
       "type": "shell",
       "command": "npm ci",
       "options": { "cwd": "${workspaceFolder}/app" },
       "problemMatcher": []
     },
     {
-      "label": "IMT: run app (tauri dev)",
+      "label": "Debrief: run app (tauri dev)",
       "detail": "Starts the Angular dev server and the desktop app with hot reload",
       "type": "shell",
       "command": "npx tauri dev",
@@ -22,7 +22,7 @@
       "group": "build"
     },
     {
-      "label": "IMT: UI dev server",
+      "label": "Debrief: UI dev server",
       "detail": "Angular dev server on http://localhost:4200 (used by the debug configurations)",
       "type": "shell",
       "command": "npm run start",
@@ -39,25 +39,25 @@
       }
     },
     {
-      "label": "IMT: build app (debug binary)",
+      "label": "Debrief: build app (debug binary)",
       "detail": "cargo build of the desktop app and its AI worker; the UI comes from the dev server",
       "type": "cargo",
       "command": "build",
-      // imt-ai-worker is the AI assistant's process (target/debug/imt-ai-worker next to imt-app).
-      "args": ["-p", "imt-app", "-p", "imt-ai-worker"],
+      // debrief-ai-worker is the AI assistant's process (target/debug/debrief-ai-worker next to debrief-app).
+      "args": ["-p", "debrief-app", "-p", "debrief-ai-worker"],
       "problemMatcher": ["$rustc"],
       "group": { "kind": "build", "isDefault": true }
     },
     {
-      "label": "IMT: debug prerequisites",
+      "label": "Debrief: debug prerequisites",
       "detail": "UI dev server + debug binary, for the launch configurations",
-      "dependsOn": ["IMT: UI dev server", "IMT: build app (debug binary)"],
+      "dependsOn": ["Debrief: UI dev server", "Debrief: build app (debug binary)"],
       "problemMatcher": []
     },
     {
-      "label": "IMT: build installers (release)",
+      "label": "Debrief: build installers (release)",
       // Installs the locked UI dependencies first: a stale node_modules (or one from another OS) breaks the build.
-      "dependsOn": "IMT: install UI dependencies",
+      "dependsOn": "Debrief: install UI dependencies",
       "type": "shell",
       // The sidecars config also builds and bundles the AI worker and the plugin host (scripts/build-sidecars.mjs).
       "command": "npx tauri build --config src-tauri/tauri.sidecars.conf.json",
@@ -96,10 +96,10 @@
       "group": "test"
     },
     {
-      "label": "Rust: test imt-core",
+      "label": "Rust: test debrief-core",
       "type": "cargo",
       "command": "test",
-      "args": ["-p", "imt-core"],
+      "args": ["-p", "debrief-core"],
       "problemMatcher": ["$rustc"],
       "group": "test"
     },
@@ -155,7 +155,7 @@
       "problemMatcher": []
     },
     {
-      "label": "IMT: all quality gates",
+      "label": "Debrief: all quality gates",
       "detail": "The gates from AGENTS.md, in order",
       "dependsOrder": "sequence",
       "dependsOn": ["Rust: format check", "Rust: clippy", "Rust: test workspace", "Rust: cargo deny", "UI: lint", "UI: build", "UI: unit tests"],

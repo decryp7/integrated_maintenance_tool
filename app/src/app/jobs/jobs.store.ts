@@ -30,7 +30,7 @@ function message(e: unknown): string {
 const isActive = (j: JobInfo) => j.state === 'queued' || j.state === 'running';
 
 /**
- * The window's jobs as the engine reports them (`imt://jobs`): the engine decides what is visible, the
+ * The window's jobs as the engine reports them (`debrief://jobs`): the engine decides what is visible, the
  * queue order, positions and limits; this keeps the list, the kind filter and the last error.
  */
 export const JobsStore = signalStore(

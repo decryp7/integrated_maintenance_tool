@@ -145,7 +145,7 @@ describe('withFailureLogging', () => {
     const svc = withFailureLogging({ check: () => Promise.reject(Object.assign(new Error('invalid regex'), { code: 'E_REGEX' })) }, logger);
     await expect(svc.check()).rejects.toThrow('invalid regex');
     expect(logger.entries[0]).toMatchObject({ level: 'warn', props: { Command: 'check', ErrorCode: 'E_REGEX' } });
-    expect((svc as unknown as Record<symbol, unknown>)[Symbol.for('imt.activity.tracked')]).toBe(true);
+    expect((svc as unknown as Record<symbol, unknown>)[Symbol.for('debrief.activity.tracked')]).toBe(true);
   });
 
   it('logs every event with the current operation id, and errors with breadcrumbs in the browser', async () => {

@@ -22,7 +22,7 @@ describe('layoutMarkers', () => {
 
 @Component({
   imports: [DumpMarkerTrack],
-  template: `<imt-dump-marker-track [view]="view()" [width]="800" />`,
+  template: `<debrief-dump-marker-track [view]="view()" [width]="800" />`,
 })
 class Host {
   readonly view = signal<{ from: number; to: number } | null>(null);

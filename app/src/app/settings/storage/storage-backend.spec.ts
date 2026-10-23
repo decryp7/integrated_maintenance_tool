@@ -66,7 +66,7 @@ describe('MockStorageBackend', () => {
     const r = await cleared(b, ['webview-cache', 'logs', 'logs', 'stores']);
     expect(r.categories.map((c) => c.id)).toEqual(['webview-cache', 'logs', 'stores']);
     expect(r.categories[0]?.skipped[0]?.reason).toContain('in use');
-    expect(r.categories[1]?.skipped[0]?.reason).toBe('IMT is writing to it');
+    expect(r.categories[1]?.skipped[0]?.reason).toBe('Debrief is writing to it');
     expect(r.freedBytes).toBe((45 + 5) * 1024 * 1024);
     const after = await b.usage();
     expect(after.categories.find((c) => c.id === 'logs')?.clearableBytes).toBe(0);

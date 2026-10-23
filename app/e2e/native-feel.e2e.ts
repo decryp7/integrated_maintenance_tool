@@ -2,7 +2,7 @@ import { expect, Page, test } from '@playwright/test';
 import { openApp } from './app';
 
 // The app should feel like a desktop app: no browser context menu on its chrome, no reload, page zoom or other
-// browser keys. The guard only prevents the browser's default, so IMT's own menus and shortcuts keep working.
+// browser keys. The guard only prevents the browser's default, so Debrief's own menus and shortcuts keep working.
 
 /** Records, after every other listener, whether the browser default of the next events of these types was prevented. */
 async function watch(page: Page, types: string[]): Promise<void> {
@@ -11,7 +11,7 @@ async function watch(page: Page, types: string[]): Promise<void> {
     w.__feel = {};
     for (const type of list) {
       w.__feel[type] = [];
-      // Added last on the window (bubble phase): runs after IMT's handlers and the guard.
+      // Added last on the window (bubble phase): runs after Debrief's handlers and the guard.
       window.addEventListener(
         type,
         (e) => {
@@ -30,11 +30,11 @@ const prevented = (page: Page, type: string) => page.evaluate((t) => (window as 
 test.describe('native feel', () => {
   test.beforeEach(async ({ page }) => openApp(page));
 
-  test('right-clicking chrome shows no browser menu; IMT context menus still open; text fields keep theirs', async ({ page }) => {
+  test('right-clicking chrome shows no browser menu; Debrief context menus still open; text fields keep theirs', async ({ page }) => {
     await watch(page, ['contextmenu']);
-    await page.locator('imt-status-bar').click({ button: 'right' });
+    await page.locator('debrief-status-bar').click({ button: 'right' });
     await expect.poll(() => prevented(page, 'contextmenu')).toEqual([true]);
-    // IMT's own menu on a dock tab.
+    // Debrief's own menu on a dock tab.
     await page.getByRole('tab', { name: 'Events', exact: true }).click({ button: 'right' });
     await expect(page.getByRole('menu')).toBeVisible();
     await page.keyboard.press('Escape');
@@ -55,22 +55,22 @@ test.describe('native feel', () => {
         });
     const selected = () => page.evaluate(() => window.getSelection()?.toString().trim() ?? '');
     // Near the start of the message: selecting a row opens the inspector over the right of the grid.
-    const message = page.locator('imt-events-grid [role=row].row .msg').first();
+    const message = page.locator('debrief-events-grid [role=row].row .msg').first();
     await message.dblclick({ position: { x: 12, y: 6 } });
     await expect.poll(selected).not.toBe('');
-    expect(await userSelect('imt-events-grid [role=row].row .msg')).toBe('text');
+    expect(await userSelect('debrief-events-grid [role=row].row .msg')).toBe('text');
     // The toolbar and the status bar are chrome: double-clicking their text selects nothing.
     // (WebKit reports an inherited `none` as `auto`, so what counts is that nothing gets selected.)
-    for (const chrome of ['imt-status-bar', 'imt-title-bar', 'imt-events-grid .bar']) {
+    for (const chrome of ['debrief-status-bar', 'debrief-title-bar', 'debrief-events-grid .bar']) {
       await page.evaluate(() => window.getSelection()?.removeAllRanges());
       await page.locator(chrome).first().dblclick({ position: { x: 40, y: 8 } });
       expect(await selected()).toBe('');
     }
   });
 
-  test("right-clicking selected text opens IMT's menu with Copy instead of the browser menu", async ({ page }) => {
-    await page.locator('imt-events-grid [role=row].row').first().click();
-    const message = page.locator('imt-inspector .message');
+  test("right-clicking selected text opens Debrief's menu with Copy instead of the browser menu", async ({ page }) => {
+    await page.locator('debrief-events-grid [role=row].row').first().click();
+    const message = page.locator('debrief-inspector .message');
     await expect(message).not.toBeEmpty();
     expect(await message.evaluate((el) => getComputedStyle(el).userSelect || (getComputedStyle(el) as CSSStyleDeclaration & { webkitUserSelect?: string }).webkitUserSelect)).toBe('text');
     await message.dblclick({ position: { x: 12, y: 6 } });
@@ -86,7 +86,7 @@ test.describe('native feel', () => {
 
   test('middle-click does not start autoscroll on chrome, and files dropped outside drop targets do not navigate', async ({ page }) => {
     await watch(page, ['mousedown']);
-    const box = (await page.locator('imt-status-bar').boundingBox())!;
+    const box = (await page.locator('debrief-status-bar').boundingBox())!;
     await page.mouse.move(box.x + 40, box.y + box.height / 2);
     await page.mouse.down({ button: 'middle' });
     await page.mouse.up({ button: 'middle' });
@@ -94,7 +94,7 @@ test.describe('native feel', () => {
     const dropped = await page.evaluate(() => {
       const data = new DataTransfer();
       data.items.add(new File(['x'], 'app.log', { type: 'text/plain' }));
-      const target = document.querySelector('imt-status-bar')!;
+      const target = document.querySelector('debrief-status-bar')!;
       const over = new DragEvent('dragover', { bubbles: true, cancelable: true, dataTransfer: data });
       target.dispatchEvent(over);
       const drop = new DragEvent('drop', { bubbles: true, cancelable: true, dataTransfer: data });
@@ -107,11 +107,11 @@ test.describe('native feel', () => {
   test('reload keys do not reload the window', async ({ page }) => {
     await page.evaluate(() => ((window as unknown as { __marker: number }).__marker = 42));
     await watch(page, ['keydown']);
-    await page.locator('imt-status-bar').click();
+    await page.locator('debrief-status-bar').click();
     await page.keyboard.press('F5');
-    await page.keyboard.press('Control+r');
-    await page.keyboard.press('Control+p');
-    await page.keyboard.press('Control+Equal');
+    await page.keyboard.press('ControlOrMeta+r');
+    await page.keyboard.press('ControlOrMeta+p');
+    await page.keyboard.press('ControlOrMeta+Equal');
     await expect.poll(() => prevented(page, 'keydown')).toEqual([true, true, true, true]);
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => (window as unknown as { __marker?: number }).__marker)).toBe(42);
@@ -121,7 +121,7 @@ test.describe('native feel', () => {
     await watch(page, ['wheel']);
     const range = page.getByTitle(/Reset to the full range|Drag on the timeline to zoom/).first();
     const before = await range.innerText();
-    const box = (await page.locator('imt-timeline-panel .hist-row .plot').boundingBox())!;
+    const box = (await page.locator('debrief-timeline-panel .hist-row .plot').boundingBox())!;
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
     await page.keyboard.down('Control');
     await page.mouse.wheel(0, -400);

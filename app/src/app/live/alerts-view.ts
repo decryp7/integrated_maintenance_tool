@@ -12,7 +12,7 @@ import { activeLocale } from '../i18n/locale';
 
 /** Dock view: the live alerts with their evidence, a severity filter, mutes and the rules editor. */
 @Component({
-  selector: 'imt-alerts-view',
+  selector: 'debrief-alerts-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [SeverityBadge],
   template: `
@@ -22,7 +22,7 @@ import { activeLocale } from '../i18n/locale';
         <button type="button" class="chip" [attr.aria-pressed]="store.filter() === 'all'" (click)="store.setFilter('all')" i18n="@@live.alertsView.all">All {{ store.alerts().length }}</button>
         @for (s of severities; track s) {
           <button type="button" class="chip" [attr.aria-pressed]="store.filter() === s" (click)="store.setFilter(s)">
-            <imt-severity-badge [severity]="s" [size]="12" [showLabel]="false" />{{ sevLabel(s) }} {{ store.counts()[s] }}
+            <debrief-severity-badge [severity]="s" [size]="12" [showLabel]="false" />{{ sevLabel(s) }} {{ store.counts()[s] }}
           </button>
         }
       </div>
@@ -51,7 +51,7 @@ import { activeLocale } from '../i18n/locale';
           <tbody>
             @for (e of store.visible(); track e.id) {
               <tr [class.muted-row]="e.muted" data-testid="alert-row">
-                <td><imt-severity-badge [severity]="e.alert.severity" /></td>
+                <td><debrief-severity-badge [severity]="e.alert.severity" /></td>
                 <td>{{ kind(e.alert) }}@if (e.muted) { <span class="faint small" i18n="@@live.alertsView.mutedRow"> (muted)</span> }</td>
                 <td class="mono">{{ e.alert.instance ?? '—' }}</td>
                 <td class="mono nowrap" [title]="range(e.alert)">{{ time(e.alert.to) }}</td>

@@ -1,5 +1,5 @@
 import { DiagnosticRow, FixEvaluation, IndexStatus, ProblemKind, QuickFix, Severity, SourceInfo } from '../../core/api.types';
-import type { ImtBackend } from '../../core/backend';
+import type { DebriefBackend } from '../../core/backend';
 import { CmdError } from '../../core/cmd-error';
 import { MockBackend } from '../../core/mock/mock-backend';
 import { parseFragment } from '../../core/mock/mock-parsers';
@@ -27,13 +27,13 @@ const SEVERITY: Record<ProblemKind, Severity> = {
  * the file read again). Plausible, never the reference: the engine is.
  */
 export class MockProblemsBackend implements ProblemsBackend {
-  constructor(private readonly imt: ImtBackend) {}
+  constructor(private readonly debrief: DebriefBackend) {}
 
   /** The TOML of the parser that read the source (empty when unknown). */
   private parserToml(s: SourceInfo): string {
-    if (!(this.imt instanceof MockBackend) || !s.parser) return '';
+    if (!(this.debrief instanceof MockBackend) || !s.parser) return '';
     try {
-      return this.imt.parsers.get(s.parser).toml;
+      return this.debrief.parsers.get(s.parser).toml;
     } catch {
       return '';
     }
@@ -44,7 +44,7 @@ export class MockProblemsBackend implements ProblemsBackend {
   }
 
   async problems(): Promise<DiagnosticRow[]> {
-    const summary = await this.imt.workspaceSummary();
+    const summary = await this.debrief.workspaceSummary();
     const out: DiagnosticRow[] = [];
     for (const s of [...summary.sources].sort((a, b) => a.name.localeCompare(b.name))) {
       const kinds = new Set<ProblemKind>();
@@ -76,7 +76,7 @@ export class MockProblemsBackend implements ProblemsBackend {
     if (format !== undefined && (typeof format !== 'object' || format === null || Array.isArray(format))) {
       throw new CmdError({ code: 'invalid', message: 'the fix is not a valid parser change: `format` must be a table', retryable: false });
     }
-    const summary = await this.imt.workspaceSummary();
+    const summary = await this.debrief.workspaceSummary();
     const wanted = fix.sources?.length ? new Set(fix.sources) : null;
     const eval_: FixEvaluation = { fixed: 0, checked: 0, unchecked: 0 };
     for (const s of summary.sources) {
@@ -92,7 +92,7 @@ export class MockProblemsBackend implements ProblemsBackend {
   }
 
   async indexStatus(): Promise<IndexStatus> {
-    const summary = await this.imt.workspaceSummary();
+    const summary = await this.debrief.workspaceSummary();
     return { indexed: summary.total, total: summary.total, ready: true };
   }
 }

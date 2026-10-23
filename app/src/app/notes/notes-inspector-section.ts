@@ -7,13 +7,13 @@ import { NotesStore } from './notes.store';
 
 /** The inspector's Notes section: the notes on the shown event, and "Add note". */
 @Component({
-  selector: 'imt-notes-inspector-section',
+  selector: 'debrief-notes-inspector-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkdownView],
   template: `
     @for (n of notes(); track n.id) {
       <div class="note" [style.--c]="color(n.severity)" data-testid="inspector-note">
-        <imt-markdown-view [text]="n.text" />
+        <debrief-markdown-view [text]="n.text" />
         <div class="actions">
           <button type="button" class="btn ghost small" (click)="actions.edit(n)" i18n="@@notes.inspector.edit">Edit</button>
           <button type="button" class="btn ghost small" (click)="actions.remove(n)" i18n="@@notes.inspector.delete">Delete</button>

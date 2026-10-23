@@ -6,7 +6,7 @@ import { expectNoSeriousViolations } from './axe';
 // (src/app/core/mock/mock-parsers.ts): "Import .toml…" picks /demo/parsers/inventory-csv.toml, an invented parser
 // for the demo's inventory-sync.csv; exports go to /demo/exports.
 
-const view = (page: Page) => page.locator('imt-parsers-view');
+const view = (page: Page) => page.locator('debrief-parsers-view');
 const row = (page: Page, id: string) => view(page).locator(`li[data-parser="${id}"]`);
 
 async function openParsers(page: Page) {
@@ -35,7 +35,7 @@ test('imports a parser file, re-reads the file it now reads, disables and export
   await expect(view(page).getByTestId('parser-read-inventory-csv')).toHaveText('Read 1 file: inventory-sync.csv');
   await expect(stale).toHaveCount(0);
   await expect(view(page).getByTestId('parser-read-csv')).toHaveText('Read no files in this window');
-  await expectNoSeriousViolations(page, testInfo, 'parsers-view', 'imt-parsers-view');
+  await expectNoSeriousViolations(page, testInfo, 'parsers-view', 'debrief-parsers-view');
 
   // Disabled, the file it read is stale again.
   const enabled = row(page, 'inventory-csv').getByRole('switch', { name: 'Use Inventory sync CSV' });
@@ -57,9 +57,11 @@ test('imports a parser file, re-reads the file it now reads, disables and export
 test('edits a built-in parser beside the list, with validation and a live preview', async ({ page }) => {
   await openApp(page);
   await openParsers(page);
+  // The Parsers panel opens in a narrow dock group; the list and editor side by side need the whole window (WebKit clips the Save button otherwise).
+  await page.locator('.dv-groupview', { has: page.getByRole('tab', { name: 'Parsers' }) }).getByRole('button', { name: 'Maximize panel' }).click();
   await row(page, 'serilog-text').getByRole('button', { name: 'Edit Serilog text' }).click();
   // The editor is the view's detail pane, not a dialog: the list stays in view.
-  const editor = view(page).locator('imt-parser-editor');
+  const editor = view(page).locator('debrief-parser-editor');
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await expect(row(page, 'serilog-text')).toBeVisible();
   await expect(editor.getByTestId('parser-builtin-note')).toContainText('override');
@@ -79,7 +81,7 @@ test('edits a built-in parser beside the list, with validation and a live previe
 
 test('Explorer "Parse with…" opens the Parsers view to choose a parser for that file, not a dialog of its own (I3)', async ({ page }) => {
   await openApp(page);
-  const source = page.locator('imt-sidebar .src').filter({ hasText: 'inventory-sync.csv' });
+  const source = page.locator('debrief-sidebar .src').filter({ hasText: 'inventory-sync.csv' });
   await source.click({ button: 'right' });
   await page.getByRole('menuitem', { name: 'Parse with…' }).click();
   await expect(page.getByRole('dialog')).toHaveCount(0);

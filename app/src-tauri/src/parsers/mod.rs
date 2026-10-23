@@ -1,5 +1,5 @@
 //! The parser library (ADR 0026): one TOML file per log format, built-in or the user's, in
-//! `<config>/parsers`. This module is the shell's adapter: it owns the app-wide [`imt_core::parser::library`]
+//! `<config>/parsers`. This module is the shell's adapter: it owns the app-wide [`debrief_core::parser::library`]
 //! (shared by every window), hands its parsers to each window's store, and exposes the Settings ▸ Parsers
 //! commands ([`commands`]). Parsing, matching and validation are the engine's.
 
@@ -8,12 +8,12 @@ pub(crate) mod dto;
 #[cfg(test)]
 mod tests;
 
-use imt_core::parser::library::Library;
-use imt_core::parser::ParserSetup;
+use debrief_core::parser::library::Library;
+use debrief_core::parser::ParserSetup;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-/// The folder of the user's parser files under IMT's config folder.
+/// The folder of the user's parser files under Debrief's config folder.
 pub(crate) fn parser_dir(config_dir: Option<&Path>) -> Option<PathBuf> {
     config_dir.map(|d| d.join("parsers"))
 }

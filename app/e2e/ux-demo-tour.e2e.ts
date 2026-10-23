@@ -5,19 +5,19 @@ import { chooseMenu } from './menu-support';
 
 async function closeWorkspace(page: Page): Promise<void> {
   await chooseMenu(page, 'File', 'Close workspace');
-  await expect(page.locator('imt-welcome')).toBeVisible();
+  await expect(page.locator('debrief-welcome')).toBeVisible();
 }
 
 async function startDemo(page: Page): Promise<void> {
   // The tour and the Focused layout's headline are checked without Home opening over them.
-  await page.addInitScript(() => localStorage.setItem('imt.home.autoOpen.v1', 'false'));
+  await page.addInitScript(() => localStorage.setItem('debrief.home.autoOpen.v1', 'false'));
   await openApp(page);
   await closeWorkspace(page);
-  const welcome = page.locator('imt-welcome');
-  await expect(welcome).toContainText('IMT never modifies your files.');
+  const welcome = page.locator('debrief-welcome');
+  await expect(welcome).toContainText('Debrief never modifies your files.');
   await welcome.getByRole('button', { name: 'Try a demo' }).click();
   await expect(welcome).toHaveCount(0);
-  await expect(page.locator('imt-status-bar')).toContainText('events');
+  await expect(page.locator('debrief-status-bar')).toContainText('events');
 }
 
 const tour = (page: Page) => page.getByTestId('tour');
@@ -39,7 +39,7 @@ test.describe('demo and guided tour', () => {
       await expect(tour(page)).toContainText(`Step ${i + 2} of 6`);
       await expect(tour(page).getByRole('heading', { name: title })).toBeVisible();
     }
-    await expect(page.locator('imt-home-view')).toBeVisible();
+    await expect(page.locator('debrief-home-view')).toBeVisible();
     await page.keyboard.press('ArrowLeft');
     await expect(tour(page)).toContainText('Step 5 of 6');
     await tour(page).getByRole('button', { name: 'Next' }).click();
@@ -48,8 +48,8 @@ test.describe('demo and guided tour', () => {
 
     // Done: a second demo does not start it again, Help → Take the tour does.
     await closeWorkspace(page);
-    await page.locator('imt-welcome').getByRole('button', { name: 'Try a demo' }).click();
-    await expect(page.locator('imt-status-bar')).toContainText('events');
+    await page.locator('debrief-welcome').getByRole('button', { name: 'Try a demo' }).click();
+    await expect(page.locator('debrief-status-bar')).toContainText('events');
     await expect(tour(page)).toHaveCount(0);
     await chooseMenu(page, 'Help', 'Take the tour');
     await expect(tour(page)).toContainText('Step 1 of 6');
@@ -61,10 +61,10 @@ test.describe('demo and guided tour', () => {
     await page.keyboard.press('Escape');
     await expect(tour(page)).toHaveCount(0);
     await page.reload();
-    await expect(page.locator('imt-status-bar')).toContainText('events');
+    await expect(page.locator('debrief-status-bar')).toContainText('events');
     await closeWorkspace(page);
-    await page.locator('imt-welcome').getByRole('button', { name: 'Try a demo' }).click();
-    await expect(page.locator('imt-status-bar')).toContainText('events');
+    await page.locator('debrief-welcome').getByRole('button', { name: 'Try a demo' }).click();
+    await expect(page.locator('debrief-status-bar')).toContainText('events');
     // The Focused layout shows the health check's headline instead of opening the Overview.
     await expect(page.getByRole('toolbar', { name: 'Health check' })).toBeVisible();
     await expect(tour(page)).toHaveCount(0);

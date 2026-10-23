@@ -123,7 +123,7 @@ export class ErrorSnapshotService implements FailureReporter {
     void this.capture('backend-failed', { error, message: `Command ${command} failed: ${describeError(error)}` });
   }
 
-  /** From an `imt://error` event. */
+  /** From an `debrief://error` event. */
   engineError(e: EngineError): void {
     void this.capture('engine-error', { message: `${e.kind}${e.plugin ? ` (${e.plugin})` : ''}: ${e.message}` });
   }

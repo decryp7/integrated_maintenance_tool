@@ -2,7 +2,7 @@ import { Report, ReportBlock, ReportSection } from '../../core/api.types';
 import { newId } from '../../projects/bookmarks/ids';
 
 /**
- * Pure edits of the report document (the engine's `Report`, crates/imt-core/src/report). Every function
+ * Pure edits of the report document (the engine's `Report`, crates/debrief-core/src/report). Every function
  * returns a new report; the engine re-validates the document whenever it is saved or exported.
  */
 

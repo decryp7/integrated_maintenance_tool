@@ -1,4 +1,4 @@
-//! `updates.json` in the config folder: when IMT last checked (so the daily automatic check survives
+//! `updates.json` in the config folder: when Debrief last checked (so the daily automatic check survives
 //! restarts) and an install that failed while quitting (shown at the next start). Versioned; a
 //! missing, oversized or corrupt file means "nothing recorded".
 
@@ -22,7 +22,7 @@ pub struct Record {
     pub failed_install: Option<FailedInstall>,
 }
 
-/// An install that failed when IMT quit.
+/// An install that failed when Debrief quit.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct FailedInstall {
@@ -45,7 +45,7 @@ impl FailedInstall {
             UpdateError::DiskFull
         } else {
             UpdateError::InstallFailed {
-                detail: format!("IMT {}: {}", self.version, self.detail),
+                detail: format!("Debrief {}: {}", self.version, self.detail),
             }
         }
     }

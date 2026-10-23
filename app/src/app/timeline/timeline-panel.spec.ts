@@ -82,8 +82,8 @@ describe('TimelinePanel', () => {
     expect(all(fixture, '.fatal-line')).toHaveLength(1);
     // The title row stays short: how to zoom and pan is behind a (?) with this platform's key (F6, F7).
     expect(el(fixture, '.hint').textContent).not.toContain('drag');
-    expect(el<HTMLButtonElement>(fixture, 'imt-help button').getAttribute('aria-label')).toContain('Zoom and pan');
-    el<HTMLButtonElement>(fixture, 'imt-help button').click();
+    expect(el<HTMLButtonElement>(fixture, 'debrief-help button').getAttribute('aria-label')).toContain('Zoom and pan');
+    el<HTMLButtonElement>(fixture, 'debrief-help button').click();
     await settle(fixture);
     expect(text(fixture)).toContain('Ctrl+wheel zooms');
     expect(text(fixture)).not.toContain('⌘/Ctrl');
@@ -447,7 +447,7 @@ when = [{ field = "@level", op = "eq", value = "Fatal" }]
     expect(el(fixture, '#' + pay.getAttribute('aria-describedby')).textContent).toBe('Payment gateway rejected the capture');
     expect(items[1]?.getAttribute('aria-describedby')).toBeNull();
     expect(items[1]?.title).toBe('Plain');
-    expect(pay.querySelector('imt-marker-glyph')!.getAttribute('data-glyph')).toBe('badge');
+    expect(pay.querySelector('debrief-marker-glyph')!.getAttribute('data-glyph')).toBe('badge');
     expect(pay.getAttribute('aria-pressed')).toBe('false');
     // Without a kind filter no item looks switched off (the others are dimmed only while one kind is picked).
     expect(el(fixture, '.legend').classList).not.toContain('filtering');
@@ -465,7 +465,7 @@ when = [{ field = "@level", op = "eq", value = "Fatal" }]
   it('draws the badge on the lane and describes it in the tooltip', async () => {
     const { fixture } = await render();
     const marker = all<HTMLButtonElement>(fixture, '.marker').find((m) => m.getAttribute('aria-label')?.startsWith('Payment failed'))!;
-    expect(marker.querySelector<HTMLElement>('imt-marker-glyph .badge-text')!.dataset['t']).toBe('1');
+    expect(marker.querySelector<HTMLElement>('debrief-marker-glyph .badge-text')!.dataset['t']).toBe('1');
     marker.dispatchEvent(new PointerEvent('pointerenter', { clientX: 10, clientY: 10 }));
     await settle(fixture);
     expect(el(fixture, '.tip-desc').textContent).toBe('Payment gateway rejected the capture');
@@ -496,7 +496,7 @@ describe('TimelinePanel annotations', () => {
     expect(point.classList).toContain('point');
     // Severity is an icon (and a pattern class), not only a colour.
     expect(point.classList).toContain('sev-critical');
-    expect(point.querySelector('imt-severity-badge')!.textContent).toContain('Critical');
+    expect(point.querySelector('debrief-severity-badge')!.textContent).toContain('Critical');
   });
 
   it('lists the kinds in an "Annotations" legend whose items hide and show them', async () => {
@@ -504,6 +504,8 @@ describe('TimelinePanel annotations', () => {
     const legend = el(fixture, '.ann-legend');
     expect(legend.getAttribute('aria-label')).toBe('Annotations');
     expect(legend.textContent).toContain('Annotations');
+    el<HTMLButtonElement>(fixture, '[data-testid=legend-more]').click();
+    await settle(fixture);
     const downtime = el<HTMLButtonElement>(fixture, '.ann-legend [data-kind="net.decryptology.windows/downtime"]');
     expect(downtime.getAttribute('aria-pressed')).toBe('true');
     downtime.click();
@@ -543,12 +545,16 @@ describe('TimelinePanel annotations', () => {
     expect(el(fixture, '.legend-row').classList).toContain('collapsed');
     expect(kinds()).toHaveLength(LEGEND_COLLAPSED_GROUP);
     const more = el<HTMLButtonElement>(fixture, '[data-testid=legend-more]');
-    expect(more.textContent).toContain(`+${5 - LEGEND_COLLAPSED_GROUP}`);
+    expect(Number(/\+(\d+) more/.exec(more.textContent ?? '')?.[1])).toBeGreaterThanOrEqual(5 - LEGEND_COLLAPSED_GROUP);
+    // The bare count has a name and a tooltip saying what it reveals.
+    expect(more.getAttribute('aria-label')).toMatch(/^Show \d+ more legend entr(y|ies)$/);
+    expect(more.title).toBe(more.getAttribute('aria-label'));
     more.click();
     await settle(fixture);
     expect(kinds()).toHaveLength(5);
     expect(el(fixture, '.legend-row').classList).not.toContain('collapsed');
     expect(more.textContent?.trim()).toBe('Show fewer');
+    expect(more.getAttribute('aria-label')).toBe('Show fewer legend entries');
   });
 
   it('caps the Evidence menu and says how many more are in view', async () => {

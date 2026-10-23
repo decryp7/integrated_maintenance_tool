@@ -1,0 +1,31 @@
+[package]
+name = "debrief-collect"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Diagnostics collector for Debrief: gathers logs, event logs, system info and environment into a redacted .debriefz bundle"
+
+[lib]
+name = "debrief_collect"
+path = "src/lib.rs"
+
+[[bin]]
+name = "debrief-collect"
+path = "src/bin/debrief-collect.rs"
+
+[dependencies]
+debrief-core = { path = "../debrief-core" }
+anyhow.workspace = true
+chrono.workspace = true
+globset.workspace = true
+regex.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+sysinfo = { workspace = true, features = ["system", "disk"] }
+tempfile.workspace = true
+thiserror.workspace = true
+toml.workspace = true
+zip.workspace = true

@@ -1,6 +1,6 @@
 import { computed, effect, inject, Injectable, signal, untracked } from '@angular/core';
 import { AnnotationDto, Query } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { describeError, Logger } from '../core/logger';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { TimeCursor } from '../analysis/time-cursor';
@@ -20,7 +20,7 @@ import { runKinds, runRange } from './run-layout';
  */
 @Injectable({ providedIn: 'root' })
 export class TimelineAnnotations {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly ws = inject(WorkspaceStore);
   private readonly logger = inject(Logger);
   private readonly zoom = inject(TimelineZoom);

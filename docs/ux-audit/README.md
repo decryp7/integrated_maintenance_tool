@@ -1,12 +1,12 @@
-# IMT usability audit (2026-10-22)
+# Debrief usability audit (2026-10-22)
 
-> A point-in-time record. Findings from it were acted on the same day (perspectives and view areas in [ADR 0035](../adr/0035-view-areas-and-perspectives.md), Home in place of Overview, one search field, the Plugins view with a Health tab); its text and screenshots describe the UI as audited, including the Overview, the Query panel, Plugin health and the Focused/Full layouts that no longer exist.
+> A point-in-time record. Findings from it were acted on the same day (perspectives and view areas in [ADR 0035](../adr/0035-view-areas-and-perspectives.md), Home in place of Overview, one search field, the Plugins view with a Health tab); its text and screenshots describe the UI as audited, including the Overview, the Query panel, Plugin health and the Focused/Full layouts that no longer exist. The screenshots were taken under the product's former name, IMT, and are kept unchanged as part of the record.
 
 A walk through the whole UI of the browser build (`npm start`, mock backend) on `feature/log-analysis-ide`
 (`eafca99`), driven by Playwright (Chromium, 1440×900 unless stated) with axe-core (WCAG 2.2 A/AA) on every
 state. Every view in *View ▸ Other windows…*, every Settings section, the menus, the command palette, context
 menus, dialogs, toasts, the AI assistant, the docked browser, empty, loading, error (`?mockFail=…`,
-`?imtFault=view:*`, `?mockProfilingFail=…`, `?mockAiFail=1`, `?mockCorrupt=markers`), live tail (`?mockLive=1`),
+`?debriefFault=view:*`, `?mockProfilingFail=…`, `?mockAiFail=1`, `?mockCorrupt=markers`), live tail (`?mockLive=1`),
 narrow windows (1024, 900, 800, 600 px), and the three themes in light and dark.
 
 Findings are judged against Nielsen's ten heuristics, desktop-IDE conventions (VS Code, JetBrains: panes,
@@ -82,7 +82,7 @@ find *Dock* in the tab menu. It breaks the IDE convention (VS Code, JetBrains: a
    with reduced motion). `Esc` cancels at any time, as today.
 3. **Outside the main window** (pointer beyond the window bounds): a translucent preview (60 % opacity, the
    panel's current size, accent outline) follows the pointer with **"Release to open in a new window"**;
-   releasing opens a new IMT window at that screen position with the panel in it.
+   releasing opens a new Debrief window at that screen position with the panel in it.
 4. **Floating inside the window only on request:** the tab context menu's *Float inside window* becomes **Float**
    (and stays in the panel's *⋯* menu, A6). No drag gesture creates an in-window float.
 5. **Accessibility:** the hint is announced through the existing `aria-live` status; keyboard users get
@@ -190,7 +190,7 @@ controls invite mistakes; checkboxes hide that read-along and agent are exclusiv
 - **Context ▾** (CDK menu, radio items, label shows the choice): *Selected events (n)* (disabled with "Select
   events in the grid first" when none), *Current view* (filters + time range, default), *None*. The note "The
   engine checks these and reads the events itself. Nothing leaves this computer." becomes the menu's footer.
-- **Browser ▾** (radio): *Off* · *Read along* (the AI may read the page open in IMT's browser) · *Agent* (the AI
+- **Browser ▾** (radio): *Off* · *Read along* (the AI may read the page open in Debrief's browser) · *Agent* (the AI
   drives the browser; asks before new sites, typing and forms; the small-model warning shows as the item's
   description). Replaces both checkboxes, the mode pill and the separate *Stop agent* button.
 - **Research…**: the single entry point; opens the research dialog **prefilled with the draft** (B2). The other
@@ -273,7 +273,7 @@ A **SQL** tab of the Store pane (and *Open SQL console* in the palette) for powe
   expiry), memory cap inside the 300 MB query budget (connection `memory_limit` e.g. 128 MB, 2 threads). Each
   limit hit produces a clear message ("Stopped after 30 s. Narrow the time range or add LIMIT.").
 - **Cancellable job:** a run is a *SQL query* job (Jobs pane, Stop button, `Esc` in the editor).
-- **Stable surface:** the connection sees only documented, versioned **views** in an `imt` schema: `events`
+- **Stable surface:** the connection sees only documented, versioned **views** in an `debrief` schema: `events`
   (event columns + `extra` as MAP), `sources`, `fields`, `notes`. Internal tables (`segments`,
   `segment_fields`, `events_wide`, `p_*` columns) are not visible, so the store can change without breaking
   saved SQL. The views are documented in `docs/user-guide.md` with their columns.
@@ -374,7 +374,7 @@ empty.
 
 ![Error captured toast with four links over a second toast](screenshots/140-error-query.png)
 
-**Problem.** "Error captured — View · Report a problem… IMT saved a screenshot… Open folder · Settings…" (four
+**Problem.** "Error captured — View · Report a problem… Debrief saved a screenshot… Open folder · Settings…" (four
 links) and a second toast peeking from behind it.
 **Proposed change.** A toast stack with spacing and a max of three; error toast: "Something went wrong in
 Timeline." [Details] [Report…]; the screenshot explanation lives in Details.
@@ -386,7 +386,7 @@ Timeline." [Details] [Report…]; the screenshot explanation lives in Details.
 
 ### E6 (P3) Error snapshots' empty state contradicts itself
 
-**Problem.** With no snapshots, the panel still says "IMT saved a screenshot of this error…" and *Export
+**Problem.** With no snapshots, the panel still says "Debrief saved a screenshot of this error…" and *Export
 diagnostics…* is the primary button ([76](screenshots/76-diagnostics-report.png)).
 **Proposed change.** Show only the empty-state sentence and *Capture now*; enable export when there is something.
 
@@ -562,10 +562,10 @@ Live tail), *AI*, *Plugins* (one entry per plugin), *Diagnostics*.
 
 ### J1 (P2) The welcome page has no recent items and no project entry
 
-![Welcome: Open folder, Open files, Try a demo, How IMT works](screenshots/04-welcome.png)
+![Welcome: Open folder, Open files, Try a demo, How Debrief works](screenshots/04-welcome.png)
 
 **Proposed change.** Add *Open project…* and a **Recent** list (folders, files, projects with path and date);
-hide the empty Explorer ("No files open.") on the welcome page; keep "How IMT works" collapsible.
+hide the empty Explorer ("No files open.") on the welcome page; keep "How Debrief works" collapsible.
 
 ### J2 (P3) Ten profiling views each have their own empty state
 
@@ -633,7 +633,7 @@ tooltip; Overview's Warnings link into Anomalies instead of repeating them.
 2. A throwaway Playwright script (not committed) opened each state, saved a screenshot here and ran
    `@axe-core/playwright` with the WCAG 2.0–2.2 A/AA tags, as `e2e/axe.ts` does.
 3. Mock switches used: `?mockSlowImport=1500`, `?mockAiStepMs=5`, `?mockAiVision=1`, `?mockLive=1`,
-   `?mockFail=queryPage:9,queryTimeline:9,queryFacet:9`, `?mockFail=workspaceSummary:9`, `?imtFault=view:*`,
+   `?mockFail=queryPage:9,queryTimeline:9,queryFacet:9`, `?mockFail=workspaceSummary:9`, `?debriefFault=view:*`,
    `?mockStorageFail=1`, `?mockProfilingFail=hotspots:3`, `?mockCorrupt=markers`, `?mockAiFail=1`.
 
 Views were opened in one session through *View ▸ Other windows…*, which is how A2's tab pile-up shows; their

@@ -1,9 +1,9 @@
 //! The plugin's binary under the test harness: conformance, and the tool's operations.
 
-use imt_plugin_test::PluginUnderTest;
+use debrief_plugin_test::PluginUnderTest;
 use serde_json::json;
 
-const PLUGIN: &str = env!("CARGO_BIN_EXE_imt-example-tool");
+const PLUGIN: &str = env!("CARGO_BIN_EXE_debrief-example-tool");
 
 #[test]
 fn conforms() {

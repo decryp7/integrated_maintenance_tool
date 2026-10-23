@@ -11,9 +11,9 @@ export const BREADCRUMB_WINDOW_MS = 30_000;
 /** Keys of the system info shown as a list, in order; the plugins have their own table. */
 const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCores', 'totalMemoryMb', 'availableMemoryMb', 'safeMode'] as const;
 
-/** Read-only view of an opened IMT diagnostics zip: system, child processes, steps, breadcrumbs and error snapshots. */
+/** Read-only view of an opened Debrief diagnostics zip: system, child processes, steps, breadcrumbs and error snapshots. */
 @Component({
-  selector: 'imt-diagnostics-report-view',
+  selector: 'debrief-diagnostics-report-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (store.error(); as e) {
@@ -26,7 +26,7 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
       <div class="wrap">
         <header class="head" data-testid="diag-header">
           <h2>{{ r.name }}</h2>
-          <p class="sub" i18n="@@diagnostics.reportView.subtitle">IMT {{ r.manifest.imtVersion }} ({{ r.manifest.commit }}), created {{ when(r.manifest.createdAt) }}, {{ r.manifest.files.length }} files</p>
+          <p class="sub" i18n="@@diagnostics.reportView.subtitle">Debrief {{ r.manifest.debriefVersion }} ({{ r.manifest.commit }}), created {{ when(r.manifest.createdAt) }}, {{ r.manifest.files.length }} files</p>
           @if (r.unreadable.length) {
             <div class="msg warn" role="status" data-testid="diag-unreadable">
               <span i18n="@@diagnostics.reportView.unreadable">Some files of the report could not be read:</span>
@@ -141,7 +141,7 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
                   <div class="meta">
                     <span class="when">{{ when(s.createdAt) }}</span>
                     <span class="reason">{{ s.reason }}</span>
-                    <span class="text imt-selectable" [title]="s.message">{{ s.message }}</span>
+                    <span class="text debrief-selectable" [title]="s.message">{{ s.message }}</span>
                   </div>
                 </li>
               }
@@ -150,7 +150,7 @@ const SYSTEM_KEYS = ['appVersion', 'commit', 'os', 'osVersion', 'arch', 'cpuCore
             <p class="muted" i18n="@@diagnostics.reportView.noSnapshots">The report has no error snapshots.</p>
           }
           @if (store.current(); as c) {
-            <section class="detail imt-selectable" aria-label="Snapshot details" i18n-aria-label="@@diagnostics.reportView.details" data-testid="diag-snapshot-detail">
+            <section class="detail debrief-selectable" aria-label="Snapshot details" i18n-aria-label="@@diagnostics.reportView.details" data-testid="diag-snapshot-detail">
               <div class="dhead">
                 <strong>{{ when(c.createdAt) }}</strong>
                 <span class="grow"></span>
@@ -246,7 +246,7 @@ export class DiagnosticsReportPanel implements OnInit {
   protected readonly systemRows = computed(() => {
     const info = this.store.report()?.systemInfo ?? {};
     const labels: Record<(typeof SYSTEM_KEYS)[number], string> = {
-      appVersion: $localize`:@@diagnostics.reportView.sys.appVersion:IMT version`,
+      appVersion: $localize`:@@diagnostics.reportView.sys.appVersion:Debrief version`,
       commit: $localize`:@@diagnostics.reportView.sys.commit:Build`,
       os: $localize`:@@diagnostics.reportView.sys.os:Operating system`,
       osVersion: $localize`:@@diagnostics.reportView.sys.osVersion:OS version`,

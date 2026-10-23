@@ -72,7 +72,7 @@ describe('Welcome', () => {
   it('offers open buttons, how-it-works and recent paths that reopen', async () => {
     const { fixture, store, welcome } = setup();
     await settle(fixture);
-    expect(text(fixture)).toContain('How IMT works');
+    expect(text(fixture)).toContain('How Debrief works');
     expect(all(fixture, '.steps li')).toHaveLength(4);
     expect(all(fixture, '.recent .link .mono').map((b) => b.textContent)).toEqual(['web01/a.log', 'logs/web02']);
     // J1: each recent item says when it was opened (nothing when the time is unknown).
@@ -99,20 +99,20 @@ describe('Welcome', () => {
     const { fixture, welcome } = setup();
     const run = vi.spyOn(TestBed.inject(CommandRegistry), 'run').mockResolvedValue(undefined as never);
     await settle(fixture);
-    TestBed.inject(RecentService).projects.set([{ path: '/p/incident/case.imtproj', name: 'Case 12', openedAt: Date.now() }]);
+    TestBed.inject(RecentService).projects.set([{ path: '/p/incident/case.debriefproj', name: 'Case 12', openedAt: Date.now() }]);
     await settle(fixture);
     buttonByText(fixture, 'Open project…').click();
     expect(run).toHaveBeenCalledWith('project.open');
     const links = all(fixture, '.recent .link').map((b) => b.textContent?.replace(/\s+/g, ' ').trim());
     expect(links).toHaveLength(3);
     expect(links[0]).toContain('Case 12');
-    expect(links[0]).toContain('incident/case.imtproj');
+    expect(links[0]).toContain('incident/case.debriefproj');
     expect(links[1]).toContain('web01/a.log');
     expect(links[2]).toContain('logs/web02');
     const openProject = vi.spyOn(TestBed.inject(RecentOpener), 'openProject').mockResolvedValue();
     welcome.show();
     el<HTMLButtonElement>(fixture, '[data-testid=welcome-recent-project]').click();
-    expect(openProject).toHaveBeenCalledWith('/p/incident/case.imtproj');
+    expect(openProject).toHaveBeenCalledWith('/p/incident/case.debriefproj');
     expect(welcome.visible()).toBe(false);
   });
 
@@ -131,8 +131,8 @@ describe('Welcome', () => {
     await settle(fixture);
     recent.items = [];
     vi.spyOn(TestBed.inject(Platform), 'pickPaths').mockResolvedValue(['/bad']);
-    const { ImtBackend } = await import('../core/backend');
-    vi.spyOn(TestBed.inject(ImtBackend), 'openPaths').mockRejectedValue('nope');
+    const { DebriefBackend } = await import('../core/backend');
+    vi.spyOn(TestBed.inject(DebriefBackend), 'openPaths').mockRejectedValue('nope');
     await store.pickAndOpen(true);
     await store.openPaths(['/bad2']);
     expect(recent.items).toEqual([]);

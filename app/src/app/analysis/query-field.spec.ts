@@ -27,9 +27,9 @@ function key(input: HTMLElement, k: string, init: KeyboardEventInit = {}): Keybo
 
 /** The filter bar's pair: the field and the status line under it (the shell wires `pick` to `useSuggestion`). */
 @Component({
-  selector: 'imt-test-host',
+  selector: 'debrief-test-host',
   imports: [QueryField, QueryStatus],
-  template: `<imt-query-field #f /><imt-query-status (pick)="f.useSuggestion($event)" />`,
+  template: `<debrief-query-field #f /><debrief-query-status (pick)="f.useSuggestion($event)" />`,
 })
 class Host {}
 
@@ -56,7 +56,7 @@ describe('QueryField', () => {
     await refresh();
   };
 
-  const statusEl = () => el(fixture, 'imt-query-status');
+  const statusEl = () => el(fixture, 'debrief-query-status');
   const statusText = () => statusEl().textContent ?? '';
 
   const create = async (providers = provideAnalysisTesting({ context: ctx, history })) => {
@@ -140,6 +140,7 @@ describe('QueryField', () => {
     await refresh();
     expect(el(fixture, '[data-testid=partial-note]').textContent).toContain('+1');
     expect(el(fixture, '[data-testid=partial-note]').getAttribute('title')).toContain('1 more partial match added');
+    expect(el(fixture, '[data-testid=partial-note]').getAttribute('aria-label')).toContain('1 more partial match added');
     patchState(TestBed.inject(SmartSearchStore) as never, { added: 3 });
     await refresh();
     expect(el(fixture, '[data-testid=partial-note]').getAttribute('title')).toContain('3 more partial matches added');
@@ -533,6 +534,20 @@ describe('QueryField', () => {
       fixture.detectChanges();
       expect(el(fixture, '.box').classList.contains('expanded')).toBe(false);
       expect(input.style.height).toBe('28px');
+    });
+  });
+
+  describe('long single-line text', () => {
+    it('shows its start again on blur and keeps the full text as the tooltip', async () => {
+      await type('level >= error and source = web');
+      let scrollLeft = 120;
+      Object.defineProperty(input, 'scrollLeft', { get: () => scrollLeft, set: (v: number) => (scrollLeft = v), configurable: true });
+      expect(input.title).toBe('');
+      input.dispatchEvent(new Event('blur'));
+      await wait(5);
+      fixture.detectChanges();
+      expect(scrollLeft).toBe(0);
+      expect(input.title).toBe('level >= error and source = web');
     });
   });
 

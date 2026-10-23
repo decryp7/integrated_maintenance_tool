@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { closeStatusDetails, openStatusDetails } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { openAppWith, runCommand } from './tools-support';
 
@@ -63,12 +64,14 @@ test.describe('projects', () => {
     await runCommand(page, 'New project');
     await unsaved.getByRole('button', { name: 'Cancel' }).click();
     await expect(search).toHaveValue('timed out');
-    await expect(page.locator('imt-status-bar')).toContainText('6 sources');
+    const details = await openStatusDetails(page);
+    await expect(details.locator('div', { hasText: /^Sources/ })).toContainText('6');
+    await closeStatusDetails(page);
 
     await runCommand(page, 'New project');
     await unsaved.getByRole('button', { name: 'Discard' }).click();
     await expect(search).toHaveCount(0);
-    await expect(page.locator('imt-status-bar')).toContainText('No files open');
+    await expect(page.locator('debrief-status-bar')).toContainText('No files open');
     await expect(page.getByRole('img', { name: 'Unsaved changes' })).toHaveCount(0);
   });
 

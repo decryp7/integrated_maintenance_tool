@@ -16,7 +16,7 @@ let nextId = 1;
  * Ctrl+Space suggests, Escape closes.
  */
 @Component({
-  selector: 'imt-ql-input',
+  selector: 'debrief-ql-input',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [QlSuggestions],
   template: `
@@ -50,7 +50,7 @@ let nextId = 1;
         </ul>
       }
     </div>
-    @if (error(); as e) { <div class="err" [id]="errorId">{{ e.message }} <imt-ql-suggestions [error]="e" (pick)="useSuggestion($event)" /></div> }
+    @if (error(); as e) { <div class="err" [id]="errorId">{{ e.message }} <debrief-ql-suggestions [error]="e" (pick)="useSuggestion($event)" /></div> }
   `,
   styles: `
     :host { display: block; position: relative; min-width: 0; }

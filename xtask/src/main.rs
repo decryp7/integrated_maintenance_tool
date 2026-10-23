@@ -1,7 +1,7 @@
-//! Repository chores for IMT developers, run as `cargo xtask <task>` (alias in `.cargo/config.toml`).
+//! Repository chores for Debrief developers, run as `cargo xtask <task>` (alias in `.cargo/config.toml`).
 //!
 //! - `gen-samples`: regenerates every committed sample: the logs from `samples/generate.py`, then the
-//!   profiler captures and the crash dump, which Rust tests write when `IMT_REGENERATE_SAMPLES=1`.
+//!   profiler captures and the crash dump, which Rust tests write when `DEBRIEF_REGENERATE_SAMPLES=1`.
 //! - `libduckdb`: fetches the pinned prebuilt libduckdb the store worker links and points Cargo at it
 //!   (see [`libduckdb`]).
 
@@ -44,11 +44,10 @@ const PYTHONS: &[&[&str]] = &[&["python3"], &["python"], &["py", "-3"]];
 
 /// The Rust tests that write samples, as (crate, extra cargo args, test target).
 const RUST_GENERATORS: &[(&str, &[&str], &str)] = &[
-    ("imt-plugin-profiling", &["--no-default-features"], "gen_json_samples"),
-    ("imt-plugin-profiling", &["--no-default-features"], "gen_nettrace"),
-    ("imt-plugin-profiling", &["--no-default-features"], "gen_pprof"),
-    ("imt-plugin-dumps", &[], "samples"),
-    ("imt-plugin-windows", &[], "samples"),
+    ("debrief-plugin-profiling", &["--no-default-features"], "gen_json_samples"),
+    ("debrief-plugin-profiling", &["--no-default-features"], "gen_nettrace"),
+    ("debrief-plugin-profiling", &["--no-default-features"], "gen_pprof"),
+    ("debrief-plugin-dumps", &[], "samples"),
 ];
 
 /// The full `gen-samples` plan, given the Python launcher to use (program and leading arguments).
@@ -63,7 +62,7 @@ fn gen_samples_plan(python: &[&str], root: &Path) -> Vec<Step> {
         args.extend_from_slice(extra);
         // Only the ignored `regenerate_*` tests write files; the rest of the target runs in the normal test suite.
         args.extend_from_slice(&["--test", test, "--", "--ignored", "regenerate_"]);
-        steps.push(Step::new("cargo", &args).with_env("IMT_REGENERATE_SAMPLES", "1"));
+        steps.push(Step::new("cargo", &args).with_env("DEBRIEF_REGENERATE_SAMPLES", "1"));
     }
     steps
 }
@@ -166,13 +165,13 @@ mod tests {
         assert!(plan[0].env.is_empty());
         for step in &plan[1..] {
             assert_eq!(step.program, "cargo");
-            assert_eq!(step.env, vec![("IMT_REGENERATE_SAMPLES".to_owned(), "1".to_owned())]);
+            assert_eq!(step.env, vec![("DEBRIEF_REGENERATE_SAMPLES".to_owned(), "1".to_owned())]);
             assert!(step.args.ends_with(&["--".into(), "--ignored".into(), "regenerate_".into()]));
         }
         assert!(plan[1]
             .display()
-            .starts_with("IMT_REGENERATE_SAMPLES=1 cargo test -p imt-plugin-profiling --no-default-features"));
-        assert_eq!(plan.last().map(|s| s.args[2].as_str()), Some("imt-plugin-windows"));
+            .starts_with("DEBRIEF_REGENERATE_SAMPLES=1 cargo test -p debrief-plugin-profiling --no-default-features"));
+        assert_eq!(plan.last().map(|s| s.args[2].as_str()), Some("debrief-plugin-dumps"));
     }
 
     #[test]

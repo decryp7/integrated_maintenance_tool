@@ -1,4 +1,4 @@
-//! The AI command layer through the real IPC path (`tauri::test`), with the fakes of `imt-ai`: a scripted
+//! The AI command layer through the real IPC path (`tauri::test`), with the fakes of `debrief-ai`: a scripted
 //! model, a fake engine runtime and a fake model host. Set-up, models, use cases, chat streaming,
 //! background tasks, the settings section and saved chats.
 
@@ -7,12 +7,12 @@ use super::core::{AiCore, AiDeps};
 use super::{AiState, SETUP_EVENT};
 use crate::test_support::{samples, test_app_safe_mode, test_app_with_commands, window, TempDir};
 use crate::tools::tests::ipc;
-use imt_ai::hardware::{Gpu, Hardware, HardwareProbe};
-use imt_ai::llm::{LlmProvider, Reply, ScriptedProvider};
-use imt_ai::models::source::{ModelSource, Progress, RemoteFile};
-use imt_ai::models::DiskSpace;
-use imt_ai::runtime::{LoadRequest, Loaded, ModelRuntime};
-use imt_ai::AiError;
+use debrief_ai::hardware::{Gpu, Hardware, HardwareProbe};
+use debrief_ai::llm::{LlmProvider, Reply, ScriptedProvider};
+use debrief_ai::models::source::{ModelSource, Progress, RemoteFile};
+use debrief_ai::models::DiskSpace;
+use debrief_ai::runtime::{LoadRequest, Loaded, ModelRuntime};
+use debrief_ai::AiError;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -67,7 +67,7 @@ impl FakeRuntime {
 }
 
 impl ModelRuntime for FakeRuntime {
-    fn load(&self, req: &LoadRequest) -> imt_ai::Result<Loaded> {
+    fn load(&self, req: &LoadRequest) -> debrief_ai::Result<Loaded> {
         *self.loads.lock().unwrap() += 1;
         self.projectors.lock().unwrap().push(req.projector.clone());
         let mut replies = vec![Reply::Text("OK".into())];
@@ -75,7 +75,7 @@ impl ModelRuntime for FakeRuntime {
         Ok(Loaded {
             provider: Arc::new(ScriptedProvider::new(replies).with_context(req.context)),
             backend: "Fake GPU".into(),
-            server: Some(imt_ai::worker::protocol::ServerInfo {
+            server: Some(debrief_ai::worker::protocol::ServerInfo {
                 n_ctx: Some(req.context),
                 build: Some("b1-fake".into()),
                 ..Default::default()
@@ -92,16 +92,16 @@ struct FakeHost {
 }
 
 impl ModelSource for FakeHost {
-    fn describe(&self, _: &str, _: &str) -> imt_ai::Result<RemoteFile> {
+    fn describe(&self, _: &str, _: &str) -> debrief_ai::Result<RemoteFile> {
         Ok(self.remote.clone())
     }
     fn fetch(
         &self,
         _: &RemoteFile,
         offset: u64,
-        sink: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>,
+        sink: &mut dyn FnMut(&[u8]) -> debrief_ai::Result<()>,
         cancel: &AtomicBool,
-    ) -> imt_ai::Result<()> {
+    ) -> debrief_ai::Result<()> {
         for chunk in self.bytes[offset as usize..].chunks(8 * 1024) {
             if cancel.load(Ordering::Relaxed) {
                 return Err(AiError::Cancelled);
@@ -124,13 +124,13 @@ const TEST_MODEL: &str = "test-4b";
 const TEST_FILE: &str = "Test-4B-Q4_K_M.gguf";
 
 fn model_bytes() -> Vec<u8> {
-    imt_ai::testing::gguf::qwen_like()
+    debrief_ai::testing::gguf::qwen_like()
 }
 
 fn sha256_of(bytes: &[u8], dir: &Path) -> String {
     let p = dir.join("hash.bin");
     std::fs::write(&p, bytes).unwrap();
-    let h = imt_ai::models::download::sha256_file(&p, &Progress::new()).unwrap();
+    let h = debrief_ai::models::download::sha256_file(&p, &Progress::new()).unwrap();
     std::fs::remove_file(&p).unwrap();
     h
 }
@@ -355,11 +355,11 @@ fn use_cases_route_through_ipc_to_the_model_and_the_engine() {
 
 #[test]
 fn proposal_samples_come_from_the_ui_or_the_selected_event() {
-    let mut ws = imt_core::Workspace::new(imt_core::Profile::default_profile()).unwrap();
+    let mut ws = debrief_core::Workspace::new(debrief_core::Profile::default_profile()).unwrap();
     ws.open(&[samples().join("serilog-text")]).unwrap();
-    let ws = imt_core::workspace::WorkspaceStore::new(ws);
-    let direct: &dyn imt_core::ports::Store = &ws;
-    let store: imt_ai::StoreRef = direct.into();
+    let ws = debrief_core::workspace::WorkspaceStore::new(ws);
+    let direct: &dyn debrief_core::ports::Store = &ws;
+    let store: debrief_ai::StoreRef = direct.into();
     let (s, f) = sample_of(store, None, Some("a\nb".into()), Some("x.log".into())).unwrap();
     assert_eq!((s.as_str(), f.as_str()), ("a\nb", "x.log"));
     assert_eq!(sample_of(store, None, Some("a".into()), None).unwrap().1, "sample.log");
@@ -664,9 +664,9 @@ fn chat_streams_to_its_window_and_history_round_trips_through_the_project() {
     // Saved in the project's UI state under `chats`, reopened in another window.
     let history = ipc(&main, "ai_chat_history", json!({})).unwrap();
     assert_eq!(history["version"], 1);
-    let project = f.tmp.0.join("p.imtproj");
-    let file = imt_core::project::ProjectFile {
-        version: imt_core::project::PROJECT_VERSION,
+    let project = f.tmp.0.join("p.debriefproj");
+    let file = debrief_core::project::ProjectFile {
+        version: debrief_core::project::PROJECT_VERSION,
         name: "p".into(),
         sources: vec![],
         removed: vec![],
@@ -677,7 +677,7 @@ fn chat_streams_to_its_window_and_history_round_trips_through_the_project() {
         reports: vec![],
     };
     file.save(&project).unwrap();
-    let loaded = imt_core::project::ProjectFile::load(&project).unwrap();
+    let loaded = debrief_core::project::ProjectFile::load(&project).unwrap();
     let other = window(&app, "w-2");
     let r = ipc(&other, "ai_chat_restore", json!({"record": loaded.ui["chats"]})).unwrap();
     assert!(r["warning"].is_null());
@@ -822,7 +822,11 @@ impl LlmProvider for SlowModel {
     fn context_length(&self) -> usize {
         self.inner.context_length()
     }
-    fn chat(&self, req: &imt_ai::llm::ChatRequest, on_delta: &mut dyn FnMut(&str)) -> imt_ai::Result<imt_ai::llm::ChatResponse> {
+    fn chat(
+        &self,
+        req: &debrief_ai::llm::ChatRequest,
+        on_delta: &mut dyn FnMut(&str),
+    ) -> debrief_ai::Result<debrief_ai::llm::ChatResponse> {
         if self.calls.fetch_add(1, Ordering::SeqCst) > 0 {
             let (open, cv) = &*self.gate;
             let guard = open.lock().unwrap();
@@ -889,21 +893,21 @@ fn imports_do_not_wait_for_a_slow_turn_and_changed_citations_are_flagged() {
 /// The real engine through the command layer:
 ///
 ///   scripts/build-worker.sh --release
-///   cargo test -p imt-app ai::tests::real -- --ignored --nocapture
+///   cargo test -p debrief-app ai::tests::real -- --ignored --nocapture
 ///
-/// `IMT_TEST_GGUF` picks the model (default: Qwen3.5 4B in /private/tmp/claude-501/models); `IMT_AI_WORKER`
+/// `DEBRIEF_TEST_GGUF` picks the model (default: Qwen3.5 4B in /private/tmp/claude-501/models); `DEBRIEF_AI_WORKER`
 /// the worker binary (default: the one `build-worker.sh` puts in `app/src-tauri/binaries`).
 #[test]
 #[ignore]
 fn real_worker_set_up_with_a_local_model_answers_through_the_commands() {
-    let model = std::env::var("IMT_TEST_GGUF").unwrap_or_else(|_| "/private/tmp/claude-501/models/Qwen3.5-4B-Q4_K_M.gguf".into());
-    let worker = std::env::var("IMT_AI_WORKER").map(PathBuf::from).unwrap_or_else(|_| {
+    let model = std::env::var("DEBRIEF_TEST_GGUF").unwrap_or_else(|_| "/private/tmp/claude-501/models/Qwen3.5-4B-Q4_K_M.gguf".into());
+    let worker = std::env::var("DEBRIEF_AI_WORKER").map(PathBuf::from).unwrap_or_else(|_| {
         let bins = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("binaries");
         std::fs::read_dir(&bins)
             .unwrap()
             .flatten()
             .map(|e| e.path())
-            .find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("imt-ai-worker-")))
+            .find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with("debrief-ai-worker-")))
             .expect("run scripts/build-worker.sh first")
     });
     let tmp = TempDir::new("ai-real");
@@ -989,7 +993,7 @@ fn runtime_assets() -> Vec<(String, Vec<u8>)> {
     ]
 }
 
-fn runtime_catalog(assets: &[(String, Vec<u8>)], dir: &Path) -> imt_ai::runtimes::RuntimeCatalog {
+fn runtime_catalog(assets: &[(String, Vec<u8>)], dir: &Path) -> debrief_ai::runtimes::RuntimeCatalog {
     let builds: Vec<Value> = assets
         .iter()
         .map(|(name, data)| {
@@ -1003,18 +1007,18 @@ fn runtime_catalog(assets: &[(String, Vec<u8>)], dir: &Path) -> imt_ai::runtimes
         })
         .collect();
     let json = json!({"version": 1, "release": "v9", "tag": RT_TAG, "platforms": {"test": builds}});
-    imt_ai::runtimes::RuntimeCatalog::parse(&json.to_string()).unwrap()
+    debrief_ai::runtimes::RuntimeCatalog::parse(&json.to_string()).unwrap()
 }
 
 /// GitHub releases, served from memory (slowly when asked, honouring cancel).
 struct FakeReleases {
     assets: Vec<(String, Vec<u8>)>,
-    catalog: imt_ai::runtimes::RuntimeCatalog,
+    catalog: debrief_ai::runtimes::RuntimeCatalog,
     delay: Duration,
 }
 
 impl ModelSource for FakeReleases {
-    fn describe(&self, tag: &str, name: &str) -> imt_ai::Result<RemoteFile> {
+    fn describe(&self, tag: &str, name: &str) -> debrief_ai::Result<RemoteFile> {
         let a = self
             .catalog
             .platforms
@@ -1036,9 +1040,9 @@ impl ModelSource for FakeReleases {
         &self,
         remote: &RemoteFile,
         offset: u64,
-        sink: &mut dyn FnMut(&[u8]) -> imt_ai::Result<()>,
+        sink: &mut dyn FnMut(&[u8]) -> debrief_ai::Result<()>,
         cancel: &AtomicBool,
-    ) -> imt_ai::Result<()> {
+    ) -> debrief_ai::Result<()> {
         let bytes = &self.assets.iter().find(|(n, _)| *n == remote.file).unwrap().1;
         for chunk in bytes[offset as usize..].chunks(4 * 1024) {
             if cancel.load(Ordering::Relaxed) {
@@ -1062,7 +1066,7 @@ struct BuildTests {
 struct BuildUnderTest(Mutex<Vec<Reply>>);
 
 impl ModelRuntime for BuildUnderTest {
-    fn load(&self, req: &LoadRequest) -> imt_ai::Result<Loaded> {
+    fn load(&self, req: &LoadRequest) -> debrief_ai::Result<Loaded> {
         let replies = std::mem::take(&mut *self.0.lock().unwrap());
         Ok(Loaded {
             provider: Arc::new(ScriptedProvider::new(replies).with_context(req.context)),
@@ -1083,7 +1087,7 @@ fn test_runtimes_with(tmp: &TempDir, delay: Duration, tests: Arc<BuildTests>) ->
     let catalog = runtime_catalog(&assets, &tmp.0);
     let c = catalog.clone();
     super::runtimes::RuntimeDeps {
-        store: Arc::new(imt_ai::runtimes::RuntimeStore::new(tmp.0.join("runtimes"))),
+        store: Arc::new(debrief_ai::runtimes::RuntimeStore::new(tmp.0.join("runtimes"))),
         catalog,
         platform: "test".into(),
         source: Arc::new(move |_, _| {
@@ -1095,11 +1099,11 @@ fn test_runtimes_with(tmp: &TempDir, delay: Duration, tests: Arc<BuildTests>) ->
         }),
         report: Arc::new(|env: &[(String, String)]| {
             let get = |k: &str| env.iter().find(|(key, _)| key == k).map(|(_, v)| v.clone());
-            if get("IMT_LLAMA_SERVER").is_some_and(|p| p.contains("broken")) {
+            if get("DEBRIEF_LLAMA_SERVER").is_some_and(|p| p.contains("broken")) {
                 return Err(AiError::Engine("checking the inference builds failed".into()));
             }
-            let dir = PathBuf::from(get("IMT_LLAMA_DIR").unwrap_or_default());
-            let mut builds: Vec<imt_ai::runtimes::BuildInfo> = std::fs::read_dir(&dir)
+            let dir = PathBuf::from(get("DEBRIEF_LLAMA_DIR").unwrap_or_default());
+            let mut builds: Vec<debrief_ai::runtimes::BuildInfo> = std::fs::read_dir(&dir)
                 .map(|it| {
                     it.flatten()
                         .map(|e| e.file_name().to_string_lossy().into_owned())
@@ -1108,19 +1112,19 @@ fn test_runtimes_with(tmp: &TempDir, delay: Duration, tests: Arc<BuildTests>) ->
                 .unwrap_or_default()
                 .into_iter()
                 .filter(|id| !id.starts_with('.') && id != "manifest.json")
-                .map(|id| imt_ai::runtimes::BuildInfo {
+                .map(|id| debrief_ai::runtimes::BuildInfo {
                     usable: id != "vulkan",
                     problem: (id == "vulkan").then(|| "no supported GPU was found".to_string()),
                     devices: vec![],
-                    label: imt_ai::runtimes::builds::label(&id),
+                    label: debrief_ai::runtimes::builds::label(&id),
                     id,
                 })
                 .collect();
             builds.sort_by(|a, b| a.id.cmp(&b.id));
-            Ok(imt_ai::runtimes::BuildsReport {
+            Ok(debrief_ai::runtimes::BuildsReport {
                 release: Some(RT_TAG.into()),
                 source: "installed".into(),
-                choice: get("IMT_LLAMA_BUILD").unwrap_or_default(),
+                choice: get("DEBRIEF_LLAMA_BUILD").unwrap_or_default(),
                 auto: None,
                 builds,
                 problem: None,
@@ -1263,7 +1267,7 @@ fn runtimes_are_listed_installed_as_a_background_task_chosen_and_deleted() {
     ipc(&main, "ai_runtime_choose", json!({"id": "vulkan"})).unwrap();
     assert_eq!(core.settings().inference_build, "vulkan");
     let env = core.deps.runtimes.worker_env(&core.settings());
-    assert!(env.contains(&("IMT_LLAMA_BUILD".to_string(), "vulkan".to_string())), "{env:?}");
+    assert!(env.contains(&("DEBRIEF_LLAMA_BUILD".to_string(), "vulkan".to_string())), "{env:?}");
     assert_eq!(ai_section(&main)["values"]["inference_build"], "vulkan");
     assert_eq!(ipc(&main, "ai_runtimes", json!({})).unwrap()["choice"], "vulkan");
     ipc(&main, "ai_runtime_choose", json!({"id": "AUTO"})).unwrap();
@@ -1421,7 +1425,7 @@ fn the_status_reports_what_the_inference_server_said() {
 fn a_missing_runtime_is_a_typed_error_and_a_failed_report_is_shown() {
     struct NoRuntime;
     impl ModelRuntime for NoRuntime {
-        fn load(&self, _: &LoadRequest) -> imt_ai::Result<Loaded> {
+        fn load(&self, _: &LoadRequest) -> debrief_ai::Result<Loaded> {
             Err(AiError::NoRuntime)
         }
     }
@@ -1458,12 +1462,12 @@ fn a_missing_runtime_is_a_typed_error_and_a_failed_report_is_shown() {
 fn the_worker_environment_follows_the_settings_at_each_launch() {
     let tmp = TempDir::new("rt-env");
     let rt = test_runtimes(&tmp, Duration::ZERO);
-    let cell = Arc::new(std::sync::RwLock::new(imt_ai::settings::AiSettings::default()));
+    let cell = Arc::new(std::sync::RwLock::new(debrief_ai::settings::AiSettings::default()));
     let env = rt.worker_env_source(cell.clone());
-    let chosen = |env: &[(String, String)]| env.iter().find(|(k, _)| k == "IMT_LLAMA_BUILD").map(|(_, v)| v.clone());
+    let chosen = |env: &[(String, String)]| env.iter().find(|(k, _)| k == "DEBRIEF_LLAMA_BUILD").map(|(_, v)| v.clone());
     assert_eq!(chosen(&env()).as_deref(), Some("auto"));
     assert!(env().contains(&(
-        "IMT_LLAMA_DIR".to_string(),
+        "DEBRIEF_LLAMA_DIR".to_string(),
         tmp.0.join("runtimes").join(RT_TAG).to_string_lossy().into_owned()
     )));
     cell.write().unwrap().inference_build = "cpu".into();
@@ -1474,15 +1478,19 @@ fn the_worker_environment_follows_the_settings_at_each_launch() {
 fn worker_memory_counts_the_workers_llama_server_children() {
     use super::core::tree_rss_bytes;
     let rows = vec![
-        (10, Some(1), "imt-ai-worker".to_string(), 30),
+        (10, Some(1), "debrief-ai-worker".to_string(), 30),
         (11, Some(10), "llama-server".to_string(), 3000),
         (12, Some(11), "grandchild".to_string(), 7),
-        (20, Some(1), "imt-plugin-host".to_string(), 500),
+        (20, Some(1), "debrief-plugin-host".to_string(), 500),
         (21, Some(20), "llama-server".to_string(), 999),
-        (30, Some(2), "imt-ai-worker".to_string(), 40),
+        (30, Some(2), "debrief-ai-worker".to_string(), 40),
         (31, Some(30), "llama-server".to_string(), 4000),
     ];
-    assert_eq!(tree_rss_bytes(1, &rows), 3030, "only this IMT's workers and their direct children");
+    assert_eq!(
+        tree_rss_bytes(1, &rows),
+        3030,
+        "only this Debrief's workers and their direct children"
+    );
     assert_eq!(tree_rss_bytes(99, &rows), 0);
 }
 
@@ -1511,7 +1519,11 @@ impl LlmProvider for GatedProvider {
     fn context_length(&self) -> usize {
         self.inner.context_length()
     }
-    fn chat(&self, req: &imt_ai::llm::ChatRequest, on_delta: &mut dyn FnMut(&str)) -> imt_ai::Result<imt_ai::llm::ChatResponse> {
+    fn chat(
+        &self,
+        req: &debrief_ai::llm::ChatRequest,
+        on_delta: &mut dyn FnMut(&str),
+    ) -> debrief_ai::Result<debrief_ai::llm::ChatResponse> {
         self.entered.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         match self.steps.lock().unwrap().recv() {
             Ok(Step::Answer) => self.inner.chat(req, on_delta),
@@ -1692,7 +1704,7 @@ fn a_waiting_request_can_be_cancelled_and_a_queued_turn_frees_its_chat() {
 #[test]
 fn a_quarantined_worker_pauses_the_ai_queue_until_reset() {
     let f = Fixture::new("ai-quarantine");
-    let health = Arc::new(imt_ai::worker::Health::new(1, Duration::from_secs(600)));
+    let health = Arc::new(debrief_ai::worker::Health::new(1, Duration::from_secs(600)));
     let mut deps = f.deps();
     deps.health = Some(health.clone());
     let core = Arc::new(AiCore::new(Some(ai_dir(&f.tmp)), f.tmp.0.join("models"), false, deps));

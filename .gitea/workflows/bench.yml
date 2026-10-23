@@ -1,7 +1,7 @@
-# Engine benchmarks (crates/imt-core/benches) on pushes to main that change the
+# Engine benchmarks (crates/debrief-core/benches) on pushes to main that change the
 # engine, nightly and on demand. A quick criterion pass keeps the job short; the
 # HTML report is uploaded as an artifact so runs can be compared. Raise the input sizes locally with
-# IMT_BENCH_IMPORT_LINES / IMT_BENCH_WORKSPACE_LINES.
+# DEBRIEF_BENCH_IMPORT_LINES / DEBRIEF_BENCH_WORKSPACE_LINES.
 
 name: bench
 
@@ -11,9 +11,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "crates/imt-core/**"
-      - "crates/imt-store-duck/**"
-      - "crates/imt-store-worker/**"
+      - "crates/debrief-core/**"
+      - "crates/debrief-store-duck/**"
+      - "crates/debrief-store-worker/**"
   schedule:
     - cron: "47 3 * * *"
   workflow_dispatch:
@@ -32,7 +32,7 @@ jobs:
     name: engine benchmarks
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
     steps:
       - uses: actions/checkout@v4
 
@@ -54,13 +54,13 @@ jobs:
       - uses: actions/cache@v4
         if: runner.os != 'Windows'
         with:
-          path: ~/.cache/imt-libduckdb
-          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+          path: ~/.cache/debrief-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/debrief-store-duck/scripts/fetch-libduckdb.sh') }}
 
       - name: libduckdb (prebuilt, pinned SHA-256)
         shell: bash
         run: |
-          eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          eval "$(bash crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
           : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
           echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
           echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
@@ -71,7 +71,7 @@ jobs:
           esac
 
       - name: Benchmarks (quick)
-        run: cargo bench -p imt-core --bench engine -- --quick
+        run: cargo bench -p debrief-core --bench engine -- --quick
 
       - uses: actions/cache/save@v4
         if: always()
@@ -97,7 +97,7 @@ jobs:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v4
@@ -109,13 +109,13 @@ jobs:
       - uses: actions/cache@v4
         if: runner.os != 'Windows'
         with:
-          path: ~/.cache/imt-libduckdb
-          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/imt-store-duck/scripts/fetch-libduckdb.sh') }}
+          path: ~/.cache/debrief-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/debrief-store-duck/scripts/fetch-libduckdb.sh') }}
 
       - name: libduckdb (prebuilt, pinned SHA-256)
         shell: bash
         run: |
-          eval "$(bash crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+          eval "$(bash crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
           : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
           echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
           echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
@@ -127,20 +127,20 @@ jobs:
 
       - uses: actions/cache@v4
         with:
-          path: ~/.cache/imt-bench-corpus
+          path: ~/.cache/debrief-bench-corpus
           key: store-bench-corpus-v1
 
       - name: Import, index and reads at 10M events (budgets asserted)
         env:
-          IMT_BENCH_EVENTS: "10000000"
+          DEBRIEF_BENCH_EVENTS: "10000000"
         # The import benchmark asserts the import budgets; the read benchmark reports every operation against the
-        # 0.5 s / 300 MB budgets (IMT_BENCH_STRICT=1 enforces them once the known misses in ADR 0014 are fixed).
+        # 0.5 s / 300 MB budgets (DEBRIEF_BENCH_STRICT=1 enforces them once the known misses in ADR 0014 are fixed).
         run: |
-          export IMT_BENCH_DIR="$HOME/.cache/imt-bench-corpus" IMT_BENCH_STORE="${RUNNER_TEMP:-/tmp}/imt-bench-store"
-          cargo test --release -p imt-store-duck --test bench -- --nocapture
-          cargo test --release -p imt-store-duck --test bench_reads -- --nocapture
+          export DEBRIEF_BENCH_DIR="$HOME/.cache/debrief-bench-corpus" DEBRIEF_BENCH_STORE="${RUNNER_TEMP:-/tmp}/debrief-bench-store"
+          cargo test --release -p debrief-store-duck --test bench -- --nocapture
+          cargo test --release -p debrief-store-duck --test bench_reads -- --nocapture
 
       - name: The worker's memory budgets (20 copies of the samples)
         env:
-          IMT_BENCH_COPIES: "20"
-        run: cargo test --release -p imt-store-worker --test worker -- --nocapture
+          DEBRIEF_BENCH_COPIES: "20"
+        run: cargo test --release -p debrief-store-worker --test worker -- --nocapture

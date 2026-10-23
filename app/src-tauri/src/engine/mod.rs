@@ -2,7 +2,7 @@
 //! worker for all windows ([`WorkerHost`]; in process in tests), plus what stays in the app: the window's plugin
 //! registry (tools, configuration parsers, marker kinds, plugin status) and its compiled profile.
 //!
-//! A window's store lives in a folder: a scratch folder under IMT's data folder (`stores/<window>-…`) until the
+//! A window's store lives in a folder: a scratch folder under Debrief's data folder (`stores/<window>-…`) until the
 //! user saves a project, or the project's own folder. The store is opened on first use, so a window that never
 //! opens anything never starts the worker, and a missing libduckdb is an error of that command with a hint,
 //! not of the app.
@@ -18,11 +18,11 @@ pub(crate) mod summary;
 
 use crate::error::{CmdError, CmdResult};
 use crate::ErrorCode;
-use imt_core::package::ProjectManifest;
-use imt_core::ports::{Store, StoreError, StoreResult};
-use imt_core::profile::CompiledProfile;
-use imt_core::redact::Redactor;
-use imt_core::{PluginRegistry, Profile};
+use debrief_core::package::ProjectManifest;
+use debrief_core::ports::{Store, StoreError, StoreResult};
+use debrief_core::profile::CompiledProfile;
+use debrief_core::redact::Redactor;
+use debrief_core::{PluginRegistry, Profile};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
@@ -36,21 +36,21 @@ pub(crate) trait StoreHost: Send + Sync {
     fn create(&self, dir: &Path, profile: &Profile) -> StoreResult<SharedStore>;
     /// The store already in `dir` (a window restored after a restart).
     fn open(&self, dir: &Path, profile: &Profile) -> StoreResult<SharedStore>;
-    /// A project: a `.imt` folder in place, or an `.imtz` extracted into a new folder under `dest_root`.
+    /// A project: a `.debrief` folder in place, or an `.debriefz` extracted into a new folder under `dest_root`.
     fn open_project(&self, path: &Path, dest_root: &Path, profile: &Profile) -> StoreResult<(SharedStore, ProjectManifest)>;
     /// The installed third-party plugins that read files now (after a grant change or a removal), for hosts that
     /// start plugins themselves.
-    fn set_third_party(&self, _plugins: Vec<imt_store_client::protocol::ThirdPartyPlugin>) {}
+    fn set_third_party(&self, _plugins: Vec<debrief_store_client::protocol::ThirdPartyPlugin>) {}
 }
 
 /// The store worker of the app: one process for every window's store.
 pub(crate) struct WorkerHost {
-    worker: imt_store_client::StoreWorker,
+    worker: debrief_store_client::StoreWorker,
 }
 
 impl WorkerHost {
-    /// The worker next to IMT's executable (`IMT_STORE_WORKER` overrides it), with libduckdb from the installed
-    /// resource folder `lib_dir` (installers), next to the worker, or from IMT's own library path (development
+    /// The worker next to Debrief's executable (`DEBRIEF_STORE_WORKER` overrides it), with libduckdb from the installed
+    /// resource folder `lib_dir` (installers), next to the worker, or from Debrief's own library path (development
     /// builds, `fetch-libduckdb.sh`). The worker starts the built-in plugins and the installed `third_party` ones
     /// for imports itself (ADR 0027), with `launch` (its cap and tuning from Settings ▸ Performance, ADR 0031) and
     /// `memory_listener` hearing its memory watcher.
@@ -58,12 +58,12 @@ impl WorkerHost {
         disabled_plugins: Vec<String>,
         safe_mode: bool,
         lib_dir: Option<PathBuf>,
-        third_party: Vec<imt_store_client::protocol::ThirdPartyPlugin>,
-        launch: imt_store_client::WorkerLaunch,
-        memory_listener: Option<imt_ipc::memory_watch::MemoryListener>,
+        third_party: Vec<debrief_store_client::protocol::ThirdPartyPlugin>,
+        launch: debrief_store_client::WorkerLaunch,
+        memory_listener: Option<debrief_ipc::memory_watch::MemoryListener>,
     ) -> StoreResult<WorkerHost> {
         let exe = worker_binary();
-        let mut cfg = imt_store_client::WorkerConfig::new(&exe);
+        let mut cfg = debrief_store_client::WorkerConfig::new(&exe);
         cfg.memory_mode = launch.memory_mode;
         cfg.memory_cap = launch.memory_cap;
         cfg.tuning = launch.tuning;
@@ -74,25 +74,25 @@ impl WorkerHost {
         cfg.third_party = third_party;
         cfg.child_log = true;
         Ok(WorkerHost {
-            worker: imt_store_client::StoreWorker::new(cfg)?,
+            worker: debrief_store_client::StoreWorker::new(cfg)?,
         })
     }
 
     /// The supervised worker (Settings ▸ Performance hands it new launch values).
-    pub(crate) fn worker(&self) -> imt_store_client::StoreWorker {
+    pub(crate) fn worker(&self) -> debrief_store_client::StoreWorker {
         self.worker.clone()
     }
 }
 
-/// Where the store worker's executable is: `IMT_STORE_WORKER`, else next to IMT's own executable.
+/// Where the store worker's executable is: `DEBRIEF_STORE_WORKER`, else next to Debrief's own executable.
 pub(crate) fn worker_binary() -> PathBuf {
-    if let Some(p) = std::env::var_os("IMT_STORE_WORKER") {
+    if let Some(p) = std::env::var_os("DEBRIEF_STORE_WORKER") {
         return PathBuf::from(p);
     }
     let name = if cfg!(windows) {
-        "imt-store-worker.exe"
+        "debrief-store-worker.exe"
     } else {
-        "imt-store-worker"
+        "debrief-store-worker"
     };
     std::env::current_exe()
         .ok()
@@ -114,7 +114,7 @@ impl StoreHost for WorkerHost {
         Ok((Arc::new(store), manifest))
     }
 
-    fn set_third_party(&self, plugins: Vec<imt_store_client::protocol::ThirdPartyPlugin>) {
+    fn set_third_party(&self, plugins: Vec<debrief_store_client::protocol::ThirdPartyPlugin>) {
         if let Err(e) = self.worker.set_third_party(plugins) {
             log::warn!("The store worker did not take the plugin change: {e}");
         }
@@ -124,7 +124,7 @@ impl StoreHost for WorkerHost {
 /// What the window's store folder is.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub(crate) enum StoreKind {
-    /// IMT's own scratch folder for this window (deleted when the window closes).
+    /// Debrief's own scratch folder for this window (deleted when the window closes).
     Scratch,
     /// A project folder the user chose or opened (kept).
     Project,
@@ -146,13 +146,13 @@ pub(crate) struct Engine {
     /// The profile a new store starts with (the window's).
     profile: Mutex<Profile>,
     /// The parser library every store of the window reads with (ADR 0026; the app's, shared by all windows).
-    parsers: Mutex<imt_core::parser::ParserSetup>,
+    parsers: Mutex<debrief_core::parser::ParserSetup>,
     /// Sources of the store read with a parser that has since changed (the last library change said so).
     stale_parsers: Mutex<usize>,
     /// The import report of the last import (load time, problems).
-    last_report: Mutex<Option<imt_core::ports::ImportReport>>,
+    last_report: Mutex<Option<debrief_core::ports::ImportReport>>,
     /// The running import's progress (`import_progress`), as its job last read it.
-    progress: Mutex<imt_core::workspace::ProgressSnapshot>,
+    progress: Mutex<debrief_core::workspace::ProgressSnapshot>,
 }
 
 /// Scratch folders made by this process (unique per window and store).
@@ -166,10 +166,10 @@ impl Engine {
             label: label.to_string(),
             current: RwLock::default(),
             profile: Mutex::new(profile),
-            parsers: Mutex::new(imt_core::parser::ParserSetup::builtins()),
+            parsers: Mutex::new(debrief_core::parser::ParserSetup::builtins()),
             stale_parsers: Mutex::new(0),
             last_report: Mutex::default(),
-            progress: Mutex::new(imt_core::workspace::ProgressSnapshot::stopped()),
+            progress: Mutex::new(debrief_core::workspace::ProgressSnapshot::stopped()),
         }
     }
 
@@ -212,7 +212,7 @@ impl Engine {
     }
 
     /// The parser library changed: new stores read with `setup`, and the open store is told at once.
-    pub(crate) fn set_parsers(&self, setup: imt_core::parser::ParserSetup) {
+    pub(crate) fn set_parsers(&self, setup: debrief_core::parser::ParserSetup) {
         *crate::sync::lock(&self.parsers) = setup;
         if let Some(store) = self.opened() {
             self.hand_parsers(store.as_ref());
@@ -245,7 +245,7 @@ impl Engine {
         self.root.join(format!("{}-{}-{n}", self.label, std::process::id()))
     }
 
-    /// Where an opened `.imtz` project is extracted (a new folder under the stores folder).
+    /// Where an opened `.debriefz` project is extracted (a new folder under the stores folder).
     pub(crate) fn unpack_root(&self) -> PathBuf {
         self.scratch_dir()
     }
@@ -276,23 +276,23 @@ impl Engine {
         crate::sync::lock(&self.profile).clone()
     }
 
-    pub(crate) fn note_report(&self, report: imt_core::ports::ImportReport) {
+    pub(crate) fn note_report(&self, report: debrief_core::ports::ImportReport) {
         *crate::sync::lock(&self.last_report) = Some(report);
     }
 
-    pub(crate) fn note_progress(&self, p: imt_core::workspace::ProgressSnapshot) {
+    pub(crate) fn note_progress(&self, p: debrief_core::workspace::ProgressSnapshot) {
         *crate::sync::lock(&self.progress) = p;
     }
 
-    pub(crate) fn progress(&self) -> imt_core::workspace::ProgressSnapshot {
+    pub(crate) fn progress(&self) -> debrief_core::workspace::ProgressSnapshot {
         crate::sync::lock(&self.progress).clone()
     }
 
-    pub(crate) fn last_report(&self) -> Option<imt_core::ports::ImportReport> {
+    pub(crate) fn last_report(&self) -> Option<debrief_core::ports::ImportReport> {
         crate::sync::lock(&self.last_report).clone()
     }
 
-    /// Closes the store (the window closed). A scratch folder is deleted unless IMT is quitting (then the
+    /// Closes the store (the window closed). A scratch folder is deleted unless Debrief is quitting (then the
     /// session restores it).
     pub(crate) fn shutdown(&self, keep: bool) {
         if let Some(c) = crate::sync::write(&self.current).take() {
@@ -320,7 +320,7 @@ fn retire(c: Current) {
 }
 
 /// Removes scratch store folders that no window uses (left by a crash or a busy folder), except `keep` (the
-/// stores autosaved sessions reopen) and those of IMT processes still running (another instance).
+/// stores autosaved sessions reopen) and those of Debrief processes still running (another instance).
 pub(crate) fn sweep_scratch(root: &Path, keep: &[PathBuf]) {
     let Ok(entries) = std::fs::read_dir(root) else { return };
     let keep: Vec<PathBuf> = keep
@@ -360,7 +360,7 @@ fn unavailable(e: &StoreError) -> CmdError {
     let mut err = store_error(e.clone());
     if matches!(e, StoreError::Engine(_)) {
         err = CmdError::new(ErrorCode::Unavailable, format!("the log store could not start: {e}"))
-            .hint("Reinstall IMT: the store worker (imt-store-worker) and its database library (duckdb) must be next to IMT.");
+            .hint("Reinstall Debrief: the store worker (debrief-store-worker) and its database library (duckdb) must be next to Debrief.");
     }
     err
 }
@@ -387,12 +387,12 @@ pub(crate) fn store_error(e: StoreError) -> CmdError {
         StoreError::Damaged(m) => {
             // Retrying reads the same damaged file.
             let mut e = CmdError::new(ErrorCode::Failed, m)
-                .hint("Open the original log files again, or open the project's .imtz export: its copy is intact.");
+                .hint("Open the original log files again, or open the project's .debriefz export: its copy is intact.");
             e.retryable = false;
             e
         }
         StoreError::Locked(m) => {
-            CmdError::new(ErrorCode::Busy, m).hint("Close the other IMT window or program that has this project open, then try again.")
+            CmdError::new(ErrorCode::Busy, m).hint("Close the other Debrief window or program that has this project open, then try again.")
         }
     }
 }
@@ -409,7 +409,7 @@ pub(crate) struct Host {
     pub(crate) registry: Arc<PluginRegistry>,
     compiled: RwLock<Arc<CompiledProfile>>,
     /// The redacted view's redactor (the profile's rules) while the user has it on; the store's replies that show
-    /// event text pass through it ([`imt_core::redact::view`]).
+    /// event text pass through it ([`debrief_core::redact::view`]).
     view: RwLock<Option<Arc<Redactor>>>,
 }
 
@@ -427,7 +427,7 @@ impl Host {
     /// has no rules.
     pub(crate) fn set_redacted_view(&self, on: bool) -> anyhow::Result<()> {
         let view = if on {
-            Some(Arc::new(imt_core::redact::view_redactor(&self.compiled().profile.redact)?))
+            Some(Arc::new(debrief_core::redact::view_redactor(&self.compiled().profile.redact)?))
         } else {
             None
         };
@@ -454,7 +454,7 @@ impl Host {
     pub(crate) fn set_compiled(&self, compiled: CompiledProfile) {
         let mut view = crate::sync::write(&self.view);
         if view.is_some() {
-            *view = match imt_core::redact::view_redactor(&compiled.profile.redact) {
+            *view = match debrief_core::redact::view_redactor(&compiled.profile.redact) {
                 Ok(r) => Some(Arc::new(r)),
                 Err(e) => {
                     log::info!("The redacted view is off: {e}");
@@ -493,11 +493,11 @@ mod tests {
         assert_eq!(e.code, ErrorCode::Unsupported);
         let e: CmdError = StoreError::Damaged("a data file is damaged".into()).into();
         assert_eq!((e.code, e.retryable), (ErrorCode::Failed, false));
-        assert!(e.hint.as_deref().is_some_and(|h| h.contains(".imtz")));
+        assert!(e.hint.as_deref().is_some_and(|h| h.contains(".debriefz")));
         let e: CmdError = StoreError::Locked("open elsewhere".into()).into();
         assert_eq!((e.code, e.retryable), (ErrorCode::Busy, true));
         assert!(e.hint.as_deref().is_some_and(|h| h.contains("Close")));
-        let e: CmdError = StoreError::Query(imt_core::ql::QlError {
+        let e: CmdError = StoreError::Query(debrief_core::ql::QlError {
             message: "unknown field".into(),
             offset: 3,
             len: 2,
@@ -514,10 +514,10 @@ mod tests {
     #[test]
     fn a_missing_worker_is_unavailable_with_a_hint_and_nothing_else_breaks() {
         let t = crate::test_support::TempDir::new("missing-worker");
-        let mut cfg = imt_store_client::WorkerConfig::new(t.0.join("no-such-worker.exe"));
+        let mut cfg = debrief_store_client::WorkerConfig::new(t.0.join("no-such-worker.exe"));
         cfg.supervisor.max_crashes = 1;
         let host = WorkerHost {
-            worker: imt_store_client::StoreWorker::new(cfg).unwrap(),
+            worker: debrief_store_client::StoreWorker::new(cfg).unwrap(),
         };
         let engine = Engine::new(Arc::new(host), t.0.join("stores"), "main", Profile::default_profile());
         let e = engine.store().err().unwrap();
@@ -547,7 +547,7 @@ mod tests {
         let kept = engine.opened().unwrap().store_dir();
         engine.shutdown(false);
         assert!(kept.exists());
-        // Sweeping removes what no window uses, but not a running IMT's or a session's.
+        // Sweeping removes what no window uses, but not a running Debrief's or a session's.
         std::fs::create_dir_all(root.join("stale")).unwrap();
         let dead = root.join("w-2-4294967294-1");
         let mine = root.join(format!("main-{}-9", std::process::id()));

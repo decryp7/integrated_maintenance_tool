@@ -1,6 +1,6 @@
 import { EMPTY_QUERY } from '../../core/workspace.store';
 import { RecordView, SourceInfo } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { REGISTRY_ROW_CAP } from './registry-tree';
 
 const PAGE = 2000;
@@ -12,7 +12,7 @@ export interface RegistryRows {
 }
 
 /** Reads all rows of the given registry sources (filtered by `@source`), page by page, up to the cap. */
-export async function loadRegistryRows(backend: ImtBackend, sources: readonly SourceInfo[], cap = REGISTRY_ROW_CAP): Promise<RegistryRows> {
+export async function loadRegistryRows(backend: DebriefBackend, sources: readonly SourceInfo[], cap = REGISTRY_ROW_CAP): Promise<RegistryRows> {
   const rows: RecordView[] = [];
   let truncated = false;
   for (const source of sources) {

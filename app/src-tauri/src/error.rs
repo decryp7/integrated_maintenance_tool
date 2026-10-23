@@ -2,8 +2,8 @@
 //! line?, hint?, detail? }`, camelCase on the wire and mirrored as `CmdError` in api.types.ts. The UI shows
 //! `message` (and `hint`, the next step), and reacts to `code` and `retryable`, never to the text.
 //!
-//! Domain errors keep their own types inside the shell and the libraries (`imt_ai::Error`,
-//! [`imt_profile::api::ProfilingErrorDto`], [`crate::updater::UpdateError`], [`crate::paths`] refusals) and
+//! Domain errors keep their own types inside the shell and the libraries (`debrief_ai::Error`,
+//! [`debrief_profile::api::ProfilingErrorDto`], [`crate::updater::UpdateError`], [`crate::paths`] refusals) and
 //! convert here, once, at the command edge. Plain text errors of older helpers become `failed`.
 
 use serde::Serialize;
@@ -35,13 +35,13 @@ pub enum ErrorCode {
     Unsupported,
     /// Off in this run (safe mode, missing component, quarantined).
     Unavailable,
-    /// The target exists and replacing it was not confirmed (see `imt_core::overwrite`).
+    /// The target exists and replacing it was not confirmed (see `debrief_core::overwrite`).
     FileExists,
     /// Missing rights (administrator, access denied): offer to restart elevated.
     Denied,
     /// A program a tool runs is not installed.
     Missing,
-    /// A bug or a crash inside IMT (contained).
+    /// A bug or a crash inside Debrief (contained).
     Internal,
     // ---- the AI ----
     NoModel,
@@ -49,7 +49,7 @@ pub enum ErrorCode {
     /// The active model cannot read images (no projector installed for it; ADR 0025).
     NoVision,
     Engine,
-    /// The research or agent browser failed (not open, a page that did not answer or changed): not an IMT bug.
+    /// The research or agent browser failed (not open, a page that did not answer or changed): not a Debrief bug.
     Browser,
     ContextOverflow,
     Malformed,
@@ -84,7 +84,7 @@ pub enum ErrorCode {
     // ---- plugins ----
     /// A plugin package that is unsigned or signed by a key the user has not trusted (developer mode is off).
     Untrusted,
-    /// A plugin built for a plugin protocol this IMT cannot serve; the message says which side to update.
+    /// A plugin built for a plugin protocol this Debrief cannot serve; the message says which side to update.
     Incompatible,
 }
 
@@ -131,7 +131,7 @@ pub struct CmdError {
 pub type CmdResult<T> = Result<T, CmdError>;
 
 /// A profiling engine result as a command result.
-pub fn lift_dto<T>(r: Result<T, imt_profile::api::ProfilingErrorDto>) -> CmdResult<T> {
+pub fn lift_dto<T>(r: Result<T, debrief_profile::api::ProfilingErrorDto>) -> CmdResult<T> {
     r.map_err(CmdError::from)
 }
 
@@ -232,15 +232,15 @@ impl From<&str> for CmdError {
     }
 }
 
-impl From<imt_core::overwrite::FileExists> for CmdError {
-    fn from(e: imt_core::overwrite::FileExists) -> CmdError {
+impl From<debrief_core::overwrite::FileExists> for CmdError {
+    fn from(e: debrief_core::overwrite::FileExists) -> CmdError {
         CmdError::new(ErrorCode::FileExists, e.to_string())
     }
 }
 
-impl From<imt_profile::api::ProfilingErrorDto> for CmdError {
-    fn from(e: imt_profile::api::ProfilingErrorDto) -> CmdError {
-        use imt_profile::error::ErrorCode as P;
+impl From<debrief_profile::api::ProfilingErrorDto> for CmdError {
+    fn from(e: debrief_profile::api::ProfilingErrorDto) -> CmdError {
+        use debrief_profile::error::ErrorCode as P;
         let code = match e.code {
             P::NotACapture => ErrorCode::NotACapture,
             P::Io => ErrorCode::Io,
@@ -260,7 +260,7 @@ impl crate::jobs::JobFailure for CmdError {
     }
 }
 
-/// A request whose job never ran: the queue was full (busy), it was cancelled while waiting, or IMT closed.
+/// A request whose job never ran: the queue was full (busy), it was cancelled while waiting, or Debrief closed.
 impl From<crate::jobs::Stopped> for CmdError {
     fn from(s: crate::jobs::Stopped) -> CmdError {
         use crate::jobs::Stopped;
@@ -301,21 +301,21 @@ mod tests {
     #[test]
     fn domain_errors_and_stopped_jobs_convert_once() {
         use crate::jobs::{JobFailure, Stopped};
-        let fe = CmdError::from(imt_core::overwrite::FileExists("/x/a.md".into()));
+        let fe = CmdError::from(debrief_core::overwrite::FileExists("/x/a.md".into()));
         assert_eq!(fe.code, ErrorCode::FileExists);
-        let p = CmdError::from(imt_profile::api::ProfilingErrorDto::new(
-            imt_profile::error::ErrorCode::NotACapture,
+        let p = CmdError::from(debrief_profile::api::ProfilingErrorDto::new(
+            debrief_profile::error::ErrorCode::NotACapture,
             "no",
         ));
         assert_eq!((p.code, p.message.as_str()), (ErrorCode::NotACapture, "no"));
         for (code, want) in [
-            (imt_profile::error::ErrorCode::Io, ErrorCode::Io),
-            (imt_profile::error::ErrorCode::Limit, ErrorCode::Limit),
-            (imt_profile::error::ErrorCode::Unsupported, ErrorCode::Unsupported),
-            (imt_profile::error::ErrorCode::Invalid, ErrorCode::Invalid),
-            (imt_profile::error::ErrorCode::NotFound, ErrorCode::NotFound),
+            (debrief_profile::error::ErrorCode::Io, ErrorCode::Io),
+            (debrief_profile::error::ErrorCode::Limit, ErrorCode::Limit),
+            (debrief_profile::error::ErrorCode::Unsupported, ErrorCode::Unsupported),
+            (debrief_profile::error::ErrorCode::Invalid, ErrorCode::Invalid),
+            (debrief_profile::error::ErrorCode::NotFound, ErrorCode::NotFound),
         ] {
-            assert_eq!(CmdError::from(imt_profile::api::ProfilingErrorDto::new(code, "m")).code, want);
+            assert_eq!(CmdError::from(debrief_profile::api::ProfilingErrorDto::new(code, "m")).code, want);
         }
         assert_eq!(CmdError::from(Stopped::Refused("full".into())).code, ErrorCode::Busy);
         assert!(CmdError::from(Stopped::Cancelled).cancelled());

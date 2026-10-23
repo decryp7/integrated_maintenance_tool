@@ -1,7 +1,7 @@
 import { invoke } from './activity/ipc';
 import { inject, Provider } from '@angular/core';
 import { InstalledPluginDto, InstalledPluginsDto, PackageReviewDto, PermissionDto, Report } from './api.types';
-import { ImtBackend } from './backend';
+import { DebriefBackend } from './backend';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
@@ -32,7 +32,7 @@ import { hasSkew } from './skew-backend';
 import { browserMocks } from './mock-registry';
 
 /** Names of the events the shell emits. */
-export const OPEN_EVENT = 'imt://open';
+export const OPEN_EVENT = 'debrief://open';
 
 /** Stops listening to an event. */
 export type Unlisten = () => void;
@@ -106,7 +106,7 @@ export abstract class LifecycleBackend {
 }
 
 /**
- * Third-party plugin packages (`.imtplugin`): review before installing, then manage what is installed. Paths come
+ * Third-party plugin packages (`.debriefplugin`): review before installing, then manage what is installed. Paths come
  * from the native dialog or a drop, which the shell granted; the shell re-checks the package at install against the
  * reviewed `digest`.
  */
@@ -149,7 +149,7 @@ export class TauriPluginPackagesBackend extends PluginPackagesBackend {
   }
 }
 
-/** Projects and OS "open with" requests (live tail lives on `ImtBackend`). */
+/** Projects and OS "open with" requests (live tail lives on `DebriefBackend`). */
 export abstract class ProjectBackend {
   /** Saves the project; `reports` are its incident reports (validated by the engine). Never replaces a file unless `overwrite`. */
   abstract saveProject(
@@ -161,7 +161,7 @@ export abstract class ProjectBackend {
   ): Promise<ProjectSaved>;
   abstract openProject(path: string): Promise<ProjectOpened>;
   abstract takePendingOpen(): Promise<string[]>;
-  /** Calls `handler` whenever the shell queued paths to open (`imt://open`). */
+  /** Calls `handler` whenever the shell queued paths to open (`debrief://open`). */
   abstract onOpenRequested(handler: () => void): Promise<Unlisten>;
 }
 
@@ -362,14 +362,14 @@ export class TauriToolsBackend extends ToolsBackend {
 /** The real backend inside Tauri, the in-memory mock in a plain browser (ng serve, e2e). */
 export function provideToolsBackend(): Provider[] {
   const factory = () => {
-    const imt = inject(ImtBackend);
+    const debrief = inject(DebriefBackend);
     const real = isTauri()
       ? new TauriToolsBackend()
       : new (browserMocks().MockToolsBackend)(
           undefined,
-          () => imt.workspaceSummary(),
-          hasSkew(imt)
-            ? (source, offsetMs) => imt.setSourceOffset({ kind: 'manual', source, offsetMs })
+          () => debrief.workspaceSummary(),
+          hasSkew(debrief)
+            ? (source, offsetMs) => debrief.setSourceOffset({ kind: 'manual', source, offsetMs })
             : undefined,
         );
     return withFailureLogging<ToolsBackend>(real, inject(Logger), {

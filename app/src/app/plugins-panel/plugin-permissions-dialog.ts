@@ -7,7 +7,7 @@ import { PluginPackagesStore } from './plugin-packages.store';
 
 /** Grants or revokes the permissions an installed plugin asks for; a running plugin restarts with the new set at once. */
 @Component({
-  selector: 'imt-plugin-permissions-dialog',
+  selector: 'debrief-plugin-permissions-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToolError],
   template: `
@@ -28,7 +28,7 @@ import { PluginPackagesStore } from './plugin-packages.store';
           <p class="faint" i18n="@@pluginsPanel.packages.review.noPermissions">This plugin asks for no permissions.</p>
         }
       </fieldset>
-      <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       <div class="foot">
         <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@pluginsPanel.packages.permissions.cancel">Cancel</button>
         <button type="button" class="btn primary" [disabled]="!!store.busy() || !changed()" (click)="save(p.id)" i18n="@@pluginsPanel.packages.permissions.save">Apply and restart plugin</button>

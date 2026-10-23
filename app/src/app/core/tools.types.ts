@@ -1,7 +1,7 @@
 /**
  * Wire contract for the tooling, lifecycle and project commands (camelCase JSON). Mirrors
- * app/src-tauri/src/{tools,lifecycle,system,lib}.rs, imt-plugin-windows `perfmon_*`,
- * imt-collect `plan`/`manifest`, imt-monitor `config` and imt-core `project`/`plugin`.
+ * app/src-tauri/src/{tools,lifecycle,system,lib}.rs, debrief-plugin-windows `perfmon_*`,
+ * debrief-collect `plan`/`manifest`, debrief-monitor `config` and debrief-core `project`/`plugin`.
  *
  * Commands (invoke name -> args -> result):
  *   tool_invoke       { tool, op, args }          -> the op's result (perfmon.templates presets/generate,
@@ -21,17 +21,17 @@
  *   plugin_package_set_permissions { id, granted }       -> InstalledPluginDto (the plugin restarts with them)
  *   save_session      { ui }                      -> void
  *   last_session      {}                          -> string | null
- *   save_project      { path, name, ui, reports?, overwrite? } -> { path, name }   (a self-contained `.imtz`)
- *   open_project      { path }                    -> ProjectOpened  (`.imtz`, a `.imt` folder, or IMT's own `.imtproj`)
+ *   save_project      { path, name, ui, reports?, overwrite? } -> { path, name }   (a self-contained `.debriefz`)
+ *   open_project      { path }                    -> ProjectOpened  (`.debriefz`, a `.debrief` folder, or Debrief's own `.debriefproj`)
  *   set_live          { enabled }                 -> number (watched paths)
  *   take_pending_open {}                          -> string[]
- * Event Log follower (`tool_invoke { tool: 'event-log-follower', op, args }`, imt-plugin-tools `eventlog_tool`):
+ * Event Log follower (`tool_invoke { tool: 'event-log-follower', op, args }`, debrief-plugin-tools `eventlog_tool`):
  *   channels {}                                   -> EventLogChannel[]
  *   validate EventLogQuery                        -> EventLogValidation
  *   start    EventLogStartArgs                    -> EventLogStarted
  *   stop     {}                                   -> string | null (folder)
  *   pause / resume / status {}                    -> EventLogStatus
- * Events: "imt://open" (take_pending_open has paths), "imt://workspace-changed" (live tail refreshed).
+ * Events: "debrief://open" (take_pending_open has paths), "debrief://workspace-changed" (live tail refreshed).
  */
 import { BundleManifest, Level, Report, WorkspaceSummary } from './api.types';
 
@@ -52,7 +52,7 @@ export interface CounterPreset {
 
 export type LogFormat = 'blg' | 'csv' | 'tsv';
 
-/** Input of `perfmon.templates generate` / `perfmon.sets install` (`CollectorTemplate` in imt-plugin-windows). */
+/** Input of `perfmon.templates generate` / `perfmon.sets install` (`CollectorTemplate` in debrief-plugin-windows). */
 export interface CollectorTemplate {
   name: string;
   processes: string[];
@@ -112,7 +112,7 @@ export interface MonitorStatus {
 
 // ---- Event Log follower -------------------------------------------------------------------
 
-/** An Event Log level as users pick it (`EventLevel` in imt-plugin-windows). */
+/** An Event Log level as users pick it (`EventLevel` in debrief-plugin-windows). */
 export type EventLogLevel = 'critical' | 'error' | 'warning' | 'information' | 'verbose';
 export const EVENT_LOG_LEVELS: readonly EventLogLevel[] = ['critical', 'error', 'warning', 'information', 'verbose'];
 
@@ -154,7 +154,7 @@ export interface EventLogValidation {
 export interface EventLogStartArgs extends EventLogQuery {
   /** Continue after the saved positions (default true). */
   resumeFromBookmark?: boolean;
-  /** Output folder; defaults to IMT's data folder. */
+  /** Output folder; defaults to Debrief's data folder. */
   dir?: string;
   /** Size of one rolling file, 1-100 MB (10). */
   maxFileMb?: number;
@@ -254,7 +254,7 @@ export interface RedactConfig {
   patterns: CustomPattern[];
 }
 
-/** `CollectPlan` of imt-collect (unknown keys are rejected by the engine). */
+/** `CollectPlan` of debrief-collect (unknown keys are rejected by the engine). */
 export interface CollectPlan {
   name: string;
   logs: LogSpec[];
@@ -291,7 +291,7 @@ export interface ManifestSkipped {
   reason: string;
 }
 
-/** The parts of imt-collect's manifest the UI shows. */
+/** The parts of debrief-collect's manifest the UI shows. */
 export interface Manifest {
   name: string;
   host: string;

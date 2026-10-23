@@ -73,7 +73,7 @@ export class DumpsExplainer {
 
 /** The engine's findings, most severe first, each with a link to its evidence and "Explain with AI". */
 @Component({
-  selector: 'imt-dump-findings',
+  selector: 'debrief-dump-findings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, SeverityBadge],
   template: `
@@ -82,12 +82,12 @@ export class DumpsExplainer {
       <span class="spacer"></span>
       <button class="btn" type="button" data-testid="dumps-explain" [disabled]="!res().data()?.length" (click)="explain.emit()" i18n="@@dumps.findings.explain">Explain with AI</button>
     </div>
-    <imt-analysis-state [loading]="res().loading()" [error]="res().error()" [retryable]="res().retryable()" [hasData]="!!res().data()" [empty]="res().data()?.length === 0" [emptyText]="emptyText()" (retry)="res().retry()">
+    <debrief-analysis-state [loading]="res().loading()" [error]="res().error()" [retryable]="res().retryable()" [hasData]="!!res().data()" [empty]="res().data()?.length === 0" [emptyText]="emptyText()" (retry)="res().retry()">
       <ul class="list body" aria-label="Findings" i18n-aria-label="@@dumps.findings.listLabel">
         @for (f of res().data() ?? []; track $index) {
           <li class="finding" [attr.data-kind]="f.kind">
             <div class="head">
-              <imt-severity-badge [severity]="f.severity" />
+              <debrief-severity-badge [severity]="f.severity" />
               <strong class="title">{{ f.title }}</strong>
             </div>
             <p class="detail">{{ f.detail }}</p>
@@ -99,7 +99,7 @@ export class DumpsExplainer {
           </li>
         }
       </ul>
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [DUMPS_STYLES, `:host { flex: 1; }`],
 })
@@ -120,7 +120,7 @@ export class DumpFindings {
 
 /** What to show when no document of the view's kind is open. */
 @Component({
-  selector: 'imt-no-dump',
+  selector: 'debrief-no-dump',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="empty" role="status">

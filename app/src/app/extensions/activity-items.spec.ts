@@ -3,26 +3,26 @@ import { TestBed } from '@angular/core/testing';
 import { FakeDock, provideFakeDock, provideTinyBackendBare, settle, testLogger } from '../../testing/helpers';
 import { ActivityItems, activityItemProblem, viewCategoryMenu } from './activity-items';
 import { CommandRegistry } from './command-registry';
-import { provideImtPlugin } from './provide';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS, ImtActivityItem, ImtCommand, ImtView } from './tokens';
+import { provideDebriefPlugin } from './provide';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefActivityItem, DebriefCommand, DebriefView } from './tokens';
 
-@Component({ selector: 'imt-test-view', template: '' })
+@Component({ selector: 'debrief-test-view', template: '' })
 class TestView {}
 
-const view = (id: string, patch: Partial<ImtView> = {}): ImtView => ({ id, title: id.toUpperCase(), icon: 'chart', component: async () => TestView, ...patch });
-const item = (id: string, patch: Partial<ImtActivityItem> = {}): ImtActivityItem => ({ id, label: id, icon: 'chart', order: 100, run: { command: 'test.run' }, ...patch });
+const view = (id: string, patch: Partial<DebriefView> = {}): DebriefView => ({ id, title: id.toUpperCase(), icon: 'chart', component: async () => TestView, ...patch });
+const item = (id: string, patch: Partial<DebriefActivityItem> = {}): DebriefActivityItem => ({ id, label: id, icon: 'chart', order: 100, run: { command: 'test.run' }, ...patch });
 
-function setup(items: unknown[], extra: { views?: ImtView[]; commands?: ImtCommand[]; providers?: Provider[] } = {}) {
+function setup(items: unknown[], extra: { views?: DebriefView[]; commands?: DebriefCommand[]; providers?: Provider[] } = {}) {
   const dock = new FakeDock();
   const ran: string[] = [];
-  const commands: ImtCommand[] = [{ id: 'test.run', title: 'Run test', keybinding: 'Mod+J', run: () => void ran.push('test.run') }, ...(extra.commands ?? [])];
+  const commands: DebriefCommand[] = [{ id: 'test.run', title: 'Run test', keybinding: 'Mod+J', run: () => void ran.push('test.run') }, ...(extra.commands ?? [])];
   TestBed.configureTestingModule({
     providers: [
       ...provideTinyBackendBare(),
       provideFakeDock(dock),
-      { provide: IMT_VIEWS, multi: true, useValue: extra.views ?? [] },
-      { provide: IMT_COMMANDS, multi: true, useValue: commands },
-      { provide: IMT_ACTIVITY_ITEMS, multi: true, useValue: items },
+      { provide: DEBRIEF_VIEWS, multi: true, useValue: extra.views ?? [] },
+      { provide: DEBRIEF_COMMANDS, multi: true, useValue: commands },
+      { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useValue: items },
       ...(extra.providers ?? []),
     ],
   });
@@ -201,9 +201,9 @@ describe('ActivityItems', () => {
     expect(ran).toEqual(['test.run']);
   });
 
-  it('accepts items from a plugin registered with provideImtPlugin', () => {
+  it('accepts items from a plugin registered with provideDebriefPlugin', () => {
     const { registry } = setup([], {
-      providers: [provideImtPlugin({ commands: [{ id: 'hello.say', title: 'Say hello', run: () => undefined }], activityItems: [item('hello', { label: 'Hello', order: 450, run: { command: 'hello.say' } })] }) as never],
+      providers: [provideDebriefPlugin({ commands: [{ id: 'hello.say', title: 'Say hello', run: () => undefined }], activityItems: [item('hello', { label: 'Hello', order: 450, run: { command: 'hello.say' } })] }) as never],
     });
     expect(registry.top().map((i) => i.label)).toEqual(['Hello']);
     expect(TestBed.inject(CommandRegistry).find('hello.say')).toBeTruthy();

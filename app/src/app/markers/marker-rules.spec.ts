@@ -11,16 +11,16 @@ describe('rows', () => {
     const rows = [row('a'), row('b', {}, false), row('c'), row('d', {}, false)];
     writeRows(model, rows);
     expect(model.marker?.map((m) => m.kind)).toEqual(['a', 'c']);
-    expect((model['imt_disabled_markers'] as { kind: string; imt_index: number }[]).map((d) => [d.kind, d.imt_index])).toEqual([['b', 1], ['d', 3]]);
+    expect((model['debrief_disabled_markers'] as { kind: string; debrief_index: number }[]).map((d) => [d.kind, d.debrief_index])).toEqual([['b', 1], ['d', 3]]);
     expect(model['unknown']).toBe(1);
     expect(readRows(model).map((r) => [r.rule.kind, r.enabled])).toEqual([['a', true], ['b', false], ['c', true], ['d', false]]);
-    expect(at(readRows(model), 1).rule).not.toHaveProperty('imt_index');
+    expect(at(readRows(model), 1).rule).not.toHaveProperty('debrief_index');
   });
   it('drops the disabled key when nothing is disabled and tolerates a missing index', () => {
-    const model: ProfileModel = { imt_disabled_markers: [{ kind: 'z' }] };
+    const model: ProfileModel = { debrief_disabled_markers: [{ kind: 'z' }] };
     expect(readRows(model).map((r) => r.rule.kind)).toEqual(['z']);
     writeRows(model, [row('a')]);
-    expect(model).not.toHaveProperty('imt_disabled_markers');
+    expect(model).not.toHaveProperty('debrief_disabled_markers');
     expect(readRows({})).toEqual([]);
   });
   it('moves rows within bounds', () => {

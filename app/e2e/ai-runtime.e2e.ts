@@ -9,7 +9,7 @@ async function runCommand(page: Page, text: string): Promise<void> {
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill(text);
-  await expect(page.getByRole('option').first()).toContainText(text);
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText(text);
   await page.keyboard.press('Enter');
 }
 

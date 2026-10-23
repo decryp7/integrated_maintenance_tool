@@ -7,71 +7,28 @@ import { PackageReviewOpener } from './package-review-dialog';
 import { PluginPackagesStore } from './plugin-packages.store';
 import { PluginPermissionsDialog } from './plugin-permissions-dialog';
 
-/** Third-party plugins installed from `.imtplugin` packages, with install, permissions, enable/disable and removal. */
+/** Installing plugins from `.debriefplugin` packages: the install bar, safe-mode and restart notices, damaged records. Installed packages are rows of the plugins table. */
 @Component({
-  selector: 'imt-installed-packages',
+  selector: 'debrief-installed-packages',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToolError],
   template: `
     <div class="bar">
-      <h2 class="section-title" i18n="@@pluginsPanel.packages.title">Installed from packages</h2>
+      <span class="faint hint" i18n="@@pluginsPanel.packages.dropHint">Or drop a .debriefplugin file on the window. You review the publisher and the permissions before anything is installed.</span>
+      <span class="grow"></span>
       <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.pickAndReview()" i18n="@@pluginsPanel.packages.installFromFile">Install from file…</button>
     </div>
-    <p class="faint hint" i18n="@@pluginsPanel.packages.dropHint">Or drop a .imtplugin file on the window. You review the publisher and the permissions before anything is installed.</p>
     @if (store.safeMode()) {
       <div class="note" role="status" data-testid="packages-safe-mode" i18n="@@pluginsPanel.packages.safeMode">Safe mode: third-party plugins are not loaded. Restart normally to use them.</div>
     }
     @if (!store.review()) {
-      <imt-tool-error [message]="store.error()" [retry]="store.retry() !== null" (retried)="store.retryFailed()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.error()" [retry]="store.retry() !== null" (retried)="store.retryFailed()" (dismissed)="store.dismissError()" />
     }
     @if (store.showRestart()) {
       <div class="restart" role="status" data-testid="packages-restart">
         <span i18n="@@pluginsPanel.packages.restartNote">Changes apply after a restart.</span>
         <button type="button" class="btn primary" (click)="store.restart()" i18n="@@pluginsPanel.packages.restartApply">Restart to apply</button>
       </div>
-    }
-    @if (store.plugins().length) {
-      <ul class="list" aria-label="Installed from packages" i18n-aria-label="@@pluginsPanel.packages.list">
-        @for (p of store.plugins(); track p.id) {
-          <li class="package" [attr.data-state]="p.state" [attr.data-id]="p.id">
-            <div class="top">
-              <strong>{{ p.name }}</strong> <span class="mono faint">v{{ p.version }}</span>
-              <span class="faint">{{ p.publisher }}</span>
-              <span class="mono faint id">{{ p.id }}</span>
-            </div>
-            <div class="badges">
-              <span class="badge sig" [class]="'badge sig ' + p.signature.kind" data-testid="package-signature">{{ signature(p.signature) }}</span>
-              <span class="badge st" [class]="'badge st ' + p.state" data-testid="package-state">{{ state(p.state) }}</span>
-            </div>
-            @if (p.description) { <div class="desc">{{ p.description }}</div> }
-            @if (p.warning) { <div class="warn">{{ p.warning }}</div> }
-            @if (p.problem) { <div class="problem" data-testid="package-problem">{{ p.problem }}</div> }
-            <div class="granted" data-testid="package-granted">
-              @if (p.granted.length) {
-                <span class="faint" i18n="@@pluginsPanel.packages.granted">Permissions:</span> {{ titles(p.granted) }}
-              } @else {
-                <span class="faint" i18n="@@pluginsPanel.packages.noneGranted">No permissions granted.</span>
-              }
-            </div>
-            <div class="actions">
-              @if (p.state === 'quarantined') {
-                <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.reset(p.id)" i18n="reset a quarantined plugin|@@pluginsPanel.packages.reset">Reset</button>
-              }
-              @if (p.enabled) {
-                <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.setEnabled(p.id, false)" [attr.aria-label]="disableLabel(p)" i18n="@@pluginsPanel.packages.disable">Disable</button>
-              } @else {
-                <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.setEnabled(p.id, true)" [attr.aria-label]="enableLabel(p)" i18n="@@pluginsPanel.packages.enable">Enable</button>
-              }
-              @if (p.requested.length) {
-                <button type="button" class="btn" [disabled]="!!store.busy()" (click)="permissions(p)" [attr.aria-label]="permissionsLabel(p)" i18n="@@pluginsPanel.packages.permissionsButton">Permissions…</button>
-              }
-              <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.remove(p.id)" [attr.aria-label]="removeLabel(p.name)" i18n="@@pluginsPanel.packages.remove">Remove</button>
-            </div>
-          </li>
-        }
-      </ul>
-    } @else if (!store.loading() && store.installed()) {
-      <p class="faint" i18n="@@pluginsPanel.packages.none">No third-party plugins are installed.</p>
     }
     @if (store.damaged().length) {
       <ul class="list" aria-label="Damaged plugin records" i18n-aria-label="@@pluginsPanel.packages.damaged">
@@ -89,8 +46,8 @@ import { PluginPermissionsDialog } from './plugin-permissions-dialog';
   `,
   styles: `
     :host { display: flex; flex-direction: column; gap: 8px; }
-    .bar { display: flex; align-items: center; gap: 12px; margin-top: 8px; }
-    h2 { margin: 0; }
+    .bar { display: flex; align-items: center; gap: 12px; }
+    .grow { flex: 1; }
     .hint { margin: 0; font-size: var(--fs-sm); }
     .note { padding: 8px 10px; border: 1px solid var(--lvl-warn); border-radius: 6px; background: var(--bg-3); color: var(--warn-text); font-size: var(--fs-sm); }
     .restart { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border: 1px solid var(--accent); border-radius: 6px; background: var(--bg-3); }

@@ -20,9 +20,9 @@ const row = (fixture: Parameters<typeof el>[0], id: string) => el(fixture, `tr[d
 describe('StorageSettings', () => {
   it('lists every category with its kind, size, files and location', async () => {
     const { fixture } = await setup();
-    expect(all(fixture, "table[aria-label=\"IMT's storage\"] tbody tr")).toHaveLength(8);
+    expect(all(fixture, "table[aria-label=\"Debrief's storage\"] tbody tr")).toHaveLength(8);
     const logs = row(fixture, 'logs');
-    expect(logs.textContent).toContain('IMT logs');
+    expect(logs.textContent).toContain('Debrief logs');
     expect(logs.textContent).toContain('data');
     expect(logs.textContent).toContain('6 MB');
     expect(logs.textContent).toContain('6 files');
@@ -30,7 +30,7 @@ describe('StorageSettings', () => {
     expect(row(fixture, 'webview-cache').textContent).toContain('cache');
     // Cache rows are cleared together; only data rows have their own Clear button.
     expect(row(fixture, 'webview-cache').querySelector('.act button')).toBeNull();
-    expect(row(fixture, 'logs').querySelector<HTMLButtonElement>('.act button')?.getAttribute('aria-label')).toBe('Clear… (IMT logs)');
+    expect(row(fixture, 'logs').querySelector<HTMLButtonElement>('.act button')?.getAttribute('aria-label')).toBe('Clear… (Debrief logs)');
     // Nothing clearable now: disabled.
     expect(row(fixture, 'sessions').querySelector<HTMLButtonElement>('.act button')?.disabled).toBe(true);
     expect(el(fixture, 'tfoot').textContent).toContain('GB');
@@ -65,7 +65,7 @@ describe('StorageSettings', () => {
     row(fixture, 'logs').querySelector<HTMLButtonElement>('.act button')?.click();
     await settle(fixture);
     let dlg = dialogs.stack().at(-1);
-    expect(dlg?.options.title).toBe('Remove IMT logs?');
+    expect(dlg?.options.title).toBe('Remove Debrief logs?');
     expect(String(dlg?.options.inputs?.['message'])).toContain('permanently deletes 5 MB');
     expect(dlg?.options.inputs?.['danger']).toBe(true);
     dlg?.ref.close();
@@ -78,16 +78,16 @@ describe('StorageSettings', () => {
     dlg?.ref.close(true);
     await settle(fixture);
     expect(clear).toHaveBeenCalledWith(['logs']);
-    expect(text(fixture)).toContain('IMT logs: freed 5 MB, kept 1 (IMT is writing to it).');
+    expect(text(fixture)).toContain('Debrief logs: freed 5 MB, kept 1 (Debrief is writing to it).');
   });
 
   it('shows a failed measurement with Retry', async () => {
     const { fixture } = await setup(new MockStorageBackend('?mockStorageFail=1'));
-    expect(el(fixture, '[role=alert]').textContent).toContain("Could not measure IMT's storage");
-    expect(all(fixture, "table[aria-label=\"IMT's storage\"] tbody tr")).toHaveLength(0);
+    expect(el(fixture, '[role=alert]').textContent).toContain("Could not measure Debrief's storage");
+    expect(all(fixture, "table[aria-label=\"Debrief's storage\"] tbody tr")).toHaveLength(0);
     buttonByText(fixture, 'Retry').click();
     await settle(fixture);
-    expect(all(fixture, "table[aria-label=\"IMT's storage\"] tbody tr")).toHaveLength(8);
+    expect(all(fixture, "table[aria-label=\"Debrief's storage\"] tbody tr")).toHaveLength(8);
   });
 
   it('opens a folder and shows a failure inline with Retry', async () => {
@@ -95,7 +95,7 @@ describe('StorageSettings', () => {
     const { fixture } = await setup(backend);
     const reveal = vi.spyOn(backend, 'reveal').mockRejectedValueOnce('explorer is missing');
     const show = row(fixture, 'logs').querySelector<HTMLButtonElement>('.where button');
-    expect(show?.getAttribute('aria-label')).toBe('Show in folder (IMT logs)');
+    expect(show?.getAttribute('aria-label')).toBe('Show in folder (Debrief logs)');
     show?.click();
     await settle(fixture);
     expect(el(fixture, '[role=alert]').textContent).toContain('explorer is missing');
@@ -111,8 +111,8 @@ describe('StorageSettings', () => {
     expect(categoryLabel({ id: 'stores', label: 'x' })).toBe('Persistent stores');
     expect(categoryLabel({ id: 'future' as never, label: 'Future thing' })).toBe('Future thing');
     const base = { id: 'logs' as const, freedBytes: 1024, removedFiles: 1, skipped: [], skippedCount: 0, error: null };
-    expect(resultLine(base, 'IMT logs')).toBe('IMT logs: freed 1 KB.');
-    expect(resultLine({ ...base, error: 'no access' }, 'IMT logs')).toBe('IMT logs: no access');
+    expect(resultLine(base, 'Debrief logs')).toBe('Debrief logs: freed 1 KB.');
+    expect(resultLine({ ...base, error: 'no access' }, 'Debrief logs')).toBe('Debrief logs: no access');
   });
 });
 

@@ -7,7 +7,7 @@ import { BrowserRuntimeStore } from './browser-runtime.store';
  * checksum). The engine decides which browser is used; this shows it.
  */
 @Component({
-  selector: 'imt-browser-runtime-settings',
+  selector: 'debrief-browser-runtime-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="runtime" aria-labelledby="browser-runtime-title" data-testid="browser-runtime">
@@ -76,7 +76,7 @@ export class BrowserRuntimeSettings implements OnInit {
       case 'configured':
         return $localize`:@@browser.runtime.configured:Research uses the browser you chose in Browser to use.`;
       case 'installed':
-        return $localize`:@@browser.runtime.installed:Research uses the Chromium IMT downloaded.`;
+        return $localize`:@@browser.runtime.installed:Research uses the Chromium Debrief downloaded.`;
       default:
         return $localize`:@@browser.runtime.found:Research uses the browser found on this computer.`;
     }

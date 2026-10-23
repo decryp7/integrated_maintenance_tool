@@ -4,7 +4,7 @@ import { ToolCatalog } from './tool-catalog.store';
 
 /** Says why a tool cannot be used right now (plugin inactive or quarantined, safe mode, plugin disabled). */
 @Component({
-  selector: 'imt-tool-unavailable',
+  selector: 'debrief-tool-unavailable',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (message(); as text) {

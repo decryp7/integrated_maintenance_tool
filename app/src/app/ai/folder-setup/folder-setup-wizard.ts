@@ -34,7 +34,7 @@ type Step = 'survey' | 'proposals' | 'review' | 'apply';
  * engine's; nothing is applied before Apply.
  */
 @Component({
-  selector: 'imt-folder-setup-wizard',
+  selector: 'debrief-folder-setup-wizard',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [FolderSetupPreview],
   template: `
@@ -124,7 +124,7 @@ type Step = 'survey' | 'proposals' | 'review' | 'apply';
                   @if (p.requires.length) {
                     <p class="facts" i18n="@@ai.folderSetup.requires">Needs: {{ requiresText(p) }}</p>
                   }
-                  <imt-folder-setup-preview [preview]="p.preview" />
+                  <debrief-folder-setup-preview [preview]="p.preview" />
                   <details><summary i18n="@@ai.folderSetup.asToml">As profile TOML</summary><pre class="mono">{{ p.toml }}</pre></details>
                 </div>
               }

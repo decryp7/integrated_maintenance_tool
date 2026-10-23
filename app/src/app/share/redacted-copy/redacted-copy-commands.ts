@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtCommand } from '../../extensions/tokens';
+import { DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 
 /** File ▸ "Share redacted copy…": a project copy with the sensitive values removed. */
@@ -12,7 +12,7 @@ export class RedactedCopyCommands {
     this.dialogs.open(RedactedCopyDialog, { title: $localize`:@@share.redactedCopy.dialog.title:Share redacted copy`, width: 760 });
   }
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     {
       id: 'share.redactedCopy',
       title: $localize`:@@share.redactedCopy.command:Share redacted copy…`,

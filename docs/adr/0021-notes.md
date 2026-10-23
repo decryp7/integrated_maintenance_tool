@@ -8,7 +8,7 @@
 
 Users want to write down what they see where they see it: on a log line, a moment or range of the timeline, a
 source, a marker or span, a chart point, the investigation as a whole, and on screenshots that come with the logs
-("mark out an area and make an observation"). IMT had bookmarks (an event or a range with a one-line note) kept and
+("mark out an area and make an observation"). Debrief had bookmarks (an event or a range with a one-line note) kept and
 validated by the UI. They are a subset of this and the wrong owner.
 
 ## Decision
@@ -19,13 +19,13 @@ validated by the UI. They are a subset of this and the wrong owner.
    key, name and pixel size, with one to 16 rectangles in the image's own pixels). A note has tags (at most 8), a
    severity (`info`, `warning`, `problem`) for its colour, an author (the OS user) and created/updated times set by
    the engine. **Notes replace bookmarks** (pre-v1: no migration).
-2. **The engine owns them.** The pure crate `imt-notes` holds the types, their checks and limits (16 KiB of text,
+2. **The engine owns them.** The pure crate `debrief-notes` holds the types, their checks and limits (16 KiB of text,
    5 000 notes per project, 16 regions inside the image), the versioned project record (v1, read leniently:
    damaged notes are skipped and counted, a damaged or newer record restores none and says why), the AI context
    renderer and the geometry checks. The shell keeps each window's notes, answers the `notes_*` commands of the
    command table with typed `CmdError` codes, and fills event anchors from the store. The UI keeps the last record
    for saving (UI state key `notes`, like the chats and knowledge), so notes are autosaved in the session and
-   travel in the `.imtz`.
+   travel in the `.debriefz`.
 3. **Event anchors are store ids.** Ids are stable for a store and its project; on reopening, the list says which
    anchors no longer resolve (`resolved: false`) instead of dropping the note. Clock-skew correction is not
    available with the store yet; when it returns it must remap event notes in the engine.
@@ -41,7 +41,7 @@ validated by the UI. They are a subset of this and the wrong owner.
    (confirmed). Markdown is rendered by `MarkdownView` (text nodes only). Note edits are not on the undo stack.
 6. **AI.** Notes reach every AI feature as one more project knowledge file ("Notes", ADR 0029): notes on the selected
    events, the time range and the open image first, then project notes, then the rest, at most 16 KiB with a visible
-   cut. Note text never goes to IMT's log.
+   cut. Note text never goes to Debrief's log.
 7. **Reports.** "Add notes to report" adds a finding per note (severity, anchor, text), the noted events as an
    events block and time notes as an annotations block, so the PDF and HTML exports list them with no new block type.
 

@@ -47,7 +47,7 @@ export function updateLine(u: AiUpdate): string {
  * Skip this version, and "Check now".
  */
 @Component({
-  selector: 'imt-ai-updates-panel',
+  selector: 'debrief-ai-updates-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiManualDownload],
   template: `
@@ -86,7 +86,7 @@ export function updateLine(u: AiUpdate): string {
             <p class="warn" role="note" [attr.data-testid]="'ai-updates-failed-' + k.kind">{{ err }}</p>
             @if (k.manualSuggested && firstOf(k); as u) {
               @if (manualFor() === u.key) {
-                <imt-ai-manual-download [kind]="u.kind" [id]="u.id" />
+                <debrief-ai-manual-download [kind]="u.kind" [id]="u.id" />
               } @else {
                 <button type="button" class="btn ghost" (click)="manualFor.set(u.key)" data-testid="ai-updates-manual" i18n="@@ai.updates.manual">Download manually…</button>
               }

@@ -9,12 +9,12 @@ use super::requests::{self, AiRequest};
 use super::{AiState, CHAT_EVENT, SETUP_EVENT, STATUS_EVENT};
 use crate::jobs::{self, Controls, Done, JobId, JobKind, JobLink, JobProgress, JobResult, JobSpec};
 use crate::windows::{emit_to_window, CurrentWindow, WindowState};
-use imt_ai::chat::{export_markdown, suggested_prompts, ChatContext, ChatEnv, ChatEvent, ChatHistoryRecord, ChatRecord, Envelope};
-use imt_ai::hardware::Hardware;
-use imt_ai::recommend::{Recommendation, Recommendations};
-use imt_ai::setup::{SetupPlan, SetupStage};
-use imt_ai::{StoreAccess, StoreRef};
-use imt_core::api::ContextRequest;
+use debrief_ai::chat::{export_markdown, suggested_prompts, ChatContext, ChatEnv, ChatEvent, ChatHistoryRecord, ChatRecord, Envelope};
+use debrief_ai::hardware::Hardware;
+use debrief_ai::recommend::{Recommendation, Recommendations};
+use debrief_ai::setup::{SetupPlan, SetupStage};
+use debrief_ai::{StoreAccess, StoreRef};
+use debrief_core::api::ContextRequest;
 use serde::Serialize;
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
@@ -31,7 +31,7 @@ type Ai<T> = AiResult<T>;
 pub(crate) fn core<R: Runtime>(app: &AppHandle<R>) -> Ai<Arc<AiCore>> {
     app.try_state::<AiState>()
         .map(|s| s.0.clone())
-        .ok_or_else(|| AiCmdError::unavailable("The AI assistant is not available in this build of IMT."))
+        .ok_or_else(|| AiCmdError::unavailable("The AI assistant is not available in this build of Debrief."))
 }
 
 /// Runs `f` on the blocking pool; a panic becomes an engine error instead of taking the app down.
@@ -51,17 +51,18 @@ fn check_session_id(id: &str) -> Ai<&str> {
 }
 
 /// A window's store for the assistant: each visit reaches the window's current store (a project opened
-/// meanwhile is seen at the next tool call; see `imt_ai::StoreAccess`).
+/// meanwhile is seen at the next tool call; see `debrief_ai::StoreAccess`).
 pub(crate) struct WindowStore(pub(crate) Arc<WindowState>);
 
 impl StoreAccess for WindowStore {
-    fn visit(&self, f: &mut dyn FnMut(&dyn imt_core::ports::Store)) {
+    fn visit(&self, f: &mut dyn FnMut(&dyn debrief_core::ports::Store)) {
         match self.0.engine.store() {
             Ok(store) => f(store.as_ref()),
             Err(e) => {
                 // The store cannot start: the assistant sees no events (and says so) instead of failing the turn.
                 log::warn!("the AI sees no events: {}", e.message);
-                let empty = imt_core::Workspace::new(imt_core::Profile::default_profile()).map(imt_core::workspace::WorkspaceStore::new);
+                let empty = debrief_core::Workspace::new(debrief_core::Profile::default_profile())
+                    .map(debrief_core::workspace::WorkspaceStore::new);
                 if let Ok(empty) = empty {
                     f(&empty);
                 }
@@ -139,10 +140,10 @@ struct SetupJob {
     file_name: String,
 }
 
-type SetupWork = Box<dyn FnOnce(&AiCore, &imt_ai::models::Progress, &mut dyn FnMut(SetupStage)) -> Ai<()> + Send>;
+type SetupWork = Box<dyn FnOnce(&AiCore, &debrief_ai::models::Progress, &mut dyn FnMut(SetupStage)) -> Ai<()> + Send>;
 
 /// Runs a set-up or activation as a download job (Jobs are the one cancel authority: `jobs_cancel` with
-/// the returned id stops it), streaming `imt://ai-setup`. Returns the job.
+/// the returned id stops it), streaming `debrief://ai-setup`. Returns the job.
 fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, work: SetupWork) -> Ai<u64> {
     let progress = core.begin_setup()?;
     let run = {
@@ -206,7 +207,7 @@ pub(crate) fn retry_download<R: Runtime>(app: &AppHandle<R>, job: &jobs::model::
 }
 
 /// Downloads (when needed), verifies, loads and warms up a catalog model, then makes it active, as a job
-/// (returned; `jobs_cancel` stops it). Progress arrives as `imt://ai-setup` events ending in `ready`,
+/// (returned; `jobs_cancel` stops it). Progress arrives as `debrief://ai-setup` events ending in `ready`,
 /// `failed` or `cancelled`.
 #[tauri::command]
 pub async fn ai_setup_run<R: Runtime>(app: AppHandle<R>, model_id: String) -> Ai<u64> {
@@ -244,7 +245,7 @@ pub async fn ai_models<R: Runtime>(app: AppHandle<R>) -> Ai<Vec<ModelDto>> {
 #[tauri::command]
 pub async fn ai_model_activate<R: Runtime>(app: AppHandle<R>, file_name: String) -> Ai<u64> {
     let core = core(&app)?;
-    if !imt_ai::catalog::is_safe_file_name(&file_name) {
+    if !debrief_ai::catalog::is_safe_file_name(&file_name) {
         return Err(AiCmdError::invalid(format!("'{file_name}' is not a model file name")));
     }
     let job = SetupJob {
@@ -275,7 +276,7 @@ pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::pa
         .file_name()
         .map(|n| n.to_string_lossy().chars().take(120).collect::<String>())
         .unwrap_or_default();
-    let progress = Arc::new(imt_ai::models::Progress::new());
+    let progress = Arc::new(debrief_ai::models::Progress::new());
     let (p, q) = (progress.clone(), progress.clone());
     let controls = Controls::cancel(move || p.cancel()).with_probe(move || {
         let s = q.snapshot();
@@ -391,7 +392,7 @@ pub(crate) fn chat_emitter<R: Runtime>(app: &AppHandle<R>, label: &str) -> Emit 
     })
 }
 
-/// Starts a turn as an AI job and returns the job's id at once. The answer streams as `imt://ai-chat`
+/// Starts a turn as an AI job and returns the job's id at once. The answer streams as `debrief://ai-chat`
 /// events to this window once the job runs (while it waits, the Jobs pane shows its place in the queue).
 /// `images` are open images (`ai_image_open`, `ai_image_paste`) shown to the model with the question; a question
 /// that asks for their related logs runs the engine's search (ADR 0025).
@@ -455,7 +456,7 @@ pub(crate) fn run_turn(
             chats.push_event(sid, e);
             emit(sid, e);
         };
-        if let Some(first) = images.first().filter(|_| imt_ai::vision::intent::asks_for_related_logs(text)) {
+        if let Some(first) = images.first().filter(|_| debrief_ai::vision::intent::asks_for_related_logs(text)) {
             // "Find the logs related to this screenshot": the model reads, the engine searches.
             let store: StoreRef<'_> = (&access as &dyn StoreAccess).into();
             let tz = super::vision::timezone(store);
@@ -530,7 +531,7 @@ pub async fn ai_chat_history<R: Runtime>(app: AppHandle<R>, win: CurrentWindow) 
 #[serde(rename_all = "camelCase")]
 pub struct RestoreResult {
     pub sessions: Vec<SessionInfo>,
-    /// Why saved chats were not loaded (damaged, from a newer IMT).
+    /// Why saved chats were not loaded (damaged, from a newer Debrief).
     pub warning: Option<String>,
 }
 
@@ -570,7 +571,7 @@ pub(super) fn markdown_target(path: &str, overwrite: bool) -> Ai<PathBuf> {
     if target.is_dir() {
         return Err(AiCmdError::invalid(format!("{} is a folder", target.display())));
     }
-    imt_core::overwrite::check_overwrite(&target, overwrite)?;
+    debrief_core::overwrite::check_overwrite(&target, overwrite)?;
     Ok(target)
 }
 
@@ -646,7 +647,7 @@ pub(super) fn check_link(url: &str) -> Ai<()> {
     if host.is_empty() {
         return Err(refused());
     }
-    if imt_ai::web::is_private_host(host) || imt_ai::web::is_loopback_host(host) {
+    if debrief_ai::web::is_private_host(host) || debrief_ai::web::is_loopback_host(host) {
         return Err(refused());
     }
     Ok(())
@@ -654,8 +655,8 @@ pub(super) fn check_link(url: &str) -> Ai<()> {
 
 #[cfg(test)]
 mod tests {
-    use imt_ai::assistant::Proposal;
-    use imt_ai::assistant::QueryProposal;
+    use debrief_ai::assistant::Proposal;
+    use debrief_ai::assistant::QueryProposal;
 
     #[test]
     fn proposals_reach_the_ui_tagged_with_their_kind() {

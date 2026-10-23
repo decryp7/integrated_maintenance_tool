@@ -98,7 +98,7 @@ export function evidenceText(e: AlignEvidence, tz: TimeZoneMode, style: DateForm
   }
 }
 
-/** What the user told IMT about the start, in words. */
+/** What the user told Debrief about the start, in words. */
 export function userAlignmentText(u: UserAlignment, tz: TimeZoneMode, style: DateFormat = 'readable'): string {
   switch (u.kind) {
     case 'auto':

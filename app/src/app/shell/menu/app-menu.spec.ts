@@ -58,17 +58,17 @@ describe('AppMenu', () => {
     const project = vi.spyOn(opener, 'openProject').mockResolvedValue();
     const clear = vi.spyOn(opener, 'clear').mockResolvedValue();
     app.run('recent:file:/logs/a.log');
-    app.run('recent:project:/p/x.imtproj');
+    app.run('recent:project:/p/x.debriefproj');
     app.run('menu.recentClear');
     expect(file).toHaveBeenCalledWith('/logs/a.log');
-    expect(project).toHaveBeenCalledWith('/p/x.imtproj');
+    expect(project).toHaveBeenCalledWith('/p/x.debriefproj');
     expect(clear).toHaveBeenCalledOnce();
   });
 
   it('Fields shows the sidebar and focuses the fields filter', async () => {
     const { app, store } = setup();
     store.toggleSidebar();
-    const host = document.createElement('imt-fields-panel');
+    const host = document.createElement('debrief-fields-panel');
     host.innerHTML = '<input aria-label="Filter fields" />';
     document.body.appendChild(host);
     app.run('menu.fields');

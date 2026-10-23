@@ -1,5 +1,5 @@
 /**
- * The built-in marker icon set (names must match `MARKER_ICONS` in crates/imt-core/src/profile.rs).
+ * The built-in marker icon set (names must match `MARKER_ICONS` in crates/debrief-core/src/profile.rs).
  * Simple stroke icons on a 24 grid, drawn with `currentColor`; each is a single SVG path string.
  */
 export interface BuiltinIcon {

@@ -9,22 +9,22 @@
 
 Support engineers get crash dumps (`.dmp`, `.mdmp`: minidumps, minidumps with heap, full dumps from WER,
 ProcDump, Task Manager, Visual Studio) and heap-growth logs from Windows' User-Mode Dump Heap tool (UMDH) and
-today need WinDbg or Visual Studio to read them. IMT already listed a minidump as a few log records (the Windows
+today need WinDbg or Visual Studio to read them. Debrief already listed a minidump as a few log records (the Windows
 plugin's `minidump` importer: system, exception, a stack *scan* of the faulting thread, modules), but could not
 show threads, walk stacks, name frames, see deadlocks or compare heap snapshots. Users also want to write a dump of
 a running process without installing ProcDump.
 
 Dumps are untrusted, often huge (a full dump is the process' whole memory: gigabytes) binary files; UMDH logs are
 large text files whose format is documented only by the tool's own output. Both must be parsed without risk to
-IMT, and the answers must lead with the problem (what crashed and where; what leaks), like ADR 0019's findings.
+Debrief, and the answers must lead with the problem (what crashed and where; what leaks), like ADR 0019's findings.
 
 ## Decision
 
-1. **Two crates, the profiling split.** `imt-dump` is the engine: the document model (`Dump`, `UmdhLog`), its wire
-   form from the plugin process (postcard, checked against `Limits` on decode, like `imt_profile::wire`), the
+1. **Two crates, the profiling split.** `debrief-dump` is the engine: the document model (`Dump`, `UmdhLog`), its wire
+   form from the plugin process (postcard, checked against `Limits` on decode, like `debrief_profile::wire`), the
    per-window store (`DumpDocs`) and every analysis (overview, exception card, threads with their state, stacks,
    modules, findings, UMDH growth, stack tree, timeline markers, the AI summary). It is pure (no I/O) and is what
-   the app links. `imt-plugin-dumps` holds the readers and the capture tool; the app never links it (ADR 0017).
+   the app links. `debrief-plugin-dumps` holds the readers and the capture tool; the app never links it (ADR 0017).
 2. **Untrusted parsing out of process, least privilege, two plugins in one crate.**
    - `net.decryptology.dumps` (readers): locked sandbox (no network, no writes, low integrity on Windows,
      3 GiB memory cap). Its only extra right is the new permission **`ReadFolders`** ("read files in folders you
@@ -40,7 +40,7 @@ IMT, and the answers must lead with the problem (what crashed and where; what le
    never copied whole into either process: the reader takes the minidump's prefix (everything with 32-bit offsets:
    directory, threads, contexts, modules, names, handles, memory info) and only the stack memory of each thread from
    the full-memory list, and rewrites the `Memory64List` to describe what it kept. Other dumps are read whole up to
-   1 GiB. `imt-plugin-host::document` registers a proxy per importer on `imt_dump::IMPORTERS_POINT`; the app's
+   1 GiB. `debrief-plugin-host::document` registers a proxy per importer on `debrief_dump::IMPORTERS_POINT`; the app's
    store reaches them through guarded services like profile importers. Profiles could move to this contribution
    later (rule of three: profiles, dumps, UMDH); not in this change.
 4. **Minidumps with rust-minidump.** `minidump` parses the streams (system info, misc info, exception, thread list
@@ -52,16 +52,16 @@ IMT, and the answers must lead with the problem (what crashed and where; what le
    keep their context frame, noted). Damaged optional streams become notes; only a missing header or directory
    fails the import. `minidump-processor` is not used (async, and its symbolisation and output model duplicate
    what the engine does).
-5. **Symbols behind a port.** `imt_dump::symbols::SymbolProvider` (`lookup(module, rva) -> Symbol`) is the seam.
+5. **Symbols behind a port.** `debrief_dump::symbols::SymbolProvider` (`lookup(module, rva) -> Symbol`) is the seam.
    This change implements it in pure Rust with the `pdb` crate (procedures with lengths from the module streams,
    public symbols for the rest, simple MSVC names undecorated), over **local symbol folders** in the dumps plugin's
    settings (symbol-store layout `<name>.pdb/<GUID><age>/<name>.pdb` and flat), refusing a PDB of another build when
-   the module records its id. Nothing is downloaded. `imt-symbols` (ADR 0022: DbgHelp, the configurable symbol
+   the module records its id. Nothing is downloaded. `debrief-symbols` (ADR 0022: DbgHelp, the configurable symbol
    path, the opt-in Microsoft symbol server) is not wired in yet: its `Resolver::add_module` takes the module's image
    path on disk, which a dump from another machine does not have, and a symbol-server download needs the network,
    which the readers' sandbox denies. The adapter needs an identity-based load (PDB name, GUID, age, as in the
-   module's CodeView record) in `imt-symbols` and either the `Network` permission or the download done by the host;
-   then it implements `imt_dump::symbols::SymbolProvider` and the readers and the engine do not change. Frames keep the return address debuggers show; lookups use it as is.
+   module's CodeView record) in `debrief-symbols` and either the `Network` permission or the download done by the host;
+   then it implements `debrief_dump::symbols::SymbolProvider` and the readers and the engine do not change. Frames keep the return address debuggers show; lookups use it as is.
 6. **UMDH.** The reader recognises snapshots (`umdh -p -f`: `// Loaded modules:`, then `<size> bytes + <overhead>
    at <address> by BackTrace<id>` per allocation with the stack the first time an id appears) and diffs (`umdh old
    new`: `± delta (new - old) count allocs BackTrace<id>`, the count line, the stack, `Total increase == …`), in
@@ -98,11 +98,11 @@ IMT, and the answers must lead with the problem (what crashed and where; what le
    - **Not done: elevated capture through ADR 0017's elevated process.** That process must not write files at paths
      it receives, and `MiniDumpWriteDump` writes to a handle. The planned design: an elevated operation opens the
      target with the read rights and duplicates that handle into the unelevated capture process (whose pid the host
-     vouches for), which writes the dump. Until then the user restarts IMT elevated, as for ETW (ADR 0019).
+     vouches for), which writes the dump. Until then the user restarts Debrief elevated, as for ETW (ADR 0019).
 10. **Shell and UI.** Commands (one line each in the command table): `dumps_sniff`, `dumps_open` (a path the user
     chose; grant-checked, canonical), `dumps_list`, `dumps_close`, `dumps_overview`, `dumps_threads`,
     `dumps_stack`, `dumps_modules`, `dumps_findings`, `dumps_umdh_diff`, `dumps_umdh_stack`, `dumps_umdh_tree`,
-    `dumps_markers`, `dumps_explain`; every error is a `CmdError`. The DTOs live in `imt_dump::api` and are generated
+    `dumps_markers`, `dumps_explain`; every error is a `CmdError`. The DTOs live in `debrief_dump::api` and are generated
     into `app/src/app/core/generated/dumps.ts` with ts-rs (ADR 0016), so the contract has one definition. Documents
     open as their own views (Dump, UMDH), are dropped like captures (sniffed first, the rest go to the log
     import), saved in projects under `ui.dumps`, and appear on the log timeline as a marker at the dump's (or
@@ -111,7 +111,7 @@ IMT, and the answers must lead with the problem (what crashed and where; what le
     chat, like ADR 0019.
 11. **The Windows plugin's log importer stays for now.** It turns a minidump inside an opened folder into log
     records on the timeline; it duplicates part of the reading (a stack scan and an exception table). Folding it into
-    the dumps plugin (a log importer over `imt-dump`'s model) is a follow-up.
+    the dumps plugin (a log importer over `debrief-dump`'s model) is a follow-up.
 
 ## Consequences
 
@@ -120,13 +120,13 @@ IMT, and the answers must lead with the problem (what crashed and where; what le
   in tens of megabytes of memory, because only the metadata and the stacks are read.
 - Stack walks without symbols use frame pointers and scanning: on x64 Windows (no frame pointers by default) the
   stacks are candidates marked `scan` until symbols with CFI exist; PDB names improve labels, not the walk.
-  `imt-symbols` can add DbgHelp's unwinding later behind the same provider seam.
+  `debrief-symbols` can add DbgHelp's unwinding later behind the same provider seam.
 - UMDH's format is matched against generated samples and the documented output; real logs from other UMDH versions
   may need the reader adjusted (unknown lines are skipped, never fatal).
 - Managed (.NET) stacks are not shown yet; the dump says so and points to SOS.
 - Testing: unit tests per module, proptest "never panics" properties for both readers and the wire decoder, three
   fuzz targets (`fuzz_dump_minidump`, `fuzz_dump_umdh`, `fuzz_dump_wire`), synthetic minidumps (x86/x64, mini and
-  full, hang and crash) from `imt_plugin_dumps::synth`, UMDH samples from `samples/generate.py`, a Windows-only test
+  full, hang and crash) from `debrief_plugin_dumps::synth`, UMDH samples from `samples/generate.py`, a Windows-only test
   that writes real dumps of a child process with `MiniDumpWriteDump` and names their frames from the test binary's
-  own PDB, end-to-end tests through the real plugin processes (`imt-plugins/tests/dumps.rs`), and a Playwright spec
+  own PDB, end-to-end tests through the real plugin processes (`debrief-plugins/tests/dumps.rs`), and a Playwright spec
   with the mock backend.

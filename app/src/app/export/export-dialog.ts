@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ExporterInfo, Query, RedactionSummary } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { isUnsupported } from '../core/cmd-error';
 import { formatCount } from '../core/format';
 import { Platform } from '../core/platform';
@@ -30,7 +30,7 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
 }
 
 @Component({
-  selector: 'imt-export-dialog',
+  selector: 'debrief-export-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [HelpHint, RedactionSummaryView],
   template: `
@@ -44,7 +44,7 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
     </div>
 
     <fieldset class="field">
-      <legend><ng-container i18n="@@export.dialog.whichEvents">Which events</ng-container> <imt-help label="Which events" i18n-label="@@export.dialog.whichEventsHelpLabel" i18n-text="@@export.dialog.whichEventsHelpText" text="'Current filter' exports exactly what the grid shows. 'All events' ignores every filter and the time range." /></legend>
+      <legend><ng-container i18n="@@export.dialog.whichEvents">Which events</ng-container> <debrief-help label="Which events" i18n-label="@@export.dialog.whichEventsHelpLabel" i18n-text="@@export.dialog.whichEventsHelpText" text="'Current filter' exports exactly what the grid shows. 'All events' ignores every filter and the time range." /></legend>
       <label class="opt" i18n="@@export.dialog.scopeFilter"><input type="radio" name="scope" value="filter" [checked]="scope() === 'filter'" (change)="scope.set('filter')" /> Current filter</label>
       @if (hasRange()) {
         <label class="opt" i18n="@@export.dialog.scopeAnyTime"><input type="radio" name="scope" value="filterAnyTime" [checked]="scope() === 'filterAnyTime'" (change)="scope.set('filterAnyTime')" /> Current filter, any time (ignore the zoomed range)</label>
@@ -59,10 +59,10 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
     </fieldset>
 
     <fieldset class="field">
-      <legend><ng-container i18n="@@export.dialog.privacy">Privacy</ng-container> <imt-help label="Redaction" i18n-label="@@export.dialog.redactionHelpLabel" i18n-text="@@export.dialog.redactionHelpText" text="Masks secrets and personal data (e-mail and IP addresses, tokens, passwords…) with the profile's [redact] rules. Hashes use a new salt for every export." /></legend>
+      <legend><ng-container i18n="@@export.dialog.privacy">Privacy</ng-container> <debrief-help label="Redaction" i18n-label="@@export.dialog.redactionHelpLabel" i18n-text="@@export.dialog.redactionHelpText" text="Masks secrets and personal data (e-mail and IP addresses, tokens, passwords…) with the profile's [redact] rules. Hashes use a new salt for every export." /></legend>
       <label class="opt" i18n="@@export.dialog.redact"><input type="checkbox" [checked]="redact()" (change)="chooseRedact($any($event.target).checked)" /> Redact with the profile's rules</label>
       @if (redact()) {
-        <imt-redaction-summary [summary]="redaction()" [unavailable]="redactionUnavailable()" />
+        <debrief-redaction-summary [summary]="redaction()" [unavailable]="redactionUnavailable()" />
       }
     </fieldset>
 
@@ -90,7 +90,7 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
 export class ExportDialog {
   protected readonly ref = inject(DIALOG_REF);
   private readonly store = inject(WorkspaceStore);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly platform = inject(Platform);
   private readonly share = inject(ShareBackend);
   private readonly overwrite = inject(OverwriteGuard);

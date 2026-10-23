@@ -1,20 +1,20 @@
-//! IMT's own folders. Everything in the shell resolves them here, never through `app.path().app_*_dir()`
-//! directly, so a debug build's `IMT_DATA_DIR` ([`crate::dev_overrides`]) relocates all of them at once:
+//! Debrief's own folders. Everything in the shell resolves them here, never through `app.path().app_*_dir()`
+//! directly, so a debug build's `DEBRIEF_DATA_DIR` ([`crate::dev_overrides`]) relocates all of them at once:
 //!
-//! | folder        | normally (Tauri)               | with `IMT_DATA_DIR=<root>` |
+//! | folder        | normally (Tauri)               | with `DEBRIEF_DATA_DIR=<root>` |
 //! |---------------|--------------------------------|----------------------------|
 //! | data          | `app_data_dir`                 | `<root>/data`              |
 //! | config        | `app_config_dir`               | `<root>/config`            |
 //! | logs          | `app_log_dir`                  | `<root>/logs`              |
 //! | webview data  | `app_local_data_dir` (Tauri's) | `<root>/local`             |
 //!
-//! IMT keeps no cache of its own; the webview's caches live in its data folder.
+//! Debrief keeps no cache of its own; the webview's caches live in its data folder.
 
 use std::path::{Path, PathBuf};
 
 use tauri::{Manager, Runtime};
 
-/// One of IMT's folders.
+/// One of Debrief's folders.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AppDir {
     Data,
@@ -72,17 +72,17 @@ fn webview_data_with<R: Runtime, M: Manager<R>>(app: &M, root: Option<&Path>) ->
     }
 }
 
-/// IMT's data folder (sessions, the running marker, models, agent runs).
+/// Debrief's data folder (sessions, the running marker, models, agent runs).
 pub fn data<R: Runtime, M: Manager<R>>(app: &M) -> tauri::Result<PathBuf> {
     resolve(app, AppDir::Data)
 }
 
-/// IMT's config folder (settings, profiles, window state).
+/// Debrief's config folder (settings, profiles, window state).
 pub fn config<R: Runtime, M: Manager<R>>(app: &M) -> tauri::Result<PathBuf> {
     resolve(app, AppDir::Config)
 }
 
-/// IMT's log folder (CLEF logs, error snapshots).
+/// Debrief's log folder (CLEF logs, error snapshots).
 pub fn log<R: Runtime, M: Manager<R>>(app: &M) -> tauri::Result<PathBuf> {
     resolve(app, AppDir::Log)
 }
@@ -100,7 +100,7 @@ mod tests {
     #[test]
     fn an_override_root_holds_every_folder() {
         let app = crate::test_support::test_app_with_commands(None);
-        let root = std::env::temp_dir().join("imt-app-dirs-test");
+        let root = std::env::temp_dir().join("debrief-app-dirs-test");
         for (dir, sub) in [(AppDir::Data, "data"), (AppDir::Config, "config"), (AppDir::Log, "logs")] {
             assert_eq!(resolve_with(&app, dir, Some(&root)).unwrap(), root.join(sub));
         }

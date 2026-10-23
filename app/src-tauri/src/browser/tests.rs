@@ -93,7 +93,7 @@ fn the_engine_builds_the_search_for_an_event() {
 
 #[test]
 fn settings_choose_the_engine_and_the_agent_limits() {
-    use imt_core::settings::{sanitize, Configurable};
+    use debrief_core::settings::{sanitize, Configurable};
     let hub = std::sync::Arc::new(BrowserHub::default());
     let section = super::settings_section::BrowserSection {
         hub: hub.clone(),
@@ -130,7 +130,7 @@ fn settings_choose_the_engine_and_the_agent_limits() {
 
 #[test]
 fn agent_actions_reach_the_activity_log_without_page_or_typed_text() {
-    use imt_ai::browser::{ActionEntry, ActionLog, ActionOutcome};
+    use debrief_ai::browser::{ActionEntry, ActionLog, ActionOutcome};
     let _g = crate::activity::test_capture();
     super::ActivityLog { window: "main".into() }.record(&ActionEntry {
         chat: "chat-1".into(),
@@ -154,7 +154,7 @@ fn agent_actions_reach_the_activity_log_without_page_or_typed_text() {
 
 #[test]
 fn research_settings_default_to_automatic_with_ten_results_and_are_validated() {
-    use imt_core::settings::{sanitize, Configurable};
+    use debrief_core::settings::{sanitize, Configurable};
     let hub = std::sync::Arc::new(BrowserHub::default());
     let section = super::settings_section::BrowserSection {
         hub: hub.clone(),
@@ -174,7 +174,7 @@ fn research_settings_default_to_automatic_with_ten_results_and_are_validated() {
     section.apply_settings(&values(json!({"researchResults": "3"}))).unwrap();
     assert_eq!(hub.settings().research.max_results, 10);
     let field = schema.fields.iter().find(|f| f.key == "researchResults").expect("the field");
-    let imt_core::settings::FieldKind::Enum { options } = &field.kind else {
+    let debrief_core::settings::FieldKind::Enum { options } = &field.kind else {
         panic!("a choice: {:?}", field.kind)
     };
     assert_eq!(options.iter().map(|o| o.value.as_str()).collect::<Vec<_>>(), ["10", "20", "30"]);
@@ -200,7 +200,7 @@ fn research_stop_and_retry_need_a_research_to_act_on() {
 
 #[test]
 fn google_is_the_default_engine_of_settings_and_listed_first() {
-    use imt_core::settings::{sanitize, Configurable, FieldKind};
+    use debrief_core::settings::{sanitize, Configurable, FieldKind};
     let hub = std::sync::Arc::new(BrowserHub::default());
     let section = super::settings_section::BrowserSection {
         hub: hub.clone(),
@@ -214,7 +214,7 @@ fn google_is_the_default_engine_of_settings_and_listed_first() {
     };
     assert_eq!(options[0].value, "google");
     section.apply_settings(&sanitize(&schema, &json!({})).0).unwrap();
-    assert_eq!(hub.settings().search.engine, imt_ai::browser::SearchEngine::Google);
+    assert_eq!(hub.settings().search.engine, debrief_ai::browser::SearchEngine::Google);
 }
 
 #[test]

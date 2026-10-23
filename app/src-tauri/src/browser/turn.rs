@@ -6,7 +6,7 @@ use super::approvals::{Approvals, ChatApprover};
 use super::hub::BrowserHub;
 use super::ActivityLog;
 use super::{emit, BrowserEvent, BrowserState};
-use imt_ai::browser::{BrowserEnv, ChatBrowser, PageCapture, PageDriver, PageReader, Researcher, SearchSettings};
+use debrief_ai::browser::{BrowserEnv, ChatBrowser, PageCapture, PageDriver, PageReader, Researcher, SearchSettings};
 use std::sync::Arc;
 use std::time::Duration;
 use tauri::{AppHandle, Manager, Runtime};
@@ -63,7 +63,7 @@ impl TurnBrowser {
                 },
             );
         }
-        // Read along and agent mode show the real browser window next to IMT.
+        // Read along and agent mode show the real browser window next to Debrief.
         let on_screen = control.read_along() || control.may_act();
         let reader = super::page_for(app, owner, on_screen, None, None)?;
         let (h2, o2, c2) = (hub.clone(), owner.to_string(), chat.to_string());

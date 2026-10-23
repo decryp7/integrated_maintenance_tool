@@ -13,7 +13,7 @@ import { browserMocks } from '../../core/mock-registry';
  */
 @Injectable({ providedIn: 'root', useFactory: createStorageBackend })
 export abstract class StorageBackend {
-  /** What IMT stores, per category (computed off the UI thread, bounded). */
+  /** What Debrief stores, per category (computed off the UI thread, bounded). */
   abstract usage(): Promise<StorageUsage>;
   /** Clears the categories (as a background task); reports what was freed and what stayed. */
   /** Starts clearing as a background maintenance job; resolves with the job at once (its result: what was cleared). */

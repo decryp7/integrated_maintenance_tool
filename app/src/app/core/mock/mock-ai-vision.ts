@@ -1,7 +1,7 @@
 /**
  * Plausible image data for the scripted AI mock (ADR 0025): open images as the engine returns them (a small
  * generated clean copy, never the input decoded), and "find related logs" outcomes over the demo workspace.
- * Never the reference for behaviour: `crates/imt-ai/src/vision` and `crates/imt-core/src/related` are.
+ * Never the reference for behaviour: `crates/debrief-ai/src/vision` and `crates/debrief-core/src/related` are.
  */
 import { AiImage, ImageSourceFormat, Narrative, RelatedEvent, RelatedLink, RelatedNote, RelatedOutcome, RelatedReason, ScreenFacts } from '../../ai/ai.types';
 import { generateDemo, MockRecord } from './mock-data';
@@ -177,7 +177,7 @@ export function mockExplainImage(name: string, question: string | null): Narrati
   };
 }
 
-/** The chat's related-logs intent, roughly as `imt_ai::vision::intent` recognises it. */
+/** The chat's related-logs intent, roughly as `debrief_ai::vision::intent` recognises it. */
 export function mockAsksForRelated(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (t === '/related' || t.startsWith('/related ')) return true;

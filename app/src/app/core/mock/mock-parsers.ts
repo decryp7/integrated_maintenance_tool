@@ -61,7 +61,7 @@ export function mockParseParser(toml: string): { ok: true; parser: MockParser } 
   }
   const schema = doc['schema'];
   if (schema === undefined) return fail('missing field `schema`', 1, 1);
-  if (schema !== 1) return fail(`this parser was written for parser schema ${String(schema)}; this IMT reads schema 1 — update IMT`, lineOf(toml, 'schema'), 1);
+  if (schema !== 1) return fail(`this parser was written for parser schema ${String(schema)}; this Debrief reads schema 1 — update Debrief`, lineOf(toml, 'schema'), 1);
   const id = doc['id'];
   if (typeof id !== 'string') return fail('missing field `id`', 1, 1);
   if (!ID.test(id)) return fail(`invalid id "${id}": use lowercase letters, digits, ".", "_" and "-" (at most 64)`, lineOf(toml, 'id'), 1);

@@ -48,9 +48,9 @@ export class MockNativeBackend extends NativeBackend {
     this.fail('start');
     const p = (await this.processes()).find((x) => x.pid === r.pid);
     if (!p) throw new Error(`process ${r.pid} is not running`);
-    const denied = (message: string) => new CmdError({ code: 'denied', message, retryable: false, hint: 'Restart IMT as administrator, then try again.' });
+    const denied = (message: string) => new CmdError({ code: 'denied', message, retryable: false, hint: 'Restart Debrief as administrator, then try again.' });
     if (mode === 'sampling' && !p.accessible) {
-      throw denied(`IMT cannot read ${p.name} (${p.pid}): it runs elevated or as another user. Record it with ETW (administrator)`);
+      throw denied(`Debrief cannot read ${p.name} (${p.pid}): it runs elevated or as another user. Record it with ETW (administrator)`);
     }
     if (mode === 'etw' && this.declineElevation) {
       throw denied('Native profiling needs administrator rights for this; the administrator prompt was declined');

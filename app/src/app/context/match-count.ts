@@ -1,5 +1,5 @@
 import { DestroyRef, effect, inject, Injectable, signal, Signal, untracked } from '@angular/core';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Condition } from '../core/profile.model';
 import { EMPTY_QUERY } from '../core/workspace.store';
 import { asFilters } from './rule-builders';
@@ -7,7 +7,7 @@ import { asFilters } from './rule-builders';
 /** Counts the events matching conditions (a read-only query, no side effects). */
 @Injectable({ providedIn: 'root' })
 export class MatchCounter {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
 
   async count(conditions: readonly Condition[]): Promise<number> {
     const query = { ...EMPTY_QUERY, filters: asFilters(conditions) };

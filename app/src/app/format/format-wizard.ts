@@ -3,7 +3,7 @@ import { AiButton } from '../ai/ai-button';
 import { AiLauncher } from '../ai/ai-launcher';
 import { selectionWithin } from '../context/selection';
 import { ParserDocDto, ParserDraftRequest, ParsePreview } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { formatFull } from '../core/format';
 import { describeError } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -27,22 +27,22 @@ const PARTS: { id: FormatPart; label: string }[] = [
 ];
 
 /**
- * "Set up format": teaches IMT how to read a file, from marks on a sample line or a Serilog template (a new parser,
+ * "Set up format": teaches Debrief how to read a file, from marks on a sample line or a Serilog template (a new parser,
  * ADR 0026), or how its parser reads the timestamps (a changed copy of that parser). The engine composes the
  * candidate parser (`parser_draft`) and previews it; Save adds it to the library and reads the files again.
  */
 @Component({
-  selector: 'imt-format-wizard',
+  selector: 'debrief-format-wizard',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [HelpHint, AiButton],
   host: { '(document:selectionchange)': 'onSelection()' },
   template: `
     @if (mode() === 'timestamps') {
-      <p i18n="@@format.wizard.timestampsIntro">IMT read the lines of <span class="mono">{{ name() }}</span> but not their timestamps, so those events are missing from the timeline. Tell it how the timestamps are written.</p>
+      <p i18n="@@format.wizard.timestampsIntro">Debrief read the lines of <span class="mono">{{ name() }}</span> but not their timestamps, so those events are missing from the timeline. Tell it how the timestamps are written.</p>
     } @else if (baseParser()) {
-      <p i18n="@@format.wizard.newParserIntro">Show IMT how a log line of <span class="mono">{{ name() }}</span> is built: it saves a new parser for this kind of file (now read with {{ baseParser() }}).</p>
+      <p i18n="@@format.wizard.newParserIntro">Show Debrief how a log line of <span class="mono">{{ name() }}</span> is built: it saves a new parser for this kind of file (now read with {{ baseParser() }}).</p>
     } @else {
-    <p><ng-container i18n="@@format.wizard.intro">IMT did not recognise <span class="mono">{{ name() }}</span>. Show it how a log line is built and it will read this kind of file from now on.</ng-container>&ngsp;<imt-help label="Format wizard" i18n-label="@@format.wizard.helpLabel" i18n-text="@@format.wizard.helpText" text="Select the timestamp, then the level, then the message on a sample line and press the matching button. IMT builds a regular expression from your marks and shows how the first lines parse." /></p>
+    <p><ng-container i18n="@@format.wizard.intro">Debrief did not recognise <span class="mono">{{ name() }}</span>. Show it how a log line is built and it will read this kind of file from now on.</ng-container>&ngsp;<debrief-help label="Format wizard" i18n-label="@@format.wizard.helpLabel" i18n-text="@@format.wizard.helpText" text="Select the timestamp, then the level, then the message on a sample line and press the matching button. Debrief builds a regular expression from your marks and shows how the first lines parse." /></p>
     }
 
     @if (loadError(); as e) {
@@ -89,7 +89,7 @@ const PARTS: { id: FormatPart; label: string }[] = [
       </label>
       <div class="status">
         @if (suggested()) {
-          <ng-container i18n="@@format.wizard.timestampSuggested">IMT checked this format against the lines it could not read.</ng-container>&ngsp;
+          <ng-container i18n="@@format.wizard.timestampSuggested">Debrief checked this format against the lines it could not read.</ng-container>&ngsp;
         }
         <ng-container i18n="@@format.wizard.timestampHint">.NET style (dd/MM/yyyy HH:mm:ss.fff) or strftime (%d/%m/%Y %H:%M:%S%.f). It is added to the timestamp formats of the parser that reads this file.</ng-container>
       </div>
@@ -102,7 +102,7 @@ const PARTS: { id: FormatPart; label: string }[] = [
     @if (mode() === 'marks') {
       <div class="status" i18n="@@format.wizard.generated">Generated pattern</div>
       <div class="box" data-testid="format-regex">{{ regex() ?? markHint }}</div>
-      <div><imt-ai-button label="Suggest regex with AI" i18n-label="@@format.wizard.aiLabel" hint="The local model proposes a pattern for these lines; the preview checks it" i18n-hint="@@format.wizard.aiHint" testId="ai-format-regex" [disabled]="!lines().length" (pressed)="suggestWithAi()" /></div>
+      <div><debrief-ai-button label="Suggest regex with AI" i18n-label="@@format.wizard.aiLabel" hint="The local model proposes a pattern for these lines; the preview checks it" i18n-hint="@@format.wizard.aiHint" testId="ai-format-regex" [disabled]="!lines().length" (pressed)="suggestWithAi()" /></div>
     }
 
     @if (request()) {
@@ -145,7 +145,7 @@ const PARTS: { id: FormatPart; label: string }[] = [
 })
 export class FormatWizard implements OnInit {
   protected readonly ref = inject(DIALOG_REF);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly settings = inject(SettingsStore);
   private readonly store = inject(WorkspaceStore);
   private readonly parsers = inject(ParsersBackend);

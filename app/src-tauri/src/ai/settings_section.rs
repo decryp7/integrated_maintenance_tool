@@ -1,4 +1,4 @@
-//! Settings → AI: the fields of `imt_ai::settings::schema()` as a section of the app's settings system.
+//! Settings → AI: the fields of `debrief_ai::settings::schema()` as a section of the app's settings system.
 //! The active model is chosen in the model manager, so it is not a field here.
 //! The section's values live in `settings.json` like every other section and are applied to the runtime
 //! (and written to `ai.json`) at startup and on every change, so `settings.json` is their source of truth;
@@ -6,10 +6,10 @@
 
 use super::core::AiCore;
 use crate::settings::AI_SECTION;
-use imt_ai::runtimes::builds::label as build_label;
-use imt_ai::settings::{AiSettings, GpuOffload};
-use imt_ai::updates::UpdatePolicy;
-use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_ai::runtimes::builds::label as build_label;
+use debrief_ai::settings::{AiSettings, GpuOffload};
+use debrief_ai::updates::UpdatePolicy;
+use debrief_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -137,7 +137,7 @@ fn build_section(installed: Option<&[String]>) -> SettingsSection {
         "The assistant runs fully on this computer with a local model; nothing about your logs is sent anywhere. \
 Only the model file is downloaded (from Hugging Face). Web pages reach it only when you hand them over from the internal browser.",
     );
-    if let Some(fields) = imt_ai::settings::schema().as_array() {
+    if let Some(fields) = debrief_ai::settings::schema().as_array() {
         for f in fields.iter().filter_map(field_of) {
             s = s.field(with_build_options(f, installed));
         }
@@ -203,7 +203,7 @@ impl Configurable for AiSettingsSection {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_core::settings::sanitize;
+    use debrief_core::settings::sanitize;
     use serde_json::json;
 
     #[test]
@@ -212,7 +212,7 @@ mod tests {
         s.check().unwrap();
         assert_eq!(s.id, AI_SECTION);
         let keys: Vec<&str> = s.fields.iter().map(|f| f.key.as_str()).collect();
-        for f in imt_ai::settings::schema().as_array().unwrap() {
+        for f in debrief_ai::settings::schema().as_array().unwrap() {
             let k = f["key"].as_str().unwrap();
             assert_eq!(keys.contains(&k), !NOT_FIELDS.contains(&k), "{k}");
         }

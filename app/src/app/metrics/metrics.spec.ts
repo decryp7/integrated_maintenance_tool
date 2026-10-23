@@ -6,7 +6,7 @@ import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, s
 import { ChartData, ChartDef } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
 import { buildOption, ChartCard, LIVE_UPDATE_MS, liveOption } from './chart-card';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { LiveTail } from '../workspace/live-tail';
 import { chartTokensOf, ChartTheme, ChartTokens } from './chart-theme';
 import { UiPrefsStore } from '../core/workspace/ui-prefs.store';
@@ -62,7 +62,7 @@ type Opt = Record<string, any>;
 describe('buildOption', () => {
   it('shifts overlapping end labels and wraps the legend with headroom', () => {
     const few = buildOption(data(['a', 'b']), TOKENS, 'utc', new Map()) as Opt;
-    expect(few['series'][0]['labelLayout']).toEqual({ moveOverlap: 'shiftY' });
+    expect(few['series'][0]['labelLayout']).toEqual({ moveOverlap: 'shiftY', hideOverlap: true });
     expect(few['legend'].type).toBe('plain');
     const many = buildOption(data(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i']), TOKENS, 'utc', new Map()) as Opt;
     expect(many['legend'].type).toBe('plain');
@@ -119,7 +119,7 @@ describe('buildOption', () => {
   });
 });
 
-@Component({ selector: 'imt-host', imports: [EChart], template: `<imt-echart [options]="opts()" (brushed)="got = $event" />` })
+@Component({ selector: 'debrief-host', imports: [EChart], template: `<debrief-echart [options]="opts()" (brushed)="got = $event" />` })
 class Host {
   readonly opts = signal<EChartsCoreOption>({ series: [] });
   got: [number, number] | null = null;
@@ -185,7 +185,7 @@ describe('EChart', () => {
   });
 });
 
-@Component({ selector: 'imt-menu-host', imports: [EChart], template: `<imt-echart [options]="{ series: [] }" (pointMenu)="menus.push($event)" />` })
+@Component({ selector: 'debrief-menu-host', imports: [EChart], template: `<debrief-echart [options]="{ series: [] }" (pointMenu)="menus.push($event)" />` })
 class MenuHost {
   readonly menus: ChartPointMenu[] = [];
 }
@@ -376,7 +376,7 @@ describe('MetricsView', () => {
 
   it('renders profile charts and the range', async () => {
     const { fixture, store } = await render();
-    expect(all(fixture, 'imt-chart-card')).toHaveLength(3);
+    expect(all(fixture, 'debrief-chart-card')).toHaveLength(3);
     expect(text(fixture)).toContain('3 charts');
     expect(text(fixture)).toContain('UTC');
     store.setRange(store.summary()!.from!, store.summary()!.from! + 60_000);
@@ -404,7 +404,7 @@ describe('MetricsView', () => {
     typeInto(selects[4] as unknown as HTMLInputElement, 'bar', 'change');
     form.dispatchEvent(new Event('submit'));
     await settle(fixture);
-    expect(all(fixture, 'imt-chart-card')).toHaveLength(4);
+    expect(all(fixture, 'debrief-chart-card')).toHaveLength(4);
     expect(text(fixture)).toContain('My CPU');
 
     buttonByText(fixture, '+ Add chart').click();
@@ -421,7 +421,7 @@ describe('MetricsView', () => {
 
     for (const b of all<HTMLButtonElement>(fixture, '[aria-label^="Remove chart"]')) b.click();
     await settle(fixture);
-    expect(all(fixture, 'imt-chart-card')).toHaveLength(3);
+    expect(all(fixture, 'debrief-chart-card')).toHaveLength(3);
   });
 
   it('shows an empty state without charts', async () => {
@@ -432,7 +432,7 @@ describe('MetricsView', () => {
   });
 });
 
-@Component({ selector: 'imt-merge-host', imports: [EChart], template: `<imt-echart [options]="opts()" [merge]="merge()" />` })
+@Component({ selector: 'debrief-merge-host', imports: [EChart], template: `<debrief-echart [options]="opts()" [merge]="merge()" />` })
 class MergeHost {
   readonly opts = signal<EChartsCoreOption>({ series: [] });
   readonly merge = signal(false);
@@ -477,7 +477,7 @@ describe('live charts', () => {
     fixture.componentRef.setInput('def', def({ id: 'cpu', y: 'avg(cpu)' }));
     await settle(fixture);
     expect(observed).not.toBeNull();
-    const query = vi.spyOn(TestBed.inject(ImtBackend), 'queryChart');
+    const query = vi.spyOn(TestBed.inject(DebriefBackend), 'queryChart');
     await live.set(true);
     await settle(fixture);
     // Live: option animates updates and the chart merges.

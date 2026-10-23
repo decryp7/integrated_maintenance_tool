@@ -1,4 +1,4 @@
-//! Tauri shell: exposes the imt-core workspace to the Angular UI. The command
+//! Tauri shell: exposes the debrief-core workspace to the Angular UI. The command
 //! names and payloads are documented in app/src/app/core/api.types.ts.
 //!
 //! This file is the composition root only. Where things go:
@@ -85,6 +85,7 @@ mod tray;
 mod ui_dispatch;
 mod updater;
 mod video;
+mod watched;
 mod window_capture;
 mod window_manager;
 mod window_prefs;
@@ -146,6 +147,11 @@ command_table! {
     Mutation [WINDOW] => file_commands::open_source_file,
     Quiet [MAIN] => workspace_commands::take_pending_open,
     Mutation [WINDOW] => workspace_commands::set_live,
+    Mutation [WINDOW] => workspace_commands::set_import_window,
+    Query [WINDOW] => watched::watched_folders,
+    Mutation [WINDOW] => watched::add_watched_folder,
+    Mutation [WINDOW] => watched::remove_watched_folder,
+    Mutation [WINDOW] => watched::set_watched_folder_enabled,
     Quiet [WINDOW] => workspace_commands::import_progress,
     Query [WINDOW] => workspace_commands::overview,
     Query [WINDOW] => workspace_commands::home_summary,
@@ -184,6 +190,7 @@ command_table! {
     Query [WINDOW] => insights::query_patterns,
     Query [WINDOW] => insights::query_exceptions,
     Query [WINDOW] => insights::query_anomalies,
+    Query [WINDOW] => insights::query_outliers,
     Query [WINDOW] => insights::compare_windows,
     Query [WINDOW] => insights::field_stats,
     Query [WINDOW] => insights::correlate,
@@ -511,17 +518,17 @@ fn window_state_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 pub fn run() {
     // Debug builds only: test-run overrides (browser arguments, data folder, paths to open); a bad value stops here.
     if let Err(e) = dev_overrides::init() {
-        eprintln!("IMT cannot start: {e}");
+        eprintln!("Debrief cannot start: {e}");
         std::process::exit(2);
     }
-    // `imt-app --export-diagnostics [<path.zip>] [--force]`: the problem report without the UI, then exit.
+    // `debrief-app --export-diagnostics [<path.zip>] [--force]`: the problem report without the UI, then exit.
     if let Some(code) = activity::report::cli::run_if_requested() {
         std::process::exit(code);
     }
-    // `imt-app [--safe-mode] [--new-instance] [--new-window] <paths...>`
+    // `debrief-app [--safe-mode] [--new-instance] [--new-window] <paths...>`
     let mut launch = instance::parse_args(std::env::args().skip(1), std::env::current_dir().ok().as_deref());
     launch.paths.extend(dev_overrides::current().open_paths.iter().cloned());
-    let safe_mode_env = std::env::var_os("IMT_SAFE_MODE").is_some();
+    let safe_mode_env = std::env::var_os("DEBRIEF_SAFE_MODE").is_some();
     let single = instance::wants_single_instance(&launch, safe_mode_env);
     let safe_mode = launch.safe_mode || safe_mode_env;
 
@@ -556,13 +563,13 @@ pub fn run() {
         // in the internal browser gets no command at all: see `browser::guard`.
         .invoke_handler(commands::guard(activity::logged(handler!())))
         .build(context)
-        .expect("error while building IMT")
+        .expect("error while building Debrief")
         .run(on_run_event);
 }
 
 fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, single: bool) -> Result<(), Box<dyn std::error::Error>> {
     create_main_window(app)?;
-    // IMT's folders and run flags, resolved once (see `app_context`).
+    // Debrief's folders and run flags, resolved once (see `app_context`).
     let ctx = app_context::AppContext::of(app.handle(), safe_mode, single);
     let diag = diagnostics::load(ctx.config.as_deref());
     // `tracing` with CLEF to daily files; `log` records pass the activity logger (breadcrumbs, error
@@ -571,13 +578,13 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     activity::set_config(diag.activity);
     // Child processes' stderr and start/exit lines (for problem reports): `<logs>/children/<name>.log`.
     if let Some(dir) = &ctx.log {
-        imt_ipc::child_log::set_dir(activity::report::children_dir(dir));
+        debrief_ipc::child_log::set_dir(activity::report::children_dir(dir));
         diagnostics::prune_old_logs(dir, diag.log.max_age_days, std::time::SystemTime::now());
     }
     lifecycle::install_panic_logging();
     let life = lifecycle::Lifecycle::begin_in(ctx.data.clone(), ctx.safe_mode, lifecycle::InstanceScope::of(ctx.single_instance));
     let previous_crash = life.previous_crash;
-    log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — IMT {}", env!("CARGO_PKG_VERSION"));
+    log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — Debrief {}", env!("CARGO_PKG_VERSION"));
 
     // ---- managed state (app-wide) ----
     // The store worker's libduckdb ships in the resource folder `lib/` (tauri.sidecars.conf.json).
@@ -651,8 +658,8 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
             app.handle(),
             notify::NotificationKind::CrashDetected,
             !in_tray,
-            "IMT did not close properly",
-            "Open IMT to restore your last session.",
+            "Debrief did not close properly",
+            "Open Debrief to restore your last session.",
         );
     }
     Ok(())
@@ -666,7 +673,7 @@ fn session_notices<R: tauri::Runtime>(app: &tauri::AppHandle<R>, previous_crash:
         let n = NewNotice::new(
             NoticeSource::Session,
             NoticeSeverity::Warning,
-            "IMT did not close properly",
+            "Debrief did not close properly",
             NoticeScope::App,
         )
         .body("Your last session can be restored; jobs that were running are listed as interrupted, with Retry.")
@@ -677,10 +684,10 @@ fn session_notices<R: tauri::Runtime>(app: &tauri::AppHandle<R>, previous_crash:
         let n = NewNotice::new(
             NoticeSource::Session,
             NoticeSeverity::Info,
-            "IMT runs in safe mode",
+            "Debrief runs in safe mode",
             NoticeScope::App,
         )
-        .body("Plugins and the AI are off for this run. Restart IMT normally to turn them on again.")
+        .body("Plugins and the AI are off for this run. Restart Debrief normally to turn them on again.")
         .dedupe(format!("session:safe:{}", activity::session_id()));
         notification_centre::post(app, None, n, None);
     }
@@ -740,7 +747,7 @@ pub(crate) mod test_support {
     pub struct TempDir(pub PathBuf);
     impl TempDir {
         pub fn new(tag: &str) -> TempDir {
-            let p = std::env::temp_dir().join(format!("imt-app-test-{tag}-{}", std::process::id()));
+            let p = std::env::temp_dir().join(format!("debrief-app-test-{tag}-{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&p);
             std::fs::create_dir_all(&p).unwrap();
             TempDir(p)
@@ -775,7 +782,7 @@ pub(crate) mod test_support {
     impl<T: serde::Serialize> Json for T {}
 
     /// Imports `paths` into the window's store and waits for it (tests set up a window without the UI).
-    pub fn import(win: &windows::WindowState, paths: &[PathBuf]) -> imt_core::ports::ImportReport {
+    pub fn import(win: &windows::WindowState, paths: &[PathBuf]) -> debrief_core::ports::ImportReport {
         let store = win.engine.store().unwrap();
         let report = store.open(paths).unwrap().wait().unwrap();
         win.set_loaded(true);
@@ -783,13 +790,17 @@ pub(crate) mod test_support {
     }
 
     /// The window's store summary (what the store has, without the host's parts).
-    pub fn store_summary(win: &windows::WindowState) -> imt_core::ports::SummaryReply {
+    pub fn store_summary(win: &windows::WindowState) -> debrief_core::ports::SummaryReply {
         win.engine.store().unwrap().summary().unwrap()
     }
 
     /// Waits for the test app's job `id` to end; how it ended.
     pub fn job_end(app: &tauri::App<MockRuntime>, id: u64) -> jobs::service::JobOutcome {
         use tauri::Manager;
+        // A job that ends before it was ever shown (under 2 s old) is dropped from the history, and a waiter that
+        // arrives after that is told "cancelled": let the test clock pass the visibility threshold, so the job is
+        // kept however quickly it ends.
+        app.state::<TestClock>().0.advance(jobs::queue::VISIBLE_AFTER_MS);
         app.state::<jobs::Jobs>().wait_end(jobs::JobId(id))
     }
 
@@ -805,19 +816,42 @@ pub(crate) mod test_support {
 
     static NEXT_TEST_APP: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
 
+    /// Builds the bundled plugins binary once when it is not next to the test executable (`cargo test -p debrief-app`
+    /// builds only this crate; `cargo nextest run --workspace` in CI builds every binary), so the tests that need
+    /// the plugins run instead of failing on their absence. `DEBRIEF_PLUGINS` names one built elsewhere.
+    fn ensure_plugins_binary() {
+        static BUILT: std::sync::Once = std::sync::Once::new();
+        BUILT.call_once(|| {
+            if std::env::var_os("DEBRIEF_PLUGINS").is_some() || debrief_plugin_host::builtins::default_binary().exists() {
+                return;
+            }
+            let cargo = std::env::var_os("CARGO").unwrap_or_else(|| "cargo".into());
+            let mut args = vec!["build", "-p", "debrief-plugins"];
+            if !cfg!(debug_assertions) {
+                args.push("--release");
+            }
+            #[allow(clippy::disallowed_methods)]
+            let built = std::process::Command::new(cargo).args(&args).current_dir(env!("CARGO_MANIFEST_DIR")).status();
+            if !built.is_ok_and(|s| s.success()) {
+                eprintln!("could not build the plugins binary (`cargo build -p debrief-plugins`): the tests that need plugins will fail; build it first");
+            }
+        });
+    }
+
     fn manage(app: tauri::App<MockRuntime>, profile_dir: Option<PathBuf>) -> tauri::App<MockRuntime> {
         manage_in(app, profile_dir, false)
     }
 
     fn manage_in(app: tauri::App<MockRuntime>, profile_dir: Option<PathBuf>, safe_mode: bool) -> tauri::App<MockRuntime> {
         let plugins = std::sync::Arc::new(if safe_mode {
-            imt_plugin_host::Builtins::none()
+            debrief_plugin_host::Builtins::none()
         } else {
-            imt_plugin_host::Builtins::load(&imt_plugin_host::builtins::default_binary())
+            ensure_plugins_binary();
+            debrief_plugin_host::Builtins::load(&debrief_plugin_host::builtins::default_binary())
         });
         // The store in process, scratch stores under the system temp folder (one folder per test app).
         let root = std::env::temp_dir().join(format!(
-            "imt-test-stores-{}-{}",
+            "debrief-test-stores-{}-{}",
             std::process::id(),
             NEXT_TEST_APP.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
         ));

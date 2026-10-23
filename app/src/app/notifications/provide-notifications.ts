@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { Logger } from '../core/logger';
 import { DockService } from '../dock/dock.service';
-import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { NOTIFICATIONS_VIEW } from './notice-actions';
 import { NotificationToasts } from './notification-toasts';
@@ -21,7 +21,7 @@ import { NotificationsBackend } from './notifications-backend';
 import { NotificationsStore } from './notifications.store';
 import { NoticesRecord } from './notifications.types';
 
-export function notificationsViews(): ImtView[] {
+export function notificationsViews(): DebriefView[] {
   return [
     {
       id: NOTIFICATIONS_VIEW,
@@ -35,7 +35,7 @@ export function notificationsViews(): ImtView[] {
   ];
 }
 
-export function notificationsCommands(store: InstanceType<typeof NotificationsStore>): ImtCommand[] {
+export function notificationsCommands(store: InstanceType<typeof NotificationsStore>): DebriefCommand[] {
   const category = $localize`:Command palette category@@notifications.category:View`;
   return [
     { id: 'notifications.show', title: $localize`:@@notifications.cmd.show:View: Notifications`, category, view: NOTIFICATIONS_VIEW, run: (ctx) => ctx.showView(NOTIFICATIONS_VIEW) },
@@ -98,7 +98,7 @@ export class NotificationsPersistence {
 /** Mounts the toasts and opens Notifications when an OS notification was clicked. */
 export function startNotifications(): void {
   const injector = inject(EnvironmentInjector);
-  const host = document.createElement('imt-notification-toasts');
+  const host = document.createElement('debrief-notification-toasts');
   document.body.append(host);
   const ref = createComponent(NotificationToasts, { environmentInjector: injector, hostElement: host });
   inject(ApplicationRef).attachView(ref.hostView);
@@ -115,8 +115,8 @@ export function startNotifications(): void {
 /** One line in `app.config.ts`: Notifications (view, button, commands, toasts, saved project messages). */
 export function provideNotifications(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useFactory: notificationsViews },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => notificationsCommands(inject(NotificationsStore)) },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: notificationsViews },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => notificationsCommands(inject(NotificationsStore)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(NotificationsPersistence).contribution] },
     provideAppInitializer(() => startNotifications()),
   ]);

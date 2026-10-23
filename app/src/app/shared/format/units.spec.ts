@@ -219,8 +219,8 @@ describe('TransferMeter', () => {
   });
 });
 
-describe('the table shared with Rust (imt-plugin-api units)', () => {
-  const table = JSON.parse(readFileSync('../crates/imt-plugin-api/units-cases.json', 'utf8')) as Record<string, { in: unknown; out: string }[]>;
+describe('the table shared with Rust (debrief-plugin-api units)', () => {
+  const table = JSON.parse(readFileSync('../crates/debrief-plugin-api/units-cases.json', 'utf8')) as Record<string, { in: unknown; out: string }[]>;
   const each = (key: string, f: (v: never) => string) => {
     expect((table[key] ?? []).length).toBeGreaterThan(0);
     for (const c of table[key] ?? []) expect(f(c.in as never), ).toBe(c.out);

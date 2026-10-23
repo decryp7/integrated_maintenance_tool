@@ -10,7 +10,7 @@ test.describe('Native profiling (mock plugin tools)', () => {
     const list = dialog.getByRole('listbox', { name: 'Processes' });
     await expect(list.getByRole('option')).toHaveCount(3);
     await expect(dialog.getByLabel('Symbol path (folders with PDB files, separated by ;)')).toHaveValue('C:\\symbols');
-    await expectNoSeriousViolations(page, testInfo, 'profiling-native-dialog', 'imt-native-dialog');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-native-dialog', 'debrief-native-dialog');
 
     await list.getByRole('option', { name: /svchost/ }).click();
     await expect(dialog.getByRole('alert').first()).toContainText('ETW (administrator)');

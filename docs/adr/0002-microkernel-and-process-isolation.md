@@ -7,7 +7,7 @@
 
 ## Context
 
-IMT keeps growing: Windows tools (PerfMon, process monitor, diagnostics collector), extra
+Debrief keeps growing: Windows tools (PerfMon, process monitor, diagnostics collector), extra
 file formats, analysis views, error snapshots, a local LLM assistant, and soon profilers.
 Each feature added to the core makes it harder to keep the core stable, and a bug in any of
 them can take the whole app down. Some features run native code (llama.cpp, PDH, ETW, the CLR
@@ -19,12 +19,12 @@ profiling API) whose crashes (segfault, abort, out-of-memory) cannot be caught b
 **Microkernel.** The core is what every session needs. Everything else is a plugin that can be
 disabled, quarantined and left out in safe mode:
 
-| Core (`imt-core`, app shell) | Plugins |
+| Core (`debrief-core`, app shell) | Plugins |
 |---|---|
 | Workspace/`LogStore`, record model, built-in text/JSON/CLEF/CSV importers, archives | Extra formats: registry, msinfo, EVTX, BLG, PerfMon CSV, W3C/HAR, OTel, syslog/journald |
 | Profiles, pipelines, markers, query language, timeline/grid/facets/charts | Tools: PerfMon control, process monitor, diagnostics collector |
 | Plugin host, guard/quarantine, safe mode, session recovery, settings host | AI assistant (local LLM), the internal web browser |
-| IMT's own logging, error snapshots, crash detection | Profilers (.NET, C++), WebView2 diagnostics |
+| Debrief's own logging, error snapshots, crash detection | Profilers (.NET, C++), WebView2 diagnostics |
 | | Analysis extras where they are optional (traces/requests); exporters beyond CSV/CLEF |
 
 The engine `Plugin` contract grows contribution points only by addition (`API_VERSION` stays
@@ -38,15 +38,15 @@ gated by its engine plugin's status; safe mode loads only the core UI.
 - *Safe Rust plugins* run in-process behind the guarded adapters (panics become errors;
   repeated crashes quarantine the plugin).
 - *Native or crash-prone code* runs in a **supervised worker process** (Tauri sidecar)
-  speaking versioned JSON-RPC over stdio: the first is `imt-ai-worker` (llama.cpp; since ADR 0009 it runs the prebuilt `llama-server` as its own child); profilers
+  speaking versioned JSON-RPC over stdio: the first is `debrief-ai-worker` (llama.cpp; since ADR 0009 it runs the prebuilt `llama-server` as its own child); profilers
   and other native integrations follow the same pattern. The supervisor applies timeouts,
   restarts with backoff, quarantines after repeated crashes, kills workers on exit (Windows
   Job objects; stdin close on Unix) and runs them at reduced priority.
 - External tools (`relog`, `logman`, `wevtutil`) are already separate processes and always
   run with timeouts.
 - *Third-party plugins* run sandboxed in WebAssembly (wasmtime: memory limit, epoch/fuel
-  interruption), so they can neither crash nor hang IMT, or in the plugin host process below.
-- *Plugin host process* (`imt-plugin-host`, like VS Code's extension host): any Rust plugin can be
+  interruption), so they can neither crash nor hang Debrief, or in the plugin host process below.
+- *Plugin host process* (`debrief-plugin-host`, like VS Code's extension host): any Rust plugin can be
   switched to run out of process (per-plugin setting, automatic after a quarantine, and for every
   plugin in "isolated mode"). Calls and record batches cross the boundary as length-prefixed
   binary messages; the host is supervised like a worker. First-party Rust plugins default to
@@ -72,7 +72,7 @@ All workers and the plugin host share one transport:
   build.
 - **Data plane: Apache Arrow IPC record batches** for bulk tabular data (imported records,
   samples, allocations). Arrow is columnar and language-neutral, and it can be zero-copy. Its
-  IPC format already uses FlatBuffers for metadata, so IMT doesn't need a separate FlatBuffers
+  IPC format already uses FlatBuffers for metadata, so Debrief doesn't need a separate FlatBuffers
   schema. Batches stream inside gRPC messages, the Arrow Flight pattern. The same batches feed
   the planned DataFusion/Parquet store.
 - **Shared memory only where measured necessary:** for very large transfers (huge imports,
@@ -89,7 +89,7 @@ All workers and the plugin host share one transport:
   language and the best tooling.
 - **Benchmark result (2026-10-17, 1M access-log lines, loaded machine):** out-of-process import
   +14–16%, batched transform +26–36% vs in-process. The protobuf envelope costs ~0.9 ms in total;
-  the overhead is Arrow encode/decode and re-materialising records in IMT's memory, which any
+  the overhead is Arrow encode/decode and re-materialising records in Debrief's memory, which any
   out-of-process transport would pay. The transport decision therefore stands; isolation stays
   opt-in for built-in plugins (in-process by default), so the default path pays nothing.
 

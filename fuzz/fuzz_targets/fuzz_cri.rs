@@ -4,4 +4,4 @@ mod common;
 use libfuzzer_sys::fuzz_target;
 
 // Kubernetes CRI container logs: sniff and import never panic.
-fuzz_target!(|data: &[u8]| common::plugin_text(&imt_plugin_formats::CriImporter, data));
+fuzz_target!(|data: &[u8]| common::plugin_text(&debrief_plugin_formats::CriImporter, data));

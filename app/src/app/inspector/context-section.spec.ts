@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { RecordView } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { EMPTY_QUERY } from '../core/workspace.store';
 import { CONTEXT_SETTLE_MS, ContextSection } from './context-section';
 import { at } from '../../testing/must';
@@ -156,7 +156,7 @@ describe('ContextSection', () => {
     offsetTop.mockRestore();
     clientHeight.mockRestore();
     void (null as unknown as RecordView);
-    void (null as unknown as ImtBackend);
+    void (null as unknown as DebriefBackend);
   });
 
   it('fetches the context of a newly selected event once the selection rests', async () => {

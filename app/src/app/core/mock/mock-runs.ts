@@ -1,6 +1,6 @@
 /**
  * Plausible runs between lifecycle markers for the browser demo, shaped like the engine's `[[span]]` pairing
- * (crates/imt-core/src/spans): per lane (or per field value within a lane), a start opens a run, a stop closes it,
+ * (crates/debrief-core/src/spans): per lane (or per field value within a lane), a start opens a run, a stop closes it,
  * a start while running ends the previous run as "no stop", a stop while idle is "no start", consecutive starts or
  * stops count as one, and a run still open is drawn to the group's last event. Not the reference for behaviour.
  */

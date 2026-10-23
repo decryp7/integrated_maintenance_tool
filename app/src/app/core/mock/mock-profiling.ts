@@ -136,7 +136,7 @@ export class MockProfilingBackend implements ProfilingBackend {
       this.captures.set(id, { kind: 'profile', id, path, data: { ...data, name } });
     } else {
       this.nextId--;
-      throw new ProfilingFailure('notACapture', `${name} is not a profile or heap snapshot that IMT recognises (speedscope, folded stacks, .cpuprofile, Chrome trace, pprof, perf script, .nettrace, .heapsnapshot)`);
+      throw new ProfilingFailure('notACapture', `${name} is not a profile or heap snapshot that Debrief recognises (speedscope, folded stacks, .cpuprofile, Chrome trace, pprof, perf script, .nettrace, .heapsnapshot)`);
     }
     return this.summary(this.captures.get(id)!);
   }

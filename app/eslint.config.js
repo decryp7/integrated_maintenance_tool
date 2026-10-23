@@ -1,5 +1,5 @@
 // @ts-check
-// Flat ESLint config for the IMT Angular UI: ESLint + typescript-eslint recommended rules and
+// Flat ESLint config for the Debrief Angular UI: ESLint + typescript-eslint recommended rules and
 // angular-eslint recommended rules for TypeScript and templates (including accessibility).
 const eslint = require('@eslint/js');
 const { defineConfig } = require('eslint/config');
@@ -16,7 +16,7 @@ module.exports = defineConfig(
       'src-tauri/**',
       'test-results/**',
       'playwright-report/**',
-      // Smoke-test runtime data (WebView2 profiles, IMT data), drivers and failure artifacts.
+      // Smoke-test runtime data (WebView2 profiles, Debrief data), drivers and failure artifacts.
       'e2e-tauri/.tmp/**',
       'e2e-tauri/.drivers/**',
       'e2e-tauri/.artifacts/**',
@@ -33,11 +33,11 @@ module.exports = defineConfig(
     rules: {
       '@angular-eslint/directive-selector': [
         'error',
-        { type: 'attribute', prefix: 'imt', style: 'camelCase' },
+        { type: 'attribute', prefix: 'debrief', style: 'camelCase' },
       ],
       '@angular-eslint/component-selector': [
         'error',
-        { type: 'element', prefix: 'imt', style: 'kebab-case' },
+        { type: 'element', prefix: 'debrief', style: 'kebab-case' },
       ],
       // The codebase marks intentionally unused parameters/bindings (interface-shaped stubs, rest-omission
       // destructuring such as `const { dropped: _d, ...rest } = x`) with a leading underscore.
@@ -60,7 +60,7 @@ module.exports = defineConfig(
     files: ['**/*.html'],
     extends: [angular.configs.templateRecommended, angular.configs.templateAccessibility],
     rules: {
-      // IMT's composite widgets (combobox listboxes, grids, tree grids, trees, tab lists, menus) follow the
+      // Debrief's composite widgets (combobox listboxes, grids, tree grids, trees, tab lists, menus) follow the
       // WAI-ARIA aria-activedescendant / roving-tabindex patterns: focus and keyboard handling live on the
       // owning input or container (or on a [attr.tabindex]-bound child these rules cannot see), and items are
       // deliberately not tab stops. These two rules only reported such cases, so they are off.

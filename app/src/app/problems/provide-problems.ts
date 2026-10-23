@@ -1,10 +1,10 @@
 import { effect, EnvironmentInjector, EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer, untracked } from '@angular/core';
 import { DockService } from '../dock/dock.service';
-import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { PROBLEMS_VIEW, problemsTitle } from './problems-model';
 import { ProblemsStore } from './problems.store';
 
-export function problemsViews(): ImtView[] {
+export function problemsViews(): DebriefView[] {
   return [
     {
       id: PROBLEMS_VIEW,
@@ -17,7 +17,7 @@ export function problemsViews(): ImtView[] {
   ];
 }
 
-export function problemsCommands(store: InstanceType<typeof ProblemsStore>): ImtCommand[] {
+export function problemsCommands(store: InstanceType<typeof ProblemsStore>): DebriefCommand[] {
   const category = $localize`:Command palette category@@problems.category:View`;
   return [
     { id: 'problems.show', title: $localize`:@@problems.cmd.show:View: Problems`, category, view: PROBLEMS_VIEW, run: (ctx) => ctx.showView(PROBLEMS_VIEW) },
@@ -46,8 +46,8 @@ export function startProblemsTitle(): void {
  */
 export function provideProblems(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useFactory: problemsViews },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => problemsCommands(inject(ProblemsStore)) },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: problemsViews },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => problemsCommands(inject(ProblemsStore)) },
     provideAppInitializer(() => startProblemsTitle()),
   ]);
 }

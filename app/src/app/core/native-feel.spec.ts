@@ -53,7 +53,7 @@ describe('native feel: key decisions', () => {
     expect(browserKeyAction(k('=', { metaKey: true }), true)).toBe('zoom');
   });
 
-  it('leaves editing, IMT shortcuts and plain typing alone', () => {
+  it('leaves editing, Debrief shortcuts and plain typing alone', () => {
     for (const e of [
       k('c', { ctrlKey: true }),
       k('v', { ctrlKey: true }),
@@ -111,13 +111,13 @@ describe('native feel: pointer, menu and drag decisions', () => {
     expect(contextMenuAction({ ...none, developer: true })).toBe('native');
   });
 
-  it('stops files dropped where no IMT target takes them from navigating the window', () => {
+  it('stops files dropped where no Debrief target takes them from navigating the window', () => {
     expect(shouldBlockFileDrop({ files: true, handled: false })).toBe(true);
     expect(shouldBlockFileDrop({ files: true, handled: true })).toBe(false);
     expect(shouldBlockFileDrop({ files: false, handled: false })).toBe(false);
   });
 
-  it('blocks dragging images and links but not IMT drag sources or text', () => {
+  it('blocks dragging images and links but not Debrief drag sources or text', () => {
     expect(shouldBlockDrag({ tag: 'IMG', inLink: false, draggable: false })).toBe(true);
     expect(shouldBlockDrag({ tag: 'A', inLink: true, draggable: false })).toBe(true);
     expect(shouldBlockDrag({ tag: 'SPAN', inLink: true, draggable: false })).toBe(true);
@@ -171,7 +171,7 @@ describe('native feel: the installed guard', () => {
   };
   const el = (id: string) => host.querySelector(`#${id}`) as HTMLElement;
 
-  it('prevents the browser default of reload keys but still lets IMT see them', () => {
+  it('prevents the browser default of reload keys but still lets Debrief see them', () => {
     const seen: string[] = [];
     const listener = (e: Event) => seen.push((e as KeyboardEvent).key);
     document.addEventListener('keydown', listener);
@@ -185,7 +185,7 @@ describe('native feel: the installed guard', () => {
     expect(seen).toEqual(['F5', 'r', 'r']);
   });
 
-  it('suppresses the browser menu on chrome, keeps it in fields, offers Copy on selected text, and leaves IMT menus alone', () => {
+  it('suppresses the browser menu on chrome, keeps it in fields, offers Copy on selected text, and leaves Debrief menus alone', () => {
     const menu = (target: HTMLElement, init: MouseEventInit = {}) => fire(target, new MouseEvent('contextmenu', { bubbles: true, cancelable: true, ...init }));
     expect(menu(el('b')).defaultPrevented).toBe(true);
     expect(menu(el('i')).defaultPrevented).toBe(false);
@@ -197,7 +197,7 @@ describe('native feel: the installed guard', () => {
     expect(menu(el('b')).defaultPrevented).toBe(true);
     expect(copied).toHaveLength(1);
     window.getSelection()?.removeAllRanges();
-    // IMT's own menu: its handler prevents the default and the guard does not interfere.
+    // Debrief's own menu: its handler prevents the default and the guard does not interfere.
     let opened = false;
     const own = (e: Event) => {
       e.preventDefault();
@@ -222,7 +222,7 @@ describe('native feel: the installed guard', () => {
     expect(copied).toHaveLength(1);
   });
 
-  it('blocks Ctrl+wheel zoom without stopping IMT handlers, and the back/forward mouse buttons', () => {
+  it('blocks Ctrl+wheel zoom without stopping Debrief handlers, and the back/forward mouse buttons', () => {
     let zoomed = false;
     el('b').addEventListener('wheel', () => (zoomed = true));
     const wheel = fire(el('b'), new WheelEvent('wheel', { ctrlKey: true, deltaY: 1, bubbles: true, cancelable: true }));
@@ -237,7 +237,7 @@ describe('native feel: the installed guard', () => {
     expect(fire(el('i'), new MouseEvent('mousedown', { button: 1, bubbles: true, cancelable: true })).defaultPrevented).toBe(false);
   });
 
-  it('keeps files dropped outside IMT drop targets from navigating, and leaves handled drops alone', () => {
+  it('keeps files dropped outside Debrief drop targets from navigating, and leaves handled drops alone', () => {
     const drag = (type: string, types: string[], handle = false) => {
       const e = new Event(type, { bubbles: true, cancelable: true }) as DragEvent;
       const dataTransfer = { types, dropEffect: 'copy' };
@@ -261,7 +261,7 @@ describe('native feel: the installed guard', () => {
     expect(fire(el('p'), new MouseEvent('contextmenu', { bubbles: true, cancelable: true })).defaultPrevented).toBe(false);
   });
 
-  it('blocks dragging images and links out but not IMT drag sources', () => {
+  it('blocks dragging images and links out but not Debrief drag sources', () => {
     const drag = (target: HTMLElement) => fire(target, new Event('dragstart', { bubbles: true, cancelable: true }));
     expect(drag(el('img')).defaultPrevented).toBe(true);
     expect(drag(el('a')).defaultPrevented).toBe(true);
@@ -290,7 +290,7 @@ describe('provideNativeFeel', () => {
     expect(press()).toBe(false);
   });
 
-  it('opens IMT\'s menu with Copy on selected text', () => {
+  it('opens Debrief\'s menu with Copy on selected text', () => {
     const env = createEnvironmentInjector([provideNativeFeel()], TestBed.inject(EnvironmentInjector));
     const p = document.createElement('p');
     p.textContent = 'copy me';

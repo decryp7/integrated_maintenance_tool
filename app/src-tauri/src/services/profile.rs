@@ -9,12 +9,12 @@ use crate::engine::Host;
 use crate::error::{CmdError, CmdResult};
 use crate::profile::ProfileDoc;
 use crate::ErrorCode;
-use imt_core::Profile;
+use debrief_core::Profile;
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 
 /// The active profile's file in the profile folder.
-pub const PROFILE_FILE: &str = "active.imtprofile.toml";
+pub const PROFILE_FILE: &str = "active.debriefprofile.toml";
 /// Saved profile versions kept for "restore".
 pub const PROFILE_HISTORY: usize = 20;
 
@@ -42,7 +42,7 @@ impl ProfileFiles {
     pub fn check(host: &Host, toml: &str) -> CmdResult<Profile> {
         let profile = Profile::from_toml(toml).map_err(|e| CmdError::invalid(e.message).field("toml").line(e.line))?;
         host.compile(profile.clone()).map_err(|e| {
-            let line = imt_core::profile::RuleContext::of(&e).and_then(|r| r.line_in(toml));
+            let line = debrief_core::profile::RuleContext::of(&e).and_then(|r| r.line_in(toml));
             CmdError::invalid(format!("{e:#}")).field("toml").line(line)
         })?;
         Ok(profile)
@@ -73,10 +73,10 @@ impl ProfileFiles {
         }
         // Two saves within one millisecond must not overwrite each other: take the next free stamp.
         let mut at = chrono::Utc::now();
-        let mut target = dir.join(format!("{}.imtprofile.toml", at.format("%Y%m%d-%H%M%S%3f")));
+        let mut target = dir.join(format!("{}.debriefprofile.toml", at.format("%Y%m%d-%H%M%S%3f")));
         while target.exists() {
             at += chrono::TimeDelta::milliseconds(1);
-            target = dir.join(format!("{}.imtprofile.toml", at.format("%Y%m%d-%H%M%S%3f")));
+            target = dir.join(format!("{}.debriefprofile.toml", at.format("%Y%m%d-%H%M%S%3f")));
         }
         let _ = std::fs::copy(active, target);
         let mut files: Vec<PathBuf> = std::fs::read_dir(&dir)
@@ -118,7 +118,7 @@ impl ProfileFiles {
     }
 
     /// The saved profile if it still compiles with `registry`'s plugins, else the built-in default.
-    pub fn load(&self, registry: &imt_core::PluginRegistry) -> (Profile, ProfileDoc) {
+    pub fn load(&self, registry: &debrief_core::PluginRegistry) -> (Profile, ProfileDoc) {
         if let Some(path) = self.active() {
             if let Ok(toml) = std::fs::read_to_string(&path) {
                 match Profile::from_toml(&toml) {
@@ -165,7 +165,7 @@ mod tests {
         assert_eq!(files.version(history[1]["file"].as_str().unwrap()).unwrap().name, "One");
         assert_eq!(files.version("../x").unwrap_err().code, ErrorCode::Invalid);
         assert_eq!(files.version("missing.toml").unwrap_err().code, ErrorCode::NotFound);
-        assert!(!t.0.join("active.imtprofile.toml.tmp").exists());
+        assert!(!t.0.join("active.debriefprofile.toml.tmp").exists());
         let none = ProfileFiles::new(None);
         assert_eq!(none.persist("name = 'x'").unwrap(), None);
         assert!(none.history().is_empty());

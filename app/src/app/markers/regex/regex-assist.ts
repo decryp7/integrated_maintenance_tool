@@ -17,10 +17,10 @@ export function splitByBytes(pattern: string, start: number, end: number): [stri
  * "Explain" button for any regex input: toggles an outline of what the pattern does; hovering or
  * focusing a line highlights the part of the pattern it explains. Reusable by other dialogs.
  *
- *   <imt-regex-assist [pattern]="regex()" />
+ *   <debrief-regex-assist [pattern]="regex()" />
  */
 @Component({
-  selector: 'imt-regex-assist',
+  selector: 'debrief-regex-assist',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button type="button" class="btn ghost small" [attr.aria-expanded]="open()" (click)="toggle()" i18n="@@markers.regexAssist.explain">Explain</button>

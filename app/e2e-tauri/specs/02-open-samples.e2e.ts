@@ -1,19 +1,19 @@
 import { $, $$, browser, expect } from '@wdio/globals';
 import { gridTotal, visibleAlerts, waitForEvents, waitForShell } from '../support/app';
 
-// The app is started with samples/serilog-clef open (IMT_OPEN_PATHS, see wdio.conf.ts): the engine imports it.
+// The app is started with samples/serilog-clef open (DEBRIEF_OPEN_PATHS, see wdio.conf.ts): the engine imports it.
 describe('real app: open the samples folder', () => {
   it('shows the imported events in the grid and on the timeline', async () => {
     await waitForShell();
     await waitForEvents();
 
     expect(await gridTotal()).toBeGreaterThan(0);
-    await expect($('imt-status-bar')).toHaveText(/\d+ sources?/);
+    await expect($('debrief-status-bar')).toHaveText(/\d[\d,]* events/);
     // Both instances of the sample (web01, web02) have a lane.
-    await expect($$('imt-timeline-panel .lane')).toBeElementsArrayOfSize({ gte: 1 });
+    await expect($$('debrief-timeline-panel .lane')).toBeElementsArrayOfSize({ gte: 1 });
     // The Explorer rows: width and text of each file name.
     const rows = await browser.execute(() =>
-      Array.from(document.querySelectorAll('imt-sidebar .src')).map((r) => {
+      Array.from(document.querySelectorAll('debrief-sidebar .src')).map((r) => {
         const name = r.querySelector('.name') as HTMLElement | null;
         return `${Math.round(r.getBoundingClientRect().width)}px row, name ${Math.round(name?.getBoundingClientRect().width ?? -1)}px "${name?.textContent ?? ''}"`;
       }),

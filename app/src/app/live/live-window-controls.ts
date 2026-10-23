@@ -7,7 +7,7 @@ import { CUSTOM_MINUTES, LiveFollow, WINDOW_PRESETS, WindowPreset } from './live
  * zoom or pan, the "Paused — Resume following" chip.
  */
 @Component({
-  selector: 'imt-live-window-controls',
+  selector: 'debrief-live-window-controls',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (live.enabled()) {

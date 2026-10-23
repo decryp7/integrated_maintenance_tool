@@ -6,20 +6,20 @@ import { APP_LOAD_TIMEOUT } from './app';
 
 const PSEUDO = /⟦[^⟧]*⟧/;
 /** Text that is never translated: the product name, units of time zones/formats, key names, glyphs. */
-const ALLOWED = /^(IMT|UTC|ISO|English|Ctrl|Shift|Alt|Cmd|Esc|Enter|Tab|F\d+|[A-Z])$/;
+const ALLOWED = /^(Debrief|UTC|ISO|English|Ctrl|Shift|Alt|Cmd|Esc|Enter|Tab|F\d+|[A-Z])$/;
 
 async function openPseudo(page: Page): Promise<void> {
   await page.addInitScript(() => {
     // Seed once per tab, so a reload keeps what the test chose.
-    if (sessionStorage.getItem('imt.e2e.seeded')) return;
-    sessionStorage.setItem('imt.e2e.seeded', '1');
+    if (sessionStorage.getItem('debrief.e2e.seeded')) return;
+    sessionStorage.setItem('debrief.e2e.seeded', '1');
     localStorage.clear();
-    localStorage.setItem('imt.language', JSON.stringify({ version: 1, language: 'pseudo' }));
+    localStorage.setItem('debrief.language', JSON.stringify({ version: 1, language: 'pseudo' }));
   });
   await page.goto('/');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-XA');
   // The language is set before the app starts; the first rows come with the app's load, which takes as long as anywhere.
-  await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
+  await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
 }
 
 /**
@@ -57,7 +57,7 @@ test.describe('pseudo-locale', () => {
   test.beforeEach(async ({ page }) => openPseudo(page));
 
   test('the app loads in pseudo and the shell shows translated text', async ({ page }) => {
-    const bar = page.locator('imt-activity-bar');
+    const bar = page.locator('debrief-activity-bar');
     await expect(bar.locator('button').first()).toHaveAttribute('aria-label', PSEUDO);
     await expect(page.getByRole('menubar')).toHaveAttribute('aria-label', PSEUDO);
     await expect(page.getByRole('menubar').getByRole('menuitem').first()).toHaveText(PSEUDO);
@@ -65,7 +65,7 @@ test.describe('pseudo-locale', () => {
   });
 
   test('no unmarked English in the activity bar, the menu bar and its menus', async ({ page }) => {
-    expect(await unmarkedEnglish(page.locator('imt-activity-bar'))).toEqual([]);
+    expect(await unmarkedEnglish(page.locator('debrief-activity-bar'))).toEqual([]);
     const menubar = page.getByRole('menubar');
     expect(await unmarkedEnglish(menubar)).toEqual([]);
     const top = menubar.getByRole('menuitem');
@@ -83,30 +83,33 @@ test.describe('pseudo-locale', () => {
   });
 
   test('Settings ▸ General shows pseudo text and the language choice', async ({ page }) => {
-    await page.locator('imt-activity-bar button').last().click();
-    const general = page.locator('imt-general-settings');
+    await page.locator('debrief-activity-bar button').last().click();
+    const general = page.locator('debrief-general-settings');
     await expect(general).toBeVisible();
     const language = general.getByTestId('language-setting');
     await expect(language.locator('legend')).toHaveText(PSEUDO);
     const select = language.getByTestId('language-select');
-    await expect(select).toHaveValue('pseudo');
-    await expect(select).toHaveAttribute('aria-label', PSEUDO);
-    await expect(select.locator('option[value=en]')).toHaveText('English');
+    await expect(select.locator('button')).toContainText(/\S/);
+    await expect(select.locator('button')).toHaveAttribute('aria-label', PSEUDO);
+    await select.locator('button').click();
+    await expect(page.getByRole('option', { name: 'English' })).toBeVisible();
+    await page.keyboard.press('Escape');
     expect(await unmarkedEnglish(general.locator('legend, label, .btn'))).toEqual([]);
   });
 
   test('choosing English asks to restart and applies after the reload', async ({ page }) => {
-    await page.locator('imt-activity-bar button').last().click();
-    await page.locator('imt-general-settings').getByTestId('language-select').selectOption('en');
+    await page.locator('debrief-activity-bar button').last().click();
+    await page.locator('debrief-general-settings').getByTestId('language-select').locator('button').click();
+    await page.getByRole('option', { name: 'English' }).click();
     const dialog = page.getByRole('dialog').last();
     await expect(dialog).toContainText(PSEUDO);
     // Later: the window keeps running in pseudo and says a restart is needed.
     await dialog.getByRole('button').filter({ hasText: PSEUDO }).first().click();
-    await expect(page.locator('imt-general-settings [role=status]')).toHaveText(PSEUDO);
+    await expect(page.locator('debrief-general-settings [role=status]')).toHaveText(PSEUDO);
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-XA');
-    await page.evaluate(() => localStorage.getItem('imt.language')).then((v) => expect(JSON.parse(v ?? '{}').language).toBe('en'));
+    await page.evaluate(() => localStorage.getItem('debrief.language')).then((v) => expect(JSON.parse(v ?? '{}').language).toBe('en'));
     // Restart now (the browser build reloads the page): the app comes back in English.
-    await page.locator('imt-general-settings [role=status] button').click();
+    await page.locator('debrief-general-settings [role=status] button').click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
     await expect(page.getByRole('menubar', { name: 'Application menu' })).toBeVisible();
   });

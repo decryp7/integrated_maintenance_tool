@@ -4,17 +4,17 @@ import { openAppWith } from './mock-url';
 // Opening a diagnostics zip (mock backend): the engine recognises it, so the Diagnostics report panel shows its
 // processes, steps, breadcrumbs and snapshots. `?mockOpen=` makes the browser build's "Open files" pick that path.
 
-const ZIP = '/samples/diagnostics/imt-diagnostics-sample.zip';
+const ZIP = '/samples/diagnostics/debrief-diagnostics-sample.zip';
 const rangeButton = (page: Page) => page.getByTitle(/Reset to the full range|Drag on the timeline to zoom/);
 
 test('opening a diagnostics zip shows the report with processes, steps, breadcrumbs and snapshots', async ({ page }) => {
   await openAppWith(page, `?mockOpen=${encodeURIComponent(ZIP)}`);
-  await expect(page.locator('imt-diagnostics-report-view')).toHaveCount(0);
-  await page.locator('imt-sidebar').getByRole('button', { name: 'Open files' }).click();
+  await expect(page.locator('debrief-diagnostics-report-view')).toHaveCount(0);
+  await page.locator('debrief-sidebar').getByRole('button', { name: 'Open files' }).click();
 
-  const view = page.locator('imt-diagnostics-report-view');
+  const view = page.locator('debrief-diagnostics-report-view');
   await expect(view).toBeVisible();
-  await expect(view.getByTestId('diag-header')).toContainText('imt-diagnostics-sample.zip');
+  await expect(view.getByTestId('diag-header')).toContainText('debrief-diagnostics-sample.zip');
 
   const processes = view.getByTestId('diag-processes');
   await expect(processes.getByRole('columnheader', { name: 'State' })).toBeVisible();
@@ -24,7 +24,7 @@ test('opening a diagnostics zip shows the report with processes, steps, breadcru
   await expect(view.getByTestId('diag-steps').locator('li').first()).toContainText('Opened');
 
   // The opened zip is a source like any other file.
-  await expect(page.locator('imt-sidebar')).toContainText('imt-diagnostics-sample.zip');
+  await expect(page.locator('debrief-sidebar')).toContainText('debrief-diagnostics-sample.zip');
 
   // A breadcrumb zooms the timeline to the moment it happened.
   const range = rangeButton(page);

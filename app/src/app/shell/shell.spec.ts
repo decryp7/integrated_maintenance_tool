@@ -12,7 +12,7 @@ import { LiveTail } from '../workspace/live-tail';
 import { Sidebar } from './sidebar';
 import { StatusBar } from './status-bar';
 import { openedFolderName, TitleBar } from './title-bar';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { memoryHost, MockWindowingBackend } from '../windowing/mock-windowing-backend';
 import { WindowCommands } from '../windowing/window-commands';
 import { WindowingBackend } from '../windowing/windowing-backend';
@@ -60,7 +60,7 @@ describe('TitleBar', () => {
     const { fixture, store, dock } = setup(TitleBar);
     await settle(fixture);
     // The command centre names what is open (here the folder of the opened files), not the parsing profile or progress.
-    expect(el(fixture, '[data-testid=command-centre-name]').textContent).toMatch(/— type a command/);
+    expect(el(fixture, '[data-testid=command-centre-name]').textContent).toMatch(/\S — type a command/);
     expect(text(fixture)).not.toContain('Indexed');
     await choose(fixture, 'View', 'Explorer');
     expect(store.sidebarOpen()).toBe(false);
@@ -140,7 +140,7 @@ describe('TitleBar', () => {
   it('has a Window menu with one checkable item per window; New and Close window are in File', async () => {
     const windowing = new MockWindowingBackend(memoryHost());
     TestBed.configureTestingModule({
-      providers: [{ provide: WindowingBackend, useValue: windowing }, { provide: IMT_COMMANDS, multi: true, useFactory: () => TestBed.inject(WindowCommands).commands }],
+      providers: [{ provide: WindowingBackend, useValue: windowing }, { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => TestBed.inject(WindowCommands).commands }],
     });
     const { fixture } = setup(TitleBar);
     await TestBed.inject(WindowingService).init();
@@ -152,7 +152,7 @@ describe('TitleBar', () => {
     await choose(fixture, 'Window');
     const items = [...document.querySelectorAll<HTMLElement>('[role=menuitemcheckbox]')];
     expect(items.map((i) => i.getAttribute('aria-checked'))).toEqual(['true', 'false']);
-    expect(items[1]?.textContent).toContain('IMT — w-2');
+    expect(items[1]?.textContent).toContain('Debrief — w-2');
     at(items, 1).click();
     await settle(fixture);
     expect(windowing.calls).toEqual(['newWindow', 'focusWindow:w-2']);
@@ -171,7 +171,7 @@ describe('TitleBar', () => {
     TestBed.configureTestingModule({ providers: [{ provide: MENU_MODE, useValue: 'native' }, { provide: NATIVE_MENU_PORT, useValue: port }] });
     const { fixture, dock } = setup(TitleBar);
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('imt-menu-bar')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-menu-bar')).toBeNull();
     expect(fixture.nativeElement.querySelector('[role=menubar]')).toBeNull();
     expect(fixture.nativeElement.querySelector('.palette')).not.toBeNull();
     expect(sent.length).toBe(1);
@@ -218,7 +218,7 @@ describe('TitleBar', () => {
     await TestBed.inject(LifecycleService).init();
     await settle(fixture);
     const host = fixture.nativeElement as HTMLElement;
-    expect(host.lastElementChild?.tagName.toLowerCase()).toBe('imt-title-extras');
+    expect(host.lastElementChild?.tagName.toLowerCase()).toBe('debrief-title-extras');
     expect(el(fixture, '[data-testid=project-title]').textContent).toContain('Untitled');
     expect(host.querySelector('[data-testid=admin-badge]')).toBeNull();
     await store.openPaths(['/more/added.log']);
@@ -232,7 +232,7 @@ describe('openedFolderName', () => {
     expect(openedFolderName(['/data/logs/a.log', '/data/logs/web/b.log'])).toBe('logs');
     expect(openedFolderName(['C:\\logs\\web01\\a.log'])).toBe('web01');
     expect(openedFolderName(['a.log'])).toBe('a.log');
-    expect(openedFolderName(['/a/x.log', '/b/y.log'])).toBe('/');
+    expect(openedFolderName(['/a/x.log', '/b/y.log'])).toBe('');
   });
 });
 
@@ -252,19 +252,24 @@ describe('StatusBar', () => {
     await settle(fixture);
     store.setMatchTotal(3);
     await settle(fixture);
-    expect(text(fixture)).toContain('2 sources');
     expect(text(fixture)).toContain('11 events');
-    expect(el(fixture, '[data-testid=status-untimed]').textContent).toContain('1 without a time');
     expect(text(fixture)).toMatch(/\d+ instances/);
+    // The rarely needed facts live in the Details popover, not in the bar.
+    expect(text(fixture)).not.toContain('Importers');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    const pop = document.querySelector('[data-testid=status-details-popover]')!;
+    expect(pop.textContent).toContain('Sources');
+    expect(pop.textContent).toContain('json · text');
+    expect(pop.querySelector('[data-testid=status-untimed]')!.textContent).toContain('Without a time');
     expect(text(fixture)).toContain('3 matching');
-    expect(text(fixture)).toContain('Importers: json · text');
     expect(el(fixture, '[data-testid=status-profile]').textContent).toContain('Profile: ');
     expect(all(fixture, 'span').find((s) => /\d+ events/.test(s.textContent ?? ''))?.title).toMatch(/^Indexed in \d/);
     el<HTMLButtonElement>(fixture, '.tz').click();
     expect(store.timezone()).toBe('local');
     await store.clearWorkspace();
     await settle(fixture);
-    expect(text(fixture)).toContain('Importers: —');
+    expect(document.querySelector('[data-testid=status-details-popover]')!.textContent).toContain('Importers—');
     // Nothing open: no counts, group or profile that describe nothing.
     expect(text(fixture)).toContain('No files open');
     expect(text(fixture)).not.toContain('0 sources');
@@ -276,10 +281,13 @@ describe('StatusBar', () => {
   it('shows how many events the pipeline dropped', async () => {
     const { fixture, store, backend } = setup(StatusBar);
     await settle(fixture);
-    expect(text(fixture)).not.toContain('dropped by pipeline');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    const pop = () => document.querySelector('[data-testid=status-details-popover]')!.textContent;
+    expect(pop()).not.toContain('Dropped by pipeline');
     await store.applyProfile(await backend.saveProfile(DROP_DEBUG_PROFILE));
     await settle(fixture);
-    expect(text(fixture)).toContain('1 dropped by pipeline');
+    expect(pop()).toContain('Dropped by pipeline1');
   });
 
   it('has a Live tail toggle that reflects and switches the live state', async () => {
@@ -322,12 +330,14 @@ describe('StatusBar', () => {
     expect(button.title).toBe('Live tail failed: watch limit reached');
   });
 
-  it('pluralises one source', async () => {
+  it('counts the sources in the Details popover', async () => {
     const { fixture, store } = setup(StatusBar);
     await settle(fixture);
     await store.removeSource(1);
     await settle(fixture);
-    expect(el(fixture, '.strong').textContent?.trim()).toBe('1 source');
+    el<HTMLButtonElement>(fixture, '[data-testid=status-details]').click();
+    fixture.detectChanges();
+    expect(document.querySelector('[data-testid=status-details-popover]')!.textContent).toContain('Sources1');
   });
 });
 
@@ -341,7 +351,8 @@ describe('Sidebar', () => {
     // Two folders are open: each gets a heading and its files show their names only (H2); the path is the tooltip.
     expect(all(fixture, '[data-testid=folder-heading]').map((n) => n.textContent?.trim())).toEqual(['logs/web01', 'logs/web02']);
     expect(all(fixture, '.src:not(.dim) .name').map((n) => n.textContent)).toEqual(['app.clef', 'app.log']);
-    expect(all(fixture, '[data-testid=format-badge]').map((n) => n.getAttribute('title'))).toHaveLength(2);
+    expect(all(fixture, '.src:not(.dim)').map((n) => n.getAttribute('title'))).toEqual([expect.stringContaining('Format: '), expect.stringContaining('Format: ')]);
+    expect(all(fixture, '[data-testid=format-badge]')).toHaveLength(0);
     expect(el(fixture, '.src.dim').textContent).toContain('system/export.reg');
     expect(el(fixture, '.src').getAttribute('title')).toContain('7 events');
     el<HTMLButtonElement>(fixture, '[aria-label="Remove app.log"]').click();
@@ -372,12 +383,12 @@ describe('Sidebar', () => {
     await store.clearWorkspace();
     await settle(fixture);
     expect(text(fixture)).toContain('No files open');
-    expect(fixture.nativeElement.querySelector('imt-fields-panel')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-fields-panel')).toBeNull();
     expect(all(fixture, '.empty button')).toHaveLength(0);
     el<HTMLButtonElement>(fixture, 'button[aria-label="Open folder"]').click();
     await settle(fixture);
     expect(store.summary()?.sources).toHaveLength(1);
-    expect(fixture.nativeElement.querySelector('imt-fields-panel')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-fields-panel')).not.toBeNull();
     await store.clearWorkspace();
     await settle(fixture);
     el<HTMLButtonElement>(fixture, 'button[aria-label="Open files"]').click();

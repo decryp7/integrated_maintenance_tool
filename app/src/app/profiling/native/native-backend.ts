@@ -6,7 +6,7 @@ import { isTauri } from '../../core/platform';
 import { ToolCatalogBackend } from '../../core/tools-backend';
 import { JobsBackend } from '../../jobs/jobs-backend';
 
-/** The tool of the native plugin's normal process: listing, suspend-and-sample, `.etl` (crates/imt-plugin-native). */
+/** The tool of the native plugin's normal process: listing, suspend-and-sample, `.etl` (crates/debrief-plugin-native). */
 export const NATIVE_TOOL = 'native-profiler';
 /** The tool of its elevated process: ETW captures (the first call starts it through the administrator prompt). */
 export const NATIVE_ETW_TOOL = 'native-profiler.etw';

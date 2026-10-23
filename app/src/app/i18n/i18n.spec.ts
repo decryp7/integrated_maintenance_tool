@@ -31,7 +31,7 @@ class MemoryStorage implements LanguageStorage {
 afterEach(() => setActiveLocale(SOURCE_LOCALE));
 
 describe('locale', () => {
-  it('resolves the choice: explicit English and pseudo, system languages IMT ships, else English', () => {
+  it('resolves the choice: explicit English and pseudo, system languages Debrief ships, else English', () => {
     expect(resolveLocale('en', ['de-DE'])).toBe(SOURCE_LOCALE);
     expect(resolveLocale('pseudo', ['en-US'])).toBe(PSEUDO_LOCALE);
     expect(resolveLocale('system', ['de-DE', 'fr'])).toBe(SOURCE_LOCALE);

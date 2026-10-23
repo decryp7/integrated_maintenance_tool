@@ -14,7 +14,7 @@ export const SOURCE_LOCALE = 'en-US';
 /** The generated pseudo-locale (accented, longer, bracketed text) used to find unmarked strings and overflow. */
 export const PSEUDO_LOCALE = 'en-XA';
 
-/** Real translations IMT ships, by BCP 47 tag. "System default" picks one of these or falls back to English. */
+/** Real translations Debrief ships, by BCP 47 tag. "System default" picks one of these or falls back to English. */
 export const SHIPPED_LOCALES: readonly string[] = [SOURCE_LOCALE];
 
 const RTL_LANGUAGES = new Set(['ar', 'arc', 'ckb', 'dv', 'fa', 'he', 'ks', 'ku', 'ps', 'sd', 'syr', 'ug', 'ur', 'yi']);
@@ -25,7 +25,7 @@ export function language(tag: string): string {
 }
 
 /**
- * The locale to run in. "System default" uses the first preferred system language IMT has messages for (keeping the
+ * The locale to run in. "System default" uses the first preferred system language Debrief has messages for (keeping the
  * user's region, e.g. en-GB, for formatting) and otherwise English.
  */
 export function resolveLocale(choice: LanguageChoice, preferred: readonly string[]): string {

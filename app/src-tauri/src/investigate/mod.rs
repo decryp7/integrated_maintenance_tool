@@ -1,5 +1,5 @@
 //! Investigation helpers (ADR 0039): known-issue matching over the knowledge files, the incident summary report,
-//! and investigation playbooks. Commands are thin: the engine (`imt_core::{known_issues, incident, playbook}`) computes,
+//! and investigation playbooks. Commands are thin: the engine (`debrief_core::{known_issues, incident, playbook}`) computes,
 //! the model (when there is one) only suggests and narrates, and every suggestion is verified by the engine.
 
 pub(crate) mod incident;
@@ -9,7 +9,7 @@ pub(crate) mod playbooks;
 mod tests;
 
 use crate::windows::WindowState;
-use imt_ai::knowledge::KnowledgeFile;
+use debrief_ai::knowledge::KnowledgeFile;
 
 /// Name and text of the enabled knowledge files the window sees: its project files (and notes), then the global ones.
 pub(crate) fn knowledge_texts(app: &tauri::AppHandle<impl tauri::Runtime>, win: &WindowState) -> Vec<(String, String)> {
