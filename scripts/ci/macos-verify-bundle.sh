@@ -10,6 +10,19 @@ bundle="$dir/dist/bundle"
 app="${1:-$(find "$bundle/macos" -maxdepth 1 -name '*.app' | head -1)}"
 [ -d "${app:-}" ] || { echo "::error::no .app bundle found (looked in $bundle/macos)"; exit 1; }
 
+# The Team ID of a signed Mach-O ("" when it has none).
+team_of() { codesign -dv "$1" 2>&1 | sed -n 's/^TeamIdentifier=//p' | sed 's/^not set$//'; }
+
+# Really loads the code from the built app: a library-validation or run-path failure aborts the process.
+load_check() {
+  local app="$1" macos="$1/Contents/MacOS" out
+  out=$("$macos/debrief-store-worker" --self-test 2>&1) || { echo "$out"; echo "::error::the store worker of $app cannot open a store"; return 1; }
+  echo "$out"
+  out=$("$macos/debrief-plugins" --manifests 2>&1) || { echo "$out" | head -5; echo "::error::debrief-plugins of $app does not start"; return 1; }
+  out=$("$macos/debrief-ai-worker" --list-builds 2>&1) || true
+  [ -x "$macos/debrief-ai-worker" ] || { echo "::error::debrief-ai-worker is missing from $app"; return 1; }
+}
+
 check_app() {
   local app="$1" sig bin
   codesign --verify --deep --strict --verbose=2 "$app"
@@ -28,7 +41,11 @@ check_app() {
     return 1
   fi
   echo "$sig" | grep -q 'Sealed Resources' || { echo "::error::$app has no sealed resources"; return 1; }
-  # Every Mach-O inside the seal must verify on its own and must not be linker-signed only.
+  # Every Mach-O inside the seal must verify on its own, must not be linker-signed only and must carry the main
+  # executable's Team ID (none, ad hoc): dyld's library validation refuses a library of another team ("different Team
+  # IDs"), which made the store worker abort at start with DuckDB's own Developer ID signature on libduckdb.
+  local main_team bin_team
+  main_team=$(team_of "$(find "$app/Contents/MacOS" -type f -perm -u+x | head -1)")
   while IFS= read -r bin; do
     file -b "$bin" | grep -q 'Mach-O' || continue
     codesign --verify --strict "$bin" || { echo "::error::$bin does not verify"; return 1; }
@@ -36,8 +53,14 @@ check_app() {
       echo "::error::$bin is only linker-signed"
       return 1
     fi
+    bin_team=$(team_of "$bin")
+    if [ "$bin_team" != "$main_team" ]; then
+      echo "::error::$bin has Team ID '$bin_team', the app has '$main_team': library validation will refuse it (re-sign it ad hoc)"
+      return 1
+    fi
     echo "verified: ${bin#"$app"/}"
   done < <(find "$app/Contents" -type f \( -perm -u+x -o -name '*.dylib' \))
+  load_check "$app"
   echo "bundle OK: $app"
 }
 

@@ -24,6 +24,18 @@ import { fetchLibduckdb } from './libduckdb.mjs';
 
 export const SIDECARS = ['debrief-ai-worker', 'debrief-plugins', 'debrief-store-worker'];
 
+/**
+ * Re-signs a bundled macOS dylib ad hoc. DuckDB ships libduckdb.dylib with its own Developer ID signature (a Team ID);
+ * the hardened-runtime sidecar that loads it is ad hoc (no Team ID), so dyld's library validation refuses the mapping
+ * ("different Team IDs") and the store worker aborts at start. Every Mach-O in the app must carry the same (no) team.
+ * Does nothing off macOS.
+ */
+export function adhocSign(file, exec = (cmd, args) => execFileSync(cmd, args, { stdio: 'inherit' }), platform = process.platform) {
+  if (platform !== 'darwin') return false;
+  exec('codesign', ['--force', '--sign', '-', '--timestamp=none', file]);
+  return true;
+}
+
 /** The file name of the prebuilt libduckdb for a target triple. */
 export function libduckdbFile(target) {
   if (target.includes('-windows-')) return 'duckdb.dll';
@@ -95,11 +107,13 @@ async function main() {
   const libOut = join(outDir, 'lib');
   mkdirSync(libOut, { recursive: true });
   copyFileSync(join(libDir, lib), join(libOut, lib));
+  adhocSign(join(libOut, lib));
   console.log(`library: ${join(libOut, lib)}`);
   // And next to the built worker, where an app run straight from the target folder (development, the end-to-end
   // builds) finds it.
   for (const built of binaries.find((b) => b.name === 'debrief-store-worker').built) {
     copyFileSync(join(libDir, lib), join(dirname(built), lib));
+    adhocSign(join(dirname(built), lib));
     console.log(`library: ${join(dirname(built), lib)}`);
   }
 }

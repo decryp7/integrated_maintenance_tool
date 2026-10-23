@@ -826,7 +826,9 @@ jobs:
 
       # signingIdentity "-" (tauri.macos.conf.json) must leave an ad-hoc sealed .app, in the bundle and in the DMG:
       # a linker-signed one is reported as "damaged" on a quarantined download.
-      - name: Verify the .app and the DMG are ad-hoc sealed (macOS)
+      # Also checks every nested Mach-O's Team ID against the app's and runs the packaged store worker's --self-test
+      # (opens and reopens a tiny store) and the plugin host from the bundle, so dyld's library validation is exercised.
+      - name: Verify the .app and the DMG are ad-hoc sealed and load (macOS)
         if: runner.os == 'macOS'
         shell: bash
         run: bash scripts/ci/macos-verify-bundle.sh

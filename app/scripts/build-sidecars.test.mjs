@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { test } from 'node:test';
-import { libduckdbFile, sidecarPlan } from './build-sidecars.mjs';
+import { adhocSign, libduckdbFile, sidecarPlan } from './build-sidecars.mjs';
 
 const select = [
   '-p',
@@ -76,4 +76,13 @@ test('the store worker ships the prebuilt libduckdb of its platform', () => {
   assert.equal(libduckdbFile('x86_64-pc-windows-msvc'), 'duckdb.dll');
   assert.equal(libduckdbFile('x86_64-unknown-linux-gnu'), 'libduckdb.so');
   assert.equal(libduckdbFile('universal-apple-darwin'), 'libduckdb.dylib');
+});
+
+test('a bundled dylib is re-signed ad hoc on macOS only', () => {
+  const calls = [];
+  const exec = (cmd, args) => calls.push([cmd, ...args]);
+  assert.equal(adhocSign('/x/libduckdb.dylib', exec, 'darwin'), true);
+  assert.deepEqual(calls, [['codesign', '--force', '--sign', '-', '--timestamp=none', '/x/libduckdb.dylib']]);
+  assert.equal(adhocSign('/x/libduckdb.so', exec, 'linux'), false);
+  assert.equal(calls.length, 1);
 });
