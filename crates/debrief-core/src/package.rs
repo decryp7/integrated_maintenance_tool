@@ -17,6 +17,77 @@ use std::collections::BTreeMap;
 use std::io::{Read, Seek, Write};
 use std::path::{Path, PathBuf};
 
+/// The export was cancelled (the job's Cancel): the partial `.part` file is gone.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ExportCancelled;
+
+impl std::fmt::Display for ExportCancelled {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("saving the project was cancelled")
+    }
+}
+
+impl std::error::Error for ExportCancelled {}
+
+/// Folder under a project (a cache, never exported) where an export works on a copy of the database.
+pub const EXPORT_TMP: &str = "tmp";
+/// Prefix of the export's working folder in [`EXPORT_TMP`].
+pub const EXPORT_TMP_PREFIX: &str = "export-";
+/// Bytes copied between two checks for Cancel (and two progress updates).
+const EXPORT_BLOCK: usize = 1 << 20;
+
+/// What a project export is doing, told by the files it leaves: the saving job names the phase from this.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExportPhase {
+    /// Writing the database's pending changes into its file.
+    Checkpoint,
+    /// Making a copy of the open database.
+    CopyingDatabase,
+    /// Writing the archive; `bytes` of it exist so far.
+    WritingArchive { bytes: u64 },
+}
+
+/// The file an export to `out` is written to until it is complete.
+pub fn part_path(out: &Path) -> PathBuf {
+    out.with_extension(format!("{ARCHIVE_EXTENSION}.part"))
+}
+
+/// The phase an export of the project folder `dir` to `out` is in.
+pub fn export_phase(dir: &Path, out: &Path) -> ExportPhase {
+    if let Ok(m) = std::fs::metadata(part_path(out)) {
+        return ExportPhase::WritingArchive { bytes: m.len() };
+    }
+    let copying = std::fs::read_dir(dir.join(EXPORT_TMP))
+        .map(|rd| rd.flatten().any(|e| e.file_name().to_string_lossy().starts_with(EXPORT_TMP_PREFIX)))
+        .unwrap_or(false);
+    if copying {
+        ExportPhase::CopyingDatabase
+    } else {
+        ExportPhase::Checkpoint
+    }
+}
+
+/// Copies `src` into `dst` in blocks, stopping with [`ExportCancelled`] once the current job is cancelled.
+fn copy_cancellable(src: &mut impl Read, dst: &mut impl Write) -> Result<u64> {
+    let control = crate::ql::QueryControl::current();
+    let mut buf = vec![0u8; EXPORT_BLOCK];
+    let mut total = 0u64;
+    loop {
+        if control.as_ref().is_some_and(|c| c.is_cancelled()) {
+            return Err(ExportCancelled.into());
+        }
+        let n = src.read(&mut buf)?;
+        if n == 0 {
+            return Ok(total);
+        }
+        dst.write_all(&buf[..n])?;
+        total += n as u64;
+        if let Some(c) = &control {
+            c.advance(n);
+        }
+    }
+}
+
 /// `project.toml` `format` of a project.
 pub const PROJECT_FORMAT: &str = "debrief-project";
 /// Version of the project layout this build writes and reads.
@@ -167,7 +238,7 @@ impl ProjectDir {
     pub fn export_with(&self, out: &Path, substitutes: &[(PathBuf, PathBuf)]) -> Result<u64> {
         // A project that does not open is not exported.
         ProjectDir::open(&self.dir)?;
-        let part = out.with_extension(format!("{ARCHIVE_EXTENSION}.part"));
+        let part = part_path(out);
         let file = std::fs::File::create(&part).with_context(|| format!("cannot write {}", part.display()))?;
         let result = (|| -> Result<u64> {
             let mut zip = zip::ZipWriter::new(std::io::BufWriter::new(file));
@@ -193,9 +264,18 @@ impl ProjectDir {
                     zip::CompressionMethod::Deflated
                 };
                 let opts = zip::write::SimpleFileOptions::default().compression_method(method).large_file(true);
+                if crate::ql::QueryControl::current().is_some_and(|c| c.is_cancelled()) {
+                    return Err(ExportCancelled.into());
+                }
                 zip.start_file(name.as_str(), opts)?;
                 let mut f = std::fs::File::open(&src).with_context(|| format!("cannot read {name}"))?;
-                total += std::io::copy(&mut f, &mut zip).with_context(|| format!("cannot write {name}"))?;
+                total += copy_cancellable(&mut f, &mut zip).map_err(|e| {
+                    if e.is::<ExportCancelled>() {
+                        e
+                    } else {
+                        e.context(format!("cannot write {name}"))
+                    }
+                })?;
             }
             let mut w = zip.finish()?;
             w.flush()?;

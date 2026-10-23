@@ -127,6 +127,18 @@ fn rewrite(conn: &Connection, seg_dir: &Path, schema: &Arc<EventSchema>, group: 
     }
 }
 
+/// Compaction stopped between two groups because the job was cancelled; what was rewritten before stays valid.
+#[derive(Debug)]
+pub(crate) struct CompactCancelled;
+
+impl std::fmt::Display for CompactCancelled {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("compaction was cancelled")
+    }
+}
+
+impl std::error::Error for CompactCancelled {}
+
 /// Compacts the segments of the store in `dir`. Run while nothing writes (the store's write lock).
 pub(crate) fn compact(conn: &Connection, dir: &Path, schema: &Arc<EventSchema>) -> Result<Compaction> {
     compact_with(conn, dir, schema, false)
@@ -201,7 +213,17 @@ pub(crate) fn compact_with(conn: &Connection, dir: &Path, schema: &Arc<EventSche
     }
     let seg_dir = dir.join(SEGMENTS_DIR);
     let mut done = Compaction::default();
-    for group in groups.into_iter().filter(|g| !g.is_empty()) {
+    let groups: Vec<_> = groups.into_iter().filter(|g| !g.is_empty()).collect();
+    // Progress counts groups; Cancel is looked at before each (a group is a transaction, so stopping between two
+    // leaves the catalog and the files consistent).
+    let control = debrief_core::ql::QueryControl::current();
+    if let Some(c) = &control {
+        c.begin(debrief_core::ql::QueryStage::Evaluating, groups.len());
+    }
+    for group in groups {
+        if control.as_ref().is_some_and(|c| c.is_cancelled()) {
+            return Err(CompactCancelled.into());
+        }
         let live: u64 = group.iter().map(|l| l.live).sum();
         let generation = meta_u64(conn, "file_generation") + 1;
         set_meta(conn, "file_generation", generation)?;
@@ -235,6 +257,9 @@ pub(crate) fn compact_with(conn: &Connection, dir: &Path, schema: &Arc<EventSche
         }
         done.replaced += group.len();
         done.written += usize::from(live > 0);
+        if let Some(c) = &control {
+            c.advance(1);
+        }
     }
     Ok(done)
 }

@@ -120,6 +120,11 @@ impl DumpDocs {
         true
     }
 
+    /// A copy of the body of the open document `id`.
+    pub fn snapshot(&self, id: u32) -> Option<Document> {
+        self.docs.iter().find(|d| d.id == id).map(|d| d.body.clone())
+    }
+
     pub fn list(&self) -> Vec<DumpDocSummary> {
         self.docs.iter().map(summary).collect()
     }

@@ -547,19 +547,23 @@ pub(crate) async fn save_project<R: Runtime>(
     // A file job: the Jobs pane shows the phases and the bytes written, and Cancel stops the copy of the store.
     let spec = crate::jobs::export_spec("Saving", Some(state.label()), &file);
     let control = debrief_core::ql::QueryControl::new();
-    let probe_path = file.clone();
+    let (probe_dir, probe_path) = (store.store_dir(), file.clone());
     let controls = crate::jobs::Controls::cancel({
         let c = control.clone();
         move || c.cancel()
     })
     .with_probe(move || {
-        let written = std::fs::metadata(&probe_path).map(|m| m.len()).unwrap_or(0);
-        Some(crate::jobs::JobProgress::in_phase(
-            "Writing the project file",
-            crate::jobs::PhaseScale::Bytes,
-            written,
-            0,
-        ))
+        use debrief_core::package::{export_phase, ExportPhase};
+        // The phase is told by the files the export leaves (the store may be in another process).
+        Some(match export_phase(&probe_dir, &probe_path) {
+            ExportPhase::Checkpoint => crate::jobs::JobProgress::in_phase("Checkpoint", crate::jobs::PhaseScale::Indeterminate, 0, 0),
+            ExportPhase::CopyingDatabase => {
+                crate::jobs::JobProgress::in_phase("Copying database", crate::jobs::PhaseScale::Indeterminate, 0, 0)
+            }
+            ExportPhase::WritingArchive { bytes } => {
+                crate::jobs::JobProgress::in_phase("Writing archive", crate::jobs::PhaseScale::Bytes, bytes, 0)
+            }
+        })
     });
     crate::jobs::run(
         &app,

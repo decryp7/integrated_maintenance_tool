@@ -8,6 +8,9 @@ use debrief_core::{PluginRegistry, Profile};
 use std::path::{Path, PathBuf};
 
 fn io(e: anyhow::Error) -> StoreError {
+    if e.is::<debrief_core::package::ExportCancelled>() {
+        return StoreError::Cancelled;
+    }
     StoreError::Io(format!("{e:#}"))
 }
 
@@ -91,7 +94,11 @@ impl DuckStore {
         // index, positions) may hold a write transaction for a moment, which DuckDB reports instead of waiting: ask
         // again for a few seconds. The archive holds a copy made by `COPY FROM DATABASE` below either way, so a
         // checkpoint that never gets through costs only a larger write-ahead log, not a wrong export.
+        let cancelled = || debrief_core::ql::QueryControl::current().is_some_and(|c| c.is_cancelled());
         for attempt in 0..100 {
+            if cancelled() {
+                return Err(StoreError::Cancelled);
+            }
             match self.inner.conn()?.execute_batch("CHECKPOINT") {
                 Ok(()) => break,
                 Err(e) if attempt < 99 && e.to_string().contains("other write transactions") => {
@@ -105,7 +112,11 @@ impl DuckStore {
         }
         self.save_project(manifest)?;
         // The open database cannot be read by another handle (Windows): export a copy of it.
-        let tmp = self.inner.dir.join("tmp").join(format!("export-{}", std::process::id()));
+        let tmp = self.inner.dir.join(debrief_core::package::EXPORT_TMP).join(format!(
+            "{}{}",
+            debrief_core::package::EXPORT_TMP_PREFIX,
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp)?;
         let copy = tmp.join(crate::DB_FILE);
@@ -124,7 +135,11 @@ impl DuckStore {
                 .map_err(io)
         })();
         let _ = std::fs::remove_dir_all(&tmp);
-        result
+        // A copy interrupted by Cancel is reported as one, not as the database's interruption error.
+        match result {
+            Err(_) if cancelled() => Err(StoreError::Cancelled),
+            other => other,
+        }
     }
 }
 

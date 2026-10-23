@@ -229,6 +229,17 @@ pub enum PluginRequest {
         /// The host's import options.
         options: Json,
     },
+    /// Items: pieces (`Vec<u8>`) of the document, encoded again; → [`DocumentDone`] (zero bytes: the importer cannot
+    /// do this). The host lends the open document as `document` (bytes of the document library's encoding) and the
+    /// plugin names its unnamed frames from the symbols there are now.
+    ResymboliseDocument {
+        /// The document importer.
+        importer: Arc<str>,
+        /// The open document, encoded.
+        document: HostFileRef,
+        /// The host's import options.
+        options: Json,
+    },
     /// Items: pieces (`Vec<u8>`, at most [`OUTPUT_CHUNK`] bytes) of the output stream the plugin opened with
     /// [`HostRequest::SaveOutput`]; → [`OutputEnd`]. The host sends it while it answers that request, with
     /// [`OUTPUT_CREDIT`] credits.

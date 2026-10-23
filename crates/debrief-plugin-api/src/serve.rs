@@ -310,6 +310,22 @@ impl PluginHandler {
                     bytes: encoded.len() as u64,
                 })
             }
+            PluginRequest::ResymboliseDocument {
+                importer,
+                document,
+                options,
+            } => {
+                let i = self.document_importer(&importer)?;
+                let bytes = HostFile::new(ctx.peer(), document).read_all(MAX_IMPORT_BYTES).map_err(failed)?;
+                let encoded = i.resymbolise_encoded(&bytes, &options.0).unwrap_or_default();
+                drop(bytes);
+                for piece in encoded.chunks(READ_CHUNK as usize) {
+                    ctx.send_item(piece.to_vec())?;
+                }
+                encode_reply(&DocumentDone {
+                    bytes: encoded.len() as u64,
+                })
+            }
         }
     }
 
