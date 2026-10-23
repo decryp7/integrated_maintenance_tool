@@ -91,6 +91,7 @@ export class ContextSection {
     // A different event starts again from the default size; closing the section cancels any request. Opening the
     // section or showing more loads at once; moving the selection (holding an arrow key in the grid) loads once it
     // rests, so passing events are never asked for.
+    // effect-state: IPC context load with a settle timer; resets the data when the record changes
     effect(() => {
       const open = this.open();
       const id = this.record().id;

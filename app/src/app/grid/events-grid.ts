@@ -462,6 +462,7 @@ export class EventsGrid {
       untracked(() => this.rows.fill(() => this.missingRows()));
     });
 
+    // effect-state: publishes the selection to the palette-command store (outside the grid)
     effect(() => {
       const anchor = this.sel.anchor();
       if (!anchor || anchor.nonce === handledAnchorNonce.get(this.sel)) return;

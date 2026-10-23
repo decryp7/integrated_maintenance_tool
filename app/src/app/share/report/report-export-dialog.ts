@@ -97,6 +97,7 @@ export class ReportExportDialog {
       })
       .catch(() => undefined);
     let seq = 0;
+    // effect-state: IPC redaction preview; the result lands in state when the engine answers
     effect(() => {
       const on = this.redact();
       const r = this.report();

@@ -25,6 +25,7 @@ export function matchCount(conditions: () => readonly Condition[], delayMs = 250
   const out = signal<number | null>(null);
   let seq = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // effect-state: debounced IPC count; its result lands in state when the engine answers
   effect(() => {
     const current = conditions();
     clearTimeout(timer);

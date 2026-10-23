@@ -126,6 +126,7 @@ export const TimelineInstanceStore = signalStore(
   withHooks({
     onInit(store) {
       let seq = 0;
+      // effect-state: IPC timeline request keyed on query and data version; the answer lands in the store
       effect(() => {
         const summary = store._workspace.summary();
         const request = { query: store.request(), buckets: store.buckets(), alwaysShowLifecycle: store._workspace.alwaysShowLifecycle() };

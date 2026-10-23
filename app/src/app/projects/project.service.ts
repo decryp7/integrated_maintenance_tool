@@ -62,6 +62,7 @@ export class ProjectService {
 
   constructor() {
     // The first loaded workspace is the clean starting point.
+    // effect-state: captures the saved-state baseline once, when the first summary arrives
     effect(() => {
       if (this.baseline() === null && this.store.summary()) this.baseline.set(this.key());
     });

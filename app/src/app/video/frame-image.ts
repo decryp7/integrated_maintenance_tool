@@ -48,6 +48,7 @@ export class FrameImage {
       observer.observe(this.host.nativeElement);
       this.destroyRef.onDestroy(() => observer.disconnect());
     }
+    // effect-state: IPC frame fetch once visible; the image lands in state when the engine answers
     effect(() => {
       const key = this.videoKey();
       const index = this.index();

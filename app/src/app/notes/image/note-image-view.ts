@@ -219,6 +219,7 @@ export class NoteImageView {
       }
     });
     // A new image fits the view; marked areas belong to the image they were drawn on.
+    // effect-state: fits the viewport to a newly shown image (needs the measured box)
     effect(() => {
       const key = this.store.image()?.key;
       this.boxSize();
@@ -231,6 +232,7 @@ export class NoteImageView {
       });
     });
     // A highlighted note's first region comes into view.
+    // effect-state: scrolls a highlighted note's first region into view (needs the measured box)
     effect(() => {
       const id = this.store.focused();
       untracked(() => {

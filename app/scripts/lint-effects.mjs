@@ -58,7 +58,10 @@ export function problems(src) {
     // The contiguous comment lines right above the statement.
     let above = line - 2;
     let tagged = false;
-    while (above >= 0 && lines[above].trim().startsWith('//')) tagged ||= lines[above--].includes(TAG);
+    while (above >= 0 && lines[above].trim().startsWith('//')) {
+      if (lines[above].includes(TAG)) tagged = true;
+      above--;
+    }
     if (!tagged) out.push({ line, text: lines[line - 1].trim() });
   }
   return out;

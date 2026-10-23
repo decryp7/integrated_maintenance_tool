@@ -171,6 +171,7 @@ export class DashboardTile {
 
   constructor() {
     let seq = 0;
+    // effect-state: IPC tile request keyed on query and data version; the result lands in state
     effect(() => {
       const tile = this.tile();
       const query = this.store.effectiveQuery();

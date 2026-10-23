@@ -206,6 +206,7 @@ export class UmdhView {
       const ids = t?.kind === 'umdhDiff' ? [t.id] : this.snapshots().map((d) => d.id);
       untracked(() => (t ? void this.findings.load(() => this.backend.findings({ ids })) : this.findings.reset()));
     });
+    // effect-state: starts the IPC diff load for the picked pair and consumes the pending stack key
     effect(() => {
       const { target, base } = this.pair();
       const group = this.group();

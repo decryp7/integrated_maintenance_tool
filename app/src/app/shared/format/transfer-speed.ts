@@ -18,6 +18,7 @@ const UNKNOWN: TransferSpeed = { rate: 0, etaSecs: null };
 export function transferSpeed(progress: () => { bytes: number; total: number } | null, now: () => number = Date.now): Signal<TransferSpeed> {
   const meter = new TransferMeter();
   const out = signal<TransferSpeed>(UNKNOWN);
+  // effect-state: samples progress over time into a speed (needs wall-clock history, not derivable)
   effect(() => {
     const p = progress();
     untracked(() => {

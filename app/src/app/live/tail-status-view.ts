@@ -121,6 +121,7 @@ export class TailStatusView {
   constructor() {
     void this.status.refresh();
     let timer: ReturnType<typeof setInterval> | undefined;
+    // effect-state: starts and stops the status poll timer; the tick writes the clock
     effect(() => {
       const on = this.live.enabled();
       untracked(() => {

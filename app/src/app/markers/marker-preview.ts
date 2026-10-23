@@ -56,6 +56,7 @@ export function livePreview(spec: () => PreviewSpec, delayMs = 250): Signal<Prev
   const out = signal<PreviewState>({ result: null, error: null, loading: true });
   let seq = 0;
   let timer: ReturnType<typeof setTimeout> | undefined;
+  // effect-state: debounced IPC preview; its result lands in state when the engine answers
   effect(() => {
     const current = spec();
     clearTimeout(timer);

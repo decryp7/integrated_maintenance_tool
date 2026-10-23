@@ -145,6 +145,7 @@ export class HotspotsView {
   });
 
   constructor() {
+    // effect-state: a new query scrolls the DOM to the top and starts the IPC load
     effect(() => {
       const p = this.active.profile();
       const query = p

@@ -36,6 +36,7 @@ export const TimelineStore = signalStore(
       const query = inject(QueryStore);
       const prefs = inject(UiPrefsStore);
       let seq = 0;
+      // effect-state: IPC timeline request keyed on query and data version; the answer lands in the store
       effect(() => {
         const summary = data.summary();
         const request = { query: query.effectiveQuery(), buckets: store.buckets(), alwaysShowLifecycle: prefs.alwaysShowLifecycle() };
