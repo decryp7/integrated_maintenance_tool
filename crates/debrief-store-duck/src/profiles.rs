@@ -63,7 +63,7 @@ impl Inner {
         let roots = read_lock(&self.state).roots.clone();
         progress.set_stage(Some("Keeping the current data safe"));
         let kept = self.set_aside_events()?;
-        // Files that were sources keep their ids, also when renamed or moved (ADR 0050).
+        // Files that were sources keep their ids, also when renamed or moved (ADR 0051).
         let reuse = crate::reuse::plan(self, || {
             let (profile, removed) = {
                 let s = read_lock(&self.state);

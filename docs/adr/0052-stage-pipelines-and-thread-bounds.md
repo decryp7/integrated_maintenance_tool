@@ -1,4 +1,4 @@
-# 50. Stage pipelines and per-kind thread bounds
+# 52. Stage pipelines and per-kind thread bounds
 
 - Status: accepted (2026-10-23)
 - Date: 2026-10-23

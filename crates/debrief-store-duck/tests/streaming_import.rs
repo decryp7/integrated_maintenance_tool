@@ -1,4 +1,4 @@
-//! The streaming import (ADR 0050) numbers sources and orders events exactly like reading a complete sorted list, at
+//! The streaming import (ADR 0051) numbers sources and orders events exactly like reading a complete sorted list, at
 //! any number of workers and in any arrival order, and reloads keep the ids of sources that were renamed or moved.
 
 mod common;

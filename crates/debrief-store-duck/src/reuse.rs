@@ -1,4 +1,4 @@
-//! Source ids that survive a reload (ADR 0050). Sources are never renumbered: notes, saved queries and links refer to
+//! Source ids that survive a reload (ADR 0051). Sources are never renumbered: notes, saved queries and links refer to
 //! them. When the opened folders are read again, a file that was a source before keeps that source's id:
 //!
 //! 1. by path: a source at the same path (archive members by their `archive!entry` path) is the same source;

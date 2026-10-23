@@ -1,4 +1,4 @@
-# 50. Human-like name matching
+# 53. Human-like name matching
 
 - Status: accepted (2026-10-23)
 - Date: 2026-10-23

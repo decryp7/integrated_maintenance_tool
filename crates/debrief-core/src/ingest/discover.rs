@@ -4,7 +4,7 @@
 //! than cores help): when a folder's listing is consumed, the listings of its next sub-folders are already being
 //! made on the walkers. The files are *emitted* in one deterministic order, the sorted order of their paths
 //! (a depth-first walk that visits each folder's entries by name, which is exactly how `PathBuf` sorts), whatever
-//! the walkers did. That order is what source ids follow (ADR 0014, ADR 0050), so the import can start reading the
+//! the walkers did. That order is what source ids follow (ADR 0014, ADR 0051), so the import can start reading the
 //! first file while the walk goes on: no list has to be complete first. [`discover`] collects the stream into the
 //! sorted list for callers that want one.
 //!

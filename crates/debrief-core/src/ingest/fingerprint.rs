@@ -1,5 +1,5 @@
 //! A cheap identity of a file's content, kept with its source so a renamed or moved file can be recognised when the
-//! folder is read again (ADR 0050): the size and a hash of the first and the last 64 KiB.
+//! folder is read again (ADR 0051): the size and a hash of the first and the last 64 KiB.
 
 use std::io::{Read, Seek, SeekFrom};
 use std::path::Path;

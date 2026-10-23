@@ -109,7 +109,7 @@ fn progress_starts_at_once_and_the_found_count_grows() {
         assert!(distinct.len() > 3, "the found count did not visibly grow: {distinct:?}");
     }
     // The phases come in order and each is shown with its own counts.
-    // Files are read while they are found (ADR 0050): there is no separate checking phase any more.
+    // Files are read while they are found (ADR 0051): there is no separate checking phase any more.
     let order = ["Idle", "Finding", "Importing", "Finishing"];
     let ranks: Vec<usize> = seen
         .iter()

@@ -1,4 +1,4 @@
-//! The streaming import (ADR 0050): finding the files and reading them run at the same time.
+//! The streaming import (ADR 0051): finding the files and reading them run at the same time.
 //!
 //! Discovery ([`super::discover_stream`]) walks the folders on a few I/O-bound walkers and emits the files in sorted
 //! order into a bounded queue. The dispatcher (this thread) takes them in that order, sets aside the source ids each

@@ -1,4 +1,4 @@
-//! Timing of the streaming import against reading a complete list first (ADR 0050), on a synthetic tree built here.
+//! Timing of the streaming import against reading a complete list first (ADR 0051), on a synthetic tree built here.
 //! `cargo test -p debrief-core --release --test stream_bench -- --ignored --nocapture`; `DEBRIEF_BENCH_FILES` sets the
 //! number of small files (default 100,000).
 

@@ -8,7 +8,7 @@
 //! - [`book`]: the entity table, AI aliases and the user's own corrections (which outrank the AI's).
 //! - [`resolve`]: matching with the way and the reason for every match, and clarifying questions on true ties.
 //!
-//! Everything is pure and bounded; the model sits behind [`alias_job::AliasModel`]. See `docs/adr/0050-human-name-matching.md`.
+//! Everything is pure and bounded; the model sits behind [`alias_job::AliasModel`]. See `docs/adr/0053-human-name-matching.md`.
 
 pub mod alias_job;
 pub mod book;
