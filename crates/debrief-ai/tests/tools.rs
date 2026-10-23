@@ -105,11 +105,11 @@ fn events_stats_and_neighbours() {
 fn unknown_tools_and_helpers() {
     assert!(call("rm_rf", json!({})).text.contains("unknown tool"));
     let specs = EngineTools::tool_specs();
-    assert_eq!(specs.len(), 9);
+    assert_eq!(specs.len(), 11);
     assert!(specs
         .iter()
         .all(|s| s.input_schema["type"] == "object" && !s.description.is_empty()));
-    assert!(tools(ToolLimits::for_context(8192)).specs().len() == 9);
+    assert!(tools(ToolLimits::for_context(8192)).specs().len() == 11);
     let l = ToolLimits::for_context(4096);
     assert!(l.max_chars < ToolLimits::for_context(32768).max_chars && l.max_items >= 3);
     assert_eq!(ToolLimits::for_context(1).max_chars, 1200);

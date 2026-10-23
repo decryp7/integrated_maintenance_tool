@@ -150,9 +150,7 @@ impl WordQuery {
         }
         self.terms.iter().all(|t| have.contains(t))
             && self.prefixes.iter().all(|p| have.iter().any(|w| w.starts_with(p.as_str())))
-            && (self.phrases.is_empty() || {
-                self.phrases.iter().all(|p| texts.iter().any(|t| phrase_in(p, t)))
-            })
+            && (self.phrases.is_empty() || { self.phrases.iter().all(|p| texts.iter().any(|t| phrase_in(p, t))) })
     }
 }
 
@@ -293,7 +291,10 @@ mod tests {
         ] {
             assert!(hit("graphic builder", t), "{t}");
         }
-        assert!(hit("GraphicBuilder", "the graphic.builder ran"), "a camel phrase finds separated words");
+        assert!(
+            hit("GraphicBuilder", "the graphic.builder ran"),
+            "a camel phrase finds separated words"
+        );
         assert!(hit("graphicbuilder", "GraphicBuilder"), "a one-run phrase finds the run");
         assert!(!hit("graphic builder", "builder graphic"), "order matters");
         assert!(!hit("graphic builder", "graphic the builder"), "the words are consecutive");

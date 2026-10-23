@@ -632,7 +632,10 @@ mod tests {
         // A phrase ignores separators (SQL cannot say that): the words narrow, the scan checks the phrase.
         let (f, _) = compile(&q("timeout \"timed out\"", TextMode::Words), &[], &[], &Hits).unwrap();
         let sql = f.content_sql();
-        assert!(!f.exact && sql.contains("'%timeout%'") && sql.contains("'%timed%'") && !sql.contains("'%timed out%'"), "{sql}");
+        assert!(
+            !f.exact && sql.contains("'%timeout%'") && sql.contains("'%timed%'") && !sql.contains("'%timed out%'"),
+            "{sql}"
+        );
         let (f, _) = compile(&q("imeout", TextMode::WordsOrSubstring), &[], &[], &Hits).unwrap();
         assert!(
             f.exact && f.content_sql().contains(") OR (coalesce(e.message ILIKE '%imeout%'"),
