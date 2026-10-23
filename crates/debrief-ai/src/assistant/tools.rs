@@ -579,7 +579,9 @@ impl EngineTools<'_> {
             "find_events" => self.find_events(s, parse!(FindArg)),
             "find_values" => self.find_values(s, parse!(FindArg)),
             "run_query" => self.run_query(s, parse!(QlArg)),
-            super::sql_tool::RUN_SQL => super::sql_tool::run(s, parse!(super::sql_tool::SqlArg), |v, summary| self.finish(v, summary, vec![])),
+            super::sql_tool::RUN_SQL => {
+                super::sql_tool::run(s, parse!(super::sql_tool::SqlArg), |v, summary| self.finish(v, summary, vec![]))
+            }
             "check_query" => {
                 let a = parse!(QlArg);
                 match s.check_query(&a.ql) {

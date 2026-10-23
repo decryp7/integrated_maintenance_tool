@@ -662,13 +662,16 @@ mod tests {
         let total = block(crate::workspace_commands::workspace_summary(st())).unwrap().json()["total"].clone();
         let opened = crate::test_support::finished(
             &app,
-            crate::test_support::returns_fast("open_bundle", open_bundle(
-                app.handle().clone(),
-                st(),
-                crate::paths::WindowGrants::of(app.handle(), "main"),
-                OpId::default(),
-                path.clone(),
-            )),
+            crate::test_support::returns_fast(
+                "open_bundle",
+                open_bundle(
+                    app.handle().clone(),
+                    st(),
+                    crate::paths::WindowGrants::of(app.handle(), "main"),
+                    OpId::default(),
+                    path.clone(),
+                ),
+            ),
         )
         .unwrap()
         .json();

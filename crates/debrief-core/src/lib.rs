@@ -5,8 +5,6 @@
 //! [`profile::Profile`]; the [`workspace::Workspace`] merges them, runs the
 //! profile's extractors and marker rules and serves queries.
 
-#[cfg(test)]
-pub(crate) mod test_dirs;
 pub mod analysis;
 pub mod api;
 pub mod archive;
@@ -63,6 +61,8 @@ pub mod store;
 pub mod survey;
 pub mod svg;
 pub mod template;
+#[cfg(test)]
+pub(crate) mod test_dirs;
 pub mod threads;
 pub mod tiles;
 pub mod timestamp_issue;

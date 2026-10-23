@@ -127,7 +127,8 @@ fn start_model_update<R: Runtime>(app: &AppHandle<R>, u: UpdateCandidate) -> AiR
             updates.finished(&u, &r);
         }
         r.map(|_| {
-            Done::new(()).with_result(JobResult::Model { detail: None,
+            Done::new(()).with_result(JobResult::Model {
+                detail: None,
                 file_name: Some(u.to.clone()),
             })
         })

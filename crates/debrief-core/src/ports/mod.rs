@@ -23,10 +23,10 @@ pub use console::{
     SQL_MAX_NOTES, SQL_MAX_RESULT_BYTES, SQL_MAX_ROWS, SQL_MEMORY_LIMIT, SQL_NOTE_CHARS, SQL_PAGE_ROWS, SQL_THREADS, SQL_TIME_LIMIT,
     SQL_VIEWS_VERSION,
 };
-pub use console_views::{ai_views_text, sql_views, Columns, AI_VIEWS, SQL_VIEW_TABLE};
 pub use console::{
     SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SQL_EXPORT_MAX_BYTES, SQL_EXPORT_MAX_ROWS, SQL_EXPORT_TIME_LIMIT,
 };
+pub use console_views::{ai_views_text, sql_views, Columns, AI_VIEWS, SQL_VIEW_TABLE};
 pub use inspect::{
     parse_size, FieldStorage, FieldType, LastImport, MaintenanceAction, MaintenanceReport, RunningJob, SegmentRow, SegmentsPage,
     SegmentsRequest, StoreActivity, StoreField, StoreFields, StoreIndex, StoreMemory, StoreOverview, WorkerMemory, IMPORT_BUDGET_BYTES,
