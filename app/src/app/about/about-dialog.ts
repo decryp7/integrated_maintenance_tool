@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, inject, Injectable, signal } from '@angular/core';
-import { LifecycleService } from '../lifecycle/lifecycle.service';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, Injectable, Injector, signal, viewChild } from '@angular/core';
+import { LifecycleBackend } from '../core/tools-backend';
+import { AppStatus, Platform } from '../core/tools.types';
+import { DIALOG_REF } from '../ui/dialog.service';
 import { copyText } from '../tools/clipboard';
 import { DialogService } from '../ui/dialog.service';
 import { AppLogo } from '../shared/app-logo';
@@ -55,7 +57,7 @@ const DOC_TITLES: Record<LegalDoc, string> = {
     @if (error(); as e) {
       <p class="err" role="alert">{{ e }} <button class="btn" type="button" (click)="show(doc())" i18n="@@about.retry">Retry</button></p>
     }
-    <div class="viewport" tabindex="0" role="region" [attr.aria-label]="viewportLabel()" [style.height.px]="viewportHeight" (scroll)="onScroll($event)">
+    <div #viewport class="viewport" tabindex="0" role="region" [attr.aria-label]="viewportLabel()" (scroll)="onScroll($event)">
       <div class="spacer" [style.height.px]="shown().length * lineHeight">
         <div class="rows" [style.transform]="'translateY(' + range().start * lineHeight + 'px)'">
           @for (row of rows(); track row.index) {
@@ -66,12 +68,14 @@ const DOC_TITLES: Record<LegalDoc, string> = {
     </div>
 
     <div class="actions">
-      <button class="btn" type="button" (click)="copy()"><span i18n="@@about.copyVersion">Copy version info</span></button>
+      <button class="btn" type="button" (click)="copy()" i18n="@@about.copyVersion">Copy version info…</button>
       <span class="faint" role="status">{{ copied() }}</span>
+      <button class="btn primary close" type="button" (click)="ref?.close()" i18n="@@about.close">Close</button>
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+    /* Fills the window: the notices take the remaining height and scroll inside; the footer stays pinned and the window itself never scrolls. */
+    :host { display: flex; flex-direction: column; gap: 12px; min-width: 0; min-height: 0; height: 100%; }
     .id { display: flex; gap: 14px; align-items: center; }
     .name { margin: 0; font-size: var(--fs-lg); }
     .promise { margin: 0; padding: 8px 10px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--ok); border-radius: 6px; background: var(--bg-3); color: var(--text-2); font-size: var(--fs-sm); line-height: 1.45; }
@@ -80,23 +84,27 @@ const DOC_TITLES: Record<LegalDoc, string> = {
     h4 { margin: 0; font-size: var(--fs-sm); flex: 1 1 auto; }
     .search { flex: 0 1 220px; }
     .count { font-size: var(--fs-xs); }
-    .viewport { overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1, var(--bg-2)); }
+    .viewport { flex: 1 1 320px; min-height: 120px; overflow: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1, var(--bg-2)); }
     .spacer { position: relative; min-width: max-content; }
     .rows { position: absolute; inset-inline-start: 0; top: 0; }
     .line { height: 18px; line-height: 18px; padding: 0 8px; white-space: pre; font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--text); }
     .line.head { font-weight: 600; color: var(--accent-text); }
     .err { color: var(--danger-text); margin: 0; }
-    .actions { display: flex; gap: 10px; align-items: center; }
+    .actions { flex: none; display: flex; gap: 10px; align-items: center; padding-top: 8px; border-top: 1px solid var(--border); }
+    .close { margin-inline-start: auto; }
   `,
 })
 export class AboutDialog {
   static readonly dialogId = 'about';
   private readonly legal = inject(LEGAL_SOURCE);
-  private readonly lifecycle = inject(LifecycleService);
+  private readonly lifecycle = inject(LifecycleBackend);
+  private readonly injector = inject(Injector);
+  private readonly destroyRef = inject(DestroyRef);
+  protected readonly ref = inject(DIALOG_REF, { optional: true });
+  private readonly viewportEl = viewChild<ElementRef<HTMLElement>>('viewport');
   /** Commit and date recorded at build time (`'unknown'` in dev builds and tests). */
   protected readonly build = inject(BUILD_INFO);
   protected readonly lineHeight = LINE_HEIGHT;
-  protected readonly viewportHeight = VIEWPORT_HEIGHT;
   protected readonly promise = READ_ONLY_PROMISE;
   protected readonly promiseDetail = READ_ONLY_DETAIL;
 
@@ -106,13 +114,18 @@ export class AboutDialog {
   protected readonly error = signal<string | null>(null);
   protected readonly copied = signal('');
   private readonly scrollTop = signal(0);
+  /** The viewer's height in px, measured: the notices fill whatever the window leaves them. */
+  private readonly viewportPx = signal(VIEWPORT_HEIGHT);
+  private readonly status = signal<AppStatus | null>(null);
+  private readonly platform = signal<Platform | null>(null);
 
-  protected readonly version = computed(() => this.lifecycle.status()?.version ?? null);
+  /** The version the engine reports for this build (never a constant of the UI). */
+  protected readonly version = computed(() => this.status()?.version ?? null);
   protected readonly title = computed(() => DOC_TITLES[this.doc()]);
   protected readonly viewportLabel = computed(() => $localize`:@@about.viewport.label:${this.title()}:title: text`);
   protected readonly unknown = $localize`:@@about.unknown:unknown`;
   protected readonly shown = computed(() => filterLines(this.lines(), this.query()));
-  protected readonly range = computed(() => visibleRange(this.scrollTop(), this.shown().length));
+  protected readonly range = computed(() => visibleRange(this.scrollTop(), this.shown().length, this.viewportPx()));
   protected readonly rows = computed(() => {
     const { start, end } = this.range();
     return this.shown()
@@ -121,7 +134,23 @@ export class AboutDialog {
   });
 
   constructor() {
+    // A dialog window has no session or lifecycle service of its own: it asks the engine directly.
+    void this.lifecycle.appStatus().then((s) => this.status.set(s), () => undefined);
+    void this.lifecycle.elevation().then((e) => this.platform.set(e.platform), () => undefined);
     void this.show('notices');
+    afterNextRender(
+      () => {
+        const el = this.viewportEl()?.nativeElement;
+        if (!el) return;
+        const measure = () => this.viewportPx.set(el.clientHeight || VIEWPORT_HEIGHT);
+        measure();
+        if (typeof ResizeObserver === 'undefined') return;
+        const observer = new ResizeObserver(measure);
+        observer.observe(el);
+        this.destroyRef.onDestroy(() => observer.disconnect());
+      },
+      { injector: this.injector },
+    );
   }
 
   protected async show(doc: LegalDoc): Promise<void> {
@@ -147,7 +176,7 @@ export class AboutDialog {
   }
 
   protected async copy(): Promise<void> {
-    const text = versionInfoText(this.version(), this.lifecycle.platform(), this.build);
+    const text = versionInfoText(this.version(), this.platform(), this.build);
     this.copied.set((await copyText(text))
         ? $localize`:@@about.copied:Copied`
         : $localize`:@@about.copyFailed:Copy failed — select the version text manually`);
@@ -160,7 +189,6 @@ export class AboutService {
   private readonly dialogs = inject(DialogService);
 
   open(): void {
-    this.dialogs.open(AboutDialog, { title: $localize`:@@about.title:About Debrief`, width: 720
- });
+    this.dialogs.open(AboutDialog, { title: $localize`:@@about.title:About Debrief`, width: 720 });
   }
 }

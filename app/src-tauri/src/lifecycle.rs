@@ -1502,6 +1502,14 @@ mod tests {
         let life = || app.state::<Lifecycle>();
         let status = app_status(main_window(&app), life()).now().unwrap();
         assert!(status.previous_crash && status.session_available);
+        // The About window shows this: the Cargo version of the build, release-shaped (major.minor.patch), never a placeholder.
+        let parts: Vec<&str> = status.version.split(['.', '-']).collect();
+        assert!(
+            parts.len() >= 3 && parts[..3].iter().all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit())),
+            "{}",
+            status.version
+        );
+        assert_eq!(status.version, env!("CARGO_PKG_VERSION"));
         // Another window does not offer crash recovery.
         let w2 = crate::windows::CurrentWindow::of(&h, "w-7").unwrap();
         let other = app_status(w2.clone(), life()).now().unwrap();

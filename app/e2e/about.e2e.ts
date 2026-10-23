@@ -47,11 +47,13 @@ test.describe('About Debrief', () => {
 });
 
 // The About window is a small bootstrap (ADR 0050): it must not drag the dock, the timeline, ECharts or any panel's code
-// in. This counts every script the window loads in the browser build (production, minified), with the mock backends and
-// the notices text (749 kB, shown on open) included. It was 2424 kB when activity observers and shared UI state imported
-// DockService and a mock imported the chart component (ECharts, 663 kB); it is 1600 kB now. `npm run check:dialog-weight`
-// bounds the part the desktop app loads (static imports only, 437 kB now). The prod-csp project runs it.
-const ABOUT_WINDOW_JS_BUDGET_KB = 1750;
+// in. This counts every script the window loads in the browser build (production, minified), with the mock backends
+// included. The third-party notices (about 780 kB of text) are no longer JavaScript: the desktop app gets them from the
+// engine (`legal_text`) when the window asks, and this build shows a short stand-in. It was 1600 kB with the notices
+// bundled as a lazy chunk (2424 kB before the activity observers stopped importing the dock); it is 806 kB now.
+// `npm run check:dialog-weight` bounds the part the desktop app loads (static imports only, 425 kB now). The prod-csp
+// project runs it.
+const ABOUT_WINDOW_JS_BUDGET_KB = 900;
 test('the About window loads only a small slice of the app (JS budget)', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'prod-csp', 'the budget is for the minified production build');
   const scripts = new Map<string, number>();
