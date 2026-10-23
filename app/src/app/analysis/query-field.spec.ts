@@ -140,6 +140,7 @@ describe('QueryField', () => {
     await refresh();
     expect(el(fixture, '[data-testid=partial-note]').textContent).toContain('+1');
     expect(el(fixture, '[data-testid=partial-note]').getAttribute('title')).toContain('1 more partial match added');
+    expect(el(fixture, '[data-testid=partial-note]').getAttribute('aria-label')).toContain('1 more partial match added');
     patchState(TestBed.inject(SmartSearchStore) as never, { added: 3 });
     await refresh();
     expect(el(fixture, '[data-testid=partial-note]').getAttribute('title')).toContain('3 more partial matches added');
@@ -533,6 +534,20 @@ describe('QueryField', () => {
       fixture.detectChanges();
       expect(el(fixture, '.box').classList.contains('expanded')).toBe(false);
       expect(input.style.height).toBe('28px');
+    });
+  });
+
+  describe('long single-line text', () => {
+    it('shows its start again on blur and keeps the full text as the tooltip', async () => {
+      await type('level >= error and source = web');
+      let scrollLeft = 120;
+      Object.defineProperty(input, 'scrollLeft', { get: () => scrollLeft, set: (v: number) => (scrollLeft = v), configurable: true });
+      expect(input.title).toBe('');
+      input.dispatchEvent(new Event('blur'));
+      await wait(5);
+      fixture.detectChanges();
+      expect(scrollLeft).toBe(0);
+      expect(input.title).toBe('level >= error and source = web');
     });
   });
 

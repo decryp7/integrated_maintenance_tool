@@ -74,6 +74,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
           [attr.aria-invalid]="invalid() ? 'true' : null"
           [attr.aria-describedby]="describedBy()"
           [value]="field.text()"
+          [attr.title]="focused() ? null : field.text() || null"
           (input)="onInput()"
           (keydown)="onKey($event)"
           (keyup)="sync()"
@@ -93,7 +94,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
         }
       </div>
       @if (field.kind() === 'text' && smart.added() > 0) {
-        <span class="partial-note mono" role="status" data-testid="partial-note" [title]="partialNote()">+{{ smart.added() }}</span>
+        <span class="partial-note mono" role="status" data-testid="partial-note" [title]="partialNote()" [attr.aria-label]="partialNote()">+{{ smart.added() }}</span>
       }
       @if (field.kind() === 'text') {
         <button type="button" class="toggle mono" [class.on]="q().regex" (click)="store.setRegex(!q().regex)" title="Regular expression" i18n-title="@@workspace.filterBar.regex" [attr.aria-pressed]="q().regex">.*</button>
@@ -271,6 +272,8 @@ export class QueryField {
 
   protected onBlur(): void {
     this.focused.set(false);
+    // A long single-line query stays scrolled to the caret after typing; show its start again when the field is at rest.
+    this.el().scrollLeft = 0;
     queueMicrotask(() => this.resize());
   }
 
