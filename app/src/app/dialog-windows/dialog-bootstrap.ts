@@ -39,6 +39,7 @@ const FEATURES: Record<DialogFeature, () => Promise<Providers>> = {
   },
   // The dialog shows the workspace's own data (timeline, ...): the window fetches it like the main window does.
   workspace: async () => [{ provide: WORKSPACE_QUERIES, useValue: true }],
+  skew: () => import('../core/skew-backend').then((m) => [m.provideSkewBackend()]),
   profiling: () => import('../profiling/profiling-backend').then((m) => m.provideProfilingBackend()),
   native: () => import('../profiling/native/native-backend').then((m) => m.provideNativeBackend()),
   dotnet: () => import('../profiling/dotnet/dotnet-backend').then((m) => m.provideDotnetBackend()),

@@ -7,7 +7,7 @@ import { Injector, Type } from '@angular/core';
 export type DialogModality = 'modal' | 'modeless';
 
 /** A group of providers a dialog window loads on top of the base set. */
-export type DialogFeature = 'ai' | 'tools' | 'share' | 'updates' | 'diagnostics' | 'analysis' | 'profiling' | 'native' | 'dotnet' | 'workspace';
+export type DialogFeature = 'ai' | 'tools' | 'share' | 'updates' | 'diagnostics' | 'analysis' | 'profiling' | 'native' | 'dotnet' | 'workspace' | 'skew';
 
 /** One dialog of Debrief (ADR 0050): its id, modality and how its content is loaded in its own window. */
 export interface DialogDef {
