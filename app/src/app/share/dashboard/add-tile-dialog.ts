@@ -152,6 +152,7 @@ export function tileFromForm(f: TileForm): { tile: TileCfg } | { error: string }
   styles: [DIALOG_FORM_STYLES, `form { display: flex; flex-direction: column; gap: 12px; }`],
 })
 export class AddTileDialog {
+  static readonly dialogId = 'add-tile';
   protected readonly ref = inject(DIALOG_REF);
   private readonly store = inject(WorkspaceStore);
 

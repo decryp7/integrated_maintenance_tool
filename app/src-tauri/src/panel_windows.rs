@@ -57,7 +57,7 @@ pub fn is_popout(label: &str) -> bool {
 
 /// The window whose workspace a label works on: a pop-out's host, else the label itself.
 pub fn resolve(label: &str) -> &str {
-    host_of(label).unwrap_or(label)
+    host_of(label).or_else(|| crate::dialog_windows::host_of(label)).unwrap_or(label)
 }
 
 pub fn popout_label(host: &str, n: u32) -> String {

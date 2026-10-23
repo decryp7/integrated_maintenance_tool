@@ -145,6 +145,7 @@ export function releaseDate(iso: string | null): string {
   `,
 })
 export class UpdatesDialog {
+  static readonly dialogId = 'updates';
   protected readonly store = inject(UpdatesStore);
   private readonly ref = inject(DIALOG_REF, { optional: true });
 

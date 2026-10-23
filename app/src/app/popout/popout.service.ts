@@ -1,5 +1,6 @@
 import { computed, inject, Injectable, Injector, signal } from '@angular/core';
 import { Logger } from '../core/logger';
+import { DialogLabels } from '../dialog-windows/dialog-labels';
 import { DockSlot, Point, Rect } from '../dock/dock-geometry';
 import { DockTarget, PopoutDrag, PopoutDragEvent, popoutDragReduce, screenToClient } from '../dock/dock-target';
 import { DockService } from '../dock/dock.service';
@@ -111,6 +112,7 @@ export class PopoutService implements PanelWindows {
   private readonly injector = inject(Injector);
   private readonly logger = inject(Logger);
   private readonly route = inject(POPOUT_ROUTE);
+  private readonly dialogLabels = inject(DialogLabels);
   private readonly popped = signal<ReadonlyMap<string, Popped>>(new Map());
   private readonly opening = new Set<string>();
   private started: Promise<void> | null = null;
@@ -138,7 +140,7 @@ export class PopoutService implements PanelWindows {
       this.backend.onChanged(() => void this.refresh()),
       this.backend.onMoved((e) => void this.draggedOver(e.label, { x: e.x, y: e.y }, 'os')),
     ]);
-    const port = this.backend.syncPort(label, true, () => [...this.popped().values()].map((p) => p.label));
+    const port = this.backend.syncPort(label, true, () => [...[...this.popped().values()].map((p) => p.label), ...this.dialogLabels.labels()]);
     this.sync.start(port, true, label, [...sharedUiState(this.injector), hostTitle(this.injector)]);
     this.sync.onCommand((command, arg) => this.hostCommand(command, arg));
     if (typeof window !== 'undefined') window.addEventListener('pagehide', () => this.sync.goodbye());

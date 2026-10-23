@@ -5,7 +5,8 @@
   "webviews": [
     "main",
     "w-*",
-    "p-*"
+    "p-*",
+    "d-*"
   ],
   "permissions": [
     "core:event:default",
@@ -17,6 +18,7 @@
     "core:window:allow-is-maximized",
     "core:window:allow-set-fullscreen",
     "dialog:allow-message",
+    "dialog:allow-ask",
     "log:default"
   ]
 }

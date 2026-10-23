@@ -1,0 +1,9 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "dialog",
+  "description": "extra permissions of the webviews of dialog windows only (d-<host>-<n>): none beyond the default set; a dialog closes itself through the dialog_close command, which the command table allows only from a dialog window, and its window is owned, moved and resized by the OS title bar",
+  "webviews": [
+    "d-*"
+  ],
+  "permissions": []
+}

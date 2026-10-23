@@ -78,7 +78,7 @@ pub fn clean_title(title: &str) -> String {
 /// Pop-out panels and the drag ghost belong to a Debrief window; they are not
 /// windows of their own.
 pub fn is_auxiliary(label: &str) -> bool {
-    panel_windows::is_popout(label) || label == crate::drag_ghost::GHOST_LABEL
+    panel_windows::is_popout(label) || crate::dialog_windows::is_dialog(label) || label == crate::drag_ghost::GHOST_LABEL
 }
 
 /// The open windows, `main` first.
@@ -157,6 +157,7 @@ pub fn reveal<R: Runtime>(app: &AppHandle<R>, label: &str) -> CmdResult<()> {
     let w = app.get_window(label).ok_or("this window was closed")?;
     show(&w);
     panel_windows::set_visible(app, label, true);
+    crate::dialog_windows::set_visible(app, label, true);
     changed(app);
     Ok(())
 }
@@ -291,6 +292,14 @@ pub fn on_window_event<R: Runtime>(window: &Window<R>, event: &WindowEvent) {
     let label = window.label();
     crate::drag_ghost::on_window_event(window, event);
     match event {
+        WindowEvent::CloseRequested { api, .. } if crate::dialog_windows::is_dialog(label) => {
+            if !crate::dialog_windows::close_requested(app, label) {
+                api.prevent_close();
+            }
+        }
+        WindowEvent::Moved(_) | WindowEvent::Resized(_) if crate::dialog_windows::is_dialog(label) => {
+            crate::dialog_windows::moved(app, window)
+        }
         WindowEvent::CloseRequested { api, .. } => {
             if close_requested(app, window) != CloseDecision::Close {
                 api.prevent_close();
@@ -342,6 +351,7 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, window: &Window<R>) -> Cl
         CloseDecision::Hide => {
             let _ = window.hide();
             panel_windows::set_visible(app, label, false);
+            crate::dialog_windows::set_visible(app, label, false);
             log::info!("Last window hidden; Debrief keeps running in the tray");
             changed(app);
         }
@@ -363,11 +373,16 @@ pub fn destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
         panel_windows::on_destroyed(app, label);
         return;
     }
+    if crate::dialog_windows::is_dialog(label) {
+        crate::dialog_windows::on_destroyed(app, label);
+        return;
+    }
     if label == crate::drag_ghost::GHOST_LABEL {
         return;
     }
     log::info!(Window = label; "Window destroyed");
     panel_windows::close_all_of(app, label);
+    crate::dialog_windows::close_all_of(app, label);
     crate::browser::owner_destroyed(app, label);
     let Some(windows) = app.try_state::<Windows>() else { return };
     let exiting = windows.exiting();

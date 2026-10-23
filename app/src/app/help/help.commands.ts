@@ -28,7 +28,7 @@ export class HelpCommands {
       run: async () => {
         // Loaded on demand: the sheet is not part of the initial bundle.
         const { CheatSheet } = await import('./cheat-sheet');
-        if (!this.dialogs.stack().some((d) => d.component === CheatSheet)) this.dialogs.open(CheatSheet, { title: $localize`:@@help.command.shortcuts:Keyboard shortcuts`, width: 640 });
+        this.dialogs.open(CheatSheet, { title: $localize`:@@help.command.shortcuts:Keyboard shortcuts`, width: 640 });
       },
     },
     { id: 'help.whatsNew', title: $localize`:@@help.command.whatsNew:What's new`, category: $localize`:@@help.command.category:Help`, run: () => this.whatsNew.open() },

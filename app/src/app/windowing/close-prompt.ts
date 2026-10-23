@@ -41,6 +41,7 @@ export class ClosePromptService {
   `,
 })
 export class ClosePrompt {
+  static readonly dialogId = 'close-prompt';
   private readonly ref = inject<DialogRef<CloseChoice>>(DIALOG_REF);
   private readonly backend = inject(WindowingBackend);
   private readonly store = inject(WorkspaceStore);

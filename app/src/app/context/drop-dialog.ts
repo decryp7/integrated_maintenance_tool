@@ -30,6 +30,7 @@ import { addPipelineStep, describeConditions, dropStep } from './rule-builders';
   styles: DIALOG_FORM_STYLES,
 })
 export class DropDialog {
+  static readonly dialogId = 'drop';
   protected readonly ref = inject(DIALOG_REF);
   private readonly edits = inject(ProfileEdits);
   private readonly store = inject(WorkspaceStore);

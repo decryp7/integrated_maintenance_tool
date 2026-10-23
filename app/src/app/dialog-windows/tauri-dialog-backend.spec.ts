@@ -1,0 +1,146 @@
+import { TestBed } from '@angular/core/testing';
+import { Component } from '@angular/core';
+import { settle } from '../../testing/helpers';
+import { Logger } from '../core/logger';
+import { DIALOG_BOUNDS_KEY, rememberDialogBounds } from './dialog-bounds';
+import { DIALOG_IO } from './dialog-io';
+import { FakeDialogIo } from './dialog-io-fake';
+import { DialogLabels } from './dialog-labels';
+import { dialogDef } from './dialog-registry';
+import { DialogShowRequest } from './dialog-session';
+import { InPageDialogBackend } from './in-page-dialog-backend';
+import { parseClosed, parseResult, TauriDialogBackend } from './tauri-dialog-backend';
+
+@Component({ selector: 'debrief-t', template: '' })
+class T {
+  static readonly dialogId = 'settings';
+}
+
+const warn = vi.fn();
+
+function setup() {
+  const io = new FakeDialogIo();
+  TestBed.configureTestingModule({
+    providers: [
+      { provide: DIALOG_IO, useValue: io },
+      { provide: Logger, useValue: { debug: vi.fn(), info: vi.fn(), warn, error: vi.fn() } },
+    ],
+  });
+  return { io, backend: TestBed.inject(TauriDialogBackend), inPage: TestBed.inject(InPageDialogBackend), labels: TestBed.inject(DialogLabels) };
+}
+
+const request = (id = 'settings', inputs: Record<string, unknown> = { section: 'x' }): DialogShowRequest => ({ def: dialogDef(id)!, component: T, title: 'Settings', inputs, width: 900 });
+const tick = () => new Promise((r) => setTimeout(r));
+
+describe('TauriDialogBackend', () => {
+  beforeEach(() => {
+    localStorage.removeItem(DIALOG_BOUNDS_KEY);
+    warn.mockClear();
+  });
+
+  it('opens a window with the typed input, modality and size, and resolves with the dialog result', async () => {
+    const { io, backend, labels } = setup();
+    expect(backend.windowed).toBe(true);
+    const s = backend.show(request());
+    await tick();
+    expect(io.opened).toHaveLength(1);
+    expect(io.opened[0]).toMatchObject({ dialogId: 'settings', title: 'Settings', modality: 'modeless', input: { section: 'x' }, width: 900, bounds: undefined });
+    expect(labels.labels()).toEqual(['d-main-1']);
+    io.result('d-main-1', 'settings', { ok: 1 });
+    io.closed('d-main-1', 'settings');
+    expect(await s.closed).toEqual({ ok: 1 });
+    expect(labels.labels()).toEqual([]);
+  });
+
+  it('resolves undefined when the window closed without a result, and ignores events of other windows and malformed ones', async () => {
+    const { io, backend } = setup();
+    const s = backend.show(request('ai-setup'));
+    await tick();
+    io.result('d-main-9', 'ai-setup', 'other');
+    io.emit('debrief://dialog-closed', { nonsense: true });
+    io.emit('debrief://dialog-result', 5);
+    io.closed('d-main-9', 'ai-setup');
+    io.closed('d-main-1', 'ai-setup');
+    expect(await s.closed).toBeUndefined();
+    expect(io.opened[0]!.modality).toBe('modeless');
+  });
+
+  it('remembers where the window was and reopens there, kept on a visible monitor', async () => {
+    const { io, backend } = setup();
+    io.areas = [{ name: 'A', primary: true, x: 0, y: 0, width: 1920, height: 1080 }];
+    const first = backend.show(request());
+    await tick();
+    io.closed('d-main-1', 'settings', { x: 5000, y: 40, width: 800, height: 600 });
+    await first.closed;
+    expect(JSON.parse(localStorage.getItem(DIALOG_BOUNDS_KEY)!).bounds.settings.width).toBe(800);
+    backend.show(request());
+    await tick();
+    const b = io.opened[1]!.bounds!;
+    expect(b.width).toBe(800);
+    expect(b.x + b.width).toBeLessThanOrEqual(1920);
+  });
+
+  it('uses a remembered size even before a monitor list is known', async () => {
+    const { io, backend } = setup();
+    rememberDialogBounds('settings', { x: 10, y: 10, width: 700, height: 500 });
+    backend.show(request());
+    await tick();
+    expect(io.opened[0]!.bounds).toEqual({ x: 10, y: 10, width: 700, height: 500 });
+  });
+
+  it('focuses the existing window by asking to open it again, and close asks the dialog to close', async () => {
+    const { io, backend } = setup();
+    const s = backend.show(request());
+    await tick();
+    s.focus();
+    await tick();
+    expect(io.opened).toHaveLength(2);
+    s.close();
+    await tick();
+    expect(io.closeRequests).toEqual(['d-main-1']);
+  });
+
+  it('shows the dialog in the page when no window can be opened (degrade, do not fail)', async () => {
+    const { io, backend, inPage } = setup();
+    io.failOpen = new Error('too many windows');
+    const s = backend.show(request());
+    await tick();
+    expect(inPage.stack()).toHaveLength(1);
+    expect(warn).toHaveBeenCalled();
+    s.focus();
+    inPage.stack()[0]!.ref.close('r');
+    expect(await s.closed).toBe('r');
+    // close on a fallback closes the in-page dialog
+    const s2 = backend.show(request());
+    await tick();
+    s2.close('z');
+    await tick();
+    expect(await s2.closed).toBe('z');
+  });
+
+  it('shows overlays (no definition) in the page', () => {
+    const { io, backend, inPage } = setup();
+    backend.show({ def: null, component: T, title: 'Palette', inputs: {}, width: 500 });
+    expect(inPage.stack()).toHaveLength(1);
+    expect(io.opened).toHaveLength(0);
+  });
+
+  it('asks yes/no questions with the native message box; a failing box counts as No', async () => {
+    const { io, backend } = setup();
+    expect(await backend.confirm({ title: 't', message: 'm', ok: 'Yes', cancel: 'No', danger: true })).toBe(true);
+    expect(io.asked[0]!.danger).toBe(true);
+    io.ask = () => Promise.reject(new Error('no box'));
+    expect(await backend.confirm({ title: 't', message: 'm', ok: 'Yes', cancel: 'No', danger: false })).toBe(false);
+    await settle(TestBed.createComponent(T));
+  });
+
+  it('parses the shell events strictly', () => {
+    expect(parseResult({ label: 'd-main-1', dialogId: 'a', result: 3 })).toEqual({ label: 'd-main-1', dialogId: 'a', result: 3 });
+    expect(parseResult({ label: 1 })).toBeNull();
+    expect(parseResult([])).toBeNull();
+    expect(parseClosed({ label: 'l', dialogId: 'a', bounds: { x: 1, y: 2, width: 3, height: 4 } })?.bounds).toEqual({ x: 1, y: 2, width: 3, height: 4 });
+    expect(parseClosed({ label: 'l', dialogId: 'a', bounds: { x: 'q' } })?.bounds).toBeNull();
+    expect(parseClosed({ label: 'l' })).toBeNull();
+    expect(parseClosed(null)).toBeNull();
+  });
+});

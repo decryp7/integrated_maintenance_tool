@@ -54,6 +54,7 @@ const MAX_LINES = 50;
   `,
 })
 export class AiRegexDialog implements OnInit {
+  static readonly dialogId = 'ai-regex';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(AiBackend);
   private readonly follow = inject(JobFollow);

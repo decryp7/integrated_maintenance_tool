@@ -48,6 +48,7 @@ export const DEFAULT_PASTE_NAME = 'Pasted log';
   `,
 })
 export class PasteDialog implements OnInit {
+  static readonly dialogId = 'paste';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(PasteBackend);
   private readonly workspace = inject(WorkspaceStore);

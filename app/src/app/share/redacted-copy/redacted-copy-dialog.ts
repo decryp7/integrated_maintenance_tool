@@ -189,6 +189,7 @@ export const PREVIEW_DEBOUNCE_MS = 200;
   `,
 })
 export class RedactedCopyDialog implements OnInit {
+  static readonly dialogId = 'redacted-copy';
   protected readonly count = formatCount;
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(ShareBackend);

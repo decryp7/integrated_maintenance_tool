@@ -40,6 +40,7 @@ import { AiProposalCard } from '../proposals/proposal-card';
   `,
 })
 export class AiQueryDialog implements OnInit {
+  static readonly dialogId = 'ai-query';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(AiBackend);
   private readonly follow = inject(JobFollow);

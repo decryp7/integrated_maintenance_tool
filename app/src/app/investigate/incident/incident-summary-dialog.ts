@@ -74,6 +74,7 @@ export type IncidentDialogResult = 'show';
   `,
 })
 export class IncidentSummaryDialog {
+  static readonly dialogId = 'incident-summary';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly s = inject(IncidentSummary);
   protected readonly max = MAX_TOP;

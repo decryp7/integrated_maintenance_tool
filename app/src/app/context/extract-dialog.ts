@@ -58,6 +58,7 @@ const PREVIEW_DELAY_MS = 300;
   styles: DIALOG_FORM_STYLES,
 })
 export class ExtractDialog {
+  static readonly dialogId = 'extract';
   protected readonly ref = inject(DIALOG_REF);
   private readonly edits = inject(ProfileEdits);
   private readonly backend = inject(DebriefBackend);

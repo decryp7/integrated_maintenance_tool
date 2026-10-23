@@ -100,6 +100,7 @@ import { PluginPackagesStore } from './plugin-packages.store';
   `,
 })
 export class PackageReviewDialog {
+  static readonly dialogId = 'package-review';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly store = inject(PluginPackagesStore);
   protected readonly signature = signatureText;

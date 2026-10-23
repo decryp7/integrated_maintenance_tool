@@ -370,6 +370,7 @@ import {
   `,
 })
 export class AiSetupWizard implements OnInit {
+  static readonly dialogId = 'ai-setup';
   private readonly backend = inject(AiBackend);
   private readonly status = inject(AiStatusStore);
   protected readonly runtimes = inject(AiRuntimeStore);

@@ -14,15 +14,20 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
     @for (d of dialogs.stack(); track d.id) {
-      <div class="backdrop" data-debrief-overlay (mousedown)="d.ref.close()"></div>
+      @if (d.modality === 'modal') {
+        <div class="backdrop" data-debrief-overlay data-testid="dialog-backdrop" (mousedown)="d.ref.close()"></div>
+      }
       <div
         #box
         class="dialog"
+        [class.modeless]="d.modality === 'modeless'"
         role="dialog"
-        aria-modal="true"
+        [attr.data-modality]="d.modality"
+        [attr.data-dialog]="d.component['dialogId'] ?? null"
+        [attr.aria-modal]="d.modality === 'modal'"
         [attr.aria-labelledby]="'debrief-dialog-title-' + d.id"
         [style.width.px]="d.options.width ?? 560"
-        (keydown)="onKey($event, box)"
+        (keydown)="onKey($event, box, d)"
       >
         <div class="head">
           <h2 [id]="'debrief-dialog-title-' + d.id">{{ d.options.title }}</h2>
@@ -37,6 +42,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
   styles: `
     .backdrop { position: fixed; inset: 0; z-index: 210; background: var(--scrim); }
     .dialog { position: fixed; z-index: 211; top: 56px; inset-inline-start: 50%; transform: translateX(-50%); max-width: calc(100vw - 32px); max-height: calc(100vh - 96px); display: flex; flex-direction: column; border-radius: 10px; background: var(--bg-2); border: 1px solid var(--border-3); box-shadow: var(--shadow); color: var(--text); }
+    .dialog.modeless { z-index: 150; top: 72px; inset-inline-start: auto; inset-inline-end: 24px; transform: none; max-height: calc(100vh - 112px); box-shadow: var(--shadow); }
     .head { flex: none; display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 10px 16px; border-bottom: 1px solid var(--border); }
     h2 { margin: 0; font-size: var(--fs-lg); font-weight: 600; }
     .body { min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
@@ -69,9 +75,11 @@ export class DialogHost {
   }
 
   protected onEscape(e: Event): void {
-    if (!this.dialogs.stack().length) return;
+    // A modeless dialog leaves the page usable, so Escape reaches it only from inside it (see onKey).
+    const top = this.dialogs.stack().filter((d) => d.modality === 'modal').at(-1);
+    if (!top) return;
     e.preventDefault();
-    this.dialogs.dismissTop();
+    top.ref.close();
   }
 
   protected injectorFor(d: OpenDialog): Injector {
@@ -88,14 +96,14 @@ export class DialogHost {
     target?.focus();
   }
 
-  protected onKey(e: KeyboardEvent, box: HTMLElement): void {
+  protected onKey(e: KeyboardEvent, box: HTMLElement, d: OpenDialog): void {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      this.dialogs.dismissTop();
+      d.ref.close();
       return;
     }
-    if (e.key !== 'Tab') return;
+    if (e.key !== 'Tab' || d.modality === 'modeless') return;
     const items = [...box.querySelectorAll<HTMLElement>(FOCUSABLE)];
     const first = items[0];
     const last = items[items.length - 1];

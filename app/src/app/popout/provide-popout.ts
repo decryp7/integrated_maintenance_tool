@@ -2,6 +2,7 @@ import { EnvironmentProviders, inject, makeEnvironmentProviders, Provider, provi
 import { PANEL_WINDOWS } from '../dock/panel-windows';
 import { SessionService } from '../lifecycle/session.service';
 import { OpenRequests } from '../projects/open-requests';
+import { parseDialogRoute } from '../dialog-windows/dialog-route';
 import { parsePopoutRoute } from './popout-route';
 import { PopoutService } from './popout.service';
 
@@ -24,7 +25,8 @@ export function popoutWindowProviders(): (Provider | EnvironmentProviders)[] {
  * services in a pop-out window).
  */
 export function providePopout(hash: string = typeof location === 'undefined' ? '' : location.hash): EnvironmentProviders {
-  const route = parsePopoutRoute(hash);
+  // A dialog window is a guest of its host like a pop-out: host-only services stay inert and it never hosts.
+  const route = parsePopoutRoute(hash) ?? parseDialogRoute(hash);
   return makeEnvironmentProviders([
     { provide: PANEL_WINDOWS, useExisting: PopoutService },
     ...(route ? popoutWindowProviders() : [provideAppInitializer(() => void inject(PopoutService).startHost())]),

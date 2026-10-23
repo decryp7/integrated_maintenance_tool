@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, Injector, input } from '@angular/core';
 import { Switch } from '../shared/switch';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { AiSettingsExtras } from '../ai/settings/ai-settings-extras';
@@ -246,6 +246,7 @@ import { SettingField, SettingsSection } from './settings.types';
   `,
 })
 export class SettingsScreen {
+  static readonly dialogId = 'settings';
   protected readonly store = inject(EngineSettingsStore);
   private readonly parserLibrary = inject(ParsersStore);
   private readonly parsersTitle = $localize`:Settings section|The log formats Debrief reads@@settings.parsers.nav:Parsers`;
@@ -286,8 +287,19 @@ export class SettingsScreen {
   /** Search hits in the Parsers section (the section and the library's parsers). */
   protected readonly parserHits = computed(() => searchParsers(this.parserLibrary.parsers(), this.store.query(), this.parsersTitle));
 
+  /** Open at this section (`diagnostics`, `keyboard`, ...). */
+  readonly section = input<string | null>(null);
+
+  /** Unapplied edits keep the dialog open, by any route that closes it (title bar, Escape, Cmd+W). */
+  static dialogCanClose(injector: Injector): boolean {
+    return injector.get(EngineSettingsStore).canClose();
+  }
+
   constructor() {
-    void this.store.load();
+    void this.store.load().then(() => {
+      const section = this.section();
+      if (section) this.store.select(section);
+    });
     // The search covers the parser library too, before the Parsers section was ever opened.
     if (!this.parserLibrary.library() && !this.parserLibrary.loading()) void this.parserLibrary.load();
   }

@@ -28,8 +28,10 @@ pub type Windows = u8;
 pub const MAIN: Windows = 1;
 /// Panels popped out of a window (`p-<host>-<n>`).
 pub const POPOUT: Windows = 2;
-/// A window and its pop-outs.
-pub const WINDOW: Windows = MAIN | POPOUT;
+/// Dialogs of a window (`d-<host>-<n>`): they act for their host, with the host's workspace.
+pub const DIALOG: Windows = 4;
+/// A window, its pop-outs and its dialogs.
+pub const WINDOW: Windows = MAIN | POPOUT | DIALOG;
 
 /// The largest request a command accepts unless its entry says otherwise.
 pub const DEFAULT_LIMIT: usize = 256 * 1024;
@@ -85,6 +87,8 @@ pub fn class_of(label: &str) -> Option<Windows> {
         Some(MAIN)
     } else if crate::panel_windows::is_popout(label) {
         Some(POPOUT)
+    } else if crate::dialog_windows::is_dialog(label) {
+        Some(DIALOG)
     } else {
         None
     }
@@ -199,6 +203,11 @@ mod tests {
         assert_eq!(class_of("main"), Some(MAIN));
         assert_eq!(class_of("w-3"), Some(MAIN));
         assert_eq!(class_of("p-main-1"), Some(POPOUT));
+        assert_eq!(class_of("d-main-1"), Some(DIALOG));
+        assert!(check("query_page", "d-main-1", 10).is_ok());
+        // A dialog cannot move the session, quit or open another window's panels.
+        assert_eq!(check("save_session", "d-main-1", 10).unwrap_err().code, ErrorCode::Denied);
+        assert!(check("dialog_close", "main", 10).is_err() && check("dialog_close", "d-main-1", 10).is_ok());
         assert_eq!(class_of("bw-main"), None);
         assert!(check("query_page", "p-main-1", 10).is_ok());
         // A pop-out panel cannot restart Debrief or answer its host's prompts.
@@ -249,6 +258,7 @@ mod tests {
         for cap in [
             include_str!("../capabilities/default.json"),
             include_str!("../capabilities/popout.json"),
+            include_str!("../capabilities/dialog.json"),
         ] {
             let v: serde_json::Value = serde_json::from_str(cap).unwrap();
             for p in v["permissions"].as_array().unwrap() {
@@ -345,14 +355,14 @@ mod tests {
     /// "webview window" (ADR 0024): `get_webview_window`, `webview_windows` and a `WebviewWindow` command argument
     /// miss it. Production code looks Debrief windows up with `get_window` / `windows()` (and their webview with
     /// `get_webview`). Only `native_feel` may name `WebviewWindow`: it applies settings to a window it just built.
-    /// `panel_windows` too: Tauri's `parent()` takes a `WebviewWindow` to own a pop-out by, and with the docked browser
+    /// `panel_windows` and `dialog_windows` too: Tauri's `parent()` takes a `WebviewWindow` to own a pop-out by, and with the docked browser
     /// page gone (ADR 0043: the page is its own Chromium window) every Debrief window has exactly one webview again.
     #[test]
     fn debrief_windows_are_never_looked_up_as_webview_windows() {
         let mut found = Vec::new();
         for (path, text) in production_sources() {
             let name = path.file_name();
-            let allowed = name.is_some_and(|n| n == "native_feel.rs" || n == "panel_windows.rs");
+            let allowed = name.is_some_and(|n| n == "native_feel.rs" || n == "panel_windows.rs" || n == "dialog_windows.rs");
             for (n, line) in production_part(&text) {
                 let code = line.split("//").next().unwrap_or_default();
                 let lookup = !allowed && (code.contains("get_webview_window(") || code.contains("webview_windows()"));

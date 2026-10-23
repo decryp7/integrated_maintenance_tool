@@ -68,6 +68,7 @@ export type OpenTarget = Exclude<OpenChoice, 'cancel'>;
   `,
 })
 export class OpenAskDialog {
+  static readonly dialogId = 'open-ask';
   readonly ask = input.required<OpenAsk>();
   private readonly ref = inject<DialogRef<OpenTarget>>(DIALOG_REF);
   private readonly backend = inject(WindowingBackend);

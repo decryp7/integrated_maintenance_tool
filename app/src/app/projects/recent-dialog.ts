@@ -50,6 +50,7 @@ export class RecentProjectsDialogService {
   `,
 })
 export class RecentProjectsDialog {
+  static readonly dialogId = 'recent-projects';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly projects = inject(ProjectService);
   private readonly guard = inject(UnsavedChangesGuard);

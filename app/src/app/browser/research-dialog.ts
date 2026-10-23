@@ -54,6 +54,7 @@ import { Segments } from './chat-cards';
   `,
 })
 export class ResearchDialog {
+  static readonly dialogId = 'research';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(AiBackend);
   readonly question = input('');

@@ -32,6 +32,7 @@ import { AiRichText } from '../chat/rich-text';
   `,
 })
 export class AiNarrativeDialog {
+  static readonly dialogId = 'ai-narrative';
   protected readonly ref = inject(DIALOG_REF);
   private readonly citations = inject(AiCitations);
   /** The finished request's answer (its job's result). */

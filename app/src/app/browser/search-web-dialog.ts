@@ -57,6 +57,7 @@ import { engineLabel, ENGINE_OPTIONS } from './browser-text';
   `,
 })
 export class SearchWebDialog implements OnInit {
+  static readonly dialogId = 'search-web';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(BrowserBackend);
 

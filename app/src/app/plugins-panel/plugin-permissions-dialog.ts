@@ -51,6 +51,7 @@ import { PluginPackagesStore } from './plugin-packages.store';
   `,
 })
 export class PluginPermissionsDialog {
+  static readonly dialogId = 'plugin-permissions';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly store = inject(PluginPackagesStore);
   protected readonly title = permissionTitle;

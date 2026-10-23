@@ -121,6 +121,7 @@ type Phase = 'loading' | 'ready' | 'busy';
   ],
 })
 export class AlertRulesEditor implements OnInit {
+  static readonly dialogId = 'alert-rules';
   protected readonly ref = inject(DIALOG_REF);
   private readonly profile = inject(LiveRulesProfile);
 

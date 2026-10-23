@@ -69,6 +69,7 @@ const PROMPTS: Record<ProposeKind, { label: string; placeholder: string }> = {
   `,
 })
 export class AiProposeDialog implements OnInit {
+  static readonly dialogId = 'ai-propose';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(AiBackend);
   private readonly follow = inject(JobFollow);

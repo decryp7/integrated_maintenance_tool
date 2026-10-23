@@ -26,6 +26,7 @@ import { parseRangeTime, rangeProblem } from './import-range';
   styles: [DIALOG_FORM_STYLES],
 })
 export class ImportRangeDialog {
+  static readonly dialogId = 'import-range';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly from = signal('');
   protected readonly to = signal('');

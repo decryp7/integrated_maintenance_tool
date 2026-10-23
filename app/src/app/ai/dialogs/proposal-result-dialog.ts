@@ -22,6 +22,7 @@ import { AiProposalCard } from '../proposals/proposal-card';
   `,
 })
 export class AiProposalResultDialog {
+  static readonly dialogId = 'ai-proposal-result';
   protected readonly ref = inject(DIALOG_REF);
   readonly proposal = input.required<Proposal>();
   protected readonly state = signal<'open' | 'applied' | 'dismissed'>('open');

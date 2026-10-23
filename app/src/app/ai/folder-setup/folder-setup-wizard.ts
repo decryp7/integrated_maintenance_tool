@@ -217,6 +217,7 @@ type Step = 'survey' | 'proposals' | 'review' | 'apply';
   `,
 })
 export class FolderSetupWizard {
+  static readonly dialogId = 'folder-setup';
   protected readonly fmt = formatCount;
   protected readonly store = inject(FolderSetupStore);
   protected readonly ai = inject(AiStatusStore);

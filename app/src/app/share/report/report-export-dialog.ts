@@ -66,6 +66,7 @@ import { JobFollow } from '../../jobs/job-follow';
   `,
 })
 export class ReportExportDialog {
+  static readonly dialogId = 'report-export';
   protected readonly ref = inject(DIALOG_REF);
   private readonly reports = inject(ReportStore);
   private readonly backend = inject(ShareBackend);

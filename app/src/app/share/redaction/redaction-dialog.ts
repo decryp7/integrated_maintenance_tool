@@ -111,6 +111,7 @@ const PREVIEW_MS = 250;
   `,
 })
 export class RedactionDialog {
+  static readonly dialogId = 'redaction';
   protected readonly fmt = formatCount;
   protected readonly ref = inject(DIALOG_REF);
   private readonly edits = inject(ProfileEdits);

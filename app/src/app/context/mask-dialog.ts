@@ -51,6 +51,7 @@ export function applyMask(text: string, regex: string, replace: string): string 
   styles: DIALOG_FORM_STYLES,
 })
 export class MaskDialog {
+  static readonly dialogId = 'mask';
   protected readonly ref = inject(DIALOG_REF);
   private readonly edits = inject(ProfileEdits);
   private readonly store = inject(WorkspaceStore);

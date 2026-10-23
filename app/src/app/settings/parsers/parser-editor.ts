@@ -97,6 +97,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
   `,
 })
 export class ParserEditor implements OnInit {
+  static readonly dialogId = 'parser-editor';
   /** Present when the editor is a dialog; absent when it sits in the Parsers view (`closed` is emitted instead). */
   protected readonly ref = inject(DIALOG_REF, { optional: true });
   /** The editor ended: the library after a save, or nothing (Cancel). Only emitted outside a dialog. */

@@ -65,6 +65,7 @@ export const WHATS_NEW_SEEN_KEY = 'debrief.whatsnew.seen';
   `,
 })
 export class WhatsNewDialog {
+  static readonly dialogId = 'whats-new';
   protected readonly ref = inject(DIALOG_REF);
   private readonly lifecycle = inject(LifecycleService);
 
@@ -83,7 +84,6 @@ export class WhatsNewService {
   private readonly injector = inject(Injector);
 
   open(): void {
-    if (this.dialogs.stack().some((d) => d.component === WhatsNewDialog)) return;
     this.dialogs.open(WhatsNewDialog, { title: $localize`:@@whatsNew.title:What's new`, width: 560 });
   }
 

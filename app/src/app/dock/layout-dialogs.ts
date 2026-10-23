@@ -31,6 +31,7 @@ import { Perspectives } from './perspectives';
   `,
 })
 export class SaveLayoutDialog {
+  static readonly dialogId = 'save-layout';
   protected readonly ref = inject(DIALOG_REF);
   private readonly perspectives = inject(Perspectives);
   protected readonly max = MAX_LAYOUT_NAME;
@@ -88,6 +89,7 @@ export class SaveLayoutDialog {
   `,
 })
 export class ManageLayoutsDialog {
+  static readonly dialogId = 'manage-layouts';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly perspectives = inject(Perspectives);
   protected readonly renaming = signal<string | null>(null);

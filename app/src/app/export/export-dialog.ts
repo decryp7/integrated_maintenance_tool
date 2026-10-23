@@ -88,6 +88,7 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
   `,
 })
 export class ExportDialog {
+  static readonly dialogId = 'export';
   protected readonly ref = inject(DIALOG_REF);
   private readonly store = inject(WorkspaceStore);
   private readonly backend = inject(DebriefBackend);

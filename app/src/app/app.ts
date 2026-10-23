@@ -10,6 +10,7 @@ import { DockHost } from './dock/dock-host';
 import { CommandPalette } from './palette/command-palette';
 import { FilterBar } from './workspace/filter-bar';
 import { ContextMenuHost } from './ui/context-menu-host';
+import { ModalGate } from './dialog-windows/modal-gate';
 import { DialogHost } from './ui/dialog-host';
 import { Welcome, WelcomeService } from './welcome/welcome';
 import { LifecycleBanners } from './lifecycle/lifecycle-banners';
@@ -46,6 +47,10 @@ import { NarrowWindow } from './shell/narrow-window';
       </main>
     </div>
     <debrief-status-bar data-debrief-region="status" role="region" aria-label="Status bar" i18n-aria-label="@@app.region.status" tabindex="-1" />
+    @if (modalGate.blocked()) {
+      <!-- A modal dialog window is open over this one: dim and block it (ADR 0050). -->
+      <div class="modal-scrim" data-debrief-overlay data-testid="modal-scrim" aria-hidden="true"></div>
+    }
     <debrief-command-palette />
     <debrief-dialog-host />
     <debrief-context-menu-host />
@@ -57,6 +62,7 @@ import { NarrowWindow } from './shell/narrow-window';
     }
   `,
   styles: `
+    .modal-scrim { position: fixed; inset: 0; z-index: 205; background: var(--scrim); }
     :host { display: flex; flex-direction: column; height: 100vh; min-width: 600px; background: var(--bg-1); }
     .body { flex: 1; min-height: 0; display: flex; }
     .center { flex: 1; min-width: 0; display: flex; flex-direction: column; }
@@ -74,6 +80,7 @@ import { NarrowWindow } from './shell/narrow-window';
 export class App {
   protected readonly store = inject(WorkspaceStore);
   protected readonly welcome = inject(WelcomeService);
+  protected readonly modalGate = inject(ModalGate);
   protected readonly hasData = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
 
   constructor() {
