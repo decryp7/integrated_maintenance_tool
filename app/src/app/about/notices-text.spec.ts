@@ -23,8 +23,8 @@ describe('notices text helpers', () => {
   });
 
   it('formats the version info, omitting what is unknown', () => {
-    expect(versionInfoText('1.2.3', 'linux', { commit: 'abc123', date: '2026-01-01' })).toBe('IMT 1.2.3\nLicence: MIT OR Apache-2.0\nPlatform: linux\nCommit: abc123\nBuilt: 2026-01-01');
-    expect(versionInfoText(null, null, null)).toBe('IMT unknown\nLicence: MIT OR Apache-2.0');
-    expect(versionInfoText('1.0.0', null, { commit: 'unknown', date: 'unknown' })).toBe('IMT 1.0.0\nLicence: MIT OR Apache-2.0');
+    expect(versionInfoText('1.2.3', 'linux', { commit: 'abc123', date: '2026-01-01' })).toBe('Debrief 1.2.3\nLicence: MIT OR Apache-2.0\nPlatform: linux\nCommit: abc123\nBuilt: 2026-01-01');
+    expect(versionInfoText(null, null, null)).toBe('Debrief unknown\nLicence: MIT OR Apache-2.0');
+    expect(versionInfoText('1.0.0', null, { commit: 'unknown', date: 'unknown' })).toBe('Debrief 1.0.0\nLicence: MIT OR Apache-2.0');
   });
 });

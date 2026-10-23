@@ -1,0 +1,67 @@
+---
+source: crates/debrief-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: kubernetes/pods/shop_order-events-7c9d8b5f4-x2k4p_1d2ee59b-03c2-8ba5-2786-5799c6b578de/consumer/0.log
+importer: text
+records: 1207
+skipped: 0
+levels:
+  2-Information: 1207
+with_timestamp: 1207
+first_timestamp: "2026-10-14T09:00:00.000Z"
+last_timestamp: "2026-10-14T10:41:24.050Z"
+fields:
+  - count
+  - error
+  - group
+  - lagMs
+  - level
+  - msg
+  - topic
+  - ts
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:00:00.000Z"
+    level: Information
+    message: stdout F
+    fields:
+      group: order-events
+      level: info
+      msg: consumer started
+      ts: "2026-10-14T09:00:00.000000Z"
+  - line: 2
+    timestamp: "2026-10-14T09:00:00.012Z"
+    level: Information
+    message: "stderr F I1014 09:00:00.000000       1 leaderelection.go:250] attempting to acquire leader lease shop/order-events"
+    fields: {}
+  - line: 3
+    timestamp: "2026-10-14T09:00:07.168Z"
+    level: Information
+    message: stdout F
+    fields:
+      count: 24
+      lagMs: 20
+      level: info
+      msg: consumed batch
+      ts: "2026-10-14T09:00:07.168721Z"
+  - line: 4
+    timestamp: "2026-10-14T09:00:09.797Z"
+    level: Information
+    message: stdout F
+    fields:
+      count: 47
+      lagMs: 20
+      level: info
+      msg: consumed batch
+      ts: "2026-10-14T09:00:09.797199Z"
+  - line: 5
+    timestamp: "2026-10-14T09:00:11.288Z"
+    level: Information
+    message: stdout F
+    fields:
+      count: 39
+      lagMs: 20
+      level: info
+      msg: consumed batch
+      ts: "2026-10-14T09:00:11.288973Z"

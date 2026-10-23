@@ -13,13 +13,13 @@ import { VideoStore } from './video.store';
  * the start, shift it, go back to Auto, or have the model read the clock in the chosen frame.
  */
 @Component({
-  selector: 'imt-alignment-panel',
+  selector: 'debrief-alignment-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [VideoError],
   template: `
     <h3 i18n="@@video.align.title">Alignment with the logs</h3>
     @if (store.errors().align; as e) {
-      <imt-video-error [failure]="e" (retry)="store.retry('align')" (dismiss)="store.dismiss('align')" />
+      <debrief-video-error [failure]="e" (retry)="store.retry('align')" (dismiss)="store.dismiss('align')" />
     }
     @if (store.active(); as v) {
       <p data-testid="video-align-start"><ng-container i18n="@@video.align.start">The video starts at</ng-container> <strong class="mono">{{ start() }}</strong></p>

@@ -4,14 +4,14 @@ import { RedactionService } from './redaction.service';
 
 /** Shown under the title bar while the window's redacted view is on. */
 @Component({
-  selector: 'imt-redaction-banner',
+  selector: 'debrief-redaction-banner',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   host: { style: 'display: contents' },
   template: `
     @if (redaction.on()) {
       <div class="banner info" role="status" data-testid="redacted-banner">
-        <imt-icon name="check" [size]="14" />
+        <debrief-icon name="check" [size]="14" />
         <span class="msg" i18n="@@share.redactionBanner.message">Redacted view: secrets and personal data are masked in the grid, facets and context.</span>
         <button type="button" class="btn" (click)="redaction.openSettings()" i18n="@@share.redactionBanner.settings">Settings…</button>
         <button type="button" class="btn ghost" [disabled]="redaction.busy()" (click)="redaction.set(false)" i18n="@@share.redactionBanner.turnOff">Turn off</button>

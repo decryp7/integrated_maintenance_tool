@@ -34,7 +34,7 @@ let nextId = 1;
 
 /**
  * Opens modal dialogs. The content is a standalone component that injects `DIALOG_REF`; the
- * `imt-dialog-host` in the app shell renders the stack, traps focus and handles Escape.
+ * `debrief-dialog-host` in the app shell renders the stack, traps focus and handles Escape.
  */
 @Injectable({ providedIn: 'root' })
 export class DialogService {

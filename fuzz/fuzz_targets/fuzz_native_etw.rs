@@ -4,4 +4,4 @@
 // symbols for the collected addresses) goes through the importer.
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &[u8]| imt_etw::fuzz::etw_events(data));
+fuzz_target!(|data: &[u8]| debrief_etw::fuzz::etw_events(data));

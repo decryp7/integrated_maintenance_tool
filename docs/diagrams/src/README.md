@@ -23,5 +23,5 @@ docs/diagrams/src/generate.sh      # regenerate every .drawio and the overview S
 scripts/export-diagrams.sh         # then export SVG (and the git-ignored 2x PNGs); draw.io desktop, one export at a time
 ```
 
-Each script sets the product name "Debrief" in titles and footers and keeps code identifiers (`imt-core` and so on) as they are in
+Each script sets the product name "Debrief" in titles and footers and keeps code identifiers (`debrief-core` and so on) as they are in
 the code. The footer date is `DATE` in `common.mjs`.

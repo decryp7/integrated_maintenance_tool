@@ -8,7 +8,7 @@ const win = (page: Page) => page.getByTestId('minimap-window');
 
 /** Drags across the histogram strip between two fractions of the plot width (zooms the timeline). */
 async function brush(page: Page, from: number, to: number): Promise<void> {
-  const box = (await page.locator('imt-timeline-panel .hist-row .plot').boundingBox())!;
+  const box = (await page.locator('debrief-timeline-panel .hist-row .plot').boundingBox())!;
   const y = box.y + box.height / 2;
   await page.mouse.move(box.x + box.width * from, y);
   await page.mouse.down();

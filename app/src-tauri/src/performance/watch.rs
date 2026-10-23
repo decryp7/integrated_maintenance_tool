@@ -4,7 +4,7 @@
 
 use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeLink, NoticeScope, NoticeSeverity, NoticeSource, ProcessRef};
 use crate::sync::lock;
-use imt_ipc::memory_watch::{MemoryEvent, MemoryListener, MemoryUse};
+use debrief_ipc::memory_watch::{MemoryEvent, MemoryListener, MemoryUse};
 use serde::Serialize;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::{Arc, Mutex, Weak};
@@ -78,7 +78,7 @@ pub fn notice(process: &ProcessRef, name: &str, event: &MemoryEvent) -> Option<N
                 format!("{name} is using {} of {} MB", mb(u.used), mb(u.limit)),
                 NoticeScope::App,
             )
-            .body("It is close to its memory cap. If it needs more, IMT stops it; the cap is in Settings ▸ Performance.")
+            .body("It is close to its memory cap. If it needs more, Debrief stops it; the cap is in Settings ▸ Performance.")
             .dedupe(format!("memory:warning:{}", key(process)))
             .link(link)
             .quiet(),

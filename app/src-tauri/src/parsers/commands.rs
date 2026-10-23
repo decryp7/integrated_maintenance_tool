@@ -9,10 +9,10 @@ use crate::jobs::{JobKind, JobSpec};
 use crate::paths::WindowGrants;
 use crate::windows::CurrentWindow;
 use crate::{AppState, CmdError, CmdResult, ErrorCode, State};
-use imt_core::batch::SourceId;
-use imt_core::parser::library::{Library, LibraryError};
-use imt_core::parser::{Parser, MAX_PARSER_BYTES};
-use imt_core::ports::ParserUse;
+use debrief_core::batch::SourceId;
+use debrief_core::parser::library::{Library, LibraryError};
+use debrief_core::parser::{Parser, MAX_PARSER_BYTES};
+use debrief_core::ports::ParserUse;
 use std::collections::HashMap;
 use std::path::Path;
 use tauri::{AppHandle, Manager, Runtime};
@@ -277,7 +277,7 @@ pub(crate) async fn parser_export(
         .with(|lib| lib.get(&id).map(|p| p.toml.clone()))
         .ok_or_else(|| CmdError::not_found(format!("no parser \"{id}\" in the library")))?;
     let target = grants.write(&path, &["toml"])?;
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
+    debrief_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     std::fs::write(target.path(), &toml).map_err(|e| CmdError::new(ErrorCode::Io, e.to_string()))?;
     let (safe, bytes) = (privacy::safe_path(Path::new(&path)), toml.len().to_string());
     domain_event(
@@ -301,13 +301,13 @@ pub(crate) async fn parser_draft(app_state: State<'_, AppState>, request: Parser
         ),
         None => None,
     };
-    let req: imt_core::parser::draft::DraftRequest = request.into();
-    let toml = imt_core::parser::draft::compose(&req, base.as_ref().map(|(p, _)| p))
+    let req: debrief_core::parser::draft::DraftRequest = request.into();
+    let toml = debrief_core::parser::draft::compose(&req, base.as_ref().map(|(p, _)| p))
         .map_err(|e| CmdError::invalid(e.message.clone()).line(e.line))?;
     let parser = Parser::from_toml(&toml).map_err(|e| CmdError::invalid(e.message))?;
     // Saving a changed built-in makes an override.
     let origin = match base.map(|(_, o)| o) {
-        Some(imt_core::parser::library::Origin::Builtin) => ParserOrigin::Override,
+        Some(debrief_core::parser::library::Origin::Builtin) => ParserOrigin::Override,
         Some(o) => o.into(),
         None => ParserOrigin::User,
     };

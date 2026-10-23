@@ -57,8 +57,8 @@ describe('AiChatPanel', () => {
     expect(el(f, '[data-testid=ai-tool-chip]').textContent).toContain('Query · 1 event');
     expect(el(f, '.user').textContent).toContain('What happened around');
     // The conversation can be selected and copied (ADR 0028).
-    expect(el(f, '.user').classList).toContain('imt-selectable');
-    expect(el(f, 'imt-ai-rich-text').classList).toContain('imt-selectable');
+    expect(el(f, '.user').classList).toContain('debrief-selectable');
+    expect(el(f, 'debrief-ai-rich-text').classList).toContain('debrief-selectable');
     const links = all<HTMLButtonElement>(f, 'button.cite');
     links.find((b) => b.classList.contains('rec'))!.click();
     expect(record).toHaveBeenCalled();

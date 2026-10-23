@@ -3,7 +3,7 @@ import { formatCount, formatDuration, formatNumber } from '../core/format';
 import { Comparison, FieldShift, SideStats } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { barWidth, direction, ARROWS, formatChange } from './analysis-format';
-import { ImtSelect, SelectOption } from '../settings/themed-select';
+import { DebriefSelect, SelectOption } from '../settings/themed-select';
 import { AnalysisState } from './analysis-state';
 import { ANALYSIS_STYLES } from './analysis-styles';
 import { AnalysisTargets, windowQuery } from './analysis-targets';
@@ -18,9 +18,9 @@ const TOP_VALUES = 5;
 
 /** Two time windows side by side: counts, which fields changed, numeric shifts, new and gone values. */
 @Component({
-  selector: 'imt-compare-view',
+  selector: 'debrief-compare-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState, CoverageNote, ImtSelect],
+  imports: [AnalysisState, CoverageNote, DebriefSelect],
   template: `
     <div class="bar">
       <span class="chip-ab a" data-testid="window-a"><span class="sw" aria-hidden="true"></span>A: <span class="nums">{{ time.range(targets.windowA()) }}</span></span>
@@ -28,14 +28,14 @@ const TOP_VALUES = 5;
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="previous()" i18n="@@analysis.compare.currentVsPrevious">Current range vs previous</button>
       <span class="lbl"><ng-container i18n="@@analysis.compare.window">Window</ng-container>
-        <imt-select [options]="widthOptions" [value]="width()" (valueChange)="width.set(+$event)" ariaLabel="Window length for before and after" i18n-ariaLabel="@@analysis.compare.windowLength" />
+        <debrief-select [options]="widthOptions" [value]="width()" (valueChange)="width.set(+$event)" ariaLabel="Window length for before and after" i18n-ariaLabel="@@analysis.compare.windowLength" />
       </span>
       <button class="btn" type="button" (click)="beforeAfter()" i18n="@@analysis.compare.beforeAfter">Before / after selected time</button>
       <button class="btn" type="button" [attr.aria-disabled]="!cursor.selection()" (click)="cursor.selection() && targets.setWindowA(cursor.selection())" i18n="@@analysis.compare.setA">Set A from selection</button>
       <button class="btn" type="button" [attr.aria-disabled]="!cursor.selection()" (click)="cursor.selection() && targets.setWindowB(cursor.selection())" i18n="@@analysis.compare.setB">Set B from selection</button>
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!targets.windowA() || !targets.windowB()" emptyText="Pick two windows to compare, for example the current range against the one before it." i18n-emptyText="@@analysis.compare.emptyText" (retry)="res.retry()">
       @if (res.result(); as c) {
         <div class="body" tabindex="0" role="region" aria-label="Comparison" i18n-aria-label="@@analysis.compare.region">
           <p class="summary" data-testid="compare-summary">{{ summaryText(c) }}</p>
@@ -108,7 +108,7 @@ const TOP_VALUES = 5;
           </div>
         </div>
       }
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,

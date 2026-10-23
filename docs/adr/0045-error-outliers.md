@@ -12,11 +12,11 @@ with the rest of the same window.
 
 ## Decision
 
-`imt_core::analysis::outliers::error_outliers(&dyn Query, &OutlierRequest)` is a **pure function over the `Query`
+`debrief_core::analysis::outliers::error_outliers(&dyn Query, &OutlierRequest)` is a **pure function over the `Query`
 port**: it needs only `summary` (candidate fields), `facet` (value counts), `page` (counts and evidence) and
 `check_query`. It is not a new port method, so the store worker protocol and `WIRE_VERSION` do not change, and every
 store (the in-memory `Workspace` and DuckDB) gives the answer from its own aggregates. A differential test
-(`imt-store-duck/tests/outliers.rs`) runs it on both.
+(`debrief-store-duck/tests/outliers.rs`) runs it on both.
 
 - The window is the request's query (a filter without `|` stages); the subset is a filter (`@level >= error` by
   default) applied as a `where` stage; the rest is the window minus the subset.
@@ -29,7 +29,7 @@ store (the in-memory `Workspace` and DuckDB) gives the answer from its own aggre
 - Bounded: 60 fields (most populated first, `@source` always first), identifier-like fields (more than 5,000 values)
   skipped, 30 outliers by default and 200 at most, five evidence events each. What bounded the result is in
   `Coverage::limits`. The run checks the thread's `QueryControl` between fields, so Cancel works.
-- The shell runs it as an analysis job (`query_outliers`); the UI panel only presents; `imt analyze outliers` is the
+- The shell runs it as an analysis job (`query_outliers`); the UI panel only presents; `debrief analyze outliers` is the
   command-line form. Evidence is a query-language filter the UI opens as the view, plus sample event ids.
 
 ## Consequences

@@ -6,16 +6,16 @@
 use crate::engine::with_store;
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_core::analysis::{error_outliers, Anomaly, Comparison, FieldStats, OutlierReport, OutlierRequest, RequestSpan, WaterfallRow};
-use imt_core::api::{
+use debrief_core::analysis::{error_outliers, Anomaly, Comparison, FieldStats, OutlierReport, OutlierRequest, RequestSpan, WaterfallRow};
+use debrief_core::api::{
     CompareRequest, CompletionRequest, CorrelateRequest, FieldStatsRequest, MomentRequest, MomentSummary, ParsePreview,
     ParsePreviewRequest, QueryRequest, RequestsRequest, TraceRequest, TraceSummary,
 };
-use imt_core::batch::EventId;
-use imt_core::exceptions::ExceptionGroup;
-use imt_core::patterns::Pattern;
-use imt_core::ports::{Analyzed, Coverage, Store, StoreError, StoreResult};
-use imt_core::ql::{classify_input, Completion, InputKind, QlError, QlResult};
+use debrief_core::batch::EventId;
+use debrief_core::exceptions::ExceptionGroup;
+use debrief_core::patterns::Pattern;
+use debrief_core::ports::{Analyzed, Coverage, Store, StoreError, StoreResult};
+use debrief_core::ql::{classify_input, Completion, InputKind, QlError, QlResult};
 use serde::Serialize;
 use tauri::{AppHandle, Runtime};
 
@@ -213,14 +213,14 @@ pub async fn preview_parse(state: CurrentWindow, request: ParsePreviewRequest) -
 
 /// Infers a regex with named, typed groups from example lines (with explanation).
 #[tauri::command]
-pub async fn infer_regex(lines: Vec<String>) -> CmdResult<imt_core::regex_assist::InferredRegex> {
-    crate::error::lift(imt_core::regex_assist::infer(&lines).map_err(crate::err))
+pub async fn infer_regex(lines: Vec<String>) -> CmdResult<debrief_core::regex_assist::InferredRegex> {
+    crate::error::lift(debrief_core::regex_assist::infer(&lines).map_err(crate::err))
 }
 
 /// Explains a regex in plain English as an indented outline.
 #[tauri::command]
-pub async fn explain_regex(pattern: String) -> CmdResult<Vec<imt_core::regex_assist::ExplainNode>> {
-    crate::error::lift(imt_core::regex_assist::explain(&pattern).map_err(crate::err))
+pub async fn explain_regex(pattern: String) -> CmdResult<Vec<debrief_core::regex_assist::ExplainNode>> {
+    crate::error::lift(debrief_core::regex_assist::explain(&pattern).map_err(crate::err))
 }
 
 #[cfg(test)]
@@ -251,13 +251,13 @@ mod tests {
 
     #[test]
     fn classify_search_treats_over_long_input_as_text() {
-        let long = format!("level = {}", "x".repeat(imt_core::ql::MAX_CLASSIFY_LEN));
+        let long = format!("level = {}", "x".repeat(debrief_core::ql::MAX_CLASSIFY_LEN));
         assert_eq!(classify_search(long, vec![]).now(), InputKind::Text);
     }
 
     #[test]
     fn classify_search_looks_at_a_bounded_number_of_field_names() {
-        let mut fields: Vec<String> = (0..imt_core::ql::MAX_CLASSIFY_FIELDS).map(|i| format!("f{i}")).collect();
+        let mut fields: Vec<String> = (0..debrief_core::ql::MAX_CLASSIFY_FIELDS).map(|i| format!("f{i}")).collect();
         fields.push("Beyond".into());
         assert_eq!(classify_search("f7 = 1".into(), fields.clone()).now(), InputKind::Query);
         assert_eq!(classify_search("Beyond = 1".into(), fields).now(), InputKind::Text);

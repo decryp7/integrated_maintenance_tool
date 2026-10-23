@@ -18,18 +18,18 @@ test.describe('time-range import and watched folders', () => {
     await expect(open).toBeEnabled();
     await open.click();
     await expect(dialog).toHaveCount(0);
-    await expect(page.locator('imt-sidebar')).toContainText('extra-folder');
+    await expect(page.locator('debrief-sidebar')).toContainText('extra-folder');
   });
 
   test('Watched folders: a folder is added, its new file is imported, and it can be removed', async ({ page }) => {
     await runCommand(page, 'Show watched folders');
-    const view = page.locator('imt-watched-folders-view');
+    const view = page.locator('debrief-watched-folders-view');
     await expect(view).toContainText('No folders are watched.');
     await view.getByTestId('watch-add').click();
     const item = view.getByRole('list', { name: 'Watched folders' }).getByRole('listitem');
     await expect(item).toHaveCount(1);
     await expect(item).toContainText('1 file imported');
-    await expect(page.locator('imt-sidebar')).toContainText('dropped.log');
+    await expect(page.locator('debrief-sidebar')).toContainText('dropped.log');
     await view.getByRole('button', { name: /^Stop watching the folder/ }).click();
     await expect(view).toContainText('No folders are watched.');
   });

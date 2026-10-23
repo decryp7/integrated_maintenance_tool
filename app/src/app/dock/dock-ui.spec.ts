@@ -81,7 +81,7 @@ describe('window layouts, dialogs and commands', () => {
     const fixture = TestBed.createComponent(SaveLayoutDialog);
     await settle(fixture);
     const el = fixture.nativeElement as HTMLElement;
-    const input = el.querySelector<HTMLInputElement>('#imt-layout-name')!;
+    const input = el.querySelector<HTMLInputElement>('#debrief-layout-name')!;
     expect(input.value).toBe(`Perspective ${perspectives.list().length + 1}`);
     input.value = '   ';
     input.dispatchEvent(new Event('input'));
@@ -269,7 +269,7 @@ describe('DropGuides', () => {
     const original = document.elementFromPoint;
     document.elementFromPoint = () => content;
     const guides = new DropGuides(root);
-    const layer = root.querySelector('.imt-drop-guides')!;
+    const layer = root.querySelector('.debrief-drop-guides')!;
     const pointer = (type: string, target: EventTarget, x: number, y: number, button = 0) => target.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: y, button }));
     // Presses elsewhere, with another button, or a press that does not move far enough: no guides.
     pointer('pointerdown', root.querySelector('.other')!, 0, 0);
@@ -282,19 +282,19 @@ describe('DropGuides', () => {
     // The compass centre of the 400x300 content at (100,100) is at (300,250).
     pointer('pointermove', window, 300, 250);
     expect(layer.classList.contains('on')).toBe(true);
-    expect(root.querySelectorAll('.imt-guide-edges .imt-guide')).toHaveLength(4);
-    expect(root.querySelectorAll('.imt-guide-compass .imt-guide')).toHaveLength(5);
-    expect(root.querySelector('.imt-guide.hot')!.getAttribute('data-position')).toBe('center');
+    expect(root.querySelectorAll('.debrief-guide-edges .debrief-guide')).toHaveLength(4);
+    expect(root.querySelectorAll('.debrief-guide-compass .debrief-guide')).toHaveLength(5);
+    expect(root.querySelector('.debrief-guide.hot')!.getAttribute('data-position')).toBe('center');
     document.elementFromPoint = () => null;
     pointer('pointermove', window, 26, 300);
-    expect(root.querySelectorAll('.imt-guide-compass .imt-guide')).toHaveLength(0);
-    expect(root.querySelector('.imt-guide-edges .imt-guide.hot')!.getAttribute('data-position')).toBe('left');
+    expect(root.querySelectorAll('.debrief-guide-compass .debrief-guide')).toHaveLength(0);
+    expect(root.querySelector('.debrief-guide-edges .debrief-guide.hot')!.getAttribute('data-position')).toBe('left');
     pointer('pointerup', window, 26, 300);
     expect(layer.classList.contains('on')).toBe(false);
     // Driven from outside (a pop-out over the window), with a preview of the drop.
     guides.showAt({ x: 26, y: 300 }, { x: 0, y: 0, width: 200, height: 600 });
     expect(layer.classList.contains('on')).toBe(true);
-    const preview = root.querySelector<HTMLElement>('.imt-guide-preview')!;
+    const preview = root.querySelector<HTMLElement>('.debrief-guide-preview')!;
     expect([preview.hidden, preview.style.width]).toEqual([false, '200px']);
     guides.showAt({ x: 400, y: 30 });
     expect(preview.hidden).toBe(true);
@@ -302,7 +302,7 @@ describe('DropGuides', () => {
     guides.hide();
     pointer('pointercancel', window, 0, 0);
     guides.dispose();
-    expect(root.querySelector('.imt-drop-guides')).toBeNull();
+    expect(root.querySelector('.debrief-drop-guides')).toBeNull();
     document.elementFromPoint = original;
     root.remove();
   });
@@ -312,7 +312,7 @@ describe('DropGuides', () => {
     root.innerHTML = '<div class="dv-resize-container"><div class="dv-void-container"></div></div>';
     document.body.appendChild(root);
     const guides = new DropGuides(root);
-    const layer = root.querySelector('.imt-drop-guides')!;
+    const layer = root.querySelector('.debrief-drop-guides')!;
     const handle = root.querySelector('.dv-void-container')!;
     const pointer = (type: string, target: EventTarget, x: number, shiftKey = false) =>
       target.dispatchEvent(new PointerEvent(type, { bubbles: true, clientX: x, clientY: 0, button: 0, pointerType: 'mouse', shiftKey }));

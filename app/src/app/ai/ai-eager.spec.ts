@@ -3,13 +3,13 @@ import { TestBed } from '@angular/core/testing';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TimeCursor } from '../analysis/time-cursor';
 import { RecordView } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Logger } from '../core/logger';
 import { MockAiBackend, MockAiOptions } from '../core/mock/mock-ai-backend';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
+import { DEBRIEF_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { CommandContext, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { CommandContext, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS, UiStateContribution } from '../lifecycle/ui-state';
 import { DialogService } from '../ui/dialog.service';
 import { MemoryLogger, settle, tinyBackend } from '../../testing/helpers';
@@ -31,7 +31,7 @@ function setup(options: MockAiOptions = {}, extra: unknown[] = []) {
     providers: [
       { provide: AiBackend, useValue: backend },
       { provide: Logger, useValue: new MemoryLogger() },
-      { provide: ImtBackend, useValue: tinyBackend() },
+      { provide: DebriefBackend, useValue: tinyBackend() },
       ...(extra as never[]),
     ],
   });
@@ -185,7 +185,7 @@ describe('AiLauncher', () => {
 
 @Component({
   imports: [AiButton],
-  template: `<imt-ai-button label="Ask AI" hint="h" testId="t" [disabled]="off()" (pressed)="count = count + 1" />`,
+  template: `<debrief-ai-button label="Ask AI" hint="h" testId="t" [disabled]="off()" (pressed)="count = count + 1" />`,
 })
 class ButtonHost {
   count = 0;
@@ -271,15 +271,15 @@ describe('provide-ai', () => {
 
   it('registers the view, commands, menu items and saved chats', async () => {
     TestBed.configureTestingModule({
-      providers: [provideAi(), { provide: Logger, useClass: MemoryLogger }, { provide: ImtBackend, useValue: tinyBackend() }],
+      providers: [provideAi(), { provide: Logger, useClass: MemoryLogger }, { provide: DebriefBackend, useValue: tinyBackend() }],
     });
-    const views = (TestBed.inject(IMT_VIEWS) as unknown as ImtView[][]).flat();
+    const views = (TestBed.inject(DEBRIEF_VIEWS) as unknown as DebriefView[][]).flat();
     const chat = views.find((v) => v.id === 'ai-chat')!;
     expect(chat.defaultPosition).toBe('right');
     expect((await chat.component()).name).toContain('AiChatPanel');
-    const cmds = (TestBed.inject(IMT_COMMANDS) as unknown as ImtCommand[][]).flat();
+    const cmds = (TestBed.inject(DEBRIEF_COMMANDS) as unknown as DebriefCommand[][]).flat();
     expect(cmds.some((c) => c.id === 'ai.setup')).toBe(true);
-    const menus = TestBed.inject(IMT_RECORD_MENU_ITEMS) as readonly RecordMenuContribution[];
+    const menus = TestBed.inject(DEBRIEF_RECORD_MENU_ITEMS) as readonly RecordMenuContribution[];
     expect(menus.length).toBeGreaterThan(0);
     const ui = (TestBed.inject(UI_STATE_CONTRIBUTIONS) as unknown as UiStateContribution[][]).flat();
     expect(ui.map((u) => u.key)).toContain('chats');
@@ -387,7 +387,7 @@ describe('provide-ai', () => {
 });
 
 describe('offerSetupOnFirstRun', () => {
-  const KEY = 'imt.ai.setupOffered.v1';
+  const KEY = 'debrief.ai.setupOffered.v1';
   afterEach(() => {
     TestBed.resetTestingModule();
     localStorage.removeItem(KEY);

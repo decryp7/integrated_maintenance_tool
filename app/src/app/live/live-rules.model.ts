@@ -3,7 +3,7 @@ import { ProfileModel } from '../core/profile.model';
 
 /**
  * The `[live]` profile section as the rules editor edits it (snake_case keys as in the TOML; see
- * crates/imt-core/src/default_profile.toml). Validation is the engine's (`validate_profile`); this only
+ * crates/debrief-core/src/default_profile.toml). Validation is the engine's (`validate_profile`); this only
  * reads and writes the model.
  */
 

@@ -25,7 +25,7 @@ describe('PluginsView', () => {
     expect(all(fixture, '.builtin .badge').map((e) => e.textContent)).toEqual(['json', 'text', 'csv', 'csv', 'clef']);
     expect(text(fixture)).toContain('About plugins');
     // Third-party packages are rows of the same table, told apart by their Source column (no cards).
-    expect(all(fixture, 'imt-installed-packages .package')).toHaveLength(0);
+    expect(all(fixture, 'debrief-installed-packages .package')).toHaveLength(0);
     expect(all(fixture, 'tr.plugin [data-testid=plugin-source]').map((e) => e.textContent?.trim())).toEqual(['Built in', 'Built in', 'Built in', 'Built in', 'Package']);
     expect(text(fixture)).toContain('Install from file');
   });
@@ -37,11 +37,11 @@ describe('PluginsView', () => {
     const tabs = () => all<HTMLButtonElement>(fixture, '[role=tab]');
     expect(tabs().map((t) => t.textContent?.trim())).toEqual(['Installed', 'Health']);
     expect(tabs()[0]?.getAttribute('aria-selected')).toBe('true');
-    expect(fixture.nativeElement.querySelector('imt-plugin-health-view')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-plugin-health-view')).toBeNull();
     tabs()[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
     await settle(fixture);
     expect(TestBed.inject(PluginsTabs).tab()).toBe('health');
-    expect(fixture.nativeElement.querySelector('imt-plugin-health-view')).not.toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-plugin-health-view')).not.toBeNull();
     expect(fixture.debugElement.query((d) => d.componentInstance instanceof PluginHealthView)).not.toBeNull();
     tabs()[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
     tabs()[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));

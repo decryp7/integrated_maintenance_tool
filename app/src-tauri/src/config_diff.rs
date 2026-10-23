@@ -1,7 +1,7 @@
 //! Configuration diff commands: compare two configuration files (registry
 //! exports, JSON/XML/INI/TOML/YAML, msinfo reports...) or two snapshots of
 //! the same machine (folders such as two collector runs), page through the
-//! tree diff and export it. Parsing and diffing live in `imt_core::config`;
+//! tree diff and export it. Parsing and diffing live in `debrief_core::config`;
 //! the window's workspace supplies the parsers its plugins contribute.
 //!
 //! The last computed diff is cached (keyed by the files' paths, sizes and
@@ -11,9 +11,9 @@
 use crate::paths::WindowGrants;
 use crate::windows::CurrentWindow;
 use crate::{err, CmdResult};
-use imt_core::config::export::{parse_format, write_diff, Sides};
-use imt_core::config::snapshot::{diff_folders, SnapshotDiff};
-use imt_core::config::{
+use debrief_core::config::export::{parse_format, write_diff, Sides};
+use debrief_core::config::snapshot::{diff_folders, SnapshotDiff};
+use debrief_core::config::{
     diff, read_config, CompareOptions, ConfigParsers, Diff, DiffFormats, DiffOptions, DiffPage, Limits, SideInfo, DEFAULT_IGNORE,
 };
 use serde::Serialize;
@@ -58,7 +58,7 @@ fn computed(parsers: &ConfigParsers, l: &Path, r: &Path, options: &CompareOption
     let limits = Limits::default();
     let lt = read_config(parsers, l, &limits).map_err(|e| anyhow::anyhow!("left file: {e}"))?;
     let rt = read_config(parsers, r, &limits).map_err(|e| anyhow::anyhow!("right file: {e}"))?;
-    let side = |p: &Path, t: &imt_core::config::ConfigTree| SideInfo {
+    let side = |p: &Path, t: &debrief_core::config::ConfigTree| SideInfo {
         path: p.to_string_lossy().into_owned(),
         format: t.format.clone(),
         nodes: t.nodes.len(),
@@ -179,7 +179,7 @@ pub(crate) async fn export_config_diff(
     let format = parse_format(&format).map_err(err)?;
     let (l, r) = sides(&grants, &left_path, &right_path)?;
     let target = grants.write(&path, &["csv", "html", "htm"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
+    debrief_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     let parsers = parsers(&state).await?;
     blocking(move || {
         let c = computed(&parsers, &l, &r, &options.compare)?;
@@ -210,7 +210,7 @@ mod tests {
     use super::*;
     use crate::paths::{Access, GrantSource};
     use crate::test_support::{block, main_window, test_app, TempDir};
-    use imt_core::config::{ChangeKind, DiffView};
+    use debrief_core::config::{ChangeKind, DiffView};
 
     fn granted(app: &tauri::App<tauri::test::MockRuntime>) -> WindowGrants {
         WindowGrants::of(app.handle(), "main")

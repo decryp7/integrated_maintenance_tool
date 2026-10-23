@@ -6,7 +6,7 @@
 - Angular 22 (zoneless, OnPush, signals/SignalStores, standalone), Angular CDK + selective Material, Vitest + TestBed, Playwright (chromium, webkit, prod-csp projects), WebdriverIO + tauri-driver smoke tests of the real app.
 - Node 24 (`app/.nvmrc`), npm 11 (`packageManager` in app/package.json), `npm ci` only.
 - Charts: Apache ECharts; timeline is custom.
-- Store: DuckDB 1.5.x via duckdb-rs (prebuilt libduckdb fetched by a pinned-SHA script; `DUCKDB_LIB_DIR` needed), Arrow 58 in imt-batch, Tantivy for full-text.
-- Plugins/workers: always out of process over imt-ipc (postcard frames; plugins depend only on imt-plugin-api, served by the imt-plugins binary, sandboxed; no gRPC/tonic/protobuf, ADR 0017).
+- Store: DuckDB 1.5.x via duckdb-rs (prebuilt libduckdb fetched by a pinned-SHA script; `DUCKDB_LIB_DIR` needed), Arrow 58 in debrief-batch, Tantivy for full-text.
+- Plugins/workers: always out of process over debrief-ipc (postcard frames; plugins depend only on debrief-plugin-api, served by the debrief-plugins binary, sandboxed; no gRPC/tonic/protobuf, ADR 0017).
 - Licences: cargo-deny (`deny.toml`), cargo-about notices (`scripts/notices/generate.sh`).
 - Dependency updates: Renovate, one grouped weekly PR (renovate.json).

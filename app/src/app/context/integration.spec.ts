@@ -1,7 +1,7 @@
 import { FIELDS_OPEN_KEY } from '../shell/sidebar-sections';
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { EventsGrid } from '../grid/events-grid';
 import { FormatWizard } from '../format/format-wizard';
@@ -34,7 +34,7 @@ describe('Inspector context actions', () => {
     const fixture = TestBed.createComponent(Inspector);
     const store = TestBed.inject(WorkspaceStore);
     await settle(fixture);
-    const page = await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 20, descending: false });
+    const page = await TestBed.inject(DebriefBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 20, descending: false });
     store.select(page.rows.find((r) => r.message.startsWith('Slow request'))!);
     await settle(fixture);
     return { fixture, store, dialogs: TestBed.inject(DialogService), menu: TestBed.inject(ContextMenuService) };

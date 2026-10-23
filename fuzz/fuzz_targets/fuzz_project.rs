@@ -1,9 +1,9 @@
 #![no_main]
-//! Projects from disk or from other people: an `.imtproj` workspace file (JSON), a `project.toml` manifest and an
-//! `.imtz` archive (project, share or collector bundle) opened into a scratch folder. The first byte selects.
+//! Projects from disk or from other people: an `.debriefproj` workspace file (JSON), a `project.toml` manifest and an
+//! `.debriefz` archive (project, share or collector bundle) opened into a scratch folder. The first byte selects.
 //! Nothing panics and an extracted project stays inside the destination folder.
-use imt_core::package::{self, ProjectManifest};
-use imt_core::project::ProjectFile;
+use debrief_core::package::{self, ProjectManifest};
+use debrief_core::project::ProjectFile;
 use libfuzzer_sys::fuzz_target;
 use std::path::PathBuf;
 use std::sync::OnceLock;
@@ -11,7 +11,7 @@ use std::sync::OnceLock;
 fn scratch() -> &'static PathBuf {
     static D: OnceLock<PathBuf> = OnceLock::new();
     D.get_or_init(|| {
-        let d = std::env::temp_dir().join(format!("imt-fuzz-project-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("debrief-fuzz-project-{}", std::process::id()));
         std::fs::create_dir_all(&d).expect("scratch folder");
         d
     })
@@ -22,7 +22,7 @@ fuzz_target!(|data: &[u8]| {
     let dir = scratch();
     match pick % 3 {
         0 => {
-            let path = dir.join("p.imtproj");
+            let path = dir.join("p.debriefproj");
             if std::fs::write(&path, rest).is_ok() {
                 let _ = ProjectFile::load(&path);
             }
@@ -36,7 +36,7 @@ fuzz_target!(|data: &[u8]| {
             }
         }
         _ => {
-            let path = dir.join("in.imtz");
+            let path = dir.join("in.debriefz");
             let dest = dir.join("dest");
             let _ = std::fs::remove_dir_all(&dest);
             if std::fs::write(&path, rest).is_ok() && std::fs::create_dir_all(&dest).is_ok() {

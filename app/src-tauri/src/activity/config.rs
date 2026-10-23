@@ -61,7 +61,7 @@ pub fn config() -> ActivityConfig {
     }
 }
 
-/// A random id for this run of IMT, on every log line and report (matches a report to its log).
+/// A random id for this run of Debrief, on every log line and report (matches a report to its log).
 pub fn session_id() -> &'static str {
     static ID: OnceLock<String> = OnceLock::new();
     ID.get_or_init(|| {
@@ -72,7 +72,7 @@ pub fn session_id() -> &'static str {
 
 /// The commit this binary was built from (`build.rs` records it), or `"unknown"`.
 pub fn build_commit() -> &'static str {
-    match option_env!("IMT_BUILD_COMMIT") {
+    match option_env!("DEBRIEF_BUILD_COMMIT") {
         Some(c) if !c.is_empty() => c,
         _ => "unknown",
     }

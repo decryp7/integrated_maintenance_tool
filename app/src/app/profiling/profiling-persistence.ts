@@ -38,7 +38,7 @@ const MAX_CAPTURES = 32;
 const str = (v: unknown): string | null => (typeof v === 'string' && v.length > 0 ? v : null);
 
 /**
- * Parses saved state (anything: missing, corrupt, from an older or newer IMT) into a valid
+ * Parses saved state (anything: missing, corrupt, from an older or newer Debrief) into a valid
  * `ProfilingUiState`; each field that is missing or malformed takes its default. Null when the value
  * is not an object at all.
  */

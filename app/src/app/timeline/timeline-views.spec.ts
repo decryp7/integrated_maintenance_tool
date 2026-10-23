@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideTinyBackend, settle } from '../../testing/helpers';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DockService } from '../dock/dock.service';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { ViewRegistry } from '../extensions/view-registry';
 import { UiStateRegistry } from '../lifecycle/ui-state';
 import { provideTimelines } from './provide-timelines';
@@ -119,7 +119,7 @@ describe('TimelineViews', () => {
 
   it('contributes the "New timeline" command', async () => {
     setup();
-    const command = TestBed.inject(IMT_COMMANDS)
+    const command = TestBed.inject(DEBRIEF_COMMANDS)
       .flat()
       .find((c) => c.id === 'timeline.new');
     expect(command).toMatchObject({ title: 'New timeline', category: 'View' });

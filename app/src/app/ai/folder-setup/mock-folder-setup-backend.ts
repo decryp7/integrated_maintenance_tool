@@ -1,10 +1,10 @@
 /**
  * The folder set-up for the browser build (dev and UI tests): a plausible survey of the mock incident and
  * proposals that work against the mock workspace (applying them changes its lanes and markers). It mimics
- * the contract only; the engine (`crates/imt-core/src/survey`) is the reference for behaviour.
+ * the contract only; the engine (`crates/debrief-core/src/survey`) is the reference for behaviour.
  */
 import { Injector } from '@angular/core';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { spanRules } from '../../core/mock/mock-runs';
 import { MockParserLibrary } from '../../core/mock/mock-parsers';
 import { EMPTY_QUERY } from '../../core/workspace.store';
@@ -252,7 +252,7 @@ export function naiveDiff(before: string, after: string): { op: DiffOp; text: st
 export class MockFolderSetupBackend extends FolderSetupBackend {
 
   constructor(
-    private readonly workspace: ImtBackend,
+    private readonly workspace: DebriefBackend,
     private readonly options: MockFolderSetupOptions = {},
   ) {
     super();
@@ -360,5 +360,5 @@ export class MockFolderSetupBackend extends FolderSetupBackend {
 }
 
 export function createMockFolderSetupBackend(injector: Injector, options?: MockFolderSetupOptions): FolderSetupBackend {
-  return new MockFolderSetupBackend(injector.get(ImtBackend), options);
+  return new MockFolderSetupBackend(injector.get(DebriefBackend), options);
 }

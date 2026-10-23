@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyDataset } from '../../testing/helpers';
 import { at } from '../../testing/must';
 import { RecordView, SourceInfo } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { FilesBackend } from '../core/files-backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
@@ -36,11 +36,11 @@ function archiveBackend(): MockBackend {
   return new MockBackend({ latency: false, dataset: () => data, pluginMarkerKinds: [] });
 }
 
-async function setup(backend: ImtBackend = archiveBackend()) {
+async function setup(backend: DebriefBackend = archiveBackend()) {
   TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
   const store = TestBed.inject(WorkspaceStore);
   await store.refreshSummary();
-  const page = await TestBed.inject(ImtBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 50, descending: false });
+  const page = await TestBed.inject(DebriefBackend).queryPage({ query: EMPTY_QUERY, offset: 0, limit: 50, descending: false });
   return { store, files: TestBed.inject(SourceFileActions), rows: page.rows, backend };
 }
 

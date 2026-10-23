@@ -6,11 +6,11 @@
 //! ([`native_spec`]: app menu with Services/Hide and the model's `app.quit` last, Edit with Undo..Select All wired to the
 //! webview, Window with Minimize/Zoom) and applies it, rebuilding only when the structure changed
 //! and otherwise updating check marks and enabled states in place ([`diff`]). A click is sent to
-//! the focused window (a pop-out's host) as `imt://menu` with the item id ([`route`]).
+//! the focused window (a pop-out's host) as `debrief://menu` with the item id ([`route`]).
 //!
 //! On other platforms `set_app_menu` validates and does nothing: the UI shows its own menu bar.
 //!
-//! Command: `set_app_menu`. Event: `imt://menu` (to the focused window only).
+//! Command: `set_app_menu`. Event: `debrief://menu` (to the focused window only).
 
 use crate::CmdResult;
 use serde::Deserialize;
@@ -19,7 +19,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};
 
 /// Event carrying the id of the chosen menu item to the focused window.
-pub const MENU_EVENT: &str = "imt://menu";
+pub const MENU_EVENT: &str = "debrief://menu";
 const MAX_MENUS: usize = 16;
 const MAX_ENTRIES: usize = 1000;
 const MAX_DEPTH: usize = 4;
@@ -91,7 +91,7 @@ pub const QUIT_COMMAND: &str = "app.quit";
 /// The role of a top-level menu: the ones macOS gives standard items.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MenuRole {
-    /// IMT ▸ (About, Settings…); merged with Services and Hide; the model's `app.quit` (Quit IMT, ⌘Q) goes last.
+    /// Debrief ▸ (About, Settings…); merged with Services and Hide; the model's `app.quit` (Quit Debrief, ⌘Q) goes last.
     App,
     /// Merged with Undo, Redo, Cut, Copy, Paste, Select All.
     Edit,
@@ -394,7 +394,7 @@ pub fn native_spec(model: &AppMenu) -> Vec<Native> {
         ),
     };
     let mut bar = vec![Native::Submenu {
-        label: "IMT".into(),
+        label: "Debrief".into(),
         role: MenuRole::App,
         items: app_items,
     }];
@@ -579,7 +579,7 @@ fn predefined<R: Runtime>(app: &AppHandle<R>, p: Predefined) -> tauri::Result<ta
     use tauri::menu::PredefinedMenuItem as M;
     match p {
         Predefined::Services => M::services(app, None),
-        Predefined::Hide => M::hide(app, Some("Hide IMT")),
+        Predefined::Hide => M::hide(app, Some("Hide Debrief")),
         Predefined::HideOthers => M::hide_others(app, None),
         Predefined::ShowAll => M::show_all(app, None),
         Predefined::Undo => M::undo(app, None),
@@ -698,7 +698,7 @@ mod tests {
 
     fn sample() -> AppMenu {
         model(json!({ "menus": [
-            { "id": "app", "label": "IMT", "items": [item("help.about", "About IMT"), { "kind": "separator" }, item("settings.open", "Settings…")] },
+            { "id": "app", "label": "Debrief", "items": [item("help.about", "About Debrief"), { "kind": "separator" }, item("settings.open", "Settings…")] },
             { "id": "file", "label": "File", "items": [
                 { "kind": "item", "id": "file.openFiles", "label": "Open files…", "keybinding": "Mod+O", "checked": null, "enabled": true }
             ] },
@@ -882,8 +882,8 @@ mod tests {
     #[test]
     fn the_spec_adds_the_standard_macos_items() {
         let spec = native_spec(&sample());
-        assert_eq!(labels(&spec), ["IMT", "File", "Edit", "View", "Window", "Help"]);
-        let app = submenu(&spec, "IMT");
+        assert_eq!(labels(&spec), ["Debrief", "File", "Edit", "View", "Window", "Help"]);
+        let app = submenu(&spec, "Debrief");
         assert!(matches!(&app[0], Native::Item(i) if i.id == "help.about"));
         assert!(app.contains(&Native::Predefined(Predefined::Services)));
         assert_eq!(
@@ -893,11 +893,11 @@ mod tests {
         );
         // The model's Quit (it asks about unsaved work) goes last, after a separator.
         let with_quit = model(json!({ "menus": [
-            { "id": "app", "label": "IMT", "items": [item(QUIT_COMMAND, "Quit IMT"), item("help.about", "About IMT")] }
+            { "id": "app", "label": "Debrief", "items": [item(QUIT_COMMAND, "Quit Debrief"), item("help.about", "About Debrief")] }
         ] }))
         .unwrap();
         let quit_spec = native_spec(&with_quit);
-        let quit_app = submenu(&quit_spec, "IMT");
+        let quit_app = submenu(&quit_spec, "Debrief");
         assert!(matches!(quit_app.last(), Some(Native::Item(i)) if i.id == QUIT_COMMAND));
         assert_eq!(quit_app[quit_app.len() - 2], Native::Separator);
         assert!(matches!(&quit_app[0], Native::Item(i) if i.id == "help.about"));
@@ -931,14 +931,14 @@ mod tests {
     #[test]
     fn an_empty_model_still_has_the_app_edit_and_window_menus() {
         let spec = native_spec(&AppMenu::default());
-        assert_eq!(labels(&spec), ["IMT", "Edit", "Window"]);
+        assert_eq!(labels(&spec), ["Debrief", "Edit", "Window"]);
         assert!(item_ids(&spec).is_empty());
         // Without its own Edit menu, Edit follows File; Window goes before Help.
         let m = model(json!({ "menus": [
             { "id": "file", "label": "File", "items": [] }, { "id": "view", "label": "View", "items": [] }, { "id": "help", "label": "Help", "items": [] }
         ] }))
         .unwrap();
-        assert_eq!(labels(&native_spec(&m)), ["IMT", "File", "Edit", "View", "Window", "Help"]);
+        assert_eq!(labels(&native_spec(&m)), ["Debrief", "File", "Edit", "View", "Window", "Help"]);
     }
 
     #[test]

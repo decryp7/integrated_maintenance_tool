@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackendBare, tinyBackend } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { createRunsBackend, hasRuns, provideRunsBackend, RunsBackend, TauriRunsBackend, UnsupportedRunsBackend } from './runs-backend';
 
 const tauriKey = '__TAURI_INTERNALS__';
@@ -20,12 +20,12 @@ describe('RunsBackend', () => {
 
   it('uses the mock workspace in a browser, a stand-in when it cannot, and Tauri in the app', async () => {
     TestBed.configureTestingModule({ providers: [...provideTinyBackendBare(), provideRunsBackend()] });
-    expect(TestBed.inject(RunsBackend)).toBe(TestBed.inject(ImtBackend));
+    expect(TestBed.inject(RunsBackend)).toBe(TestBed.inject(DebriefBackend));
     expect(hasRuns(null)).toBe(false);
     expect(hasRuns({ queryRuns: () => 0 })).toBe(false);
 
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({ providers: [...provideTinyBackendBare({} as ImtBackend)] });
+    TestBed.configureTestingModule({ providers: [...provideTinyBackendBare({} as DebriefBackend)] });
     const unsupported = TestBed.inject(RunsBackend);
     expect(unsupported).toBeInstanceOf(UnsupportedRunsBackend);
     expect((await unsupported.queryRuns({})).runs).toEqual([]);

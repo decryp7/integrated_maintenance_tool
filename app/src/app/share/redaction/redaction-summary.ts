@@ -4,7 +4,7 @@ import { formatCount } from '../../core/format';
 
 /** What redaction will change, before something is written: hits per rule and a few before/after samples. */
 @Component({
-  selector: 'imt-redaction-summary',
+  selector: 'debrief-redaction-summary',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (summary(); as s) {

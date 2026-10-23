@@ -1,8 +1,8 @@
 //! The TypeScript bindings of the shell's wire types (ADR 0016), generated with ts-rs into
 //! `app/src/app/core/generated/` and re-exported by `api.types.ts`. The test fails when a file is stale;
-//! `IMT_WRITE_TYPES=1 cargo test -p imt-app --lib generated_types` rewrites them.
+//! `DEBRIEF_WRITE_TYPES=1 cargo test -p debrief-app --lib generated_types` rewrites them.
 //!
-//! Types of `imt-core` are still mirrored by hand in `api.types.ts` (they will get the same derive when the
+//! Types of `debrief-core` are still mirrored by hand in `api.types.ts` (they will get the same derive when the
 //! engine's owned reply types of ADR 0014 land).
 
 use std::path::PathBuf;
@@ -15,7 +15,7 @@ fn dir() -> PathBuf {
 
 /// One generated file: its name and its text.
 fn files() -> Vec<(&'static str, String)> {
-    let header = "// Generated from the Rust wire types by `cargo test -p imt-app --lib generated_types` (ts-rs; ADR 0016).\n// Do not edit: change the Rust type and run the test with IMT_WRITE_TYPES=1.\n\n";
+    let header = "// Generated from the Rust wire types by `cargo test -p debrief-app --lib generated_types` (ts-rs; ADR 0016).\n// Do not edit: change the Rust type and run the test with DEBRIEF_WRITE_TYPES=1.\n\n";
     let decl = |d: String| format!("export {d}\n");
     vec![
         (
@@ -37,7 +37,7 @@ fn files() -> Vec<(&'static str, String)> {
             ),
         ),
         ("dumps.ts", {
-            use imt_dump::api::*;
+            use debrief_dump::api::*;
             let decls = [
                 DocKind::decl(),
                 DumpSniffKind::decl(),
@@ -91,7 +91,7 @@ fn files() -> Vec<(&'static str, String)> {
         ("plugins.ts", crate::plugin_packages::dto::generated(header)),
         ("parsers.ts", crate::parsers::dto::generated(header)),
         ("store.ts", {
-            use imt_core::ports::*;
+            use debrief_core::ports::*;
             let decls = [
                 StoreActivity::decl(),
                 LastImport::decl(),
@@ -122,7 +122,7 @@ fn files() -> Vec<(&'static str, String)> {
             format!("{header}{}", decls.into_iter().map(decl).collect::<Vec<_>>().join("\n"))
         }),
         ("video.ts", {
-            use imt_video::{align::*, api::*, record::*, runtime::*, select::*};
+            use debrief_video::{align::*, api::*, record::*, runtime::*, select::*};
             let decls = [
                 UserAlignment::decl(),
                 ClockReading::decl(),
@@ -158,7 +158,7 @@ fn files() -> Vec<(&'static str, String)> {
             format!("{header}{}", decls.into_iter().map(decl).collect::<Vec<_>>().join("\n"))
         }),
         ("notes.ts", {
-            use imt_notes::*;
+            use debrief_notes::*;
             let decls = [
                 Region::decl(),
                 ImageRef::decl(),
@@ -180,7 +180,7 @@ fn files() -> Vec<(&'static str, String)> {
 
 #[test]
 fn generated_types_are_current() {
-    let write = std::env::var_os("IMT_WRITE_TYPES").is_some();
+    let write = std::env::var_os("DEBRIEF_WRITE_TYPES").is_some();
     let mut stale = Vec::new();
     for (name, text) in files() {
         let path = dir().join(name);
@@ -197,6 +197,6 @@ fn generated_types_are_current() {
     }
     assert!(
         stale.is_empty(),
-        "generated TypeScript types are stale: {stale:?}; run `IMT_WRITE_TYPES=1 cargo test -p imt-app --lib generated_types`"
+        "generated TypeScript types are stale: {stale:?}; run `DEBRIEF_WRITE_TYPES=1 cargo test -p debrief-app --lib generated_types`"
     );
 }

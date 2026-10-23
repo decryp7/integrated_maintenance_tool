@@ -33,7 +33,7 @@ export function svgImageUrl(svg: string): string {
  * and move/remove actions. Alt+ArrowUp/Down on the focused block moves it.
  */
 @Component({
-  selector: 'imt-report-block',
+  selector: 'debrief-report-block',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, MarkdownView],
   host: {
@@ -50,12 +50,12 @@ export function svgImageUrl(svg: string): string {
       <span class="spacer"></span>
       <button type="button" class="icon-btn" [attr.aria-label]="moveUpLabel()" title="Move up (Alt+↑)" i18n-title="@@share.reportBlock.moveUpTitle" [disabled]="first()" (click)="move(-1)"><span aria-hidden="true">↑</span></button>
       <button type="button" class="icon-btn" [attr.aria-label]="moveDownLabel()" title="Move down (Alt+↓)" i18n-title="@@share.reportBlock.moveDownTitle" [disabled]="last()" (click)="move(1)"><span aria-hidden="true">↓</span></button>
-      <button type="button" class="icon-btn" [attr.aria-label]="removeLabel()" title="Remove" i18n-title="@@share.reportBlock.removeTitle" (click)="reports.removeBlock(block().id)"><imt-icon name="trash" [size]="13" /></button>
+      <button type="button" class="icon-btn" [attr.aria-label]="removeLabel()" title="Remove" i18n-title="@@share.reportBlock.removeTitle" (click)="reports.removeBlock(block().id)"><debrief-icon name="trash" [size]="13" /></button>
     </div>
     @switch (block().type) {
       @case ('text') {
         <textarea class="input text" rows="4" [attr.aria-label]="textLabel()" placeholder="Write Markdown: # heading, **bold**, - list…" i18n-placeholder="@@share.reportBlock.textPlaceholder" [value]="$any(block()).markdown" (change)="patch({ markdown: val($event) })"></textarea>
-        <imt-markdown-view class="md" [text]="$any(block()).markdown" />
+        <debrief-markdown-view class="md" [text]="$any(block()).markdown" />
       }
       @case ('events') {
         <ul class="ids" aria-label="Events in this block" i18n-aria-label="@@share.reportBlock.eventsAria">
@@ -91,7 +91,7 @@ export function svgImageUrl(svg: string): string {
         } @else if (block().type === 'chart' || block().type === 'timeline') {
           <p class="faint" i18n="@@share.reportBlock.noSnapshot">No snapshot.</p>
         } @else {
-          <p class="faint" i18n="@@share.reportBlock.unknown">A "{{ block().type }}" block (from a newer IMT) — kept as it is.</p>
+          <p class="faint" i18n="@@share.reportBlock.unknown">A "{{ block().type }}" block (from a newer Debrief) — kept as it is.</p>
         }
       }
     }

@@ -5,7 +5,7 @@ use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
     let Some((&mode, rest)) = data.split_first() else { return };
-    let Ok((_, mut body)) = imt_ai_worker::http::read_head(rest) else {
+    let Ok((_, mut body)) = debrief_ai_worker::http::read_head(rest) else {
         return;
     };
     if mode % 2 == 0 {

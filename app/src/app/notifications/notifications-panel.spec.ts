@@ -108,7 +108,7 @@ describe('NotificationsPanel', () => {
     await render(f);
     expect(el(f, '[data-testid=notices-empty]').textContent).toContain('Nothing needs your attention');
     expect(el<HTMLButtonElement>(f, '[data-testid=notices-mark-all]').disabled).toBe(true);
-    expect(f.nativeElement.querySelector('[data-testid=notices-empty] imt-icon')).not.toBeNull();
+    expect(f.nativeElement.querySelector('[data-testid=notices-empty] debrief-icon')).not.toBeNull();
     expect([...f.nativeElement.querySelectorAll('h3')].filter((h: Element) => !h.closest('[data-testid=notices-empty]'))).toHaveLength(0);
   });
 
@@ -122,7 +122,7 @@ describe('NotificationsPanel', () => {
     expect(ai.getAttribute('data-severity')).toBe('warning');
     expect(ai.getAttribute('aria-label')).toBe('AI paused, unread');
     expect(ai.querySelector('.body')?.textContent).toBe('The model crashed');
-    expect(ai.querySelector('.body')?.classList).toContain('imt-selectable');
+    expect(ai.querySelector('.body')?.classList).toContain('debrief-selectable');
     expect(ai.querySelector('.time')?.textContent).toContain('2 Jan');
     expect(el(f, '[data-testid=notice-4]').getAttribute('aria-label')).toBe('Finished: Export, read');
     expect(el(f, '[data-testid=notice-4]').querySelector('.body')).toBeNull();

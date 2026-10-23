@@ -1,9 +1,9 @@
 //! Robustness around the app's lifetime: safe mode, detection of unclean
 //! shutdowns, persisted plugin enable/disable, session autosave/restore and a
-//! crash handler that records panics in IMT's own log.
+//! crash handler that records panics in Debrief's own log.
 //!
 //! Sessions (format version 2): each window autosaves to
-//! `sessions/<window>/last-session.imtproj`, and `sessions/manifest.json`
+//! `sessions/<window>/last-session.debriefproj`, and `sessions/manifest.json`
 //! (`{ "version": 2, "windows": [...] }`) lists the windows of the current run.
 //! At start the previous run's sessions are copied to `recovered/` (what a
 //! crash restore offers) and the manifest is reset. Missing or corrupt files
@@ -28,17 +28,17 @@
 
 use crate::windows::{CurrentWindow, Windows, MAIN};
 use crate::{err, CmdResult, State};
-use imt_core::project::ProjectFile;
+use debrief_core::project::ProjectFile;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
 
-/// Command-line flag that starts IMT with built-in importers only and the default profile.
+/// Command-line flag that starts Debrief with built-in importers only and the default profile.
 pub const SAFE_MODE_FLAG: &str = "--safe-mode";
 const MARKER: &str = "running.marker";
 /// File name of an autosaved session (the UI recognises sessions by it).
-const SESSION_FILE: &str = "last-session.imtproj";
+const SESSION_FILE: &str = "last-session.debriefproj";
 const SESSIONS_DIR: &str = "sessions";
 const RECOVERED_DIR: &str = "recovered";
 const MANIFEST: &str = "manifest.json";
@@ -210,7 +210,7 @@ pub fn prune_instances(data: &Path, own_pid: u32, probe: Probe<'_>) -> usize {
 /// How this run started; managed as Tauri state.
 pub struct Lifecycle {
     pub safe_mode: bool,
-    /// IMT did not shut down cleanly last time (crash, kill, power loss).
+    /// Debrief did not shut down cleanly last time (crash, kill, power loss).
     pub previous_crash: bool,
     /// This instance's state folder (see [`InstanceScope`]).
     dir: Option<PathBuf>,
@@ -229,7 +229,7 @@ impl Lifecycle {
         Lifecycle::begin_in(data, safe_mode, InstanceScope::Main)
     }
 
-    /// Records that IMT is running; detects whether the previous run ended
+    /// Records that Debrief is running; detects whether the previous run ended
     /// uncleanly and keeps the previous run's sessions for recovery.
     pub fn begin_in(data: Option<PathBuf>, safe_mode: bool, scope: InstanceScope) -> Lifecycle {
         Lifecycle::begin_with(data, safe_mode, scope, std::process::id(), &os_probe)
@@ -257,11 +257,11 @@ impl Lifecycle {
                 PreviousRun::Clean => {}
                 PreviousRun::Crashed => previous_crash = true,
                 PreviousRun::StillRunning => {
-                    log::info!("Another IMT process still holds the running marker; taking it over")
+                    log::info!("Another Debrief process still holds the running marker; taking it over")
                 }
             }
             if let Err(e) = write_marker(d, &own) {
-                log::warn!("could not record that IMT is running: {e:#}");
+                log::warn!("could not record that Debrief is running: {e:#}");
             }
         }
         let sessions = dir.as_ref().map(|d| SessionStore::new(d.clone()));
@@ -476,7 +476,7 @@ impl SessionStore {
 
 /// Longest backtrace logged with a panic (bytes, cut at a line boundary).
 pub const MAX_BACKTRACE: usize = 8 * 1024;
-/// Panics logged with a backtrace per run (capturing one is slow; a panic loop must not stall IMT).
+/// Panics logged with a backtrace per run (capturing one is slow; a panic loop must not stall Debrief).
 const MAX_BACKTRACES: u32 = 20;
 static PANICS: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(0);
 
@@ -500,7 +500,7 @@ fn thread_name() -> String {
 }
 
 /// Longest one teardown step (closing a window, quitting) may hold the closing up; it goes on in the
-/// background after that, and IMT closes anyway.
+/// background after that, and Debrief closes anyway.
 pub const TEARDOWN_STEP_LIMIT: std::time::Duration = std::time::Duration::from_secs(3);
 
 /// How a teardown step ended.
@@ -513,14 +513,14 @@ pub enum StepEnd {
     Failed,
 }
 
-/// Runs one step of closing a window or IMT on a thread of its own and waits at most `limit` for it,
+/// Runs one step of closing a window or Debrief on a thread of its own and waits at most `limit` for it,
 /// logging (at Info) that it started and how it ended, so a hang in a log names its step. Dropping
 /// window state, stopping plugins and jobs never runs on the main thread: they may wait for it.
 pub fn teardown_step(step: &str, limit: std::time::Duration, f: impl FnOnce() + Send + 'static) -> StepEnd {
     log::info!(Step = step; "Teardown: {step}");
     let started = std::time::Instant::now();
     let (tx, rx) = std::sync::mpsc::channel::<()>();
-    let spawned = std::thread::Builder::new().name(format!("imt-teardown-{step}")).spawn(move || {
+    let spawned = std::thread::Builder::new().name(format!("debrief-teardown-{step}")).spawn(move || {
         f();
         let _ = tx.send(());
     });
@@ -532,13 +532,13 @@ pub fn teardown_step(step: &str, limit: std::time::Duration, f: impl FnOnce() + 
     let ms = started.elapsed().as_millis() as u64;
     match end {
         StepEnd::Done => log::info!(Step = step, ElapsedMs = ms; "Teardown: {step} done"),
-        StepEnd::TimedOut => log::warn!(Step = step, ElapsedMs = ms; "Teardown: {step} did not finish in time; IMT goes on closing"),
-        StepEnd::Failed => log::warn!(Step = step, ElapsedMs = ms; "Teardown: {step} failed; IMT goes on closing"),
+        StepEnd::TimedOut => log::warn!(Step = step, ElapsedMs = ms; "Teardown: {step} did not finish in time; Debrief goes on closing"),
+        StepEnd::Failed => log::warn!(Step = step, ElapsedMs = ms; "Teardown: {step} failed; Debrief goes on closing"),
     }
     end
 }
 
-/// IMT exits (`RunEvent::Exit`): plugins stop, jobs are interrupted, the instance marker goes. Every step
+/// Debrief exits (`RunEvent::Exit`): plugins stop, jobs are interrupted, the instance marker goes. Every step
 /// is bounded ([`teardown_step`]), so a stuck plugin or job cannot keep the process alive.
 pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
     // Once only: the exit watchdog and the normal exit path may both get here.
@@ -551,7 +551,7 @@ pub fn exit_teardown<R: tauri::Runtime>(app: &tauri::AppHandle<R>) {
         if let Some(w) = a.try_state::<Windows>() {
             w.shutdown_plugins();
         }
-        // The plugin processes (they would also exit when IMT does: their connection closes).
+        // The plugin processes (they would also exit when Debrief does: their connection closes).
         if let Some(s) = a.try_state::<crate::AppState>() {
             s.plugins.shutdown();
         }
@@ -597,7 +597,7 @@ fn arm_exit_watchdog_with<R: tauri::Runtime>(
         return;
     }
     let app = app.clone();
-    let spawned = std::thread::Builder::new().name("imt-exit-watchdog".into()).spawn(move || {
+    let spawned = std::thread::Builder::new().name("debrief-exit-watchdog".into()).spawn(move || {
         std::thread::sleep(limit);
         use tauri::Manager;
         let open = || app.windows().into_keys().collect::<Vec<_>>();
@@ -655,7 +655,7 @@ fn log_panic(info: &std::panic::PanicHookInfo<'_>) {
     log::error!(
         Severity = "Fatal", Thread = thread.as_str(), Location = location.as_str(), Backtrace = backtrace.as_str(),
         OperationId = op.as_str(), Window = window.as_str();
-        "IMT crashed on thread {thread}: {}", imt_core::guard::panic_message(info.payload())
+        "Debrief crashed on thread {thread}: {}", debrief_core::guard::panic_message(info.payload())
     );
 }
 
@@ -702,7 +702,7 @@ pub(crate) fn session_to_reopen(state: &CurrentWindow, lifecycle: &Lifecycle, re
     reopen.then(|| lifecycle.session_path(state.label())).flatten()
 }
 
-/// Relaunches IMT, optionally in safe mode, reopening the calling window's autosaved session when
+/// Relaunches Debrief, optionally in safe mode, reopening the calling window's autosaved session when
 /// `reopen_session` (save it first with `save_session`).
 #[tauri::command]
 pub async fn restart_app<R: tauri::Runtime>(
@@ -714,7 +714,7 @@ pub async fn restart_app<R: tauri::Runtime>(
 ) -> CmdResult<()> {
     let exe = std::env::current_exe().map_err(err)?;
     let args = relaunch_args(safe_mode, session_to_reopen(&state, &lifecycle, reopen_session).as_deref());
-    let mut cmd = imt_core::process::quiet_command(exe);
+    let mut cmd = debrief_core::process::quiet_command(exe);
     // The new process must become the running instance, not hand over to this one.
     crate::instance::release(&app);
     cmd.args(&args).spawn().map_err(err)?;
@@ -732,7 +732,7 @@ pub async fn save_session(state: CurrentWindow, lifecycle: State<'_, Lifecycle>,
     project.reports = reports
         .unwrap_or_default()
         .into_iter()
-        .filter_map(|r| imt_core::report::Report::parse(r).ok())
+        .filter_map(|r| debrief_core::report::Report::parse(r).ok())
         .collect();
     crate::error::lift(store.save(state.label(), &project).map(|_| ()).map_err(err))
 }
@@ -754,7 +754,7 @@ pub async fn last_session(
         .map(|g| g.path().to_string_lossy().into_owned()))
 }
 
-/// Whether `path` is an autosaved session (IMT's own file: not a project of the recent list).
+/// Whether `path` is an autosaved session (Debrief's own file: not a project of the recent list).
 pub fn is_session_file(path: &std::path::Path) -> bool {
     path.file_name().is_some_and(|n| n == SESSION_FILE)
 }
@@ -791,7 +791,7 @@ mod tests {
     use crate::plugin_config::*;
     use crate::test_support::Json as _;
     use crate::test_support::Now as _;
-    use imt_core::{Plugin, PluginRegistry};
+    use debrief_core::{Plugin, PluginRegistry};
     use std::sync::Arc;
 
     #[test]
@@ -905,7 +905,7 @@ mod tests {
     #[test]
     fn relaunch_arguments_come_from_rust_only() {
         let tmp = crate::test_support::TempDir::new("relaunch");
-        let session = tmp.0.join("last-session.imtproj");
+        let session = tmp.0.join("last-session.debriefproj");
         std::fs::write(&session, "{}").unwrap();
         let canonical = session.canonicalize().unwrap();
         let strings = |a: Vec<std::ffi::OsString>| a.into_iter().map(|s| s.to_string_lossy().into_owned()).collect::<Vec<_>>();
@@ -920,8 +920,8 @@ mod tests {
             "--export-diagnostics",
             "--isolated",
             "--safe-mode",
-            "relative.imtproj",
-            "/does/not/exist.imtproj",
+            "relative.debriefproj",
+            "/does/not/exist.debriefproj",
         ] {
             assert!(relaunch_args(false, Some(Path::new(bad))).is_empty(), "{bad}");
         }
@@ -968,7 +968,7 @@ mod tests {
         panic_logging();
         // A named std thread (watcher, event-bus subscriber and helper threads are std threads).
         let t = std::thread::Builder::new()
-            .name("imt-test-worker".into())
+            .name("debrief-test-worker".into())
             .spawn(|| panic!("boom on a worker (hook test)"))
             .unwrap();
         assert!(t.join().is_err());
@@ -977,7 +977,7 @@ mod tests {
         let e = &c[0];
         assert_eq!(
             (e.level, e.props["Severity"].as_str(), e.props["Thread"].as_str()),
-            (log::Level::Error, "Fatal", "imt-test-worker")
+            (log::Level::Error, "Fatal", "debrief-test-worker")
         );
         assert!(e.props["Location"].contains("lifecycle.rs"), "{:?}", e.props);
         assert!(!e.props["Backtrace"].is_empty() && e.props["Backtrace"].len() <= MAX_BACKTRACE + 40);
@@ -997,8 +997,8 @@ mod tests {
     #[test]
     fn contained_plugin_crashes_quarantines_and_overruns_are_logged() {
         let _g = crate::activity::test_capture();
-        let health = imt_core::guard::Health::default();
-        for i in 0..imt_core::guard::QUARANTINE_AFTER {
+        let health = debrief_core::guard::Health::default();
+        for i in 0..debrief_core::guard::QUARANTINE_AFTER {
             health.fail("t.flaky-log", &format!("bad record {i}"));
         }
         let logged = crate::activity::captured();
@@ -1008,7 +1008,7 @@ mod tests {
             .expect("crash logged");
         assert_eq!(
             (crash.level, crash.target.as_str(), crash.props["Plugin"].as_str()),
-            (log::Level::Error, imt_core::guard::LOG_TARGET, "t.flaky-log")
+            (log::Level::Error, debrief_core::guard::LOG_TARGET, "t.flaky-log")
         );
         assert!(logged.iter().any(|c| c.message.contains("t.flaky-log quarantined")));
     }
@@ -1079,8 +1079,8 @@ mod tests {
         fn version(&self) -> &'static str {
             "1.0.0"
         }
-        fn manifest(&self) -> imt_core::plugin::Manifest {
-            imt_core::plugin::Manifest::new(self.0, "1.0.0").requires("t.missing", "^1")
+        fn manifest(&self) -> debrief_core::plugin::Manifest {
+            debrief_core::plugin::Manifest::new(self.0, "1.0.0").requires("t.missing", "^1")
         }
         fn register(&self, _: &mut PluginRegistry) -> anyhow::Result<()> {
             match self.1 {
@@ -1109,7 +1109,7 @@ mod tests {
     }
 
     fn temp(tag: &str) -> PathBuf {
-        let d = std::env::temp_dir().join(format!("imt-life-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("debrief-life-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         d
     }
@@ -1387,13 +1387,13 @@ mod tests {
         let two = || -> Vec<Arc<dyn Plugin>> { vec![Arc::new(Named("net.decryptology.web")), Arc::new(Named("net.decryptology.windows"))] };
         let registry = install(two(), false, &s.disabled).unwrap();
         let web = registry.plugins().into_iter().find(|p| p.id == "net.decryptology.web").unwrap();
-        assert_eq!(web.status, imt_core::plugin::PluginStatus::Disabled);
+        assert_eq!(web.status, debrief_core::plugin::PluginStatus::Disabled);
         assert!(install(two(), true, &[]).unwrap().plugins().is_empty(), "safe mode installs none");
         let all = install(two(), false, &[]).unwrap().plugins();
         assert_eq!(all.len(), 2);
         assert!(all
             .iter()
-            .all(|p| p.status == imt_core::plugin::PluginStatus::Active && p.inactive_reason.is_none()));
+            .all(|p| p.status == debrief_core::plugin::PluginStatus::Active && p.inactive_reason.is_none()));
         std::fs::write(d.join(PLUGINS_FILE), "not json").unwrap();
         assert_eq!(load_plugin_settings(Some(&d)), PluginSettings::default());
         std::fs::remove_dir_all(d).unwrap();

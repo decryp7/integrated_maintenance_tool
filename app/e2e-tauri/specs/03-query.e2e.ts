@@ -31,7 +31,7 @@ describe('real app: query language', () => {
     await browser.waitUntil(
       async () => {
         const texts = await browser.execute(() =>
-          Array.from(document.querySelectorAll('imt-events-grid [role=row].row')).map((r) => r.textContent ?? ''),
+          Array.from(document.querySelectorAll('debrief-events-grid [role=row].row')).map((r) => r.textContent ?? ''),
         );
         levels = texts.filter((t) => t.trim().length > 0);
         return levels.length > 0;

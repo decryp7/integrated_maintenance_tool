@@ -8,13 +8,13 @@ import { ProblemsStore } from './problems.store';
 
 /** The status-bar badge: how many import problems there are; it opens the Problems pane. */
 @Component({
-  selector: 'imt-problems-badge',
+  selector: 'debrief-problems-badge',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
     @if (store.loaded()) {
       <button type="button" class="pill" data-testid="status-problems" [class.on]="store.counts().total > 0" [title]="label()" [attr.aria-label]="label()" (click)="ctx.showView(view)">
-        <imt-icon name="alert" [size]="12" />{{ fmt(store.counts().total) }}
+        <debrief-icon name="alert" [size]="12" />{{ fmt(store.counts().total) }}
       </button>
     }
   `,

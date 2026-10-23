@@ -1,7 +1,7 @@
 //! The port to the update server ([`UpdateClient`]) and its adapter over `tauri-plugin-updater`
 //! ([`PluginClient`]). The plugin downloads, verifies the minisign signature against the embedded
 //! public key (and, with `requireSignedVersion`, that the signature was made for the announced
-//! version) and installs; IMT validates the release information on top ([`super::manifest`]).
+//! version) and installs; Debrief validates the release information on top ([`super::manifest`]).
 
 use super::error::{classify, Step, UpdateError};
 use super::manifest;
@@ -23,7 +23,7 @@ pub trait UpdateClient: Send + Sync {
     /// Downloads and verifies the update found by the last check.
     fn download(&self, on_chunk: OnChunk) -> BoxFuture<'_, Result<(), UpdateError>>;
     /// Installs the verified download. On Windows this starts the installer and ends the process;
-    /// `relaunch` says whether the installer starts IMT again.
+    /// `relaunch` says whether the installer starts Debrief again.
     fn install(&self, relaunch: bool) -> Result<(), UpdateError>;
     /// Forgets the downloaded bytes.
     fn discard(&self);
@@ -54,7 +54,7 @@ impl<R: tauri::Runtime> PluginClient<R> {
     }
 }
 
-/// What IMT shows about an update the plugin found, from its validated release information.
+/// What Debrief shows about an update the plugin found, from its validated release information.
 pub fn describe(update: &tauri_plugin_updater::Update) -> Result<UpdateInfo, UpdateError> {
     let parsed = manifest::from_value(&update.raw_json).map_err(|detail| UpdateError::InvalidManifest { detail })?;
     let size = parsed.platform_by_url(update.download_url.as_str()).and_then(|p| p.size);

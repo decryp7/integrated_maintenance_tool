@@ -17,15 +17,15 @@ const ERRORS: Record<Exclude<UpdateErrorKind, 'busy' | 'noRelease' | 'noPlatform
     nextStep: 'This build was made without an update signing key, so it cannot verify updates. Download new versions from the releases page.',
     detail: null,
   },
-  offline: { message: 'IMT could not reach the network.', nextStep: 'Check your internet connection or proxy, then try again.', detail: null },
+  offline: { message: 'Debrief could not reach the network.', nextStep: 'Check your internet connection or proxy, then try again.', detail: null },
   unreachable: {
     message: 'The update server could not be reached.',
     nextStep: 'Try again later. If it keeps failing, download the new version from the releases page.',
     detail: 'operation timed out',
   },
   signatureInvalid: {
-    message: "The update's signature is not valid, so IMT refused to install it.",
-    nextStep: 'The download was discarded. Do not install it by hand; report this to the IMT maintainers.',
+    message: "The update's signature is not valid, so Debrief refused to install it.",
+    nextStep: 'The download was discarded. Do not install it by hand; report this to the Debrief maintainers.',
     detail: 'The signature verification failed',
   },
   diskFull: { message: 'There is not enough disk space to install the update.', nextStep: 'Free some disk space, then try again.', detail: null },
@@ -74,7 +74,7 @@ export class MockUpdatesBackend implements UpdatesBackend {
       autoCheck: false,
       channel: 'stable',
       endpointHost: this.scenario === 'unavailable' ? null : 'dev.decryptology.net',
-      releasesPage: 'https://dev.decryptology.net/decryp7/integrated_maintenance_tool/releases',
+      releasesPage: 'https://dev.decryptology.net/decryp7/debrief/releases',
       downloadJob: null,
     };
   }

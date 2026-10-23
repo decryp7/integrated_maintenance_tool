@@ -2,9 +2,9 @@
 //! The notes (ADR 0021) and knowledge-file records a project or session carries: any JSON through
 //! `NoteRecord::read` / `KnowledgeRecord::read` (the first byte selects), then what was kept written back and read
 //! again without a warning, and the AI blocks built from it (notes context, knowledge block markers intact).
-use imt_ai::knowledge::{assemble, KnowledgeRecord, BLOCK_CLOSE, BLOCK_OPEN};
-use imt_notes::context::{self, Focus};
-use imt_notes::NoteRecord;
+use debrief_ai::knowledge::{assemble, KnowledgeRecord, BLOCK_CLOSE, BLOCK_OPEN};
+use debrief_notes::context::{self, Focus};
+use debrief_notes::NoteRecord;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {

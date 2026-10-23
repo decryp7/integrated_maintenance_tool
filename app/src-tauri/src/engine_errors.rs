@@ -1,11 +1,11 @@
 //! Finds the failures the engine contained during a workspace command (plugin
 //! crashes, quarantines, files whose import crashed) so the UI can be told
-//! about each new one once, via `imt://error`. Typed: plugin health from the
+//! about each new one once, via `debrief://error`. Typed: plugin health from the
 //! registry and `UnrecognizedFile::crashed` from the import (never the text).
 
 use crate::snapshots::{EngineError, EngineErrorKind};
-use imt_core::api::UnrecognizedFile;
-use imt_core::plugin::{PluginInfo, PluginStatus};
+use debrief_core::api::UnrecognizedFile;
+use debrief_core::plugin::{PluginInfo, PluginStatus};
 use std::collections::{BTreeMap, BTreeSet};
 
 /// At most this many errors are reported per command (a folder of broken files
@@ -153,7 +153,7 @@ mod tests {
                 plugin("b", PluginStatus::Active, 2, Some("old")),
                 plugin("q", PluginStatus::Quarantined, 3, Some("old")),
             ],
-            vec![file("old.log", "IMT crashed: old")],
+            vec![file("old.log", "Debrief crashed: old")],
         );
         let after = snap(
             vec![
@@ -164,8 +164,8 @@ mod tests {
                 plugin("d", PluginStatus::Disabled, 0, None),
             ],
             vec![
-                file("old.log", "IMT crashed: old"),
-                file("new.log", "IMT crashed: overflow (please report this file)"),
+                file("old.log", "Debrief crashed: old"),
+                file("new.log", "Debrief crashed: overflow (please report this file)"),
                 file("text.bin", "no importer recognised the file"),
             ],
         );
@@ -194,7 +194,7 @@ mod tests {
                 (
                     EngineErrorKind::ImportCrash,
                     None,
-                    "Importing new.log crashed: IMT crashed: overflow (please report this file)".into()
+                    "Importing new.log crashed: Debrief crashed: overflow (please report this file)".into()
                 ),
             ]
         );
@@ -223,7 +223,7 @@ mod tests {
 
     #[test]
     fn caps_the_number_of_reports() {
-        let files = (0..20).map(|i| file(&format!("{i}.log"), "IMT crashed: x")).collect();
+        let files = (0..20).map(|i| file(&format!("{i}.log"), "Debrief crashed: x")).collect();
         assert_eq!(new_errors(&HealthSnapshot::default(), &snap(vec![], files)).len(), MAX_REPORTED);
     }
 }

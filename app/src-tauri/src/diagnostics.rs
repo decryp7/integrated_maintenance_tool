@@ -1,4 +1,4 @@
-//! Limits for IMT's own diagnostic output: the rolling CLEF log files and the
+//! Limits for Debrief's own diagnostic output: the rolling CLEF log files and the
 //! error screenshots. Persisted as `diagnostics.json` in the config folder;
 //! a missing or corrupt file, or out-of-range values, fall back to defaults.
 
@@ -10,9 +10,9 @@ use std::time::{Duration, SystemTime};
 
 const FILE: &str = "diagnostics.json";
 const VERSION: u32 = 1;
-/// Base name of IMT's log files in the app log folder (daily `imt.YYYY-MM-DD.log`; `imt.log` and
-/// `imt_*.log` from earlier versions).
-pub const LOG_NAME: &str = "imt";
+/// Base name of Debrief's log files in the app log folder (daily `debrief.YYYY-MM-DD.log`; `debrief.log` and
+/// `debrief_*.log` from earlier versions).
+pub const LOG_NAME: &str = "debrief";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "lowercase")]
@@ -127,7 +127,7 @@ pub fn save(dir: &Path, s: &DiagnosticsSettings) -> anyhow::Result<()> {
     Ok(ConfigStore::new(Some(dir.to_path_buf())).save_doc(FILE, s)?)
 }
 
-/// Deletes IMT log files older than `max_age_days` (the active file is kept).
+/// Deletes Debrief log files older than `max_age_days` (the active file is kept).
 /// Returns how many were removed.
 pub fn prune_old_logs(log_dir: &Path, max_age_days: u32, now: SystemTime) -> usize {
     if max_age_days == 0 {
@@ -192,7 +192,7 @@ mod tests {
     use super::*;
 
     fn dir(tag: &str) -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("imt-diag-{tag}-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("debrief-diag-{tag}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -239,9 +239,15 @@ mod tests {
     }
 
     #[test]
-    fn prunes_only_old_imt_logs() {
+    fn prunes_only_old_debrief_logs() {
         let d = dir("prune");
-        for f in ["imt.log", "imt_2026-01-01.log", "imt_2026-10-16.log", "other.log", "imt.txt"] {
+        for f in [
+            "debrief.log",
+            "debrief_2026-01-01.log",
+            "debrief_2026-10-16.log",
+            "other.log",
+            "debrief.txt",
+        ] {
             std::fs::write(d.join(f), "x").unwrap();
         }
         let later = SystemTime::now() + Duration::from_secs(40 * 86_400);
@@ -253,7 +259,7 @@ mod tests {
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
             .collect();
         left.sort();
-        assert_eq!(left, ["imt.log", "imt.txt", "other.log"]);
+        assert_eq!(left, ["debrief.log", "debrief.txt", "other.log"]);
         assert_eq!(prune_old_logs(&d.join("missing"), 30, later), 0);
         let _ = std::fs::remove_dir_all(&d);
     }

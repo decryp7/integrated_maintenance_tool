@@ -1,0 +1,89 @@
+---
+source: crates/debrief-plugin-web/tests/samples.rs
+expression: "snapshot_of(\"web/iis/WEB02/W3SVC1/u_ex261014.log\",\n&debrief_plugin_web::W3cImporter)"
+---
+sample: web/iis/WEB02/W3SVC1/u_ex261014.log
+importer: w3c
+records: 4598
+skipped: 0
+first_ts: 1791968401000
+last_ts: 1791979199000
+fields:
+  - c-ip
+  - cs(Referer)
+  - cs(User-Agent)
+  - cs-bytes
+  - cs-method
+  - cs-uri-query
+  - cs-uri-stem
+  - cs-username
+  - cs-version
+  - s-computername
+  - s-ip
+  - s-port
+  - s-sitename
+  - sc-bytes
+  - sc-status
+  - sc-substatus
+  - sc-win32-status
+  - time-taken
+first:
+  - ts: 1791968401000
+    level: Information
+    message: POST /api/orders/88003/capture → 201 in 154 ms
+    fields:
+      s-sitename: W3SVC1
+      s-computername: WEB02
+      s-ip: 10.20.1.12
+      cs-method: POST
+      cs-uri-stem: /api/orders/88003/capture
+      s-port: 443
+      cs-username: "CONTOSO\\svc-shop3"
+      c-ip: 10.20.1.5
+      cs-version: HTTP/1.1
+      cs(User-Agent): Yarp/2.2
+      sc-status: 201
+      sc-substatus: 0
+      sc-win32-status: 0
+      sc-bytes: 1717
+      cs-bytes: 1098
+      time-taken: 154
+  - ts: 1791968411000
+    level: Information
+    message: GET /api/cart → 200 in 148 ms
+    fields:
+      s-sitename: W3SVC1
+      s-computername: WEB02
+      s-ip: 10.20.1.12
+      cs-method: GET
+      cs-uri-stem: /api/cart
+      s-port: 443
+      c-ip: 10.20.1.5
+      cs-version: HTTP/1.1
+      cs(User-Agent): Yarp/2.2
+      sc-status: 200
+      sc-substatus: 0
+      sc-win32-status: 0
+      sc-bytes: 902
+      cs-bytes: 1617
+      time-taken: 148
+  - ts: 1791968421000
+    level: Information
+    message: GET /api/orders?page=1 → 200 in 69 ms
+    fields:
+      s-sitename: W3SVC1
+      s-computername: WEB02
+      s-ip: 10.20.1.12
+      cs-method: GET
+      cs-uri-stem: /api/orders
+      cs-uri-query: page=1
+      s-port: 443
+      c-ip: 10.20.1.5
+      cs-version: HTTP/1.1
+      cs(User-Agent): Yarp/2.2
+      sc-status: 200
+      sc-substatus: 0
+      sc-win32-status: 0
+      sc-bytes: 1209
+      cs-bytes: 478
+      time-taken: 69

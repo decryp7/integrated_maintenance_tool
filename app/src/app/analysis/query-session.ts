@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { QlError, QlQuery, QlResult, Completion, QueryProgress } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { ImtEvents } from '../extensions/events';
+import { DebriefEvents } from '../extensions/events';
 import { AnalysisActions } from './analysis-actions';
 import { errorText } from './async-resource';
 import { QueryHistory } from './history-store';
@@ -25,7 +25,7 @@ export function newQueryId(now = Date.now()): string {
 @Injectable({ providedIn: 'root' })
 export class QuerySession {
   private readonly backend = inject(AnalysisBackend);
-  private readonly events = inject(ImtEvents);
+  private readonly events = inject(DebriefEvents);
   private readonly actions = inject(AnalysisActions);
   readonly history = inject(QueryHistory);
 

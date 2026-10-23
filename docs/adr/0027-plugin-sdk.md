@@ -8,12 +8,12 @@
 
 ## Context
 
-After ADR 0017 every plugin is a Rust program speaking postcard frames to IMT, but only IMT's own plugins exist:
-they are linked into the `imt-plugins` binary, trusted, and lock themselves down after connecting ("defends against
+After ADR 0017 every plugin is a Rust program speaking postcard frames to Debrief, but only Debrief's own plugins exist:
+they are linked into the `debrief-plugins` binary, trusted, and lock themselves down after connecting ("defends against
 an exploited parser, not a malicious binary"). There was no way for anyone else to write, test, ship or install a
 plugin:
 
-- the contract crate (`imt-plugin-api`) had undocumented items and a bare `CONTRACT = 1` number in the manifest,
+- the contract crate (`debrief-plugin-api`) had undocumented items and a bare `CONTRACT = 1` number in the manifest,
   checked only after the plugin had started; nothing in the handshake said which side was too old;
 - there was no project template, no packaging, no signing, no test harness and no example per kind;
 - the app could only run plugins it ships; a binary from elsewhere would run with the user's full rights for as
@@ -25,7 +25,7 @@ strictest sandbox.
 
 ## Decision
 
-### 1. The SDK is `imt-plugin-api` (name kept)
+### 1. The SDK is `debrief-plugin-api` (name kept)
 
 - The crate keeps its name (every first-party plugin already imports it); it is the SDK. `#![deny(missing_docs)]`,
   a crate-level walkthrough, `prelude`, and one entry point `serve(Arc<dyn Plugin>)`.
@@ -33,46 +33,46 @@ strictest sandbox.
   (now `1.0`): minor = something added at the end of a request/reply/host-request enum or the manifest; major =
   anything else.
 - The protocol version is in the **handshake**: frame version 2 adds `protocol` to `Hello` and `Welcome`
-  (`imt_ipc::frame::ProtocolVersion`), placed right after the frame version so a host reads both from a child of any
+  (`debrief_ipc::frame::ProtocolVersion`), placed right after the frame version so a host reads both from a child of any
   version (`frame::handshake_versions`). The host accepts the same major and a minor it knows
   (`ProtocolVersion::accepts`) and otherwise refuses at connect time with a message that names the side to update:
-  *"plugin "x" is too old: it was built for protocol 0.9 and this IMT speaks 1.0; it needs an update built for
-  protocol 1.x"* / *"… needs a newer IMT: … update IMT to a version that speaks protocol 1.3 or later"*. A frame
+  *"plugin "x" is too old: it was built for protocol 0.9 and this Debrief speaks 1.0; it needs an update built for
+  protocol 1.x"* / *"… needs a newer Debrief: … update Debrief to a version that speaks protocol 1.3 or later"*. A frame
   version mismatch gets the same kind of message. Workers (AI, store) are `UNVERSIONED` on both sides. The manifest
   carries the protocol too (replacing `contract`), so install and `Manifest::check` give the same message.
 - **Cooperative cancellation**: `ImportCtx::cancelled()` and cancel-aware `HostFile` reads; anything that fails after
   a cancel is answered as `CANCELLED`. The harness found that importers otherwise ran past the 2 s grace period on
   large files.
-- The sandbox policy moved into the SDK (`imt_plugin_api::sandbox`): `sandbox_for` (first-party) and
-  `sandbox_for_third_party`, so the harness launches plugins exactly as IMT does; `imt-plugin-host` re-exports it.
+- The sandbox policy moved into the SDK (`debrief_plugin_api::sandbox`): `sandbox_for` (first-party) and
+  `sandbox_for_third_party`, so the harness launches plugins exactly as Debrief does; `debrief-plugin-host` re-exports it.
 
 ### 2. Tooling for authors
 
-- **`cargo imt-plugin`** (`crates/cargo-imt-plugin`): `new <name> --kind importer|transform|tool|collector|annotator`
+- **`cargo debrief-plugin`** (`crates/cargo-debrief-plugin`): `new <name> --kind importer|transform|tool|collector|annotator`
   renders the project from the example of that kind (`examples/plugins/<kind>-example`, embedded with
   `include_str!`), so a new project is code that CI builds and tests; `test` builds the program, runs the
-  conformance checks in IMT's sandbox and then `cargo test`; `package [--sign key] [--target t]…` builds release
+  conformance checks in Debrief's sandbox and then `cargo test`; `package [--sign key] [--target t]…` builds release
   programs and writes the package; `keygen`; `inspect`.
 - **Examples**: one small documented plugin per kind, workspace members (so `cargo test --workspace` runs their
   harness tests), lib + one-line `main`.
-- **Test harness** (`crates/imt-plugin-test`, a dev-dependency): `PluginUnderTest` copies the program into a private
-  folder and starts it with IMT's launcher and the third-party sandbox, behind a fake host (host files, annotator
+- **Test harness** (`crates/debrief-plugin-test`, a dev-dependency): `PluginUnderTest` copies the program into a private
+  folder and starts it with Debrief's launcher and the third-party sandbox, behind a fake host (host files, annotator
   views, task reports). Conformance checks: manifest (valid, permission reasons, only package permissions),
   permissions (everything runs with exactly the declared grants, so undeclared use fails), typed errors (unknown
   contribution, undecodable request), bounded output (items ≤ 8,192 events), cancellation within the grace period,
   answers larger than the frame limit are typed errors. Panics → typed `PANIC` is SDK behaviour, tested against the
-  harness's misbehaving fixture. Golden files (`IMT_BLESS=1`).
+  harness's misbehaving fixture. Golden files (`DEBRIEF_BLESS=1`).
 
-### 3. The package: `.imtplugin`
+### 3. The package: `.debriefplugin`
 
 A zip with exactly: `manifest.toml` (format 1: id, name, version (semver), publisher, description, protocol, binary,
 targets, optional `key`; `[[permissions]]` with reasons), `bin/<target-triple>/<binary>[.exe]` per target, and an
-optional `signature` file (key id, public key, Ed25519 signature). Rules (`imt-plugin-package`):
+optional `signature` file (key id, public key, Ed25519 signature). Rules (`debrief-plugin-package`):
 
 - **Bounded and strict**: package ≤ 256 MiB, ≤ 64 entries, manifest ≤ 64 KiB, program ≤ 128 MiB, total ≤ 512 MiB
   counted while reading (not from headers); only the listed names (no traversal, links, encrypted or duplicate
   entries, nothing unlisted). Proptest (arbitrary and damaged packages never panic) and `fuzz_plugin_package`.
-- **Digest**: SHA-256 of a canonical text (`imt-plugin-package-v1`, then `path size sha256` per file, sorted). The
+- **Digest**: SHA-256 of a canonical text (`debrief-plugin-package-v1`, then `path size sha256` per file, sorted). The
   signature covers it, so changing any byte of the manifest or of any program breaks it. A signature that does not
   verify, a manifest naming a key with no signature (or the reverse), or a key id mismatch is `Tampered`, refused
   always.
@@ -80,11 +80,11 @@ optional `signature` file (key id, public key, Ed25519 signature). Rules (`imt-p
   paths; third-party plugins get files through the host (ADR 0017 §4) and write only their private data folder.
   Operations that need administrator rights are first-party only.
 - **ed25519-compact** (MIT, no dependencies) for signatures; keys as one line of text
-  (`imt-plugin-public-key ed25519 <hex>`), key id = 16 hex digits of SHA-256(key).
+  (`debrief-plugin-public-key ed25519 <hex>`), key id = 16 hex digits of SHA-256(key).
 
 ### 4. Trust
 
-- Signed by a **trusted key** → installs normally. Trusted keys: IMT's built-in first-party key (not removable) and
+- Signed by a **trusted key** → installs normally. Trusted keys: Debrief's built-in first-party key (not removable) and
   keys the user adds in **Settings → Plugin trust** (one line each, `Publisher = <public key>`; validated in Rust).
 - **Unsigned** or **unknown key** → only with **developer mode** (same settings section), after a warning that is
   stored with the install record.
@@ -93,7 +93,7 @@ optional `signature` file (key id, public key, Ed25519 signature). Rules (`imt-p
 
 ### 5. Installing and running third-party plugins
 
-- `imt_plugin_host::installed::PluginsDir` under `<app data>/plugins/<id>/`: a version folder
+- `debrief_plugin_host::installed::PluginsDir` under `<app data>/plugins/<id>/`: a version folder
   (`v-<version>-<digest8>/bin/<program>`, `manifest.toml`, `contract.json`), `install.json` (switched atomically),
   `data/` (kept across updates). Install = verify → extract this computer's program → **start it once, contained, and
   ask its manifest** (id, version and permissions must match the package; protocol checked) → switch the record.
@@ -104,9 +104,9 @@ optional `signature` file (key id, public key, Ed25519 signature). Rules (`imt-p
   program never runs ("reinstall the plugin").
 - **Permissions are live**: `PluginProcess::set_granted` stops the process; it starts again on next use in the
   sandbox of the new grants (revoking takes effect at once).
-- **Launcher containment** (`imt_ipc::sandbox::Containment::Launcher`), applied before the program's first
+- **Launcher containment** (`debrief_ipc::sandbox::Containment::Launcher`), applied before the program's first
   instruction, because a third-party binary need not call `lockdown`:
-  - **Windows**: an **AppContainer** per plugin (`imt.plugin.<hash of id>`): no access to the user's files,
+  - **Windows**: an **AppContainer** per plugin (`debrief.plugin.<hash of id>`): no access to the user's files,
     registry or objects; its program folder (read/execute) and data folder (read/write) are granted to the
     container SID; the network only through the `internetClient`/`privateNetworkClientServer` capabilities when
     `network` is granted; the host's pipe DACL adds the container SID and a low-integrity label. The process is
@@ -129,20 +129,20 @@ optional `signature` file (key id, public key, Ed25519 signature). Rules (`imt-p
 ## Consequences
 
 - Anyone can write a plugin in Rust with one dependency, start from a template that is known to build, test it in
-  the sandbox it will run in, and ship one signed file; IMT refuses tampered packages and runs third-party code
+  the sandbox it will run in, and ship one signed file; Debrief refuses tampered packages and runs third-party code
   confined from its first instruction.
 - The handshake change (frame version 2) is incompatible with plugins built before it; pre-v1, no compatibility.
 - An AppContainer profile per installed plugin is created in the user's registry and deleted when the plugin is
   removed. Containment adds a few milliseconds to a plugin's start (granting the folders' ACLs is repeated per
   start so a recreated folder still works).
 - Third-party plugins cannot read the user's files by path or write outside their data folder; collectors deliver
-  what they collect through IMT (see "Not done yet").
+  what they collect through Debrief (see "Not done yet").
 
 ## Verified vs not (2026-10-21)
 
 - Windows (this machine and the Windows CI runner): AppContainer containment is tested with a child that skips its
   own lockdown (user files unreadable and unwritable, network refused, no child processes, data folder writable,
-  wrong token refused), and end to end (`imt-plugin-e2e`: package → sign → install → contained process → import
+  wrong token refused), and end to end (`debrief-plugin-e2e`: package → sign → install → contained process → import
   through the engine; a changed program never starts).
 - Linux and macOS launcher containment is implemented behind `cfg` and type-checked with clippy for
   `x86_64-unknown-linux-gnu` and `x86_64-apple-darwin`; the Linux test (`a_contained_child_is_confined…`) runs on
@@ -150,26 +150,26 @@ optional `signature` file (key id, public key, Ed25519 signature). Rules (`imt-p
 
 ## Note: third-party importers in the store worker (2026-10-22)
 
-Since ADR 0014 6c, imports run in the store worker, which started only IMT's built-in plugins, so an installed
+Since ADR 0014 6c, imports run in the store worker, which started only Debrief's built-in plugins, so an installed
 importer was registered in the app's window registry but never read a file. Decision: **the worker starts the
 installed plugins itself**, contained exactly as the app would (the app does not proxy importer calls: events go
-from the plugin to the store without passing through IMT, as for the built-ins).
+from the plugin to the store without passing through Debrief, as for the built-ins).
 
-- The app tells the worker which installed plugins read files (`imt_store_client::protocol::ThirdPartyPlugin`: the
+- The app tells the worker which installed plugins read files (`debrief_store_client::protocol::ThirdPartyPlugin`: the
   install folder, the id, the program's SHA-256 the app loaded at its start, and the grants now). The list is
   part of every `OpenStore`/`OpenProject` (so a restarted worker has it), and `StoreRequest::SetPlugins` sends it
   again when grants change or a plugin is removed (changed grants restart the worker's process of the plugin in
   the new sandbox; a removed plugin's process stops).
-- The worker (`imt_store_worker::plugins::WorkerPlugins`) reads the install record itself and refuses a plugin
+- The worker (`debrief_store_worker::plugins::WorkerPlugins`) reads the install record itself and refuses a plugin
   whose record is gone or turned off, whose program hash differs from the app's (updated after the start: the
-  next start of IMT takes it, as in the app) or whose grants are not a subset of what it asks for; it then builds
+  next start of Debrief takes it, as in the app) or whose grants are not a subset of what it asks for; it then builds
   the process with `PluginsDir::process` (contained by the launcher, program verified before every start) and
   installs it through `PluginRegistry`'s guarded adapters. One process per plugin serves all stores of the worker;
   the app may run a second process of the same plugin for its other contributions (tools, annotators).
 - On Windows the worker's environment keeps `USERPROFILE`, `LOCALAPPDATA` and `APPDATA` (folder names, needed to
   create AppContainer processes).
-- Tested end to end in `imt-plugin-e2e` (`tests/store_worker.rs`, with the worker program built there as
-  `imt-plugin-e2e-store-worker`): install the signed example importer, import its sample through the real worker,
+- Tested end to end in `debrief-plugin-e2e` (`tests/store_worker.rs`, with the worker program built there as
+  `debrief-plugin-e2e-store-worker`): install the signed example importer, import its sample through the real worker,
   events appear with the plugin's importer; a plugin the app did not name, or whose hash changed, reads nothing.
 - Open: a removed or disabled plugin keeps its proxies in the registries of stores already open in the worker (its
   process starts again on use until the store is reopened), as in the app's window registries.
@@ -178,7 +178,7 @@ from the plugin to the store without passing through IMT, as for the built-ins).
 
 User decision: when the Linux kernel lacks landlock, a plugin still runs (no extra setting, no refusal), and its
 sandbox status says one line: *"files are not confined on this system (landlock is not enabled in the kernel)"*
-(`imt_ipc::sandbox::FILES_NOT_CONFINED`).
+(`debrief_ipc::sandbox::FILES_NOT_CONFINED`).
 
 - The host knows it before a start: `sandbox::host_notes(spec)` (landlock probed once per process with a ruleset
   that requires it) gives the line for every child whose files are restricted.
@@ -192,7 +192,7 @@ sandbox status says one line: *"files are not confined on this system (landlock 
 
 ## Not done yet
 
-- A host service for collectors to hand files to IMT for writing into a user-chosen folder (third-party plugins
+- A host service for collectors to hand files to Debrief for writing into a user-chosen folder (third-party plugins
   cannot be granted `writeFolders`).
 - Installing without a restart (adding a plugin to running window registries).
 - A key revocation list and package expiry; publishing the first-party private key's custody process.

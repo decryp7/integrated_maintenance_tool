@@ -1,7 +1,7 @@
 //! Watched folders in the app (ADR 0048): a window can watch folders; files that settle in them are imported into
 //! the window's open project (as ordinary import jobs, so the Jobs pane shows them) and a known issue found in
 //! the new data is announced once in the notification centre (and on the desktop). The decisions are
-//! `imt_core::watch::WatchState`'s, unchanged; this module owns the folder list, the polling thread and the
+//! `debrief_core::watch::WatchState`'s, unchanged; this module owns the folder list, the polling thread and the
 //! commands. The list is kept in the window and saved with the project by the UI.
 
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
@@ -11,8 +11,8 @@ use crate::notification_centre::centre::{NewNotice, NoticeScope, NoticeSeverity,
 use crate::notify::NotificationKind;
 use crate::windows::{emit_to_window, CurrentWindow};
 use crate::{CmdError, CmdResult};
-use imt_core::known_issues::{match_known_issues, KnowledgeText};
-use imt_core::watch::{scan_folder, FileStamp, Skipped, WatchConfig, WatchState};
+use debrief_core::known_issues::{match_known_issues, KnowledgeText};
+use debrief_core::watch::{scan_folder, FileStamp, Skipped, WatchConfig, WatchState};
 use serde::Serialize;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -22,7 +22,7 @@ use std::time::{Duration, Instant};
 use tauri::{AppHandle, Runtime};
 
 /// Event telling a window that watched folders imported something (the UI refreshes its summary).
-pub(crate) const IMPORTED_EVENT: &str = "imt://watched-imported";
+pub(crate) const IMPORTED_EVENT: &str = "debrief://watched-imported";
 /// Folders one window may watch.
 const MAX_FOLDERS: usize = 8;
 /// Time between scans.
@@ -166,7 +166,7 @@ fn sync_poller<R: Runtime>(app: &AppHandle<R>, win: &CurrentWindow) {
     request_notification_permission(app);
     let app = app.clone();
     let spawned = std::thread::Builder::new()
-        .name("imt-watch-folders".into())
+        .name("debrief-watch-folders".into())
         .spawn(move || poll(app, label, stop));
     if let Err(e) = spawned {
         log::warn!("could not start the folder watcher: {e}");

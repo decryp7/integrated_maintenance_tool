@@ -52,7 +52,7 @@ interface Envelope {
   extras?: unknown;
 }
 
-export const LAYOUT_KEY = 'imt.layout';
+export const LAYOUT_KEY = 'debrief.layout';
 
 function isRecord(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);

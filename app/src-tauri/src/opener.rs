@@ -1,6 +1,6 @@
 //! Hands files and folders to the OS: the program associated with a file, an editor at a line, the
 //! file manager. The command lines are pure functions of the platform ([`Os`]) so every variant is
-//! tested on any machine; [`start`] runs one detached (through `imt_core::process::quiet_command`, no
+//! tested on any machine; [`start`] runs one detached (through `debrief_core::process::quiet_command`, no
 //! shell, each argument separate) and a reaper thread stops it after [`OPENER_TIMEOUT`].
 
 use std::ffi::{OsStr, OsString};
@@ -44,7 +44,7 @@ impl Invocation {
     }
 
     fn command(&self) -> std::process::Command {
-        let mut cmd = imt_core::process::quiet_command(&self.program);
+        let mut cmd = debrief_core::process::quiet_command(&self.program);
         cmd.args(&self.args);
         cmd
     }
@@ -100,7 +100,7 @@ pub(crate) fn open_at_line(editor: &Path, file: &Path, line: u32) -> Invocation 
     Invocation::new(editor, [OsString::from("-g"), target])
 }
 
-/// Extensions whose "default program" runs them (or changes the system): IMT never opens these with
+/// Extensions whose "default program" runs them (or changes the system): Debrief never opens these with
 /// the OS association, on any platform, as an opened log file may come from anywhere.
 const RUNS_ON_OPEN: &[&str] = &[
     "exe",
@@ -230,7 +230,7 @@ pub(crate) fn spawn_detached(mut cmd: std::process::Command, timeout: Duration) 
     use std::process::Stdio;
     let mut child = cmd.stdin(Stdio::null()).stdout(Stdio::null()).stderr(Stdio::null()).spawn()?;
     let deadline = Instant::now() + timeout;
-    std::thread::Builder::new().name("imt-opener".into()).spawn(move || loop {
+    std::thread::Builder::new().name("debrief-opener".into()).spawn(move || loop {
         match child.try_wait() {
             Ok(Some(status)) => {
                 if !status.success() {
@@ -343,7 +343,7 @@ mod tests {
 
     #[test]
     fn finds_vscode_on_path_first() {
-        let dir = std::env::temp_dir().join("imt-code-bin");
+        let dir = std::env::temp_dir().join("debrief-code-bin");
         let path = std::env::join_paths([Path::new("relative"), dir.as_path()]).unwrap();
         let path = path.to_string_lossy().into_owned();
         let launcher = dir.join(if Os::CURRENT == Os::Windows { "code.cmd" } else { "code" });
@@ -393,22 +393,22 @@ mod tests {
 
     #[test]
     fn spawn_detached_reports_a_missing_program() {
-        let cmd = imt_core::process::quiet_command("imt-definitely-not-a-program");
+        let cmd = debrief_core::process::quiet_command("debrief-definitely-not-a-program");
         assert!(spawn_detached(cmd, Duration::from_secs(1)).is_err());
     }
 
     #[cfg(unix)]
     #[test]
     fn spawn_detached_returns_at_once_and_stops_a_hung_helper() {
-        let mut cmd = imt_core::process::quiet_command("sleep");
+        let mut cmd = debrief_core::process::quiet_command("sleep");
         cmd.arg("30");
         let started = Instant::now();
         spawn_detached(cmd, Duration::from_millis(200)).unwrap();
         assert!(started.elapsed() < Duration::from_secs(2), "must not wait for the helper");
-        let mut ok = imt_core::process::quiet_command("true");
+        let mut ok = debrief_core::process::quiet_command("true");
         ok.arg("x");
         spawn_detached(ok, Duration::from_secs(5)).unwrap();
-        let mut failing = imt_core::process::quiet_command("false");
+        let mut failing = debrief_core::process::quiet_command("false");
         failing.arg("x");
         spawn_detached(failing, Duration::from_secs(5)).unwrap();
         // Give the reaper threads time to run their exit/timeout paths.

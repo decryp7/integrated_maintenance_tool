@@ -3,7 +3,7 @@ import { FakeECharts } from '../../../testing/fake-echarts';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend, typeInto } from '../../../testing/helpers';
 import { AnalysisBackend } from '../../core/analysis-backend';
 import { TileCfg, TileData, TileRequest } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { MockBackend } from '../../core/mock/mock-backend';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { mockJobs } from '../../jobs/mock-jobs';
@@ -136,8 +136,8 @@ function provideShareTesting(backend: MockBackend = tinyBackend()) {
   return [
     provideTinyBackend(backend),
     charts.provider,
-    { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(TestBed.inject(ImtBackend))) },
-    { provide: ShareBackend, useFactory: () => new MockShareBackend(TestBed.inject(ImtBackend), TestBed.inject(AnalysisBackend)) },
+    { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(TestBed.inject(DebriefBackend))) },
+    { provide: ShareBackend, useFactory: () => new MockShareBackend(TestBed.inject(DebriefBackend), TestBed.inject(AnalysisBackend)) },
   ];
 }
 
@@ -303,7 +303,7 @@ describe('DashboardTile', () => {
     charts.reset();
     const { fixture } = await render(tile('c', { type: 'chart', chart: 'events-by-level' }));
     expect(charts.instances.length).toBe(1);
-    expect(fixture.nativeElement.querySelector('imt-echart')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('debrief-echart')).toBeTruthy();
     TestBed.resetTestingModule();
     const def = { id: 'c', title: 'C', y: 'count()', bucket: 'auto', splitBy: [], type: 'line' as const, unit: '' };
     const empty = await render(tile('c'), [{ kind: 'chart', data: { def, from: 0, to: 1, bucketMs: 1, series: [], lifecycle: [] } }]);

@@ -10,7 +10,7 @@ import { chooseMenu } from './menu-support';
 function escapes(page: Page): Promise<string[]> {
   return page.evaluate(() => {
     const out: string[] = [];
-    for (const panel of Array.from(document.querySelectorAll<HTMLElement>('.imt-panel'))) {
+    for (const panel of Array.from(document.querySelectorAll<HTMLElement>('.debrief-panel'))) {
       for (const el of Array.from(panel.querySelectorAll<HTMLElement>('*'))) {
         if (getComputedStyle(el).position !== 'absolute') continue;
         const cb = el.offsetParent;
@@ -18,7 +18,7 @@ function escapes(page: Page): Promise<string[]> {
         for (let a = el.parentElement; a && a !== panel; a = a.parentElement) {
           const overflow = getComputedStyle(a).overflowY;
           if (overflow === 'auto' || overflow === 'scroll') {
-            const view = panel.querySelector('imt-panel-outlet')?.firstElementChild?.tagName.toLowerCase() ?? '?';
+            const view = panel.querySelector('debrief-panel-outlet')?.firstElementChild?.tagName.toLowerCase() ?? '?';
             out.push(`${view}: ${el.tagName.toLowerCase()}.${String(el.className)} escapes ${a.tagName.toLowerCase()}.${String(a.className)}`);
             break;
           }

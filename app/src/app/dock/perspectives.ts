@@ -18,7 +18,7 @@ export interface PerspectiveInfo {
 }
 
 const SAVED_PREFIX = 'saved:';
-export const PERSPECTIVES_KEY = 'imt.perspectives';
+export const PERSPECTIVES_KEY = 'debrief.perspectives';
 const VERSION = 1;
 /** Perspectives with a Ctrl+n key. */
 export const PERSPECTIVE_KEYS = 9;

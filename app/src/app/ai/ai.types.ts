@@ -1,18 +1,18 @@
 /**
- * Wire contract of the local AI assistant (`app/src-tauri/src/ai/**`, `crates/imt-ai`), camelCase JSON.
- * Commands: `ai_*` (see `ai-backend.ts`). Events: `imt://ai-setup` (`SetupEvent`, all windows),
- * `imt://ai-status` (`AiStatus`, all windows), `imt://ai-chat` (`ChatEventEnvelope`, the chat's window),
- * `imt://ai-runtime` (`AiRuntimeEvent`, all windows), `imt://ai-updates` (`AiUpdatesStatus`, all windows).
+ * Wire contract of the local AI assistant (`app/src-tauri/src/ai/**`, `crates/debrief-ai`), camelCase JSON.
+ * Commands: `ai_*` (see `ai-backend.ts`). Events: `debrief://ai-setup` (`SetupEvent`, all windows),
+ * `debrief://ai-status` (`AiStatus`, all windows), `debrief://ai-chat` (`ChatEventEnvelope`, the chat's window),
+ * `debrief://ai-runtime` (`AiRuntimeEvent`, all windows), `debrief://ai-updates` (`AiUpdatesStatus`, all windows).
  * Every command rejects with `{ code, message }` (`AiErrorPayload`).
  */
 import { AgentApprovalRequest, HandOff, PauseReason, QuerySource, Segment } from '../browser/browser.types';
 import { ExplainNode, InferredGroup, Level, ParsedPreview } from '../core/api.types';
 
-export const AI_SETUP_EVENT = 'imt://ai-setup';
-export const AI_STATUS_EVENT = 'imt://ai-status';
-export const AI_CHAT_EVENT = 'imt://ai-chat';
-export const AI_RUNTIME_EVENT = 'imt://ai-runtime';
-export const AI_UPDATES_EVENT = 'imt://ai-updates';
+export const AI_SETUP_EVENT = 'debrief://ai-setup';
+export const AI_STATUS_EVENT = 'debrief://ai-status';
+export const AI_CHAT_EVENT = 'debrief://ai-chat';
+export const AI_RUNTIME_EVENT = 'debrief://ai-runtime';
+export const AI_UPDATES_EVENT = 'debrief://ai-updates';
 
 export type AiErrorCode =
   | 'unavailable'
@@ -143,7 +143,7 @@ export interface CatalogModel {
   projector?: CatalogProjector | null;
 }
 
-/** A model's multimodal projector as the catalog pins it (`imt_ai::catalog::CatalogProjector`). */
+/** A model's multimodal projector as the catalog pins it (`debrief_ai::catalog::CatalogProjector`). */
 export interface CatalogProjector {
   file: string;
   sha256: string;
@@ -229,7 +229,7 @@ export interface InstalledModel {
   projectorDownloadBytes: number | null;
 }
 
-/** What a projector's header says (`imt_ai::gguf::ProjectorInfo`). */
+/** What a projector's header says (`debrief_ai::gguf::ProjectorInfo`). */
 export interface ProjectorInfo {
   name: string | null;
   projectorType: string | null;
@@ -240,7 +240,7 @@ export interface ProjectorInfo {
   fileSize: number;
 }
 
-/** A model's projector in the models folder (`imt_ai::models::store::InstalledProjector`). */
+/** A model's projector in the models folder (`debrief_ai::models::store::InstalledProjector`). */
 export interface InstalledProjector {
   fileName: string;
   sizeBytes: number;
@@ -248,7 +248,7 @@ export interface InstalledProjector {
   problem: string | null;
 }
 
-// ---- inference runtimes (prebuilt llama-server builds, ADR 0009; `imt_ai::runtimes::overview`) ----
+// ---- inference runtimes (prebuilt llama-server builds, ADR 0009; `debrief_ai::runtimes::overview`) ----
 
 /** An accelerator a build reported (`llama-server --list-devices`). */
 export interface AiRuntimeDevice {
@@ -282,7 +282,7 @@ export interface AiInstalledRuntime {
   id: string;
   tag: string;
   bytes: number;
-  /** Belongs to the release IMT pins (older ones can be deleted). */
+  /** Belongs to the release Debrief pins (older ones can be deleted). */
   current: boolean;
 }
 
@@ -320,7 +320,7 @@ export interface ManualFile {
   sha256: string | null;
 }
 
-/** The files of a manual download and where IMT keeps them once checked. */
+/** The files of a manual download and where Debrief keeps them once checked. */
 export interface ManualDownload {
   kind: ManualKind;
   id: string;
@@ -331,7 +331,7 @@ export interface ManualDownload {
   folder: string;
 }
 
-/** Progress of a runtime install (`imt://ai-runtime`); `ready`, `failed` and `cancelled` end it. */
+/** Progress of a runtime install (`debrief://ai-runtime`); `ready`, `failed` and `cancelled` end it. */
 export type AiRuntimeEvent =
   | { stage: 'downloading'; id: string; asset: string; index: number; count: number }
   | {
@@ -345,7 +345,7 @@ export type AiRuntimeEvent =
     }
   | { stage: 'unpacking'; id: string; asset: string }
   | { stage: 'finishing'; id: string }
-  /** The unpacked build answers with the active model before IMT switches to it (ADR 0009). */
+  /** The unpacked build answers with the active model before Debrief switches to it (ADR 0009). */
   | { stage: 'testing'; id: string }
   | { stage: 'ready'; id: string; runtime: AiInstalledRuntime }
   | { stage: 'failed'; id: string; code: AiErrorCode; message: string }
@@ -386,7 +386,7 @@ export interface ParserProposal {
 
 export type ParserStatus = 'done' | 'bestEffort' | 'builtin';
 
-/** Which rule a line failed (imt_core::parser::verify::FailedRule). */
+/** Which rule a line failed (debrief_core::parser::verify::FailedRule). */
 export type FailedRule = 'format' | 'missedEntry' | 'timestamp' | 'level';
 
 export interface LineFailure {
@@ -437,7 +437,7 @@ export interface MetricCheck {
   reason: string;
 }
 
-/** The engine's verdict on a parser (imt_core::parser::verify::ParserVerdict). */
+/** The engine's verdict on a parser (debrief_core::parser::verify::ParserVerdict). */
 export interface ParserVerdict {
   score: number;
   lines: number;
@@ -633,7 +633,7 @@ export type AiStartRequest =
   /** "Find related logs" for an open image; the answer is a `RelatedOutcome` (job result `relatedLogs`). */
   | { op: 'relatedLogs'; imageId: number };
 
-// ---- images (ADR 0025: app/src-tauri/src/ai/vision.rs, crates/imt-core/src/related, crates/imt-ai/src/vision) ----
+// ---- images (ADR 0025: app/src-tauri/src/ai/vision.rs, crates/debrief-core/src/related, crates/debrief-ai/src/vision) ----
 
 export type ImageSourceFormat = 'png' | 'jpeg' | 'bmp' | 'gif' | 'webp';
 
@@ -656,7 +656,7 @@ export interface AiImage {
 
 export type ScreenKind = 'error_dialog' | 'frozen_window' | 'console' | 'dashboard' | 'log_viewer' | 'browser' | 'other';
 
-/** What the model read off a screenshot (`imt_ai::vision::ScreenFacts`, bounded by the engine). */
+/** What the model read off a screenshot (`debrief_ai::vision::ScreenFacts`, bounded by the engine). */
 export interface ScreenFacts {
   screenKind: ScreenKind;
   windowTitle: string | null;
@@ -675,7 +675,7 @@ export interface ScreenFacts {
 
 export type ImageTimeSource = 'screen' | 'screenTimeOfDay' | 'exif' | 'fileName' | 'fileModified';
 
-/** When the screenshot was taken, as the engine decided (`imt_core::related::ImageTime`). */
+/** When the screenshot was taken, as the engine decided (`debrief_core::related::ImageTime`). */
 export interface ImageTime {
   atMs: number;
   precisionMs: number;
@@ -702,7 +702,7 @@ export type RelatedTitleTarget =
 
 export type RelatedClueKind = 'exceptionName' | 'errorCode' | 'id' | 'errorText' | 'machine' | 'user' | 'server' | 'version';
 
-/** Why an event is linked to the image (`imt_core::related::Reason`). */
+/** Why an event is linked to the image (`debrief_core::related::Reason`). */
 export type RelatedReason =
   /** `deltaMs` = event time − image time. */
   | { kind: 'time'; deltaMs: number }
@@ -773,9 +773,9 @@ export interface ResearchDraft {
   source: QuerySource;
 }
 
-// ---- update checks (app/src-tauri/src/ai/updates.rs, crates/imt-ai/src/updates) ----
+// ---- update checks (app/src-tauri/src/ai/updates.rs, crates/debrief-ai/src/updates) ----
 
-/** What IMT does when it finds an update of one kind (Settings → AI). */
+/** What Debrief does when it finds an update of one kind (Settings → AI). */
 export type AiUpdatePolicy = 'automatic' | 'ask' | 'manual';
 
 export type AiUpdateKind = 'runtime' | 'model';
@@ -821,9 +821,9 @@ export interface AiUpdatesStatus {
 }
 
 /**
- * Knowledge files (ADR 0029; `app/src-tauri/src/ai/knowledge/commands.rs`, `imt_ai::knowledge`): Markdown notes the AI
+ * Knowledge files (ADR 0029; `app/src-tauri/src/ai/knowledge/commands.rs`, `debrief_ai::knowledge`): Markdown notes the AI
  * reads with every request. `project` files are saved with the project (UI state key `knowledge`), `global` ones in
- * IMT's configuration folder.
+ * Debrief's configuration folder.
  */
 export type KnowledgeScope = 'project' | 'global';
 
@@ -854,7 +854,7 @@ export interface KnowledgeList {
   project: KnowledgeInfo[];
   global: KnowledgeInfo[];
   warnings: string[];
-  /** The global files were saved by a newer IMT: they cannot be changed here. */
+  /** The global files were saved by a newer Debrief: they cannot be changed here. */
   globalReadOnly: boolean;
   maxFileBytes: number;
   maxFiles: number;

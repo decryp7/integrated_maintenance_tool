@@ -17,7 +17,7 @@ filters), extra grid columns, row highlights and the chart to show first. The ti
 sets are not part of a lens.
 
 - Built-in lenses are profile configuration: `[[lens]]` (with `[[lens.filter]]` / `[[lens.highlight]]`) in
-  `default_profile.toml`. `imt-core/src/lens.rs` parses and validates them when the profile compiles (id and title,
+  `default_profile.toml`. `debrief-core/src/lens.rs` parses and validates them when the profile compiles (id and title,
   unique ids, limits, filter operators and query language compiled through `CompiledQuery`, highlight operators and
   colours, chart ids) so a broken lens fails the profile with a message naming it. They reach the UI in
   `WorkspaceSummary.lenses`; a lens change is a `Presentation` profile change (no re-import).

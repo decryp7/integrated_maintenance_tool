@@ -5,7 +5,7 @@ import { AppLogo } from './app-logo';
 
 @Component({
   imports: [AppLogo],
-  template: `<imt-app-logo id="a" [size]="size()" [label]="label()" /><imt-app-logo id="b" />`,
+  template: `<debrief-app-logo id="a" [size]="size()" [label]="label()" /><debrief-app-logo id="b" />`,
 })
 class Host {
   readonly size = signal(48);
@@ -31,11 +31,11 @@ describe('AppLogo', () => {
 
   it('becomes an image with an accessible name when labelled', async () => {
     const fixture = await render();
-    fixture.componentInstance.label.set('IMT');
+    fixture.componentInstance.label.set('Debrief');
     await settle(fixture);
     const svg = el<SVGSVGElement>(fixture, '#a svg');
     expect(svg.getAttribute('role')).toBe('img');
-    expect(svg.getAttribute('aria-label')).toBe('IMT');
+    expect(svg.getAttribute('aria-label')).toBe('Debrief');
     expect(svg.getAttribute('aria-hidden')).toBeNull();
   });
 

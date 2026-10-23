@@ -4,16 +4,16 @@ import { openView } from './app';
 import { openAppWith, runCommand } from './tools-support';
 
 async function written(page: Page): Promise<{ path: string; kind: string; bytes: number }[]> {
-  return page.evaluate(() => ((globalThis as Record<string, unknown>)['__imtMockShareWritten'] as { path: string; kind: string; bytes: number }[]) ?? []);
+  return page.evaluate(() => ((globalThis as Record<string, unknown>)['__debriefMockShareWritten'] as { path: string; kind: string; bytes: number }[]) ?? []);
 }
 
 test.describe('chart and timeline images', () => {
   test('exports a chart as PNG and SVG through the save dialog', async ({ page }, testInfo) => {
     await openAppWith(page);
     await openView(page, 'metrics');
-    const card = page.locator('imt-chart-card').first();
+    const card = page.locator('debrief-chart-card').first();
     await expect(card.locator('canvas').first()).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'chart-actions', 'imt-chart-card');
+    await expectNoSeriousViolations(page, testInfo, 'chart-actions', 'debrief-chart-card');
 
     await card.getByRole('button', { name: /^Export chart .* as PNG$/ }).click();
     await expect(page.getByRole('status').filter({ hasText: /Saved .*\.png/ })).toBeVisible();

@@ -12,7 +12,7 @@ by name, in three classification tables of the activity log; three error contrac
 registries that could each cancel some work; paths from the webview checked in five places; and no runtime
 rule about which window may call what (a pop-out panel or the "AI is browsing" banner could call all 225).
 
-IMT is pre-v1, so the shell is redesigned rather than patched; nothing below keeps compatibility code.
+Debrief is pre-v1, so the shell is redesigned rather than patched; nothing below keeps compatibility code.
 
 ## Decision
 
@@ -20,7 +20,7 @@ IMT is pre-v1, so the shell is redesigned rather than patched; nothing below kee
    checks it against the calling window's grants (`paths.rs`): files opened, projects, bundles, profiling
    captures, local AI models and runtime archives, the agent configuration, profile versions (a plain file
    name, `paths::child`). Grants come only from Rust: native dialogs, drag and drop, the command line and
-   second launches (pending opens are granted as the window takes them), the window's project file, IMT's
+   second launches (pending opens are granted as the window takes them), the window's project file, Debrief's
    own outputs (an unpacked bundle, a tool's reported `bundle`/`dir`, the demo samples, the autosaved
    session, the captures an opened project reopens) and **the recent lists, which Rust now owns**
    (`recent.rs`, `recent.json`): an entry is recorded only after a granted open or save, and is granted
@@ -47,17 +47,17 @@ IMT is pre-v1, so the shell is redesigned rather than patched; nothing below kee
    quiet), the windows that may call it (`MAIN`: `main` and `w-*`; `POPOUT`: `p-*`; `BANNER`: `aib-*`) and
    its largest request. It generates the invoke handler and the activity log's classification; `commands::guard`
    enforces the window classes and the request size before arguments are parsed (a pop-out cannot restart
-   IMT or answer its host's prompts; the banner can only read what drives its browser and stop it). Every
+   Debrief or answer its host's prompts; the banner can only read what drives its browser and stop it). Every
    command is async; a test fails on a sync one. The CSP adds `object-src 'none'`, `base-uri 'self'`,
    `form-action 'none'` and `frame-ancestors 'none'`, and the capabilities list the `core:*` permissions
    the UI uses instead of `core:default`.
 
-5. **Quitting IMT** is one command (`quit_app`) behind File ▸ Exit and IMT ▸ Quit IMT (⌘Q, replacing the
+5. **Quitting Debrief** is one command (`quit_app`) behind File ▸ Exit and Debrief ▸ Quit Debrief (⌘Q, replacing the
    system Quit so the unsaved-changes prompt is never skipped; ADR 0008 amended).
 
 6. **Typed wire, generated.** The shell's wire types derive ts-rs (in tests) and are generated into
-   `app/src/app/core/generated/`; `api.types.ts` re-exports them. `cargo test -p imt-app --lib generated_types`
-   fails when a generated file is stale (`IMT_WRITE_TYPES=1` rewrites them). Replies the shell builds are typed
+   `app/src/app/core/generated/`; `api.types.ts` re-exports them. `cargo test -p debrief-app --lib generated_types`
+   fails when a generated file is stale (`DEBRIEF_WRITE_TYPES=1` rewrites them). Replies the shell builds are typed
    (e.g. `WorkspaceSummary`); replies that borrow the engine's data under its lock stay JSON until ADR 0014's
    owned replies exist.
 
@@ -70,7 +70,7 @@ IMT is pre-v1, so the shell is redesigned rather than patched; nothing below kee
    (`window_scoped.rs`); teardown is one bounded loop (the opened diagnostics reports no longer leak). One
    `ConfigStore` (`config_store.rs`) keeps the shell's files: versioned documents, atomic writes by one writer,
    damaged files kept aside, a cached `Config<T>`, and a `Debounced` writer for frequent writes (notifications,
-   never under the centre's lock). `imt://jobs` sends a versioned delta, and nothing when a window's jobs did not
+   never under the centre's lock). `debrief://jobs` sends a versioned delta, and nothing when a window's jobs did not
    change.
 
 9. **An `AppContext` built in `setup`** (folders, run flags; path grants, recent lists, window scopes and the UI
@@ -82,7 +82,7 @@ IMT is pre-v1, so the shell is redesigned rather than patched; nothing below kee
 
 - A new command is one table line; forgetting its kind or window class does not compile, and a sync
   command fails the tests.
-- The UI cannot name a file the user did not choose; everything IMT hands the UI that it may open later is
+- The UI cannot name a file the user did not choose; everything Debrief hands the UI that it may open later is
   granted when Rust hands it out.
 - The wire contract changed for errors and for every cancel; the mock backends keep their shapes, the Tauri
   adapters cancel through jobs.
@@ -90,7 +90,7 @@ IMT is pre-v1, so the shell is redesigned rather than patched; nothing below kee
 ## Not done yet
 
 Recorded so the next phase picks them up: TypeScript generation and golden JSON fixtures for the engine's
-types (they need the derive in `imt-core` and ADR 0014's owned replies); a `ShareService`; `ai.json` and
+types (they need the derive in `debrief-core` and ADR 0014's owned replies); a `ShareService`; `ai.json` and
 `local-models.json` on the `ConfigStore` (owned by the AI crate); engine health from engine events
 (review #12; `engine_errors.rs` still reads a crash marker in the import reason until R2's events exist).
 
@@ -103,4 +103,4 @@ thread (instead of a task-local, which Tauri's spawned command futures cannot ca
 
 The `BANNER` window class (`aib-*`) is gone with the banner window; the table's classes are `MAIN` and `POPOUT`.
 The internal browser's page webview (`browser-*`) is no window class: nothing of the table is callable from it.
-Capabilities are scoped by webview label (`webviews`), since the page is a child webview of an IMT window.
+Capabilities are scoped by webview label (`webviews`), since the page is a child webview of a Debrief window.

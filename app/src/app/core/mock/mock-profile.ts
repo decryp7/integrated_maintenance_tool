@@ -1,6 +1,6 @@
 /* Demo profile used by the mock backend: the built-in default plus an example extractor and charts. */
 
-export const MOCK_PROFILE_TOML = String.raw`# IMT analysis profile.
+export const MOCK_PROFILE_TOML = String.raw`# Debrief analysis profile.
 #
 # A profile is a pipeline: which files to read, what identifies an instance,
 # which values to extract, which events are important (markers) and which
@@ -17,7 +17,7 @@ name = "OrderService (Serilog) — demo"
 # Globs matched against the path relative to the opened folder. Extensions do
 # not matter: the parser of each file is chosen from its content (Settings ▸ Parsers).
 include = ["**/*"]
-exclude = ["**/*-filtered.*", "**/*.imtprofile.toml", "**/*.gz", "**/*.zip", "**/*.exe", "**/*.dll", "**/.*"]
+exclude = ["**/*-filtered.*", "**/*.debriefprofile.toml", "**/*.gz", "**/*.zip", "**/*.exe", "**/*.dll", "**/.*"]
 
 [instance]
 # Fields forming the instance key. Empty = the candidates present on at least

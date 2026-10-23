@@ -1,5 +1,5 @@
 import { formatKeybinding } from '../extensions/keybinding';
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 
 /** One line of the cheat sheet. */
 export interface Shortcut {
@@ -44,7 +44,7 @@ export const FIXED_KEYS: readonly FixedKey[] = [
 ];
 
 /** Builds the cheat sheet: every command with a key binding (by category) plus the fixed keys, filtered by `query`. */
-export function shortcutGroups(commands: readonly ImtCommand[], fixed: readonly FixedKey[], query: string, mac?: boolean): ShortcutGroup[] {
+export function shortcutGroups(commands: readonly DebriefCommand[], fixed: readonly FixedKey[], query: string, mac?: boolean): ShortcutGroup[] {
   const groups = new Map<string, Shortcut[]>();
   const add = (group: string, item: Shortcut) => groups.set(group, [...(groups.get(group) ?? []), item]);
   const seen = new Set<string>();

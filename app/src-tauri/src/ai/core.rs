@@ -1,26 +1,26 @@
 //! The app-wide AI runtime: settings, the model catalog and folder, set-up, and the one active model shared
 //! by every window (one worker process, loaded lazily and unloaded when idle). Plain Rust, no Tauri, so it is
-//! testable with the fakes of `imt-ai` (scripted provider, fake runtime).
+//! testable with the fakes of `debrief-ai` (scripted provider, fake runtime).
 
 use super::error::{AiCmdError, AiErrorCode, AiResult};
 use super::runtimes::{RuntimeDeps, RuntimeJobs};
-use imt_ai::assistant::{Assistant, AssistantConfig};
-use imt_ai::catalog::Catalog;
-use imt_ai::gguf::{self, GgufInfo};
-use imt_ai::hardware::{Hardware, HardwareProbe, SystemProbe};
-use imt_ai::knowledge::{KnowledgeFile, KnowledgeProvider};
-use imt_ai::llm::{LazyProvider, LlmProvider, LoadState, ModelLoader};
-use imt_ai::models::source::{ModelSource, Progress};
-use imt_ai::models::store::InstalledProjector;
-use imt_ai::models::verify::verify_local;
-use imt_ai::models::{AddMode, DiskSpace, HfConfig, HuggingFace, ModelStore, SystemDisk};
-use imt_ai::recommend::{assess, recommend, Assessment, Recommendation, Recommendations};
-use imt_ai::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
-use imt_ai::settings::AiSettings;
-use imt_ai::setup::{Setup, SetupPlan, SetupStage};
-use imt_ai::worker::protocol::ServerInfo;
-use imt_ai::worker::{FramesLauncher, Health, WorkerConfig, WorkerRuntime};
-use imt_ai::AiError;
+use debrief_ai::assistant::{Assistant, AssistantConfig};
+use debrief_ai::catalog::Catalog;
+use debrief_ai::gguf::{self, GgufInfo};
+use debrief_ai::hardware::{Hardware, HardwareProbe, SystemProbe};
+use debrief_ai::knowledge::{KnowledgeFile, KnowledgeProvider};
+use debrief_ai::llm::{LazyProvider, LlmProvider, LoadState, ModelLoader};
+use debrief_ai::models::source::{ModelSource, Progress};
+use debrief_ai::models::store::InstalledProjector;
+use debrief_ai::models::verify::verify_local;
+use debrief_ai::models::{AddMode, DiskSpace, HfConfig, HuggingFace, ModelStore, SystemDisk};
+use debrief_ai::recommend::{assess, recommend, Assessment, Recommendation, Recommendations};
+use debrief_ai::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
+use debrief_ai::settings::AiSettings;
+use debrief_ai::setup::{Setup, SetupPlan, SetupStage};
+use debrief_ai::worker::protocol::ServerInfo;
+use debrief_ai::worker::{FramesLauncher, Health, WorkerConfig, WorkerRuntime};
+use debrief_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -33,7 +33,7 @@ const MAX_TOOL_ROUNDS: usize = 6;
 const MAX_PATH_CHARS: usize = 4096;
 
 /// Builds the download source from the current settings (endpoint, proxy).
-pub type SourceFactory = Arc<dyn Fn(&AiSettings) -> imt_ai::Result<Box<dyn ModelSource>> + Send + Sync>;
+pub type SourceFactory = Arc<dyn Fn(&AiSettings) -> debrief_ai::Result<Box<dyn ModelSource>> + Send + Sync>;
 
 /// The adapters the runtime works with. [`AiDeps::system`] is the real machine; tests pass fakes.
 pub struct AiDeps {
@@ -65,15 +65,15 @@ impl AiDeps {
     pub fn system_capped(
         worker: PathBuf,
         data_dir: &Path,
-        memory_cap: imt_ai::worker::WorkerMemoryCap,
-        listener: Option<imt_ipc::memory_watch::MemoryListener>,
+        memory_cap: debrief_ai::worker::WorkerMemoryCap,
+        listener: Option<debrief_ipc::memory_watch::MemoryListener>,
     ) -> AiDeps {
-        let probe = Arc::new(SystemProbe::new(imt_collect::SystemRunner));
+        let probe = Arc::new(SystemProbe::new(debrief_collect::SystemRunner));
         let p = probe.clone();
         let settings = Arc::new(RwLock::new(AiSettings::default()));
         let runtimes = RuntimeDeps::system(data_dir.join("ai").join("runtimes"), worker.clone());
         let env = runtimes.worker_env_source(settings.clone());
-        let cfg = WorkerConfig::new(Arc::new(imt_ai::worker::CappedLauncher {
+        let cfg = WorkerConfig::new(Arc::new(debrief_ai::worker::CappedLauncher {
             launcher: FramesLauncher {
                 exe: worker.clone(),
                 args: vec![],
@@ -164,7 +164,7 @@ pub struct ModelDto {
     pub projector_download_bytes: Option<u64>,
 }
 
-/// Progress of a set-up or an activation, streamed as `imt://ai-setup`.
+/// Progress of a set-up or an activation, streamed as `debrief://ai-setup`.
 #[derive(Debug, Clone, Serialize)]
 #[serde(untagged)]
 pub enum SetupEvent {
@@ -258,7 +258,7 @@ use crate::sync::lock;
 
 /// How model `file` of `store` loads with `settings`: its path, GGUF facts, image projector (loaded into the same
 /// engine, one model, ADR 0025), context and GPU mode.
-pub(super) fn load_request(store: &ModelStore, file: &str, settings: &AiSettings) -> imt_ai::Result<LoadRequest> {
+pub(super) fn load_request(store: &ModelStore, file: &str, settings: &AiSettings) -> debrief_ai::Result<LoadRequest> {
     let path = store.path_of(file)?;
     let info = gguf::inspect(&path)?;
     let projector = store.projector_path(file)?;
@@ -273,7 +273,7 @@ pub(super) fn load_request(store: &ModelStore, file: &str, settings: &AiSettings
 }
 
 impl ModelLoader for AppLoader {
-    fn load(&self) -> imt_ai::Result<Arc<dyn LlmProvider>> {
+    fn load(&self) -> debrief_ai::Result<Arc<dyn LlmProvider>> {
         if let Some((p, info)) = lock(&self.primed).take() {
             *lock(&self.info) = info;
             return Ok(p);
@@ -374,13 +374,13 @@ impl AiCore {
     pub fn availability(&self) -> AiResult<()> {
         if self.safe_mode {
             return Err(AiCmdError::unavailable(
-                "IMT is running in safe mode, so the AI assistant is off. Restart normally to use it.",
+                "Debrief is running in safe mode, so the AI assistant is off. Restart normally to use it.",
             ));
         }
         if let Some(p) = &self.deps.worker_path {
             if !p.is_file() {
                 return Err(AiCmdError::unavailable(format!(
-                    "The AI engine is not installed (missing {}). Reinstall IMT, or use a build that includes the AI assistant.",
+                    "The AI engine is not installed (missing {}). Reinstall Debrief, or use a build that includes the AI assistant.",
                     p.display()
                 )));
             }
@@ -659,7 +659,7 @@ impl AiCore {
         }
     }
 
-    pub(super) fn with_setup<T>(&self, f: impl FnOnce(&Setup<'_>) -> imt_ai::Result<T>) -> AiResult<T> {
+    pub(super) fn with_setup<T>(&self, f: impl FnOnce(&Setup<'_>) -> debrief_ai::Result<T>) -> AiResult<T> {
         let settings = self.settings();
         let source = (self.deps.source)(&settings)?;
         let store = self.store();
@@ -667,7 +667,7 @@ impl AiCore {
         let settings_path = match self.settings_path() {
             Some(p) => p,
             None => {
-                scratch = std::env::temp_dir().join(format!("imt-ai-{}.json", std::process::id()));
+                scratch = std::env::temp_dir().join(format!("debrief-ai-{}.json", std::process::id()));
                 scratch
             }
         };
@@ -727,7 +727,7 @@ impl AiCore {
         Ok(())
     }
 
-    fn adopt(&self, outcome: imt_ai::setup::SetupOutcome) {
+    fn adopt(&self, outcome: debrief_ai::setup::SetupOutcome) {
         *crate::sync::write(&self.settings) = outcome.settings;
         let info = EngineInfo {
             backend: Some(outcome.backend),
@@ -795,7 +795,7 @@ impl AiCore {
 
     /// Adds a GGUF file the user chose (hard link when possible, otherwise a copy) after validating it. A file
     /// named like a catalog model, or of its exact size, must have the catalog's SHA-256 (a manual download is
-    /// checked like IMT's own); a verified one is filed under the catalog's file name. Hashing reads the whole
+    /// checked like Debrief's own); a verified one is filed under the catalog's file name. Hashing reads the whole
     /// file: call off the UI thread; `progress` reports it and cancels it.
     pub fn add_local(&self, path: &str, progress: &Progress) -> AiResult<ModelDto> {
         if path.is_empty() || path.chars().count() > MAX_PATH_CHARS || path.contains('\0') {
@@ -834,14 +834,14 @@ impl AiCore {
         };
         file.and_then(|f| self.store().projector_path(&f).ok().flatten())
             .and_then(|p| gguf::inspect_projector(&p).ok())
-            .map_or(imt_ai::vision::image::DEFAULT_TARGET_PIXELS, |p| p.max_image_pixels())
+            .map_or(debrief_ai::vision::image::DEFAULT_TARGET_PIXELS, |p| p.max_image_pixels())
     }
 
     /// The catalog entry of an installed model file that offers a projector.
-    fn projector_entry(&self, file_name: &str) -> AiResult<imt_ai::catalog::CatalogModel> {
+    fn projector_entry(&self, file_name: &str) -> AiResult<debrief_ai::catalog::CatalogModel> {
         let entry = self.catalog.models.iter().find(|c| c.file == file_name).ok_or_else(|| {
             AiCmdError::not_found(format!(
-                "{file_name} is not a model from the list, so IMT does not know its image projector; add the projector file yourself"
+                "{file_name} is not a model from the list, so Debrief does not know its image projector; add the projector file yourself"
             ))
         })?;
         if entry.projector.is_none() {
@@ -887,8 +887,8 @@ impl AiCore {
             .find(|c| c.file == file_name)
             .and_then(|c| c.projector.clone());
         if let Some(p) = pinned.filter(|p| p.size_bytes == info.file_size) {
-            progress.begin(imt_ai::models::Phase::Verifying, info.file_size, 0);
-            let got = imt_ai::models::download::sha256_file(path, progress)?;
+            progress.begin(debrief_ai::models::Phase::Verifying, info.file_size, 0);
+            let got = debrief_ai::models::download::sha256_file(path, progress)?;
             if !got.eq_ignore_ascii_case(&p.sha256) {
                 return Err(AiError::Integrity(format!(
                     "this is not the original projector of {file_name}: its SHA-256 is {got}, expected {}; download it again",
@@ -971,7 +971,7 @@ pub(super) type ProcessRow = (u32, Option<u32>, String, u64);
 pub(super) fn tree_rss_bytes(me: u32, procs: &[ProcessRow]) -> u64 {
     let workers: Vec<u32> = procs
         .iter()
-        .filter(|(_, parent, name, _)| *parent == Some(me) && name.starts_with("imt-ai-worker"))
+        .filter(|(_, parent, name, _)| *parent == Some(me) && name.starts_with("debrief-ai-worker"))
         .map(|(pid, ..)| *pid)
         .collect();
     procs

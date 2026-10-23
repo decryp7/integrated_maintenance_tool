@@ -1,7 +1,7 @@
 import type { DockviewPanelApi, ITabRenderer, TabPartInitParameters } from 'dockview';
 
 /** Component name dockview uses for the tab renderer of every panel. */
-export const TAB_COMPONENT = 'imt-tab';
+export const TAB_COMPONENT = 'debrief-tab';
 
 /** Opens the panel menu of a tab (the ▾); `anchor` is where the menu appears. */
 export type OpenPanelMenu = (id: string, anchor: HTMLElement) => void;
@@ -22,16 +22,16 @@ export class PanelTab implements ITabRenderer {
   private subscription?: { dispose(): void };
 
   constructor(private readonly openMenu: OpenPanelMenu | null = null) {
-    this.element.className = 'imt-tab';
-    this.pin.className = 'imt-tab-pin';
+    this.element.className = 'debrief-tab';
+    this.pin.className = 'debrief-tab-pin';
     this.pin.setAttribute('aria-hidden', 'true');
     this.pin.textContent = '📌';
-    this.label.className = 'imt-tab-label';
-    this.menu.className = 'imt-tab-menu';
+    this.label.className = 'debrief-tab-label';
+    this.menu.className = 'debrief-tab-menu';
     this.menu.setAttribute('aria-hidden', 'true');
     this.menu.textContent = '▾';
     this.menu.title = $localize`:@@dock.panelTab.menu:Panel menu (Shift+F10)`;
-    this.close.className = 'imt-tab-close';
+    this.close.className = 'debrief-tab-close';
     this.close.setAttribute('aria-hidden', 'true');
     this.close.textContent = '×';
     this.close.title = $localize`:@@dock.panelTab.close:Close (Delete)`;
@@ -64,5 +64,5 @@ export class PanelTab implements ITabRenderer {
 /** Id of the panel whose tab contains `target`, if the event came from a tab. */
 export function tabPanelId(target: EventTarget | null): string | null {
   const tab = (target as HTMLElement | null)?.closest?.('[role="tab"]');
-  return tab?.querySelector<HTMLElement>('.imt-tab')?.dataset['panelId'] ?? null;
+  return tab?.querySelector<HTMLElement>('.debrief-tab')?.dataset['panelId'] ?? null;
 }

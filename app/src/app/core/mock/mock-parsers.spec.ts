@@ -22,7 +22,7 @@ describe('mockParseParser', () => {
   it('refuses what the engine refuses, with a line and column', () => {
     expect(mockParseParser('schema = 1\nid = [')).toMatchObject({ ok: false, error: { line: 2 } });
     expect(mockParseParser('id = "x"')).toMatchObject({ ok: false, error: { message: 'missing field `schema`', line: 1 } });
-    expect(mockParseParser('\nschema = 2').ok ? null : mockParseParser('\nschema = 2')).toMatchObject({ error: { message: expect.stringContaining('update IMT'), line: 2 } });
+    expect(mockParseParser('\nschema = 2').ok ? null : mockParseParser('\nschema = 2')).toMatchObject({ error: { message: expect.stringContaining('update Debrief'), line: 2 } });
     expect(mockParseParser('schema = 1\nname = "x"')).toMatchObject({ error: { message: 'missing field `id`' } });
     expect(mockParseParser('schema = 1\nid = "Bad Id"')).toMatchObject({ error: { message: expect.stringContaining('invalid id'), line: 2 } });
     expect(mockParseParser('schema = 1\nid = "x"\nversion = "1.0.0"')).toMatchObject({ error: { message: 'missing field `name`' } });

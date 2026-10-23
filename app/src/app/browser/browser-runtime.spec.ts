@@ -77,7 +77,7 @@ describe('BrowserRuntimeSettings', () => {
     await wait(100);
     f.detectChanges();
     expect(install).toHaveBeenCalledTimes(1);
-    expect(q(f, 'browser-runtime-status')!.textContent).toContain('Chromium IMT downloaded');
+    expect(q(f, 'browser-runtime-status')!.textContent).toContain('Chromium Debrief downloaded');
     expect(q(f, 'browser-runtime-install')).toBeNull();
     (q(f, 'browser-runtime-remove') as HTMLButtonElement).click();
     await settle();

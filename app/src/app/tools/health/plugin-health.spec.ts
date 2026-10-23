@@ -5,7 +5,7 @@ import { PluginInfo } from '../../core/api.types';
 import { mockTools, provideToolsTesting } from '../mock/test-support';
 import { PluginHealthView } from './plugin-health-view';
 import { eventName, PluginHealthStore } from './plugin-health.store';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { at } from '../../../testing/must';
 
 const PLUGINS: PluginInfo[] = [
@@ -125,7 +125,7 @@ describe('PluginHealthView (plugin v2)', () => {
     expect(table.textContent).toContain('RecordsAppended');
     const web = at(all(fixture, '.plugin'), 1).querySelector('table.events tbody tr')!;
     expect(web.classList).toContain('bad');
-    const backend = TestBed.inject(ImtBackend);
+    const backend = TestBed.inject(DebriefBackend);
     vi.spyOn(backend, 'pluginEvents').mockRejectedValueOnce('bus gone');
     buttonByText(fixture, 'Refresh event counters').click();
     await settle(fixture);

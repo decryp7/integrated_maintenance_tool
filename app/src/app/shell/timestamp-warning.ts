@@ -22,13 +22,13 @@ export function timestampWarningText(issue: TimestampIssue): string {
  * engine proposed.
  */
 @Component({
-  selector: 'imt-timestamp-warning',
+  selector: 'debrief-timestamp-warning',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
     @if (source().timestampIssue; as issue) {
       <button type="button" class="icon-btn warn" data-testid="timestamp-warning" [attr.aria-label]="label()" [title]="label()" (click)="open(issue)">
-        <imt-icon name="alert" [size]="13" />
+        <debrief-icon name="alert" [size]="13" />
       </button>
     }
   `,

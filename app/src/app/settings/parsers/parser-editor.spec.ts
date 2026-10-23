@@ -14,12 +14,12 @@ const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
 
 async function mount(doc?: (b: MockParsersBackend) => Promise<ParserDocDto>, inputs: { isNew?: boolean; readSources?: number[] } = {}) {
   ref.close.mockClear();
-  const imt = tinyBackend();
-  const backend = new MockParsersBackend(imt);
+  const debrief = tinyBackend();
+  const backend = new MockParsersBackend(debrief);
   const requests: ParsePreviewRequest[] = [];
-  const preview = imt.previewParse.bind(imt);
-  vi.spyOn(imt, 'previewParse').mockImplementation((r) => (requests.push(r), preview(r)));
-  TestBed.configureTestingModule({ providers: [provideTinyBackend(imt), { provide: ParsersBackend, useValue: backend }, { provide: DIALOG_REF, useValue: ref }] });
+  const preview = debrief.previewParse.bind(debrief);
+  vi.spyOn(debrief, 'previewParse').mockImplementation((r) => (requests.push(r), preview(r)));
+  TestBed.configureTestingModule({ providers: [provideTinyBackend(debrief), { provide: ParsersBackend, useValue: backend }, { provide: DIALOG_REF, useValue: ref }] });
   await TestBed.inject(WorkspaceStore).init();
   const opened = doc ? await doc(backend) : await backend.get('serilog-text');
   const fixture = TestBed.createComponent(ParserEditor);
@@ -27,7 +27,7 @@ async function mount(doc?: (b: MockParsersBackend) => Promise<ParserDocDto>, inp
   if (inputs.isNew !== undefined) fixture.componentRef.setInput('isNew', inputs.isNew);
   if (inputs.readSources) fixture.componentRef.setInput('readSources', inputs.readSources);
   await settle(fixture);
-  return { fixture, backend, imt, requests };
+  return { fixture, backend, debrief, requests };
 }
 
 /** Lets the debounced validation and preview run. */
@@ -98,9 +98,9 @@ describe('ParserEditor', () => {
   });
 
   it('switches the preview file, retries a file that cannot be read and shows preview failures', async () => {
-    const { fixture, imt } = await mount();
+    const { fixture, debrief } = await mount();
     await idle(fixture);
-    const head = vi.spyOn(imt, 'readFileHead').mockRejectedValueOnce(new Error('locked'));
+    const head = vi.spyOn(debrief, 'readFileHead').mockRejectedValueOnce(new Error('locked'));
     typeInto(el<HTMLSelectElement>(fixture, '[data-testid=parser-preview-file]'), '0', 'change');
     await settle(fixture);
     expect(el(fixture, '[role=alert]').textContent).toContain('locked');
@@ -108,7 +108,7 @@ describe('ParserEditor', () => {
     await idle(fixture);
     expect(head).toHaveBeenLastCalledWith('/logs/web01/app.clef', 32768);
     expect(all(fixture, '[role=alert]')).toHaveLength(0);
-    vi.spyOn(imt, 'previewParse').mockRejectedValueOnce(new Error('preview failed'));
+    vi.spyOn(debrief, 'previewParse').mockRejectedValueOnce(new Error('preview failed'));
     typeInto(area(fixture), (await TestBed.inject(ParsersBackend).get('nlog')).toml);
     await idle(fixture);
     expect(el(fixture, '[data-testid=parser-preview-summary]').textContent).toContain('preview failed');

@@ -41,7 +41,7 @@ class FakeScreen {
 }
 
 /** A component that must keep reacting while a capture is pending. */
-@Component({ selector: 'imt-capture-probe', template: '<button type="button" (click)="clicks.set(clicks() + 1)">{{ clicks() }}</button>' })
+@Component({ selector: 'debrief-capture-probe', template: '<button type="button" (click)="clicks.set(clicks() + 1)">{{ clicks() }}</button>' })
 class CaptureProbe {
   readonly clicks = signal(0);
 }
@@ -77,7 +77,7 @@ describe('error classification', () => {
     for (const msg of ['invalid regex: unclosed group', 'No such file or directory', 'Access is denied', 'query syntax error at 3', 'cancelled', 'profile does not compile']) {
       expect(isUnexpectedBackendError(msg), msg).toBe(false);
     }
-    for (const msg of ['IMT crashed: index out of bounds', 'plugin panicked', 'channel closed', new Error('boom')]) {
+    for (const msg of ['Debrief crashed: index out of bounds', 'plugin panicked', 'channel closed', new Error('boom')]) {
       expect(isUnexpectedBackendError(msg)).toBe(true);
     }
     expect(isUnexpectedBackendError(new DOMException('x', 'AbortError'))).toBe(false);
@@ -233,9 +233,9 @@ describe('ErrorSnapshotService', () => {
   it('classifies backend failures: unexpected ones only by default, the caller may decide', async () => {
     service.backendFailed('query_page', 'invalid regex');
     await vi.waitFor(() => expect(screen.calls).toBe(0));
-    service.backendFailed('query_page', 'IMT crashed: bad index');
+    service.backendFailed('query_page', 'Debrief crashed: bad index');
     await vi.waitFor(async () => expect((await backend.list()).length).toBe(1));
-    expect((await backend.list())[0]).toMatchObject({ reason: 'backend-failed', message: 'Command query_page failed: IMT crashed: bad index' });
+    expect((await backend.list())[0]).toMatchObject({ reason: 'backend-failed', message: 'Command query_page failed: Debrief crashed: bad index' });
     now += 20_000;
     service.backendFailed('open_paths', 'invalid path', () => true);
     await vi.waitFor(async () => expect((await backend.list()).length).toBe(2));
@@ -323,7 +323,7 @@ describe('SnapshotErrorHandler', () => {
     expect(TestBed.inject(ErrorHandler)).toBeInstanceOf(SnapshotErrorHandler);
     expect(TestBed.inject(SnapshotBackend)).toBeTruthy();
     expect(TestBed.inject(FailureReporter)).toBe(TestBed.inject(ErrorSnapshotService));
-    document.querySelectorAll('imt-snapshot-toast').forEach((e) => e.remove());
+    document.querySelectorAll('debrief-snapshot-toast').forEach((e) => e.remove());
   });
 });
 
@@ -376,7 +376,7 @@ describe('backends', () => {
     ]);
     const seen: unknown[] = [];
     await b.onEngineError((e) => seen.push(e));
-    expect(at(listen.mock.calls, 0)[0]).toBe('imt://error');
+    expect(at(listen.mock.calls, 0)[0]).toBe('debrief://error');
     expect(seen).toEqual([{ kind: 'import-crash', message: 'm', plugin: null }]);
   });
 

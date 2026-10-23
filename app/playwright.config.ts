@@ -1,9 +1,9 @@
 import { defineConfig, devices } from '@playwright/test';
 
 // Ports and the production-build server can be overridden so several runs can share a machine.
-const PORT = Number(process.env['IMT_E2E_PORT'] ?? 4300);
-const PROD_PORT = Number(process.env['IMT_E2E_PROD_PORT'] ?? 4301);
-const SKIP_PROD = !!process.env['IMT_E2E_SKIP_PROD'];
+const PORT = Number(process.env['DEBRIEF_E2E_PORT'] ?? 4300);
+const PROD_PORT = Number(process.env['DEBRIEF_E2E_PROD_PORT'] ?? 4301);
+const SKIP_PROD = !!process.env['DEBRIEF_E2E_SKIP_PROD'];
 const CI = !!process.env['CI'];
 const PROD_CSP = '**/prod-csp.e2e.ts';
 // These also run against the production build with the Tauri CSP (no extra permissions needed).

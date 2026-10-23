@@ -59,7 +59,7 @@ describe('FloatCue', () => {
   beforeEach(() => (cue = new FloatCue()));
   afterEach(() => cue.dispose());
 
-  const ghost = () => document.querySelector<HTMLElement>('.imt-float-cue')!;
+  const ghost = () => document.querySelector<HTMLElement>('.debrief-float-cue')!;
   const live = () => document.querySelector<HTMLElement>('[aria-live="polite"].sr-only')!;
   const rect = { x: 10, y: 20, width: 300, height: 200 };
 
@@ -106,7 +106,7 @@ describe('FloatCue', () => {
     expect(ghost().hidden).toBe(true);
     expect(ghost().dataset['outcome']).toBeUndefined();
     cue.dispose();
-    expect(document.querySelector('.imt-float-cue')).toBeNull();
+    expect(document.querySelector('.debrief-float-cue')).toBeNull();
     cue = new FloatCue();
   });
 });

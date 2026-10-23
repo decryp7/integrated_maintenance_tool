@@ -12,7 +12,7 @@ import { Logger } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
 import { PANEL } from '../dock/dock.service';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DEBRIEF_VIEWS } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { mockNotifications, resetMockNotifications } from '../notifications/mock-notifications';
 import { MemoryLogger, settle } from '../../testing/helpers';
@@ -94,7 +94,7 @@ describe('TauriJobsBackend', () => {
     }) as never;
     const handlers: ((p: unknown) => void)[] = [];
     const b = new TauriJobsBackend(call, async (event, h) => {
-      expect(event).toBe('imt://jobs');
+      expect(event).toBe('debrief://jobs');
       handlers.push(h);
       return () => undefined;
     });
@@ -583,7 +583,7 @@ describe('MockJobs', () => {
 
     const interrupted = await new MockJobs(opts()).restore({ version: 1, jobs: [jobInfo({ id: 9, state: 'running', finishedAt: null }), jobInfo({ id: 10, state: 'queued', finishedAt: null, queuedAt: 5 })] });
     expect(interrupted.snapshot.jobs.map((j) => j.state)).toEqual(['interrupted', 'interrupted']);
-    expect(interrupted.snapshot.jobs.every((j) => j.unseen && j.error === 'IMT closed before this job finished')).toBe(true);
+    expect(interrupted.snapshot.jobs.every((j) => j.unseen && j.error === 'Debrief closed before this job finished')).toBe(true);
   });
 
   it('keeps active and app-wide jobs on restore and reports a damaged record', async () => {
@@ -1029,9 +1029,9 @@ describe('provide-jobs', () => {
   it('registers the view, commands and saved state (no activity-bar button: the status bar has the jobs and the bell) with one call', async () => {
     const fake = new FakeJobs();
     TestBed.configureTestingModule({ providers: [{ provide: JobsBackend, useValue: fake }, { provide: Logger, useFactory: () => new MemoryLogger() }, provideJobs()] });
-    expect(TestBed.inject(IMT_VIEWS).flat().map((v) => v.id)).toContain('jobs');
-    expect(TestBed.inject(IMT_COMMANDS).flat().map((c) => c.id)).toEqual(expect.arrayContaining(['jobs.show', 'jobs.clearFinished']));
-    expect((TestBed.inject(IMT_ACTIVITY_ITEMS, [], { optional: true }) ?? []).flat().map((i) => i.id)).not.toContain('jobs');
+    expect(TestBed.inject(DEBRIEF_VIEWS).flat().map((v) => v.id)).toContain('jobs');
+    expect(TestBed.inject(DEBRIEF_COMMANDS).flat().map((c) => c.id)).toEqual(expect.arrayContaining(['jobs.show', 'jobs.clearFinished']));
+    expect((TestBed.inject(DEBRIEF_ACTIVITY_ITEMS, [], { optional: true }) ?? []).flat().map((i) => i.id)).not.toContain('jobs');
     expect(TestBed.inject(UI_STATE_CONTRIBUTIONS).flat().map((c) => c.key)).toContain('jobs');
     await settle();
     expect(fake.list).toHaveBeenCalled();

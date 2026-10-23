@@ -11,17 +11,17 @@ import { titleWithCount } from './notifications-text';
  * Notifications". Mounted once over the app; they go after a few seconds, the message stays in Notifications.
  */
 @Component({
-  selector: 'imt-notification-toasts',
+  selector: 'debrief-notification-toasts',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   host: { 'data-snapshot-ignore': '' },
   template: `
     <div class="stack" role="region" aria-label="New notifications" i18n-aria-label="@@notifications.toasts.region" aria-live="polite">
       @for (t of store.toasts(); track t.id) {
-        <div class="toast" data-imt-overlay [attr.data-severity]="t.severity" data-testid="notice-toast" (mouseenter)="store.holdToast(t.id)" (focusin)="store.holdToast(t.id)" (mouseleave)="leave(t.id, $event)" (focusout)="leave(t.id, $event)">
+        <div class="toast" data-debrief-overlay [attr.data-severity]="t.severity" data-testid="notice-toast" (mouseenter)="store.holdToast(t.id)" (focusin)="store.holdToast(t.id)" (mouseleave)="leave(t.id, $event)" (focusout)="leave(t.id, $event)">
           <strong class="title">{{ titleWithCount(t) }}</strong>
           @if (t.body) {
-            <div class="body imt-selectable">{{ t.body }}</div>
+            <div class="body debrief-selectable">{{ t.body }}</div>
           }
           @if (note(); as n) {
             <div class="body err" role="alert">{{ n }}</div>
@@ -41,7 +41,7 @@ import { titleWithCount } from './notifications-text';
               <button type="button" class="btn ghost" (click)="show(t)" data-testid="notice-toast-show" i18n="@@notifications.toasts.show">Show in Notifications</button>
             }
           </div>
-          <button type="button" class="x" aria-label="Dismiss notification" i18n-aria-label="@@notifications.toasts.dismiss" (click)="store.dismissToast(t.id)"><imt-icon name="close" [size]="12" /></button>
+          <button type="button" class="x" aria-label="Dismiss notification" i18n-aria-label="@@notifications.toasts.dismiss" (click)="store.dismissToast(t.id)"><debrief-icon name="close" [size]="12" /></button>
         </div>
       }
     </div>

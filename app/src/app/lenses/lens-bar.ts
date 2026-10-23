@@ -11,16 +11,16 @@ export const SET_KEY_PREFIX = 'Digit';
 
 /** One ghost "Lens" button opening a menu (profile and saved lenses, save, filters → set) with filter-set chips: Alt+1 … Alt+9 switch the sets on and off. */
 @Component({
-  selector: 'imt-lens-bar',
+  selector: 'debrief-lens-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, ClickOutside, CdkMenu, CdkMenuItem, CdkMenuTrigger],
   host: { '(document:keydown)': 'onKey($event)' },
   template: `
-    <div class="anchor" (imtClickOutside)="saving.set(false)" (keydown.escape)="saving.set(false)">
+    <div class="anchor" (debriefClickOutside)="saving.set(false)" (keydown.escape)="saving.set(false)">
       <button type="button" class="btn ghost lens-btn" data-testid="lens-button" [cdkMenuTriggerFor]="menu" [title]="buttonTitle()">
-        <imt-icon name="search" [size]="14" />
+        <debrief-icon name="search" [size]="14" />
         <span class="lens-name" data-testid="lens-name">{{ buttonLabel() }}</span>
-        <imt-icon name="chevronDown" [size]="12" />
+        <debrief-icon name="chevronDown" [size]="12" />
       </button>
       @if (saving()) {
         <form class="popover save-pop" data-testid="lens-save-form" (submit)="$event.preventDefault(); saveLens()">

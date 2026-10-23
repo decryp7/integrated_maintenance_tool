@@ -19,7 +19,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
  * the profile through the same validate-and-save flow as marker rules.
  */
 @Component({
-  selector: 'imt-runs-editor',
+  selector: 'debrief-runs-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="runs" aria-labelledby="runs-title">

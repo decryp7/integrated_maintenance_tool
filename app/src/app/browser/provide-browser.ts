@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component, EnvironmentProviders, inject, Injectable, input, makeEnvironmentProviders, signal } from '@angular/core';
 import { AiLauncher } from '../ai/ai-launcher';
-import { IMT_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
+import { DEBRIEF_RECORD_MENU_ITEMS, RecordMenuContribution } from '../context/record-actions';
 import { RecordView } from '../core/api.types';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_COMMANDS, IMT_INSPECTOR_SECTIONS, ImtCommand, ImtInspectorSection } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_INSPECTOR_SECTIONS, DebriefCommand, DebriefInspectorSection } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
 
 /** "Search the web for this error" from anywhere (menus, inspector, chat, palette). */
@@ -33,7 +33,7 @@ export function worthSearching(r: RecordView): boolean {
 
 /** The inspector's Web section: one button for the selected event. */
 @Component({
-  selector: 'imt-web-inspector-section',
+  selector: 'debrief-web-inspector-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<div class="pad">
     <button type="button" class="btn" (click)="launcher.searchEvent(record().id)" data-testid="inspector-search-web" i18n="@@browser.inspector.search">Search the web for this error…</button>
@@ -69,7 +69,7 @@ export class WebInspectorSection {
   }
 }
 
-export const WEB_INSPECTOR_SECTION: ImtInspectorSection = {
+export const WEB_INSPECTOR_SECTION: DebriefInspectorSection = {
   id: 'web',
   title: $localize`:Inspector section@@browser.inspector.title:Web`,
   order: 450,
@@ -77,7 +77,7 @@ export const WEB_INSPECTOR_SECTION: ImtInspectorSection = {
   when: worthSearching,
 };
 
-export function browserCommands(launcher: BrowserLauncher, store: InstanceType<typeof WorkspaceStore>): ImtCommand[] {
+export function browserCommands(launcher: BrowserLauncher, store: InstanceType<typeof WorkspaceStore>): DebriefCommand[] {
   const category = $localize`:Command palette category@@browser.category:Web`;
   return [
     {
@@ -104,8 +104,8 @@ export function browserRecordMenu(launcher: BrowserLauncher, ai?: AiLauncher): R
 /** One line in `app.config.ts`: the browser's commands, menu entries and inspector section. */
 export function provideBrowser(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => browserCommands(inject(BrowserLauncher), inject(WorkspaceStore)) },
-    { provide: IMT_RECORD_MENU_ITEMS, multi: true, useFactory: () => browserRecordMenu(inject(BrowserLauncher), inject(AiLauncher)) },
-    { provide: IMT_INSPECTOR_SECTIONS, multi: true, useValue: [WEB_INSPECTOR_SECTION] },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => browserCommands(inject(BrowserLauncher), inject(WorkspaceStore)) },
+    { provide: DEBRIEF_RECORD_MENU_ITEMS, multi: true, useFactory: () => browserRecordMenu(inject(BrowserLauncher), inject(AiLauncher)) },
+    { provide: DEBRIEF_INSPECTOR_SECTIONS, multi: true, useValue: [WEB_INSPECTOR_SECTION] },
   ]);
 }

@@ -129,7 +129,7 @@ export const AiRuntimeStore = signalStore(
           patchState(store, { busy: false });
         }
       },
-      /** An `imt://ai-runtime` event (from any window). */
+      /** An `debrief://ai-runtime` event (from any window). */
       onEvent(e: AiRuntimeEvent): void {
         if (isTerminal(e)) {
           patchState(store, { job: null, outcome: e });

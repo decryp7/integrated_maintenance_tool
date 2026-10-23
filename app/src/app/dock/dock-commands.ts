@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
 import { DockService } from './dock.service';
 import { PANEL_WINDOWS } from './panel-windows';
@@ -18,12 +18,12 @@ export class DockCommands {
   private readonly windows = inject(PANEL_WINDOWS, { optional: true });
   private readonly prefs = inject(FullScreenPrefs);
 
-  private mode(mode: FullScreenMode, title: string): ImtCommand {
+  private mode(mode: FullScreenMode, title: string): DebriefCommand {
     return { id: `window.fullScreenMode.${mode}`, title, category: CATEGORY, when: () => this.prefs.mode() !== mode, run: () => this.prefs.set(mode) };
   }
 
   /** Ctrl+n switches to perspective n; the title follows the perspective's (current) name. */
-  private perspectiveAt(n: number): ImtCommand {
+  private perspectiveAt(n: number): DebriefCommand {
     const perspectives = this.perspectives;
     return {
       id: `window.perspective.${n}`,
@@ -38,7 +38,7 @@ export class DockCommands {
     };
   }
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'window.popOut', title: $localize`:@@dock.commands.popOut:Pop out to window`, category: CATEGORY, keybinding: 'Ctrl+Alt+O', when: () => !!this.windows?.canPopOut(), run: () => void this.dock.popOutActive() },
     { id: 'window.float', title: $localize`:@@dock.commands.float:Float panel`, category: CATEGORY, when: () => this.dock.canFloatActive(), run: () => void this.dock.floatActive() },
     { id: 'window.panelMenu', title: $localize`:@@dock.commands.panelMenu:Panel menu (window position)`, category: CATEGORY, keybinding: 'Alt+-', run: () => this.dock.openActivePanelMenu() },

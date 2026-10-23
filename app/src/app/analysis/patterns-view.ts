@@ -14,7 +14,7 @@ import { CoverageNote } from './coverage-note';
 
 /** Message templates ranked by frequency, with a level bar; clicking one filters the workspace by it. */
 @Component({
-  selector: 'imt-patterns-view',
+  selector: 'debrief-patterns-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CoverageNote],
   template: `
@@ -23,8 +23,8 @@ import { CoverageNote } from './coverage-note';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.patterns.refresh">Refresh</button>
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No events to group." i18n-emptyText="@@analysis.patterns.emptyText" emptyHint="Patterns group the matching events by message template, most frequent first." i18n-emptyHint="@@analysis.patterns.emptyHint" suggest (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No events to group." i18n-emptyText="@@analysis.patterns.emptyText" emptyHint="Patterns group the matching events by message template, most frequent first." i18n-emptyHint="@@analysis.patterns.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Patterns" i18n-aria-label="@@analysis.patterns.listLabel">
         @for (p of res.result() ?? []; track p.id) {
           <li>
@@ -72,7 +72,7 @@ import { CoverageNote } from './coverage-note';
           </li>
         }
       </ul>
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,

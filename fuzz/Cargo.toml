@@ -1,5 +1,5 @@
 [package]
-name = "imt-fuzz"
+name = "debrief-fuzz"
 version = "0.0.0"
 edition = "2021"
 publish = false
@@ -12,26 +12,26 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-imt-core = { path = "../crates/imt-core" }
-imt-ipc = { path = "../crates/imt-ipc" }
-imt-notes = { path = "../crates/imt-notes" }
-imt-plugin-api = { path = "../crates/imt-plugin-api" }
-imt-plugin-package = { path = "../crates/imt-plugin-package" }
-imt-ai = { path = "../crates/imt-ai" }
-imt-ai-worker = { path = "../crates/imt-ai-worker" }
-imt-plugin-registry = { path = "../crates/imt-plugin-registry" }
-imt-plugin-windows = { path = "../crates/imt-plugin-windows" }
-imt-plugin-web = { path = "../crates/imt-plugin-web" }
-imt-plugin-formats = { path = "../crates/imt-plugin-formats" }
-imt-plugin-otel = { path = "../crates/imt-plugin-otel" }
-imt-plugin-syslog = { path = "../crates/imt-plugin-syslog" }
-imt-profile = { path = "../crates/imt-profile" }
-imt-plugin-profiling = { path = "../crates/imt-plugin-profiling", default-features = false }
-imt-dump = { path = "../crates/imt-dump" }
-imt-plugin-dumps = { path = "../crates/imt-plugin-dumps", default-features = false }
-imt-etw = { path = "../crates/imt-etw" }
-imt-symbols = { path = "../crates/imt-symbols", default-features = false }
-imt-plugin-dotnet = { path = "../crates/imt-plugin-dotnet", default-features = false }
+debrief-core = { path = "../crates/debrief-core" }
+debrief-ipc = { path = "../crates/debrief-ipc" }
+debrief-notes = { path = "../crates/debrief-notes" }
+debrief-plugin-api = { path = "../crates/debrief-plugin-api" }
+debrief-plugin-package = { path = "../crates/debrief-plugin-package" }
+debrief-ai = { path = "../crates/debrief-ai" }
+debrief-ai-worker = { path = "../crates/debrief-ai-worker" }
+debrief-plugin-registry = { path = "../crates/debrief-plugin-registry" }
+debrief-plugin-windows = { path = "../crates/debrief-plugin-windows" }
+debrief-plugin-web = { path = "../crates/debrief-plugin-web" }
+debrief-plugin-formats = { path = "../crates/debrief-plugin-formats" }
+debrief-plugin-otel = { path = "../crates/debrief-plugin-otel" }
+debrief-plugin-syslog = { path = "../crates/debrief-plugin-syslog" }
+debrief-profile = { path = "../crates/debrief-profile" }
+debrief-plugin-profiling = { path = "../crates/debrief-plugin-profiling", default-features = false }
+debrief-dump = { path = "../crates/debrief-dump" }
+debrief-plugin-dumps = { path = "../crates/debrief-plugin-dumps", default-features = false }
+debrief-etw = { path = "../crates/debrief-etw" }
+debrief-symbols = { path = "../crates/debrief-symbols", default-features = false }
+debrief-plugin-dotnet = { path = "../crates/debrief-plugin-dotnet", default-features = false }
 serde_json = "1"
 chrono = "0.4"
 

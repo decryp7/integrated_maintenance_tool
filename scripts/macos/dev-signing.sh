@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Creates a self-signed code-signing identity ("IMT Local Dev") in the login
+# Creates a self-signed code-signing identity ("Debrief Local Dev") in the login
 # keychain, once. Local builds signed with it keep the same identity across
 # rebuilds, so macOS remembers privacy grants (e.g. removable-volume access)
 # instead of prompting after every build. Not for distribution.
@@ -7,7 +7,7 @@
 # Usage: scripts/macos/dev-signing.sh [--remove]
 set -euo pipefail
 
-NAME="IMT Local Dev"
+NAME="Debrief Local Dev"
 KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 [[ "$(uname)" == "Darwin" ]] || { echo "macOS only"; exit 0; }
@@ -42,10 +42,10 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
 # macOS `security` only reads PKCS#12 with legacy (SHA1/3DES) encryption.
 openssl pkcs12 -export -inkey "$TMP/key.pem" -in "$TMP/cert.pem" -name "$NAME" \
   -keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg sha1 \
-  -passout "pass:$PASS" -out "$TMP/imt.p12"
+  -passout "pass:$PASS" -out "$TMP/debrief.p12"
 
 # -T lets codesign use the key without a keychain prompt.
-security import "$TMP/imt.p12" -k "$KEYCHAIN" -P "$PASS" -T /usr/bin/codesign >/dev/null
+security import "$TMP/debrief.p12" -k "$KEYCHAIN" -P "$PASS" -T /usr/bin/codesign >/dev/null
 
 echo "Trusting the certificate for code signing (macOS asks for your password once)..."
 security add-trusted-cert -r trustRoot -p codeSign -k "$KEYCHAIN" "$TMP/cert.pem"

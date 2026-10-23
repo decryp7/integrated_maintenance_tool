@@ -6,7 +6,7 @@ import { JobsBackend } from '../../jobs/jobs-backend';
 import { reportBackendFailures } from '../../core/failure-reporter';
 import { Logger, withFailureLogging } from '../../core/logger';
 
-/** The plugin tool that records .NET processes (crates/imt-plugin-dotnet); `.etl` traces are the native profiler's. */
+/** The plugin tool that records .NET processes (crates/debrief-plugin-dotnet); `.etl` traces are the native profiler's. */
 export const DOTNET_TOOL = 'dotnet-profiler';
 
 /**

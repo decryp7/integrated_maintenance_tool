@@ -5,7 +5,7 @@ import { parseRangeTime, rangeProblem } from './import-range';
 
 /** Asks for the part of the time to import (UTC); nothing outside it is read into the project. */
 @Component({
-  selector: 'imt-import-range-dialog',
+  selector: 'debrief-import-range-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p i18n="@@import.range.hint">Only events inside this range are imported, which keeps a very large folder small. Times are UTC. Files that stopped changing well before the start are not even opened.</p>

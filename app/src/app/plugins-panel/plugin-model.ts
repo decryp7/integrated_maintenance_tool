@@ -4,7 +4,7 @@ import { ProcessMemory } from '../settings/performance/performance.types';
 /** One kind of contribution of a plugin ("importer", "marker", …) with the identifiers it provides. */
 export interface ProvideGroup {
   kind: string;
-  /** Icon of the IMT set for the kind. */
+  /** Icon of the Debrief set for the kind. */
   icon: string;
   items: string[];
 }

@@ -48,13 +48,13 @@ export class MockDotnetBackend extends DotnetBackend {
     if (p.needsElevation) {
       status.state = 'failed';
       status.needsElevation = true;
-      status.error = 'recording this process needs administrator rights (ETW); restart IMT as administrator';
+      status.error = 'recording this process needs administrator rights (ETW); restart Debrief as administrator';
     } else {
       this.started.set(id, { at: this.now(), durationMs: r.kind === 'heap' ? 1500 : r.durationSec ? r.durationSec * 1000 : null });
     }
     this.list.unshift(status);
     // Like the real tool: missing rights are a typed failure (the capture stays listed as failed).
-    if (status.needsElevation) throw new CmdError({ code: 'denied', message: status.error ?? '', retryable: false, hint: 'Restart IMT as administrator, then try again.' });
+    if (status.needsElevation) throw new CmdError({ code: 'denied', message: status.error ?? '', retryable: false, hint: 'Restart Debrief as administrator, then try again.' });
     return { ...status };
   }
 

@@ -2,7 +2,7 @@ import { Provider } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import type { ECharts } from 'echarts/core';
 import { AnalysisBackend } from '../../core/analysis-backend';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { Platform } from '../../core/platform';
 import { DockService } from '../../dock/dock.service';
 import { FakeDock } from '../../../testing/helpers';
@@ -28,7 +28,7 @@ export function setupVisuals(pick: (name: string) => string | null = (name) => `
     providers: [
       ...provideAnalysisTesting(),
       { provide: DockService, useValue: new FakeDock() },
-      { provide: ShareBackend, useFactory: () => new MockShareBackend(TestBed.inject(ImtBackend), TestBed.inject(AnalysisBackend)) },
+      { provide: ShareBackend, useFactory: () => new MockShareBackend(TestBed.inject(DebriefBackend), TestBed.inject(AnalysisBackend)) },
       { provide: Platform, useValue: Object.assign(new Platform(), { pickSavePath: async (_t: string, name: string) => (picks.push(name), pick(name)) }) },
       {
         provide: VISUAL_ECHARTS,

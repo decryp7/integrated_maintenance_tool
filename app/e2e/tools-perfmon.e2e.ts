@@ -6,7 +6,7 @@ test.describe('Performance Monitor wizard', () => {
   test('builds a Data Collector Set: processes, presets, XML preview, install, import', async ({ page }, testInfo) => {
     await openAppWith(page);
     await openView(page, 'Performance Monitor');
-    const panel = page.locator('imt-perfmon-view');
+    const panel = page.locator('debrief-perfmon-view');
     await expect(panel.getByRole('checkbox', { name: 'Preset CPU' })).toBeChecked();
 
     await panel.getByRole('textbox', { name: 'Process name' }).fill('OrderService.exe');
@@ -41,7 +41,7 @@ test.describe('Performance Monitor wizard', () => {
   test('offers a restart as administrator when access is denied', async ({ page }) => {
     await openAppWith(page, '?mock-denied=1');
     await openView(page, 'Performance Monitor');
-    const panel = page.locator('imt-perfmon-view');
+    const panel = page.locator('debrief-perfmon-view');
     await panel.getByRole('button', { name: /Install/ }).click();
     await expect(panel.getByRole('alert')).toContainText('Access is denied');
     await expect(panel.getByRole('button', { name: 'Restart as administrator' })).toBeVisible();
@@ -50,7 +50,7 @@ test.describe('Performance Monitor wizard', () => {
   test('away from Windows it still generates the XML and the commands', async ({ page }) => {
     await openAppWith(page, '?mock-os=mac');
     await openView(page, 'Performance Monitor');
-    const panel = page.locator('imt-perfmon-view');
+    const panel = page.locator('debrief-perfmon-view');
     await expect(panel).toContainText('can only be created on Windows');
     await expect(panel.getByRole('button', { name: /Install/ })).toHaveCount(0);
     await panel.getByRole('button', { name: 'Generate XML' }).click();

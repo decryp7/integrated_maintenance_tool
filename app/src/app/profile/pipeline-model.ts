@@ -18,7 +18,7 @@ export interface StepKindInfo {
   kind: PipelineStepKind;
   group: StepGroup;
   label: string;
-  /** Name of an `<imt-icon>`. */
+  /** Name of an `<debrief-icon>`. */
   icon: string;
   /** One sentence for the palette tooltip. */
   blurb: string;

@@ -7,7 +7,7 @@
 
 ## Context
 
-IMT can record .NET processes (ADR 0019) but not native C/C++ services and desktop applications, which are the other
+Debrief can record .NET processes (ADR 0019) but not native C/C++ services and desktop applications, which are the other
 half of the Windows estates its users maintain. They want to know where a native process burns CPU, where its threads
 wait (locks, I/O, sleeps), which call stacks grow its heap, and to open `.etl` traces recorded by WPR/xperf in the same
 views. Many of these processes run in production: nothing may be loaded into them, and recording must work without
@@ -18,14 +18,14 @@ administrator rights when the user has none (with less detail) and with them (fu
 ### 1. Safety boundary: events and debugger-style sampling only
 
 Captures use only what the OS publishes (ETW) or what a debugger may read from outside the process (thread contexts and
-memory, read while the thread is suspended). IMT **never** injects code, DLLs, threads, hooks or APCs into the target:
+memory, read while the thread is suspended). Debrief **never** injects code, DLLs, threads, hooks or APCs into the target:
 no `CreateRemoteThread`, `WriteProcessMemory`, `SetWindowsHookEx`, `QueueUserAPC`, profiler-API attach or IAT/inline
 hooking. Anything that can only be learned by injection (exact call counts, instrumentation, allocations of a process that
 is not traced by the heap provider) is out of scope; a future need requires a new ADR.
 
 ### 2. One built-in plugin, two capture modes
 
-The plugin crate `crates/imt-plugin-native` (`net.decryptology.native`, served by `imt-plugins` on `imt-plugin-api`)
+The plugin crate `crates/debrief-plugin-native` (`net.decryptology.native`, served by `debrief-plugins` on `debrief-plugin-api`)
 contributes:
 
 | Tool | Process | Operations |
@@ -37,13 +37,13 @@ and a profile importer for `.etl` files. Two tools rather than one with mixed op
 (`Tool::stop`, the Jobs pane) in the process that owns it, and the host routes a tool's `stop` to its elevated process
 only when every operation of the tool is elevated.
 
-- **ETW (administrator).** One real-time system-logger session per capture (`IMT-native-<imt pid>-<target>-<n>`):
+- **ETW (administrator).** One real-time system-logger session per capture (`Debrief-native-<debrief pid>-<target>-<n>`):
   kernel `PROFILE` (1 ms) with stack walks, `CSWITCH` + `DISPATCHER` (ready thread) with stack walks for waits,
   process/thread/image-load events; optionally the **heap provider** (`{222962AB-6180-4B88-A825-346B75F2A24A}`,
   PID-filtered, with stacks) for allocations, and the CLR runtime and rundown providers when the target has loaded
   the CLR (mixed stacks, §5). It is the plugin's first elevated operation: the host starts the plugin's elevated
   process through the administrator prompt on first use; declining is a typed `denied` failure whose hint is
-  "Restart as administrator". x86 (WOW64) and x64 targets are recorded from the 64-bit IMT (kernel stack walks keep
+  "Restart as administrator". x86 (WOW64) and x64 targets are recorded from the 64-bit Debrief (kernel stack walks keep
   the 32-bit user frames; pointer size from the event header).
 - **Suspend-and-sample (no administrator).** A sampler thread in the normal plugin process opens the target with
   `PROCESS_VM_READ | PROCESS_QUERY_INFORMATION` and each thread with `THREAD_SUSPEND_RESUME | THREAD_GET_CONTEXT |
@@ -57,7 +57,7 @@ only when every operation of the tool is elevated.
   frame: delay, lock, object, I/O completion). Wall-clock sampling therefore gives CPU and lock/wait hot spots
   without rights the user does not have.
 
-The plugin's manifest asks for `Permission::WriteFolders` (captures and the symbol cache in IMT's data folder) and
+The plugin's manifest asks for `Permission::WriteFolders` (captures and the symbol cache in Debrief's data folder) and
 `Permission::Network` (symbol downloads, used only when enabled). `WriteFolders` also keeps the normal process at
 normal integrity: a low-integrity process cannot open the user's processes for reading. A dedicated "inspect
 processes" permission would describe this better (redesign note).
@@ -66,12 +66,12 @@ Both modes run captures as tool tasks of kind `capture` (Jobs of kind Capture, s
 `stop` (kept) or cancelled from the Jobs pane (file deleted), have a duration cap (1 h) and a size cap (1 GiB), and
 stop by themselves when the target exits.
 
-### 3. One file format: NetTrace with IMT's extension events
+### 3. One file format: NetTrace with Debrief's extension events
 
-Every capture is written as NetTrace through the **shared streaming writer** and converter in `crates/imt-etw`
+Every capture is written as NetTrace through the **shared streaming writer** and converter in `crates/debrief-etw`
 (§6), so the existing nettrace importer, views and findings open it. Kernel samples become
-`SampleProfiler/ThreadSample`, waits `IMT-Windows-Kernel/ThreadWait`, images `ImageLoad` (ADR 0019). New
-`IMT-Windows-Kernel` events (documented in `imt_plugin_profiling::nettrace::ext`):
+`SampleProfiler/ThreadSample`, waits `Debrief-Windows-Kernel/ThreadWait`, images `ImageLoad` (ADR 0019). New
+`Debrief-Windows-Kernel` events (documented in `debrief_plugin_profiling::nettrace::ext`):
 
 | Event | Id | Payload |
 |---|---|---|
@@ -87,10 +87,10 @@ not freed by the end of the capture become **`liveBytes`** samples (a new inclus
 growth by stack). The table of outstanding allocations is bounded (`Limits::max_samples`); beyond it the importer
 notes the cut.
 
-### 4. Symbols: `crates/imt-symbols`, a library shared with dumps (batch 8)
+### 4. Symbols: `crates/debrief-symbols`, a library shared with dumps (batch 8)
 
 Symbolisation runs once per capture, after recording, in the process that recorded it: the converter collects the
-distinct user-mode addresses (bounded) and the images, `imt-symbols` resolves them, and the `NativeSymbol` events are
+distinct user-mode addresses (bounded) and the images, `debrief-symbols` resolves them, and the `NativeSymbol` events are
 appended before the stream ends. The library's API (stable; the dumps/UMDH work uses it):
 
 ```rust
@@ -149,16 +149,16 @@ When the target has loaded the CLR, the ETW capture also enables the CLR runtime
 the rundown provider, as ADR 0019 does. Kernel stack walks contain both native and JIT-compiled frames; the importer
 resolves JIT addresses from the method load/rundown events and native ones from the symbols, so one stack shows both.
 Limits: suspend-and-sample walks stop at JIT frames whose unwind data the runtime registered only in-process (x64
-dynamic function tables need the runtime's out-of-process callback, which would mean loading runtime code into IMT's
+dynamic function tables need the runtime's out-of-process callback, which would mean loading runtime code into Debrief's
 sampler; not done), so managed parts of sampled stacks are truncated; frames of methods JIT-compiled and unloaded
 before the rundown show as addresses.
 
-### 6. Shared ETW code: `crates/imt-etw`
+### 6. Shared ETW code: `crates/debrief-etw`
 
 The ETW consumer glue, the kernel and heap payload decoders, the `.etl` scanner, the ETW → NetTrace converter and the
-NetTrace writer move out of `imt-plugin-dotnet` into a library crate, generalised (session configuration by flags and
-providers, converter options for heap events and symbol collection). Both profilers use it: `imt-plugin-dotnet` keeps
-only its recording control (presets, CLR providers, rundown and heap-walk milestones) on `imt_etw::session`, and its
+NetTrace writer move out of `debrief-plugin-dotnet` into a library crate, generalised (session configuration by flags and
+providers, converter options for heap events and symbol collection). Both profilers use it: `debrief-plugin-dotnet` keeps
+only its recording control (presets, CLR providers, rundown and heap-walk milestones) on `debrief_etw::session`, and its
 copies of the decoders, converter, writer and `.etl` reader are deleted.
 
 ### 7. Elevated output
@@ -175,7 +175,7 @@ lies under the elevated token's `%APPDATA%` or `%LOCALAPPDATA%`.
 
 ### 8. Findings
 
-Native findings are engine findings in `imt-profile` (ADR 0019's pattern): **hot native function** (self time in a
+Native findings are engine findings in `debrief-profile` (ADR 0019's pattern): **hot native function** (self time in a
 native frame with a symbol, with its module and source file), **wait hot spot** (the native function in which threads
 waited longest, by `waitNs` at the first non-system frame above the wait), and **heap growth by stack** (the call
 path holding most `liveBytes`). Each links to its evidence view.
@@ -195,6 +195,6 @@ process; notes name the others); *File ▸ Open process from .etl…* (the nativ
   waits with their readying thread, heap stacks), with the same views and findings as .NET captures.
 - Suspend-and-sample briefly stops one target thread at a time (microseconds per sample); its overhead is bounded by
   the rate cap and documented. ETW heap tracing slows allocation-heavy targets noticeably while it runs.
-- Real ETW recordings need an elevated machine: they are `#[ignore]` tests behind `IMT_ETW_TESTS=1`. Suspend-and-sample
+- Real ETW recordings need an elevated machine: they are `#[ignore]` tests behind `DEBRIEF_ETW_TESTS=1`. Suspend-and-sample
   is tested for real in CI against a Rust fixture (`tests/fixtures/native-busy`), with symbols from its PDB.
-- Two copies of the ETW code exist until `imt-plugin-dotnet` moves onto `imt-etw`.
+- Two copies of the ETW code exist until `debrief-plugin-dotnet` moves onto `debrief-etw`.

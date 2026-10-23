@@ -32,7 +32,10 @@ impl JobsRecord {
         match version {
             Some(n) if n == u64::from(VERSION) => {}
             Some(n) if n > u64::from(VERSION) => {
-                return (Vec::new(), Some(format!("the job history was saved by a newer IMT (version {n})")));
+                return (
+                    Vec::new(),
+                    Some(format!("the job history was saved by a newer Debrief (version {n})")),
+                );
             }
             _ => return (Vec::new(), Some("the saved job history is damaged and was not loaded".into())),
         }
@@ -83,7 +86,7 @@ mod tests {
             assert!(warning.unwrap().contains("damaged"), "{bad}");
         }
         let (jobs, warning) = JobsRecord::from_value(Some(&json!({"version": 9, "jobs": []})));
-        assert!(jobs.is_empty() && warning.unwrap().contains("newer IMT"));
+        assert!(jobs.is_empty() && warning.unwrap().contains("newer Debrief"));
     }
 
     #[test]

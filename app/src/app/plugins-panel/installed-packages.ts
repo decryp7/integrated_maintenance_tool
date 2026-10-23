@@ -7,14 +7,14 @@ import { PackageReviewOpener } from './package-review-dialog';
 import { PluginPackagesStore } from './plugin-packages.store';
 import { PluginPermissionsDialog } from './plugin-permissions-dialog';
 
-/** Installing plugins from `.imtplugin` packages: the install bar, safe-mode and restart notices, damaged records. Installed packages are rows of the plugins table. */
+/** Installing plugins from `.debriefplugin` packages: the install bar, safe-mode and restart notices, damaged records. Installed packages are rows of the plugins table. */
 @Component({
-  selector: 'imt-installed-packages',
+  selector: 'debrief-installed-packages',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToolError],
   template: `
     <div class="bar">
-      <span class="faint hint" i18n="@@pluginsPanel.packages.dropHint">Or drop a .imtplugin file on the window. You review the publisher and the permissions before anything is installed.</span>
+      <span class="faint hint" i18n="@@pluginsPanel.packages.dropHint">Or drop a .debriefplugin file on the window. You review the publisher and the permissions before anything is installed.</span>
       <span class="grow"></span>
       <button type="button" class="btn" [disabled]="!!store.busy()" (click)="store.pickAndReview()" i18n="@@pluginsPanel.packages.installFromFile">Install from file…</button>
     </div>
@@ -22,7 +22,7 @@ import { PluginPermissionsDialog } from './plugin-permissions-dialog';
       <div class="note" role="status" data-testid="packages-safe-mode" i18n="@@pluginsPanel.packages.safeMode">Safe mode: third-party plugins are not loaded. Restart normally to use them.</div>
     }
     @if (!store.review()) {
-      <imt-tool-error [message]="store.error()" [retry]="store.retry() !== null" (retried)="store.retryFailed()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.error()" [retry]="store.retry() !== null" (retried)="store.retryFailed()" (dismissed)="store.dismissError()" />
     }
     @if (store.showRestart()) {
       <div class="restart" role="status" data-testid="packages-restart">

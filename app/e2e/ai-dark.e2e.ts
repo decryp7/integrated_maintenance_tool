@@ -14,12 +14,12 @@ test.describe('AI views in the dark theme', () => {
     await ask(chat, 'What crashed?');
     await waitAnswered(chat);
     await expect(chat.getByTestId('ai-tool-chip').first()).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'dark-ai-chat-answer', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'dark-ai-chat-answer', 'debrief-ai-chat-panel');
 
     await ask(chat, 'suggest a regex for these lines');
     await expect(chat.getByTestId('ai-proposal')).toContainText('Matches 2 of 2');
     await waitAnswered(chat);
-    await expectNoSeriousViolations(page, testInfo, 'dark-ai-chat-proposal', 'imt-ai-chat-panel');
+    await expectNoSeriousViolations(page, testInfo, 'dark-ai-chat-proposal', 'debrief-ai-chat-panel');
   });
 
   test('query, narrative and propose dialogs', async ({ page }, testInfo) => {
@@ -39,7 +39,7 @@ test.describe('AI views in the dark theme', () => {
     await expectNoSeriousViolations(page, testInfo, 'dark-ai-narrative', '[role=dialog]');
     await narrative.getByRole('button', { name: 'Close' }).last().click();
 
-    await page.locator('imt-events-grid [role=row].row').first().click();
+    await page.locator('debrief-events-grid [role=row].row').first().click();
     await runCommand(page, 'AI: Propose markers…');
     const propose = page.getByRole('dialog', { name: 'Propose markers' });
     await propose.getByLabel('Which events should be marked?').fill('timeouts');

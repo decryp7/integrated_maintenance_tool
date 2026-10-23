@@ -116,7 +116,7 @@ describe('AiRelatedResults', () => {
     expect(TestBed.inject(TimeCursor).selection()).toEqual({ from: ts - 500, to: ts + 500 });
     expect(ctx.last('showView')).toEqual(['timeline']);
     // Citations in the explanation work like the chat's.
-    const cite = el<HTMLButtonElement>(f, 'imt-ai-rich-text button.cite.rec');
+    const cite = el<HTMLButtonElement>(f, 'debrief-ai-rich-text button.cite.rec');
     cite.click();
     expect(record).toHaveBeenCalledTimes(2);
   });
@@ -232,11 +232,11 @@ describe('AiImagePanel', () => {
     const { f, store, root } = await panel({ stepMs: 2 });
     expect(root.textContent).toContain('Open a screenshot');
     el<HTMLButtonElement>(f, '[data-testid=ai-image-open]').click();
-    await until(f, () => !!root.querySelector('imt-image-viewer'));
+    await until(f, () => !!root.querySelector('debrief-image-viewer'));
     el<HTMLButtonElement>(f, '[data-testid=ai-image-explain]').click();
     await until(f, () => !!root.querySelector('[data-testid=ai-image-explanation] [role=status]'));
     expect(el(f, '[data-testid=ai-image-explanation]').textContent).toMatch(/reads the image|Queued/);
-    await until(f, () => !!root.querySelector('[data-testid=ai-image-explanation] imt-ai-rich-text'));
+    await until(f, () => !!root.querySelector('[data-testid=ai-image-explanation] debrief-ai-rich-text'));
     expect(el(f, '[data-testid=ai-image-explanation]').textContent).toContain('error dialog');
     el<HTMLButtonElement>(f, '[data-testid=ai-image-related]').click();
     await until(f, () => !!root.querySelector('[data-testid=ai-related-link]'));

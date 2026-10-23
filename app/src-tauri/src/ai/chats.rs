@@ -2,7 +2,7 @@
 //! replaying events and cancelling stay responsive while the model answers; a cached record of every chat
 //! serves the UI and the project/session autosave without waiting for a turn to end.
 
-use imt_ai::chat::{ChatHistoryRecord, ChatRecord, ChatSession, Envelope, CHAT_RECORD_VERSION, REPLAY_LIMIT};
+use debrief_ai::chat::{ChatHistoryRecord, ChatRecord, ChatSession, Envelope, CHAT_RECORD_VERSION, REPLAY_LIMIT};
 use serde::Serialize;
 use std::collections::VecDeque;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -209,8 +209,8 @@ impl WindowChats {
     /// Whether `url` is a web source shown in one of these chats (the only links the chat may open in the
     /// system browser).
     pub fn knows_url(&self, url: &str) -> bool {
-        use imt_ai::assistant::Citation;
-        use imt_ai::chat::ChatEvent;
+        use debrief_ai::assistant::Citation;
+        use debrief_ai::chat::ChatEvent;
         let inner = self.lock();
         inner.slots.iter().any(|s| {
             s.record.turns.iter().any(|t| {
@@ -235,7 +235,7 @@ impl WindowChats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_ai::chat::{ChatEvent, TurnRecord};
+    use debrief_ai::chat::{ChatEvent, TurnRecord};
 
     fn env(seq: u64) -> Envelope {
         Envelope {
@@ -291,7 +291,7 @@ mod tests {
 
     #[test]
     fn only_links_shown_in_answers_are_known() {
-        use imt_ai::assistant::{Citation, WebSource};
+        use debrief_ai::assistant::{Citation, WebSource};
         let c = WindowChats::default();
         let id = c.create().unwrap();
         assert!(!c.knows_url("https://a.example/"));

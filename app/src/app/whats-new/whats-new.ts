@@ -6,11 +6,11 @@ import { CHANGELOG } from './changelog.generated';
 import { ChangelogRelease, decideWhatsNew, releaseFor } from './changelog';
 
 /** The last version whose notes the user was shown (localStorage: a per-machine convenience). */
-export const WHATS_NEW_SEEN_KEY = 'imt.whatsnew.seen';
+export const WHATS_NEW_SEEN_KEY = 'debrief.whatsnew.seen';
 
 /** What's new: the notes of the running version, with earlier releases below. */
 @Component({
-  selector: 'imt-whats-new',
+  selector: 'debrief-whats-new',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ng-template #notes let-r>

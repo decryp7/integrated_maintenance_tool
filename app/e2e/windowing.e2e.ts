@@ -20,7 +20,7 @@ async function windowMenu(page: Page, item: string): Promise<void> {
   await chooseMenu(page, 'File', item);
 }
 
-const statusBar = (page: Page) => page.locator('imt-status-bar');
+const statusBar = (page: Page) => page.locator('debrief-status-bar');
 
 test('New window opens a second window with its own workspace', async ({ page, context }) => {
   const problems = watchProblems(page);
@@ -40,7 +40,7 @@ test('New window opens a second window with its own workspace', async ({ page, c
   await expect(statusBar(second)).toContainText('No files open');
   await page.bringToFront();
   await expect(statusBar(page).locator('.strong')).toHaveText(sources);
-  await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
+  await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible();
 
   // The first window lists the new one in its Window menu.
   const windows = await openMenu(page, 'Window');
@@ -62,7 +62,7 @@ test('closing the last window asks once, then remembers "Keep running in tray"',
   const problems = watchProblems(page);
   await openApp(page);
   await windowMenu(page, 'Close window');
-  const prompt = page.getByRole('dialog', { name: 'Close IMT?' });
+  const prompt = page.getByRole('dialog', { name: 'Close Debrief?' });
   await expect(prompt).toBeVisible();
   await expect(prompt.getByRole('checkbox', { name: 'Remember my choice' })).toBeChecked();
   await prompt.getByRole('button', { name: 'Keep running in tray' }).click();
@@ -78,12 +78,12 @@ test('closing the last window asks once, then remembers "Keep running in tray"',
   expect(problems).toEqual([]);
 });
 
-test('File ▸ Exit quits IMT in one step (nothing unsaved: no question)', async ({ page }) => {
+test('File ▸ Exit quits Debrief in one step (nothing unsaved: no question)', async ({ page }) => {
   const problems = watchProblems(page);
   await openApp(page);
   const mac = await page.evaluate(() => /Mac|iPhone|iPad/.test(navigator.platform));
   const quit = page.waitForEvent('console', (m) => m.text() === '[mock windowing] quit_app');
-  await chooseMenu(page, 'File', mac ? 'Quit IMT' : 'Exit');
+  await chooseMenu(page, 'File', mac ? 'Quit Debrief' : 'Exit');
   await quit;
   await expect(page.getByRole('dialog')).toHaveCount(0);
   expect(problems).toEqual([]);

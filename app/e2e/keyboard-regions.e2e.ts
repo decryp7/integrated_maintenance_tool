@@ -6,8 +6,8 @@ import { expectNoSeriousViolations } from './axe';
 function focusedRegion(page: Page): Promise<string | null> {
   return page.evaluate(() => {
     const el = document.activeElement;
-    const region = el?.closest('[data-imt-region]');
-    if (region) return region.getAttribute('data-imt-region');
+    const region = el?.closest('[data-debrief-region]');
+    if (region) return region.getAttribute('data-debrief-region');
     const group = el?.closest('.dv-groupview');
     if (!group) return null;
     return `group:${[...document.querySelectorAll('.dv-groupview')].indexOf(group) + 1}`;
@@ -26,7 +26,7 @@ test.describe('keyboard regions', () => {
 
     await page.keyboard.press('F6');
     expect(await focusedRegion(page)).toBe('activity');
-    await expectNoSeriousViolations(page, testInfo, 'region-focus', '[data-imt-region="activity"]');
+    await expectNoSeriousViolations(page, testInfo, 'region-focus', '[data-debrief-region="activity"]');
     await page.keyboard.press('F6');
     expect(await focusedRegion(page)).toBe('sidebar');
     await page.keyboard.press('F6');

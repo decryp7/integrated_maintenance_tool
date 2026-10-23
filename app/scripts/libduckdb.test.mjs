@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import { assetFor, parsePins } from './libduckdb.mjs';
 
-const script = readFileSync(join(import.meta.dirname, '..', '..', 'crates', 'imt-store-duck', 'scripts', 'fetch-libduckdb.sh'), 'utf8');
+const script = readFileSync(join(import.meta.dirname, '..', '..', 'crates', 'debrief-store-duck', 'scripts', 'fetch-libduckdb.sh'), 'utf8');
 
 test('the pins come from fetch-libduckdb.sh, the one list CI and the docs use too', () => {
   const pins = parsePins(script);

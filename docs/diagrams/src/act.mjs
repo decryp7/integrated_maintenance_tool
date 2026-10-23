@@ -83,10 +83,10 @@ const ACT = (d, id, x, y, w, name, desc, role = 'accent', tech) => d.node(id, x,
   A('a2', 1, 0, 'accent', 'Check the runtime', 'Settings ▸ Video', 'Pinned LGPL FFmpeg or the user’s own; if missing, a job installs it: download, SHA-256, unpack, self-test, rename into place.');
   A('a3', 2, 0, 'accent', 'Probe', '`ffprobe`, sandboxed', 'Duration, size and container time. Limits: 6 hours, 30 s probe timeout.');
   A('a4', 3, 0, 'accent', 'Pass 1: candidates', '`mpdecimate` + scene score', 'Scaled to 256 px; drops blinking cursors and clocks; scores every remaining frame.');
-  A('a5', 3, 1, 'core', 'Select frames', '`imt_video::select`, pure', 'First and last always; the threshold rises until at most 30 (120 at most); or one per interval.');
+  A('a5', 3, 1, 'core', 'Select frames', '`debrief_video::select`, pure', 'First and last always; the threshold rises until at most 30 (120 at most); or one per interval.');
   A('a6', 2, 1, 'accent', 'Pass 2: extract', 'PNG, at most 1,366 px', 'Decodes exactly the selected times; each PNG is re-encoded in Rust.');
   A('a7', 1, 1, 'ui', 'Frame strip', 'Video view', 'Drop frames, add the current one, switch mode and analyse again.');
-  A('a8', 0, 1, 'core', 'Align to the logs', '`imt_video::align`, pure', 'User start, on-screen clock, file name, container time or file time, each with a confidence.');
+  A('a8', 0, 1, 'core', 'Align to the logs', '`debrief_video::align`, pure', 'User start, on-screen clock, file name, container time or file time, each with a confidence.');
   A('a9', 0, 2, 'accent', 'Describe frames', 'AI job, vision model', 'One request per kept frame; screen text is data, never instructions.');
   A('a10', 1, 2, 'accent', 'Write `.frames`', '`videos/` in the project', 'Versioned `video.json`, the frames and the frames source; the video is referenced by SHA-256.');
   A('a11', 2, 2, 'core', 'VideoFramesImporter', 'One event per frame', 'Its own lane (Video): timeline, search, Moment, notes and SQL work unchanged.');

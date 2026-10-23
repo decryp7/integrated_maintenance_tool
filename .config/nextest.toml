@@ -10,15 +10,15 @@ child-processes = { max-threads = 1 }
 
 [[profile.default.overrides]]
 filter = '''
-    (package(imt-ai) & binary(worker))
-    | (package(imt-ai-worker) & binary(server_backend))
-    | (package(imt-ipc) & (binary(launch) | binary(child_log)))
-    | (package(imt-plugin-host) & binary(remote))
-    | (package(imt-plugins) & kind(test))
-    | (package(imt-plugin-windows) & test(eventlog::follower::))
-    | (package(imt-plugin-test) & kind(test))
-    | (package(imt-plugin-e2e) & kind(test))
-    | (package(imt-example-*) & kind(test))
+    (package(debrief-ai) & binary(worker))
+    | (package(debrief-ai-worker) & binary(server_backend))
+    | (package(debrief-ipc) & (binary(launch) | binary(child_log)))
+    | (package(debrief-plugin-host) & binary(remote))
+    | (package(debrief-plugins) & kind(test))
+    | (package(debrief-plugin-windows) & test(eventlog::follower::))
+    | (package(debrief-plugin-test) & kind(test))
+    | (package(debrief-plugin-e2e) & kind(test))
+    | (package(debrief-example-*) & kind(test))
 '''
 test-group = 'child-processes'
 retries = 2

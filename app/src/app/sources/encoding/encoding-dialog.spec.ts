@@ -19,10 +19,10 @@ function dataset(): MockDataset {
 }
 
 async function setup() {
-  const imt = tinyBackend({ dataset });
-  const backend = new MockEncodingBackend(imt);
+  const debrief = tinyBackend({ dataset });
+  const backend = new MockEncodingBackend(debrief);
   const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
-  TestBed.configureTestingModule({ providers: [provideTinyBackend(imt), { provide: EncodingBackend, useValue: backend }, { provide: DIALOG_REF, useValue: ref }] });
+  TestBed.configureTestingModule({ providers: [provideTinyBackend(debrief), { provide: EncodingBackend, useValue: backend }, { provide: DIALOG_REF, useValue: ref }] });
   const workspace = TestBed.inject(WorkspaceStore);
   await workspace.init();
   return { backend, ref, workspace };

@@ -14,7 +14,7 @@ interface PluginMemoryState {
 
 const message = (e: unknown): string => (e instanceof Error ? e.message : typeof e === 'string' ? e : $localize`:@@performance.memory.failed:The memory caps could not be read.`);
 
-/** The caps and last reported memory use of IMT's processes, and the plugin caps set in the Plugins panel. */
+/** The caps and last reported memory use of Debrief's processes, and the plugin caps set in the Plugins panel. */
 export const PluginMemoryStore = signalStore(
   { providedIn: 'root' },
   withState<PluginMemoryState>({ processes: [], loaded: false, error: null, requested: null }),

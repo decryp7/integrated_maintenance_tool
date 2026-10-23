@@ -28,7 +28,7 @@ pub trait AiPort: Send + Sync {
 
 /// The folders and facts the categories are computed from. `None` folders could not be resolved.
 pub struct Folders<'a> {
-    /// Where `.imtz` bundles are extracted (`share::bundles_root`).
+    /// Where `.debriefz` bundles are extracted (`share::bundles_root`).
     pub bundles: Option<PathBuf>,
     /// The webview's user data folder.
     pub webview: Option<PathBuf>,
@@ -36,7 +36,7 @@ pub struct Folders<'a> {
     pub log: Option<PathBuf>,
     /// Today's log file (never removed).
     pub active_log: Option<PathBuf>,
-    /// The runtime release IMT pins (`RuntimeCatalog::embedded().tag`).
+    /// The runtime release Debrief pins (`RuntimeCatalog::embedded().tag`).
     pub runtime_tag: String,
     /// When this process started; sessions and bundles from this run are kept. `None`: keep them all.
     pub session_start: Option<SystemTime>,
@@ -108,7 +108,7 @@ impl Category {
     fn new(id: CategoryId, shown: Option<PathBuf>, root: Option<PathBuf>) -> Category {
         let clearable = match &root {
             Some(_) => Ok(()),
-            None => Err("IMT cannot find this folder on this computer".to_string()),
+            None => Err("Debrief cannot find this folder on this computer".to_string()),
         };
         Category {
             id,
@@ -225,7 +225,7 @@ fn webview_cache(f: &Folders<'_>) -> Category {
         if cfg!(target_os = "macos") {
             c.clearable = Err("macOS manages the web view's cache".into());
         } else {
-            c.note = Some("Files the running web view holds open are removed after IMT restarts.".into());
+            c.note = Some("Files the running web view holds open are removed after Debrief restarts.".into());
         }
     }
     c
@@ -244,7 +244,7 @@ fn ai_runtimes_outdated(f: &Folders<'_>) -> Category {
             .into_iter()
             .filter(|p| {
                 let n = name_of(p);
-                is_dir(p) && imt_ai::runtimes::builds::is_build_id(&n) && n != "downloads" && n != f.runtime_tag
+                is_dir(p) && debrief_ai::runtimes::builds::is_build_id(&n) && n != "downloads" && n != f.runtime_tag
             })
             .map(|p| {
                 let keep = custom
@@ -269,7 +269,7 @@ fn ai_runtimes(f: &Folders<'_>) -> Category {
     let busy = ai.engine_busy();
     c.items = entries(dir)
         .into_iter()
-        .filter(|p| is_dir(p) && imt_ai::runtimes::builds::is_build_id(&name_of(p)))
+        .filter(|p| is_dir(p) && debrief_ai::runtimes::builds::is_build_id(&name_of(p)))
         .map(|p| Item {
             how: How::AiRuntime {
                 tag: f.runtime_tag.clone(),
@@ -322,7 +322,7 @@ fn logs(f: &Folders<'_>) -> Category {
             .map(|p| {
                 let current =
                     f.active_log.as_ref().is_some_and(|a| a == &p) || name_of(&p) == format!("{}.log", crate::diagnostics::LOG_NAME);
-                Item::path(p).protected(current.then(|| "IMT is writing to it".to_string()))
+                Item::path(p).protected(current.then(|| "Debrief is writing to it".to_string()))
             })
             .collect();
         c.note = Some("Today's log is kept.".into());
@@ -349,7 +349,7 @@ fn sessions(f: &Folders<'_>) -> Category {
     let mut c = Category::new(CategoryId::Sessions, shown, f.data.clone());
     let Some(data) = &f.data else { return c };
     if !f.main_instance {
-        c.clearable = Err("another IMT instance owns these sessions; clear them from that window".into());
+        c.clearable = Err("another Debrief instance owns these sessions; clear them from that window".into());
     }
     let mut items: Vec<Item> = Vec::new();
     for folder in ["sessions", "recovered"] {
@@ -414,7 +414,7 @@ pub fn clear(c: &Category, ai: Option<&dyn AiPort>, cancel: &AtomicBool, step: &
     }
     let mut out = CategoryClearResult::new(c.id);
     let Some(root) = &c.root else {
-        return CategoryClearResult::failed(c.id, "IMT cannot find this folder on this computer");
+        return CategoryClearResult::failed(c.id, "Debrief cannot find this folder on this computer");
     };
     let root = match std::fs::canonicalize(root) {
         Ok(r) => r,

@@ -1,8 +1,8 @@
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 
 /** A command as the palette lists it: its title, whether its category is shown beside it, and the matched characters. */
 export interface PaletteEntry {
-  command: ImtCommand;
+  command: DebriefCommand;
   title: string;
   /** False when the title already names the category ("AI: Open the assistant chat" in AI): it is shown once. */
   showCategory: boolean;
@@ -57,13 +57,13 @@ function range(start: number, length: number): number[] {
 }
 
 /** Whether the palette shows the command's category beside its title: not when the title starts with it already. */
-export function showsCategory(c: Pick<ImtCommand, 'title' | 'category'>): boolean {
+export function showsCategory(c: Pick<DebriefCommand, 'title' | 'category'>): boolean {
   const category = c.category?.trim().toLowerCase();
   return !!category && !c.title.toLowerCase().startsWith(`${category}:`);
 }
 
 /** The palette entry of a command, with no matched characters. */
-export function plainEntry(command: ImtCommand): PaletteEntry {
+export function plainEntry(command: DebriefCommand): PaletteEntry {
   return { command, title: command.title, showCategory: showsCategory(command), marks: new Set<number>() };
 }
 
@@ -72,7 +72,7 @@ export function plainEntry(command: ImtCommand): PaletteEntry {
  * better and earlier matches first, then shorter titles. An empty query lists `recent` commands first, then
  * `common`, then the rest in registration order.
  */
-export function rankCommands(commands: readonly ImtCommand[], query: string, recent: readonly string[] = [], common: readonly string[] = []): PaletteEntry[] {
+export function rankCommands(commands: readonly DebriefCommand[], query: string, recent: readonly string[] = [], common: readonly string[] = []): PaletteEntry[] {
   const tokens = query.trim().split(/\s+/).filter(Boolean);
   if (!tokens.length) {
     const order = (id: string) => {

@@ -1,7 +1,7 @@
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 import { matchWord, plainEntry, rankCommands, showsCategory, titleParts } from './palette-match';
 
-const cmd = (id: string, title: string, category?: string): ImtCommand => ({ id, title, ...(category ? { category } : {}), run: () => undefined });
+const cmd = (id: string, title: string, category?: string): DebriefCommand => ({ id, title, ...(category ? { category } : {}), run: () => undefined });
 
 describe('palette matching (F1)', () => {
   it('matches word starts, longer substrings and initials, not scattered letters', () => {

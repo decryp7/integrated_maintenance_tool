@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { ExporterInfo } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Platform } from '../core/platform';
 import { EMPTY_QUERY, WorkspaceStore } from '../core/workspace.store';
 import { DIALOG_REF, DialogService } from '../ui/dialog.service';
@@ -51,7 +51,7 @@ describe('ExportDialog', () => {
     await settle();
     const fixture = TestBed.createComponent(ExportDialog);
     await settle(fixture);
-    return { fixture, store, backend: TestBed.inject(ImtBackend) };
+    return { fixture, store, backend: TestBed.inject(DebriefBackend) };
   }
 
   it('shows formats and the number of events, and recounts when the scope changes', async () => {
@@ -128,7 +128,7 @@ describe('ExportDialog', () => {
     await new Promise((r) => setTimeout(r, 300));
     await settle(fixture);
     expect(buttonByText(fixture, 'Export…').disabled).toBe(true);
-    vi.spyOn(TestBed.inject(ImtBackend), 'queryPage').mockRejectedValueOnce('count failed');
+    vi.spyOn(TestBed.inject(DebriefBackend), 'queryPage').mockRejectedValueOnce('count failed');
     el<HTMLInputElement>(fixture, 'input[value=all]').click();
     await settle(fixture);
     expect(el(fixture, '[role=alert]').textContent).toContain('count failed');
@@ -168,7 +168,7 @@ describe('ExportDialog redaction', () => {
     expect(text(fixture)).toMatch(/\d+ of 11 events change/);
     redactBox(fixture).click();
     await settle(fixture);
-    expect(fixture.nativeElement.querySelector('imt-redaction-summary')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-redaction-summary')).toBeNull();
   });
 
   it('exports redacted: the job message says how many values were masked', async () => {

@@ -41,7 +41,7 @@ pub enum UpdatePhase {
     #[serde(rename_all = "camelCase")]
     Ready {
         info: UpdateInfo,
-        /// Install when IMT quits instead of now.
+        /// Install when Debrief quits instead of now.
         install_on_quit: bool,
     },
     Installing {
@@ -79,7 +79,7 @@ impl UpdatePhase {
         Ok(match (self, event) {
             (P::Unavailable, _) => return Err(UpdateError::NotAvailable),
             (P::Idle | P::UpToDate | P::Available { .. } | P::Failed { .. }, Event::Check) => P::Checking,
-            (P::Checking, Event::Check) => return Err(busy("IMT is already checking for updates.")),
+            (P::Checking, Event::Check) => return Err(busy("Debrief is already checking for updates.")),
             (P::Downloading { .. } | P::Ready { .. } | P::Installing { .. }, Event::Check) => {
                 return Err(busy("An update is already being downloaded or installed."))
             }
@@ -161,7 +161,7 @@ fn too_large(info: &UpdateInfo) -> UpdatePhase {
     }
 }
 
-/// Whether the automatic check should run now: it is on, nothing else is going on, IMT has been
+/// Whether the automatic check should run now: it is on, nothing else is going on, Debrief has been
 /// running for a minute (not during start-up) and the last check is a day old.
 pub fn auto_check_due(auto: bool, phase: &UpdatePhase, uptime_secs: u64, since_last_check_secs: Option<u64>) -> bool {
     const STARTUP_DELAY: u64 = 60;

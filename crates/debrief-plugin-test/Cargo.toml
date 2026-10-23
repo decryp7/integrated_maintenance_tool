@@ -1,0 +1,24 @@
+[package]
+name = "debrief-plugin-test"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Test harness for Debrief plugins (ADR 0027): launches a plugin binary out of process exactly as Debrief does (same launcher and sandbox, a fake host), conformance checks and golden tests. A dev-dependency of plugin crates; never linked by Debrief."
+
+# A plugin that misbehaves on request (panics, hangs, oversized output), for the harness's own tests. Never bundled.
+[[bin]]
+name = "debrief-plugin-test-fixture"
+path = "src/bin/fixture.rs"
+test = false
+
+[dependencies]
+debrief-ipc = { path = "../debrief-ipc" }
+debrief-plugin-api = { path = "../debrief-plugin-api" }
+debrief-plugin-package = { path = "../debrief-plugin-package" }
+anyhow.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+tempfile.workspace = true

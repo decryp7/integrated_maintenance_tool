@@ -20,7 +20,7 @@ import { AiRelatedResults } from './related-results';
  * was closed is shown on its own.
  */
 @Component({
-  selector: 'imt-ai-image-panel',
+  selector: 'debrief-ai-image-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ImageViewer, AiRichText, AiNoVisionCard, AiRelatedResults],
   template: `
@@ -44,19 +44,19 @@ import { AiRelatedResults } from './related-results';
       </p>
     }
     @if (store.noVision()) {
-      <imt-ai-no-vision />
+      <debrief-ai-no-vision />
     }
 
     <div class="body">
       @if (store.current(); as img) {
-        <imt-image-viewer [image]="img">
+        <debrief-image-viewer [image]="img">
           <span actions class="actions">
             <button type="button" class="btn primary small" [disabled]="!!explain()?.running" (click)="store.explain(img.id)" data-testid="ai-image-explain" i18n="@@ai.vision.panel.explain">Explain with AI</button>
             <button type="button" class="btn small" [disabled]="!!related()?.running" (click)="store.findRelated(img.id)" data-testid="ai-image-related" i18n="@@ai.vision.panel.related">Find related logs</button>
             <button type="button" class="btn ghost small" (click)="askInChat(img.id)" i18n="@@ai.vision.panel.ask">Ask in chat</button>
             <button type="button" class="btn ghost small" (click)="store.close(img.id)" [attr.aria-label]="closeLabel(img.name)" i18n="@@ai.vision.panel.close">Close</button>
           </span>
-        </imt-image-viewer>
+        </debrief-image-viewer>
 
         @if (explain(); as x) {
           <section class="result" aria-labelledby="ai-image-explain-title" data-testid="ai-image-explanation">
@@ -69,7 +69,7 @@ import { AiRelatedResults } from './related-results';
               <p class="err" role="alert">{{ x.error }} <button type="button" class="link" (click)="store.explain(img.id)" i18n="@@ai.vision.retry">Retry</button></p>
             }
             @if (x.value; as n) {
-              <imt-ai-rich-text [text]="n.text" [citations]="n.citations" (record)="citations.record($event)" (query)="citations.query($event)" (link)="citations.web($event.url, $event.title)" />
+              <debrief-ai-rich-text [text]="n.text" [citations]="n.citations" (record)="citations.record($event)" (query)="citations.query($event)" (link)="citations.web($event.url, $event.title)" />
             }
           </section>
         }
@@ -84,7 +84,7 @@ import { AiRelatedResults } from './related-results';
               <p class="err" role="alert" data-testid="ai-related-error">{{ r.error }} <button type="button" class="link" (click)="store.findRelated(img.id)" i18n="@@ai.vision.retry">Retry</button></p>
             }
             @if (r.value; as o) {
-              <imt-ai-related-results [outcome]="o" />
+              <debrief-ai-related-results [outcome]="o" />
             }
           </section>
         }
@@ -96,7 +96,7 @@ import { AiRelatedResults } from './related-results';
             <ng-container i18n="@@ai.vision.panel.detached">The image is no longer open; its related logs are shown below.</ng-container>
           }
         </p>
-        <imt-ai-related-results [outcome]="d.outcome" />
+        <debrief-ai-related-results [outcome]="d.outcome" />
       } @else {
         <div class="empty">
           <p class="muted" i18n="@@ai.vision.panel.empty">Open a screenshot to let the local AI explain it and find the log events that belong to it. Images stay on this computer.</p>
@@ -121,7 +121,7 @@ import { AiRelatedResults } from './related-results';
     .link { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; margin-left: 6px; }
     .link:focus-visible { outline: 2px solid var(--focus-ring); }
     .empty p { margin: 0 0 6px; }
-    imt-ai-no-vision { display: block; margin: 8px 12px 0; }
+    debrief-ai-no-vision { display: block; margin: 8px 12px 0; }
   `,
 })
 export class AiImagePanel {

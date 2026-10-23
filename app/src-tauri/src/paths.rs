@@ -48,7 +48,7 @@ pub enum GrantSource {
     Project,
     /// An entry of the recent lists ([`crate::recent`]): recorded only after a granted open or save.
     Recent,
-    /// A file or folder IMT itself produced or chose (an unpacked bundle, a tool's output, the demo
+    /// A file or folder Debrief itself produced or chose (an unpacked bundle, a tool's output, the demo
     /// samples, the autosaved session, a capture named by an opened project).
     Output,
 }
@@ -165,9 +165,12 @@ impl PathGrants {
             .is_some_and(|list| list.iter().any(|g| g.covers(&resolved, access, now)));
         if !granted {
             return Err(CmdError::not_granted(match access {
-                Access::Read => format!("IMT only reads files you choose: choose {} again with Open", file_name(&resolved)),
+                Access::Read => format!(
+                    "Debrief only reads files you choose: choose {} again with Open",
+                    file_name(&resolved)
+                ),
                 Access::Write => format!(
-                    "IMT only writes where you choose: choose where to save {} again",
+                    "Debrief only writes where you choose: choose where to save {} again",
                     file_name(&resolved)
                 ),
             }));
@@ -301,14 +304,14 @@ impl WindowGrants {
 }
 
 /// Path arguments of plugin tools (ADR 0017 §4): a path the window's user chose, canonical, or why not.
-impl imt_core::plugin::tools::PathPolicy for WindowGrants {
+impl debrief_core::plugin::tools::PathPolicy for WindowGrants {
     fn check(
         &self,
         raw: &str,
-        kind: imt_core::plugin::tools::PathKind,
-        access: imt_core::plugin::tools::PathAccess,
+        kind: debrief_core::plugin::tools::PathKind,
+        access: debrief_core::plugin::tools::PathAccess,
     ) -> Result<PathBuf, String> {
-        use imt_core::plugin::tools::{PathAccess, PathKind};
+        use debrief_core::plugin::tools::{PathAccess, PathKind};
         let granted = match (access, kind) {
             (PathAccess::Read, PathKind::Dir) => self.read_dir(raw),
             (PathAccess::Read, PathKind::File) => self.read_file(raw, &[]),
@@ -412,7 +415,7 @@ fn has_extension(path: &Path, extensions: &[&str]) -> CmdResult<()> {
     }
 }
 
-/// A file to write, without a grant (paths IMT picks itself, or typed into a setting): absolute, one of
+/// A file to write, without a grant (paths Debrief picks itself, or typed into a setting): absolute, one of
 /// `extensions`, in an existing folder (canonicalised), not a folder.
 pub fn output_file(raw: &str, extensions: &[&str]) -> CmdResult<PathBuf> {
     let target = output_target(parse(raw)?)?;
@@ -437,7 +440,7 @@ pub fn child(root: &Path, name: &str) -> CmdResult<PathBuf> {
 /// canonical, and its name must be a plain file or folder name. The returned path is built from the
 /// resolved parent, so a link in the parent chain cannot point the removal elsewhere.
 pub fn confined(root: &Path, item: &Path) -> Result<PathBuf, String> {
-    let outside = || format!("{} is outside the folder IMT clears", item.display());
+    let outside = || format!("{} is outside the folder Debrief clears", item.display());
     if item.components().any(|c| matches!(c, Component::ParentDir | Component::CurDir)) {
         return Err(outside());
     }
@@ -663,7 +666,7 @@ mod tests {
         let t = TempDir::new("grants-bounded");
         let g = PathGrants::default();
         let now = Instant::now();
-        let project = t.0.join("p.imtproj");
+        let project = t.0.join("p.debriefproj");
         g.grant_at("main", &project, Access::Write, GrantSource::Project, now).unwrap();
         for i in 0..MAX_GRANTS + 10 {
             g.grant_at("main", &t.0.join(format!("f{i}.csv")), Access::Write, GrantSource::Dialog, now)
@@ -730,7 +733,7 @@ mod tests {
                 name: "Zip".into(),
                 extensions: vec!["zip".into()],
             }],
-            default_name: Some("imt-diagnostics.zip".into()),
+            default_name: Some("debrief-diagnostics.zip".into()),
         };
         assert_eq!(ok.clone().validated().unwrap().access(), Access::Write);
         let open = PickRequest {

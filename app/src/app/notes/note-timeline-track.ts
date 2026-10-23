@@ -38,7 +38,7 @@ export function layoutNoteMarks(notes: readonly TimeNote[], view: { from: number
  * first line; a range also shades its span. Clicking a flag edits the note.
  */
 @Component({
-  selector: 'imt-note-timeline-track',
+  selector: 'debrief-note-timeline-track',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (m of items(); track m.note.id) {

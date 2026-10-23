@@ -27,9 +27,9 @@ function key(input: HTMLElement, k: string, init: KeyboardEventInit = {}): Keybo
 
 /** The filter bar's pair: the field and the status line under it (the shell wires `pick` to `useSuggestion`). */
 @Component({
-  selector: 'imt-test-host',
+  selector: 'debrief-test-host',
   imports: [QueryField, QueryStatus],
-  template: `<imt-query-field #f /><imt-query-status (pick)="f.useSuggestion($event)" />`,
+  template: `<debrief-query-field #f /><debrief-query-status (pick)="f.useSuggestion($event)" />`,
 })
 class Host {}
 
@@ -56,7 +56,7 @@ describe('QueryField', () => {
     await refresh();
   };
 
-  const statusEl = () => el(fixture, 'imt-query-status');
+  const statusEl = () => el(fixture, 'debrief-query-status');
   const statusText = () => statusEl().textContent ?? '';
 
   const create = async (providers = provideAnalysisTesting({ context: ctx, history })) => {

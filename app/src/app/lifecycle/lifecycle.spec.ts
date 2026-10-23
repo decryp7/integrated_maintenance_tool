@@ -179,7 +179,7 @@ describe('LifecycleBanners and TitleExtras', () => {
     const { tools, life } = await setup({ previousCrash: true });
     const f = TestBed.createComponent(LifecycleBanners);
     await settle(f);
-    expect(el(f, '[data-testid=crash-banner]').textContent).toContain("IMT didn't close properly last time");
+    expect(el(f, '[data-testid=crash-banner]').textContent).toContain("Debrief didn't close properly last time");
     buttonByText(f, 'Start in safe mode').click();
     await settle(f);
     expect(tools.calls).toContain('restartApp:true:');

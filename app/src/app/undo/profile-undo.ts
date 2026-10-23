@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UndoStack } from './undo-stack';
 
@@ -10,7 +10,7 @@ import { UndoStack } from './undo-stack';
  */
 @Injectable({ providedIn: 'root' })
 export class ProfileUndo {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly store = inject(WorkspaceStore);
   private readonly undo = inject(UndoStack);
 

@@ -6,7 +6,7 @@ import { AiUpdatesPanel } from '../updates/ai-updates-panel';
 
 /** Settings → AI, above the fields: set-up and model buttons, the engine status and the update checks. */
 @Component({
-  selector: 'imt-ai-settings-extras',
+  selector: 'debrief-ai-settings-extras',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiUpdatesPanel],
   template: `
@@ -19,7 +19,7 @@ import { AiUpdatesPanel } from '../updates/ai-updates-panel';
       @if (serverLine(); as line) {
         <p class="muted" data-testid="ai-settings-server">{{ line }}</p>
       }
-      <imt-ai-updates-panel />
+      <debrief-ai-updates-panel />
     } @else {
       <p class="note" role="note" data-testid="ai-settings-unavailable">
         {{ unavailableText() }}

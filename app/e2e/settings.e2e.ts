@@ -40,16 +40,16 @@ test('settings dialog changes the theme, colour scheme, date format and density,
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'console');
   await expect(page.locator('html')).toHaveAttribute('data-surface', 'cards');
   await dialog.getByRole('button', { name: 'compact' }).click();
-  await expect(page.locator('imt-events-grid')).toHaveCSS('--row-h', '22px');
+  await expect(page.locator('debrief-events-grid')).toHaveCSS('--row-h', '22px');
   await expect(page.locator('html')).toHaveAttribute('data-density', 'compact');
-  await expect(page.locator('imt-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
+  await expect(page.locator('debrief-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
   // Safari does not focus clicked buttons, so there is nothing to restore focus to there.
   if (browserName === 'chromium') await expect(page.getByRole('button', { name: 'Settings' })).toBeFocused();
 
   await page.reload();
-  await expect(page.locator('imt-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
+  await expect(page.locator('debrief-events-grid .row .time').first()).toHaveText(/^\d{4}-\d{2}-\d{2} /);
   await expect(page.locator('html')).toHaveAttribute('data-scheme', 'light');
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'console');
   expect(csp).toEqual([]);
@@ -119,7 +119,7 @@ test('engine settings: shortcut, validation error, automatic apply with Undo, re
   await size.fill('20');
   await expect(dialog.getByText('Must be between 1 MB and 100 MB.')).toHaveCount(0);
   await expect(dialog.getByTestId('settings-notice')).toContainText('Log file size saved.');
-  await expect(dialog.getByTestId('settings-restart-bar')).toContainText('after IMT restarts');
+  await expect(dialog.getByTestId('settings-restart-bar')).toContainText('after Debrief restarts');
   await expect(dialog.getByRole('button', { name: 'Restart now' })).toBeVisible();
 
   // Undo puts the previous value back; Reset to default is an edit like any other; Reset section is immediate.
@@ -152,7 +152,7 @@ test('engine settings: search, plugin sections and the guard for refused edits',
   // Search matches labels, descriptions and keys across sections.
   await dialog.getByRole('searchbox', { name: 'Search settings' }).fill('relog');
   await expect(dialog.getByRole('heading', { name: 'Windows diagnostics' })).toBeVisible();
-  await expect(dialog.locator('imt-setting-field')).toHaveCount(1);
+  await expect(dialog.locator('debrief-setting-field')).toHaveCount(1);
   await dialog.getByRole('searchbox', { name: 'Search settings' }).fill('liveTailDebounce');
   await expect(dialog.getByLabel('Live tail delay', { exact: true })).toBeVisible();
   await dialog.getByRole('searchbox', { name: 'Search settings' }).fill('');
@@ -220,9 +220,9 @@ test('settings: switches keep their labels beside them, readable and clear of ba
     await expect(dialog.locator('section.content h3').first()).toHaveText(title);
     const problems = await dialog.evaluate((root) => {
       const out: string[] = [];
-      for (const field of root.querySelectorAll('imt-setting-field')) {
+      for (const field of root.querySelectorAll('debrief-setting-field')) {
         const input = field.querySelector('input[role=switch]');
-        const text = field.querySelector('imt-switch .text');
+        const text = field.querySelector('debrief-switch .text');
         if (!input || !text) continue;
         const i = input.getBoundingClientRect();
         const t = text.getBoundingClientRect();
@@ -238,7 +238,7 @@ test('settings: switches keep their labels beside them, readable and clear of ba
       return out;
     });
     expect(problems).toEqual([]);
-    checked += await dialog.locator('imt-setting-field input[role=switch]').count();
+    checked += await dialog.locator('debrief-setting-field input[role=switch]').count();
   }
   expect(checked).toBeGreaterThan(3);
 });

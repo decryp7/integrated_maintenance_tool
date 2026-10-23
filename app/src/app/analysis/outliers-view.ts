@@ -16,7 +16,7 @@ import { CoverageNote } from './coverage-note';
  * everything; a row filters the workspace to those events, and the evidence links open single events.
  */
 @Component({
-  selector: 'imt-outliers-view',
+  selector: 'debrief-outliers-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CoverageNote],
   template: `
@@ -31,8 +31,8 @@ import { CoverageNote } from './coverage-note';
       </label>
       <button class="btn" type="button" (click)="apply()" i18n="@@analysis.outliers.apply">Compare</button>
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.outliers?.length === 0" emptyText="No value stands out among the selected events." i18n-emptyText="@@analysis.outliers.emptyText" emptyHint="Outliers need at least three selected events sharing a value that is clearly rarer in the rest. Try another window or a different selection." i18n-emptyHint="@@analysis.outliers.emptyHint" suggest (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.outliers?.length === 0" emptyText="No value stands out among the selected events." i18n-emptyText="@@analysis.outliers.emptyText" emptyHint="Outliers need at least three selected events sharing a value that is clearly rarer in the rest. Try another window or a different selection." i18n-emptyHint="@@analysis.outliers.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Error outliers" i18n-aria-label="@@analysis.outliers.listLabel">
         @for (o of res.result()?.outliers ?? []; track o.query) {
           <li>
@@ -53,7 +53,7 @@ import { CoverageNote } from './coverage-note';
           </li>
         }
       </ul>
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,

@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { buttonByText, provideTinyBackend, settle, text } from '../../testing/helpers';
 import { ImportProgress, WorkspaceSummary } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
 import { fileName, importStatusText, percent, progressLine } from './import-format';
@@ -70,7 +70,7 @@ class FakeUx {
   });
 }
 
-/** A running import job as `imt://jobs` reports it. */
+/** A running import job as `debrief://jobs` reports it. */
 function importJob(id: number, progress: Partial<JobInfo['progress']> = {}, patch: Partial<JobInfo> = {}): JobInfo {
   return {
     id,
@@ -112,7 +112,7 @@ describe('ImportProgressService and its widgets', () => {
   function setup() {
     ux = new FakeUx();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), { provide: UxBackend, useValue: ux }] });
-    const backend = TestBed.inject(ImtBackend);
+    const backend = TestBed.inject(DebriefBackend);
     vi.spyOn(backend, 'openPaths').mockImplementation(() => new Promise<WorkspaceSummary>((r) => (release = r)));
     return { svc: TestBed.inject(ImportProgressService), store: TestBed.inject(WorkspaceStore), backend, jobs: TestBed.inject(JobsStore) };
   }
@@ -133,7 +133,7 @@ describe('ImportProgressService and its widgets', () => {
     status.detectChanges();
     expect(text(status)).toContain('Scanning for files…');
     expect(text(status)).not.toContain('0 of 0');
-    // The job's progress (imt://jobs) drives the widgets: no import_progress polling while it runs.
+    // The job's progress (debrief://jobs) drives the widgets: no import_progress polling while it runs.
     jobs.apply({ jobs: [importJob(5, { done: 1 }, { kind: 'export', title: 'Export' }), importJob(7)], paused: [] });
     status.detectChanges();
     expect(text(status)).toContain('Importing 3 of 12 files · 23 MB of 76 MB · less than a minute left');

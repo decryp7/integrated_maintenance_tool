@@ -2,7 +2,7 @@ import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, pro
 import { FolderSetupNotice } from './folder-setup-notice';
 import { ParserSuggestNotice } from '../parser-suggest-notice';
 import { WorkspaceStore } from '../../core/workspace.store';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, ImtActivityItem, ImtCommand } from '../../extensions/tokens';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DebriefActivityItem, DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 import { FolderSetupStore } from './folder-setup.store';
 import { FolderSetupWizard } from './folder-setup-wizard';
@@ -39,7 +39,7 @@ export function hasOpenFiles(store: InstanceType<typeof WorkspaceStore>): boolea
   return !!s && (s.sources.length > 0 || s.unrecognized.length > 0);
 }
 
-export function folderSetupCommands(launcher: FolderSetupLauncher, store: InstanceType<typeof WorkspaceStore>): ImtCommand[] {
+export function folderSetupCommands(launcher: FolderSetupLauncher, store: InstanceType<typeof WorkspaceStore>): DebriefCommand[] {
   return [
     {
       id: FOLDER_SETUP_COMMAND,
@@ -54,8 +54,8 @@ export function folderSetupCommands(launcher: FolderSetupLauncher, store: Instan
 /** One line in `app.config.ts`: the command (palette, File menu) and its activity-bar button. The hint banner sits in the app shell. */
 export function provideFolderSetup(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => folderSetupCommands(inject(FolderSetupLauncher), inject(WorkspaceStore)) },
-    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => folderSetupActivityItems(inject(WorkspaceStore)) },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => folderSetupCommands(inject(FolderSetupLauncher), inject(WorkspaceStore)) },
+    { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: () => folderSetupActivityItems(inject(WorkspaceStore)) },
     // After a folder is opened: a message in the notification centre offers the set-up.
     provideEnvironmentInitializer(() => inject(FolderSetupNotice)),
     // After an import: a file only the generic parser read, with problems, gets a "Generate a parser with AI…" message.
@@ -64,7 +64,7 @@ export function provideFolderSetup(): EnvironmentProviders {
 }
 
 /** The activity-bar button: the same command as File ▸ Set up analysis for this folder…, while files are open. */
-export function folderSetupActivityItems(store: InstanceType<typeof WorkspaceStore>): ImtActivityItem[] {
+export function folderSetupActivityItems(store: InstanceType<typeof WorkspaceStore>): DebriefActivityItem[] {
   return [
     {
       id: 'folder-setup',

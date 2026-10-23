@@ -6,7 +6,7 @@ import { expectNoSeriousViolations } from './axe';
 // (src/app/settings/storage/mock-storage-backend.ts), which mimics the engine's categories and protections.
 
 const settingsDialog = (page: Page) => page.getByRole('dialog', { name: 'Settings' });
-const table = (page: Page) => settingsDialog(page).getByRole('table', { name: "IMT's storage" });
+const table = (page: Page) => settingsDialog(page).getByRole('table', { name: "Debrief's storage" });
 const row = (page: Page, id: string) => settingsDialog(page).locator(`tr[data-category="${id}"]`);
 
 async function openStorage(page: Page) {
@@ -16,7 +16,7 @@ async function openStorage(page: Page) {
   await expect(table(page)).toBeVisible();
 }
 
-test('lists what IMT stores, clears the cache after a confirmation and reports what stayed', async ({ page }, testInfo) => {
+test('lists what Debrief stores, clears the cache after a confirmation and reports what stayed', async ({ page }, testInfo) => {
   await openApp(page);
   await openStorage(page);
   await expect(table(page).locator('tbody tr')).toHaveCount(8);
@@ -65,10 +65,10 @@ test('a failed measurement shows an inline error with Retry', async ({ page }) =
   await page.keyboard.press('ControlOrMeta+Comma');
   await settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Disk usage' }).click();
   const alert = settingsDialog(page).getByRole('alert');
-  await expect(alert).toContainText("Could not measure IMT's storage");
+  await expect(alert).toContainText("Could not measure Debrief's storage");
   await alert.getByRole('button', { name: 'Retry' }).click();
   await expect(table(page).locator('tbody tr')).toHaveCount(8);
-  await row(page, 'logs').getByRole('button', { name: 'Show in folder (IMT logs)' }).click();
+  await row(page, 'logs').getByRole('button', { name: 'Show in folder (Debrief logs)' }).click();
   await expect(settingsDialog(page).getByRole('status').filter({ hasText: 'Opened' })).toContainText('logs');
 });
 
@@ -77,7 +77,7 @@ test('"Clear cache…" in the command palette opens the Storage section', async 
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill('clear cache');
-  await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText('Clear cache…');
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText('Clear cache…');
   await page.keyboard.press('Enter');
   await expect(table(page)).toBeVisible();
   await expect(settingsDialog(page).getByRole('navigation', { name: 'Settings sections' }).getByRole('button', { name: 'Disk usage' })).toHaveAttribute('aria-current', 'page');

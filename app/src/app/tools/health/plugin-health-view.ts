@@ -5,13 +5,13 @@ import { eventName, PluginHealthStore, PluginRow } from './plugin-health.store';
 
 /** Plugin health: status, repeat failures and the last error, with reset and enable/disable actions. */
 @Component({
-  selector: 'imt-plugin-health-view',
+  selector: 'debrief-plugin-health-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ToolError],
   template: `
     <div class="scroll" role="region" aria-label="Plugin health" i18n-aria-label="@@tools.health.region" tabindex="0">
       <p class="intro" i18n="@@tools.health.intro">A plugin that keeps failing is quarantined so it cannot disturb your work. Reset it to try again, or disable it from the next start.</p>
-      <imt-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
+      <debrief-tool-error [message]="store.error()" (dismissed)="store.dismissError()" />
       @if (store.needsRestart()) {
         <div class="restart" role="status">
           <span i18n="@@tools.health.restartNote">Plugin changes apply after a restart.</span>

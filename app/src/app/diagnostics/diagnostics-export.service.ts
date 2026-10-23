@@ -11,10 +11,10 @@ export interface DiagnosticsExportStatus {
   text: string;
 }
 
-/** `imt-diagnostics-YYYYMMDD-HHMMSS.zip` in local time. */
+/** `debrief-diagnostics-YYYYMMDD-HHMMSS.zip` in local time. */
 export function diagnosticsFileName(now: Date = new Date()): string {
   const p = (n: number, w = 2) => String(n).padStart(w, '0');
-  return `imt-diagnostics-${p(now.getFullYear(), 4)}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}.zip`;
+  return `debrief-diagnostics-${p(now.getFullYear(), 4)}${p(now.getMonth() + 1)}${p(now.getDate())}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}.zip`;
 }
 
 /** Saves the diagnostics zip (the problem report without a description) where the user chooses. */

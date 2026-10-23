@@ -5,7 +5,7 @@ import { TabItem, Tabs } from './tabs';
 
 @Component({
   imports: [Tabs],
-  template: `<imt-tabs label="Demo" idPrefix="demo-tab-" [kind]="kind()" [items]="items" [selected]="sel()" [panelId]="panel" (selectedChange)="sel.set($event); picked.push($event)" />`,
+  template: `<debrief-tabs label="Demo" idPrefix="demo-tab-" [kind]="kind()" [items]="items" [selected]="sel()" [panelId]="panel" (selectedChange)="sel.set($event); picked.push($event)" />`,
 })
 class Host {
   readonly kind = signal<'tabs' | 'filter'>('tabs');
@@ -30,7 +30,7 @@ describe('Tabs', () => {
 
   it('is an ARIA tab list: one tab stop, ids and the panel they control, counts only when above zero', async () => {
     const { fixture, tabs } = await render();
-    expect(el(fixture, 'imt-tabs').getAttribute('role')).toBe('tablist');
+    expect(el(fixture, 'debrief-tabs').getAttribute('role')).toBe('tablist');
     expect(tabs().map((t) => t.getAttribute('role'))).toEqual(['tab', 'tab', 'tab']);
     expect(tabs().map((t) => t.getAttribute('aria-selected'))).toEqual(['true', 'false', 'false']);
     expect(tabs().map((t) => t.getAttribute('tabindex'))).toEqual([null, '-1', '-1']);
@@ -59,7 +59,7 @@ describe('Tabs', () => {
     const { fixture, host, tabs } = await render();
     host.kind.set('filter');
     await settle(fixture);
-    expect(el(fixture, 'imt-tabs').getAttribute('role')).toBe('group');
+    expect(el(fixture, 'debrief-tabs').getAttribute('role')).toBe('group');
     expect(tabs().map((t) => t.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
     expect(tabs()[0]?.getAttribute('role')).toBeNull();
     expect(tabs()[0]?.hasAttribute('id')).toBe(false);

@@ -1,5 +1,5 @@
 /**
- * The report's Markdown subset (mirrors crates/imt-core/src/report/markdown.rs) parsed into plain data
+ * The report's Markdown subset (mirrors crates/debrief-core/src/report/markdown.rs) parsed into plain data
  * for an on-screen preview. Templates render the data as text nodes: nothing is ever parsed as HTML.
  */
 

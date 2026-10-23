@@ -30,7 +30,7 @@ describe('ConsumerGate', () => {
   it('use() registers the calling view for its lifetime, with its panel visibility', () => {
     const gate = new ConsumerGate();
     const visible = signal(false);
-    @Component({ selector: 'imt-consumer', template: '' })
+    @Component({ selector: 'debrief-consumer', template: '' })
     class Consumer {
       readonly own = panelVisible();
       constructor() {
@@ -49,7 +49,7 @@ describe('ConsumerGate', () => {
 
   it('outside a panel a view counts as visible', () => {
     const gate = new ConsumerGate();
-    @Component({ selector: 'imt-plain', template: '' })
+    @Component({ selector: 'debrief-plain', template: '' })
     class Plain {
       constructor() {
         gate.use();

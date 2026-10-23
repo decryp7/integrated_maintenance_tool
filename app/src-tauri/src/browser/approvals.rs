@@ -2,7 +2,7 @@
 //! user answers on the card in the chat (`browser_agent_respond`). No answer within the timeout, Stop, a
 //! cancelled turn or a deleted chat all mean Deny: nothing happens without an explicit yes.
 
-use imt_ai::browser::{AgentApprover, ApprovalRequest, Decision};
+use debrief_ai::browser::{AgentApprover, ApprovalRequest, Decision};
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::sync::mpsc::{sync_channel, SyncSender};
@@ -105,7 +105,7 @@ impl AgentApprover for ChatApprover {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_ai::browser::{Ask, AskKind};
+    use debrief_ai::browser::{Ask, AskKind};
     use std::time::Instant;
 
     fn req(id: u64) -> ApprovalRequest {

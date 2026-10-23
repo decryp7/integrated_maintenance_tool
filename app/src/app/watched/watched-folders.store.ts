@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { patchState, signalStore, withHooks, withMethods, withState } from '@ngrx/signals';
 import { WatchedFolderInfo } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { failureText } from '../core/cmd-error';
 import { WorkspaceStore } from '../core/workspace.store';
 
@@ -33,7 +33,7 @@ export function parseWatchedFolders(value: unknown): SavedWatchedFolder[] {
 export const WatchedFoldersStore = signalStore(
   { providedIn: 'root' },
   withState<WatchedState>({ folders: [], error: null }),
-  withMethods((store, backend = inject(ImtBackend), workspace = inject(WorkspaceStore)) => {
+  withMethods((store, backend = inject(DebriefBackend), workspace = inject(WorkspaceStore)) => {
     const apply = async (call: () => Promise<WatchedFolderInfo[]>): Promise<void> => {
       try {
         patchState(store, { folders: await call(), error: null });
@@ -65,7 +65,7 @@ export const WatchedFoldersStore = signalStore(
   }),
   withHooks({
     onInit(store) {
-      const backend = inject(ImtBackend);
+      const backend = inject(DebriefBackend);
       void store.load();
       void backend.onWatchedImported(() => void store.imported()).catch(() => undefined);
     },

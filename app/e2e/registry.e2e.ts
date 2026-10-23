@@ -16,7 +16,7 @@ test.describe('registry viewer plugin', () => {
     await expect(timeout).toContainText('30');
     await timeout.click();
     await expect(timeout).toHaveAttribute('aria-selected', 'true');
-    const inspector = page.locator('imt-inspector');
+    const inspector = page.locator('debrief-inspector');
     await expect(inspector.locator('.prop').filter({ hasText: 'ValueName' })).toContainText('TimeoutSeconds');
     await expect(inspector.locator('.prop').filter({ hasText: 'ValueType' })).toContainText('REG_DWORD');
     await expectNoSeriousViolations(page, testInfo, 'registry');
@@ -56,7 +56,7 @@ test.describe('registry viewer plugin', () => {
   });
 
   test('is only offered while a registry source is open', async ({ page }) => {
-    const sidebar = page.locator('imt-sidebar');
+    const sidebar = page.locator('debrief-sidebar');
     await sidebar.locator('.src', { hasText: 'registry-export.reg' }).hover();
     await sidebar.getByRole('button', { name: 'Remove registry-export.reg' }).click();
     await expect(page.getByRole('tab', { name: 'Registry', exact: true })).toHaveCount(0);

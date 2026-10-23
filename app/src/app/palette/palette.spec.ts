@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
 import { all, el, FakeDock, provideFakeDock, provideTinyBackendBare, settle, text, typeInto } from '../../testing/helpers';
-import { provideImtPlugin } from '../extensions/provide';
+import { provideDebriefPlugin } from '../extensions/provide';
 import { DockService } from '../dock/dock.service';
 import { COMMAND_CONTEXT } from '../extensions';
-import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
 import { CommandPalette } from './command-palette';
 import { PaletteService } from './palette.service';
 import { at } from '../../testing/must';
@@ -11,14 +11,14 @@ import { at } from '../../testing/must';
 describe('CommandPalette', () => {
   let ran: string[];
 
-  async function render(extra: ImtCommand[] = []) {
+  async function render(extra: DebriefCommand[] = []) {
     ran = [];
-    const mk = (id: string, title: string, extraProps: Partial<ImtCommand> = {}): ImtCommand => ({ id, title, run: () => void ran.push(id), ...extraProps });
+    const mk = (id: string, title: string, extraProps: Partial<DebriefCommand> = {}): DebriefCommand => ({ id, title, run: () => void ran.push(id), ...extraProps });
     TestBed.configureTestingModule({
       providers: [
         provideTinyBackendBare(),
         provideFakeDock(new FakeDock()),
-        { provide: IMT_COMMANDS, multi: true, useValue: [mk('t.alpha', 'Alpha thing', { category: 'Test', keybinding: 'Mod+Shift+A' }), mk('t.beta', 'Beta thing'), mk('t.gamma', 'Gamma other'), ...extra] },
+        { provide: DEBRIEF_COMMANDS, multi: true, useValue: [mk('t.alpha', 'Alpha thing', { category: 'Test', keybinding: 'Mod+Shift+A' }), mk('t.beta', 'Beta thing'), mk('t.gamma', 'Gamma other'), ...extra] },
       ],
     });
     const fixture = TestBed.createComponent(CommandPalette);
@@ -47,7 +47,7 @@ describe('CommandPalette', () => {
   it('in views mode (View ▸ Other windows…) lists only the views, searchable by name and category, and opens the chosen one', async () => {
     TestBed.configureTestingModule({
       providers: [
-        provideImtPlugin({
+        provideDebriefPlugin({
           views: [
             { id: 'anomalies', title: 'Anomalies', icon: 'alert', category: 'Analysis', component: async () => CommandPalette },
             { id: 'flame', title: 'Flame graph', icon: 'chart', category: 'Profiling', component: async () => CommandPalette },
@@ -102,7 +102,7 @@ describe('CommandPalette', () => {
   });
 
   it('opens on the recently run commands, lists one command per view, highlights matches and shows a category once (F1)', async () => {
-    localStorage.removeItem('imt.palette.recent.v1');
+    localStorage.removeItem('debrief.palette.recent.v1');
     const { fixture, palette } = await render([
       { id: 'view.open.anoms', title: 'Open Anomalies', category: 'View', view: 'anoms', run: () => void ran.push('view.open.anoms') },
       { id: 'anoms.show', title: 'Show anomalies', category: 'Analyze', view: 'anoms', run: () => void ran.push('anoms.show') },
@@ -127,7 +127,7 @@ describe('CommandPalette', () => {
     palette.open();
     await settle(fixture);
     expect(options(fixture)[0]).toBe('Gamma other');
-    expect(JSON.parse(localStorage.getItem('imt.palette.recent.v1') ?? '[]')).toEqual(['t.gamma']);
+    expect(JSON.parse(localStorage.getItem('debrief.palette.recent.v1') ?? '[]')).toEqual(['t.gamma']);
   });
 
   it('suggests close commands ("did you mean") when nothing matches, navigable and runnable', async () => {

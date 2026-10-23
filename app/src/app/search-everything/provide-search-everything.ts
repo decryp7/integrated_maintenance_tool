@@ -1,12 +1,12 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
-import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
 import { SearchEverythingLauncher } from './search-everything-launcher';
 
 /** The command that opens the search everything palette. */
 export const SEARCH_EVERYTHING_COMMAND = 'search.everything';
 export const SEARCH_EVERYTHING_KEYBINDING = 'Mod+Shift+F';
 
-export function searchEverythingCommands(launcher: SearchEverythingLauncher): ImtCommand[] {
+export function searchEverythingCommands(launcher: SearchEverythingLauncher): DebriefCommand[] {
   return [
     {
       id: SEARCH_EVERYTHING_COMMAND,
@@ -20,5 +20,5 @@ export function searchEverythingCommands(launcher: SearchEverythingLauncher): Im
 
 /** One line in `app.config.ts`: the search everything palette and its command (Mod+Shift+F). */
 export function provideSearchEverything(): EnvironmentProviders {
-  return makeEnvironmentProviders([{ provide: IMT_COMMANDS, multi: true, useFactory: () => searchEverythingCommands(inject(SearchEverythingLauncher)) }]);
+  return makeEnvironmentProviders([{ provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => searchEverythingCommands(inject(SearchEverythingLauncher)) }]);
 }

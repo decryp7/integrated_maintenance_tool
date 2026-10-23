@@ -144,19 +144,19 @@ mod tests {
             (rows[1].process.clone(), rows[1].cap_mb, rows[1].peak_mb),
             (ProcessRef::Ai, 1024, None)
         );
-        let m: imt_plugin_api::manifest::Manifest = serde_json::from_value(serde_json::json!({
-            "id": "p.one", "name": "One", "version": "1.0.0", "protocol": imt_plugin_api::PROTOCOL,
+        let m: debrief_plugin_api::manifest::Manifest = serde_json::from_value(serde_json::json!({
+            "id": "p.one", "name": "One", "version": "1.0.0", "protocol": debrief_plugin_api::PROTOCOL,
             "permissions": [], "importers": [], "configParsers": [], "markerKinds": [], "annotators": [],
             "transforms": [], "tools": [], "profileImporters": [], "documentImporters": []
         }))
         .unwrap();
-        live.attach_plugins(Arc::new(imt_plugin_host::Builtins::from_manifests(
+        live.attach_plugins(Arc::new(debrief_plugin_host::Builtins::from_manifests(
             std::path::Path::new("/x"),
             vec![m],
         )));
         live.hub.hear(
             "plugin \"p.one\"",
-            imt_ipc::memory_watch::MemoryEvent::Warning(imt_ipc::memory_watch::MemoryUse {
+            debrief_ipc::memory_watch::MemoryEvent::Warning(debrief_ipc::memory_watch::MemoryUse {
                 used: 250 << 20,
                 peak: 260 << 20,
                 limit: 300 << 20,

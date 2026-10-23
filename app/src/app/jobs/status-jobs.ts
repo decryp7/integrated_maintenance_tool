@@ -9,17 +9,17 @@ import { JobsStore } from './jobs.store';
 
 /** Status-bar entries: the running jobs (opens the Jobs pane) and the unread notifications (opens Notifications). */
 @Component({
-  selector: 'imt-status-jobs',
+  selector: 'debrief-status-jobs',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
     @if (jobs.activeCount() > 0) {
       <button type="button" class="pill" data-testid="status-jobs" [title]="jobsTitle()" [attr.aria-label]="jobsTitle()" (click)="ctx.showView(jobsView)">
-        <imt-icon name="jobs" [size]="12" />{{ jobs.activeCount() }}
+        <debrief-icon name="jobs" [size]="12" />{{ jobs.activeCount() }}
       </button>
     }
     <button type="button" class="pill" data-testid="status-notifications" [class.on]="notices.unread() > 0" [title]="noticesTitle()" [attr.aria-label]="noticesTitle()" (click)="ctx.showView(noticesView)">
-      <imt-icon name="bell" [size]="12" />
+      <debrief-icon name="bell" [size]="12" />
       @if (notices.unread() > 0) {
         {{ notices.unread() }}
       }

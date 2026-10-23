@@ -17,6 +17,6 @@ test.describe('paste as log', () => {
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await expect(dialog).toHaveCount(0);
 
-    await expect(page.locator('imt-sidebar .src', { hasText: 'web01 errors.log' })).toBeVisible();
+    await expect(page.locator('debrief-sidebar .src', { hasText: 'web01 errors.log' })).toBeVisible();
   });
 });

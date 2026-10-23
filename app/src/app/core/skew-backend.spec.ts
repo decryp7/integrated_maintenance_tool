@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackendBare, tinyBackend } from '../../testing/helpers';
-import { ImtBackend } from './backend';
+import { DebriefBackend } from './backend';
 import { createSkewBackend, hasSkew, provideSkewBackend, SkewBackend, TauriSkewBackend, UnsupportedSkewBackend } from './skew-backend';
 
 const tauriKey = '__TAURI_INTERNALS__';
@@ -22,13 +22,13 @@ describe('SkewBackend', () => {
   it('uses the mock workspace in a browser, a refusing stand-in when it cannot, and Tauri in the app', async () => {
     TestBed.configureTestingModule({ providers: [...provideTinyBackendBare(), provideSkewBackend()] });
     const skew = TestBed.inject(SkewBackend);
-    expect(skew).toBe(TestBed.inject(ImtBackend));
+    expect(skew).toBe(TestBed.inject(DebriefBackend));
     expect(hasSkew(skew)).toBe(true);
     expect(hasSkew(null)).toBe(false);
     expect(hasSkew({ setSourceOffset: () => 0 })).toBe(false);
 
     TestBed.resetTestingModule();
-    TestBed.configureTestingModule({ providers: [...provideTinyBackendBare({} as ImtBackend)] });
+    TestBed.configureTestingModule({ providers: [...provideTinyBackendBare({} as DebriefBackend)] });
     const unsupported = TestBed.runInInjectionContext(() => createSkewBackend());
     expect(unsupported).toBeInstanceOf(UnsupportedSkewBackend);
     await expect(unsupported.setSourceOffset({ kind: 'manual', source: 0, offsetMs: 0 })).rejects.toMatch(/cannot correct/);

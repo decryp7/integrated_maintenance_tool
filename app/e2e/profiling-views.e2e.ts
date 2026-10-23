@@ -33,7 +33,7 @@ test.describe('Profiling views', () => {
     await expect(view.getByRole('columnheader', { name: /Module/ })).toBeVisible();
     await expect(view.locator('tbody td.name button').first()).toBeVisible();
     expect(await hotspotNames(page)).toContain('Shop.Orders');
-    await expectNoSeriousViolations(page, testInfo, 'profiling-hotspots', 'imt-hotspots-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-hotspots', 'debrief-hotspots-view');
   });
 
   test('call tree: expand the hottest path and move with the keyboard', async ({ page }, testInfo) => {
@@ -56,7 +56,7 @@ test.describe('Profiling views', () => {
     await expect(first).toHaveAttribute('aria-expanded', 'true');
     await page.keyboard.press('ArrowDown');
     await expect(grid.locator('tbody tr').nth(1)).toBeFocused();
-    await expectNoSeriousViolations(page, testInfo, 'profiling-tree', 'imt-call-tree-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-tree', 'debrief-call-tree-view');
   });
 
   test('flame graph: zoom by click and breadcrumb, keyboard, search highlight', async ({ page }, testInfo) => {
@@ -96,7 +96,7 @@ test.describe('Profiling views', () => {
     await view.getByRole('combobox', { name: 'Colour by' }).selectOption('module');
     await expect(view.getByRole('group', { name: 'Colour legend' })).toContainText('Other modules');
     await view.getByRole('button', { name: 'Icicle' }).click();
-    await expectNoSeriousViolations(page, testInfo, 'profiling-flame', 'imt-flame-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-flame', 'debrief-flame-view');
   });
 
   test('differential flame graph against a baseline, with the function diff', async ({ page }, testInfo) => {
@@ -112,7 +112,7 @@ test.describe('Profiling views', () => {
     await view.getByRole('combobox', { name: 'Sort changes' }).selectOption('deltaSelf');
     await expect(table.locator('tbody tr').first()).toContainText('Utf8JsonWriter.WriteString');
     await expect(table.locator('tbody tr', { hasText: 'AuditLog.Write' }).locator('.tag')).toHaveText('new');
-    await expectNoSeriousViolations(page, testInfo, 'profiling-compare', 'imt-compare-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-compare', 'debrief-compare-view');
   });
 
   test('brushing the thread timeline narrows the hotspots', async ({ page }, testInfo) => {
@@ -129,7 +129,7 @@ test.describe('Profiling views', () => {
     await page.mouse.move(box.x + 420, y, { steps: 5 });
     await page.mouse.up();
     await expect(view.getByTestId('range-pill')).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'profiling-threads', 'imt-thread-timeline-view');
+    await expectNoSeriousViolations(page, testInfo, 'profiling-threads', 'debrief-thread-timeline-view');
 
     await runCommand(page, 'Profiling: hotspots');
     await expect(hotspots(page).getByTestId('range-pill')).toBeVisible();

@@ -19,19 +19,19 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
  * (jobs appear after about 2 s) and in which order.
  */
 @Component({
-  selector: 'imt-jobs-panel',
+  selector: 'debrief-jobs-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, KindFilter, PanelEmpty, Tabs],
   template: `
     <div class="bar" role="toolbar" aria-label="Job filters" i18n-aria-label="@@jobs.panel.filters">
-      <imt-tabs kind="filter" label="Show" i18n-label="@@jobs.panel.show" idPrefix="jobs-view-" data-testid="jobs-view" [items]="viewItems()" [selected]="store.view()" (selectedChange)="store.setView($any($event))" />
-      <imt-kind-filter label="Kind" i18n-label="@@jobs.panel.kind" [options]="kindOptions()" [selected]="store.kinds()" (toggled)="store.toggleKind($any($event))" (cleared)="store.setKinds([])" />
+      <debrief-tabs kind="filter" label="Show" i18n-label="@@jobs.panel.show" idPrefix="jobs-view-" data-testid="jobs-view" [items]="viewItems()" [selected]="store.view()" (selectedChange)="store.setView($any($event))" />
+      <debrief-kind-filter label="Kind" i18n-label="@@jobs.panel.kind" [options]="kindOptions()" [selected]="store.kinds()" (toggled)="store.toggleKind($any($event))" (cleared)="store.setKinds([])" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.finished().length" (click)="store.clearFinished()" data-testid="jobs-clear" i18n="@@jobs.panel.clear">Clear finished</button>
     </div>
     @for (p of store.paused(); track p.kind) {
       <div class="paused" role="alert" data-testid="jobs-paused">
-        <imt-icon name="alert" [size]="14" />
+        <debrief-icon name="alert" [size]="14" />
         <span class="grow">{{ pausedText(p.kind, p.reason) }}</span>
         @if (p.kind === 'ai') {
           <button type="button" class="btn small" (click)="resetAi()" i18n="@@jobs.panel.resetAi">Reset AI</button>
@@ -42,7 +42,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
       <div class="err" role="alert">
         <span class="grow">{{ e }}</span>
         <button type="button" class="btn small" (click)="store.retryRequest()" i18n="@@jobs.panel.retryRequest">Retry</button>
-        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@jobs.panel.dismissError" (click)="store.dismissError()"><imt-icon name="close" [size]="12" /></button>
+        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@jobs.panel.dismissError" (click)="store.dismissError()"><debrief-icon name="close" [size]="12" /></button>
       </div>
     }
     @if (note(); as n) {
@@ -50,7 +50,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
     }
     <p class="sr-only" aria-live="polite" data-testid="jobs-live">{{ announcement() }}</p>
     @if (!store.jobs().length) {
-      <imt-panel-empty class="empty" data-testid="jobs-empty" icon="jobs" title="No jobs" i18n-title="@@jobs.panel.empty.title"><ng-container i18n="@@jobs.panel.empty">Long work such as imports, exports and downloads shows here while it runs.</ng-container></imt-panel-empty>
+      <debrief-panel-empty class="empty" data-testid="jobs-empty" icon="jobs" title="No jobs" i18n-title="@@jobs.panel.empty.title"><ng-container i18n="@@jobs.panel.empty">Long work such as imports, exports and downloads shows here while it runs.</ng-container></debrief-panel-empty>
     }
     @for (section of sections(); track section.id) {
       @if (section.jobs.length) {
@@ -64,17 +64,17 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
                 <span class="state" [attr.data-testid]="'job-state-' + j.id">{{ j.state === 'queued' ? queuedLabel(j.position) : stateLabel(j.state) }}</span>
                 <span class="actions">
                   @if (j.movable) {
-                    <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, true)" [title]="moveLabel(j, true)" [disabled]="j.position === 1" (click)="store.move(j.id, true)"><imt-icon name="arrowUp" [size]="14" /></button>
-                    <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, false)" [title]="moveLabel(j, false)" (click)="store.move(j.id, false)"><imt-icon name="arrowDown" [size]="14" /></button>
+                    <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, true)" [title]="moveLabel(j, true)" [disabled]="j.position === 1" (click)="store.move(j.id, true)"><debrief-icon name="arrowUp" [size]="14" /></button>
+                    <button type="button" class="icon-btn" [attr.aria-label]="moveLabel(j, false)" [title]="moveLabel(j, false)" (click)="store.move(j.id, false)"><debrief-icon name="arrowDown" [size]="14" /></button>
                   }
                   @if (j.cancellable) {
-                    <button type="button" class="icon-btn" (click)="store.cancel(j.id)" [attr.data-testid]="'job-cancel-' + j.id" [attr.aria-label]="cancelLabel(j)" [title]="cancelLabel(j)"><imt-icon name="close" [size]="14" /></button>
+                    <button type="button" class="icon-btn" (click)="store.cancel(j.id)" [attr.data-testid]="'job-cancel-' + j.id" [attr.aria-label]="cancelLabel(j)" [title]="cancelLabel(j)"><debrief-icon name="close" [size]="14" /></button>
                   }
                   @if (j.retryable) {
-                    <button type="button" class="icon-btn" (click)="store.retry(j.id)" [attr.data-testid]="'job-retry-' + j.id" [attr.aria-label]="retryLabel(j)" [title]="retryLabel(j)"><imt-icon name="refresh" [size]="14" /></button>
+                    <button type="button" class="icon-btn" (click)="store.retry(j.id)" [attr.data-testid]="'job-retry-' + j.id" [attr.aria-label]="retryLabel(j)" [title]="retryLabel(j)"><debrief-icon name="refresh" [size]="14" /></button>
                   }
                   @if (viewable(j)) {
-                    <button type="button" class="icon-btn" (click)="view(j)" [attr.data-testid]="'job-view-' + j.id" [attr.aria-label]="viewLabel(j)" [title]="viewLabel(j)"><imt-icon name="note" [size]="14" /></button>
+                    <button type="button" class="icon-btn" (click)="view(j)" [attr.data-testid]="'job-view-' + j.id" [attr.aria-label]="viewLabel(j)" [title]="viewLabel(j)"><debrief-icon name="note" [size]="14" /></button>
                   }
                 </span>
               </div>

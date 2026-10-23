@@ -15,7 +15,7 @@ export class RecentProjectsDialogService {
 }
 
 @Component({
-  selector: 'imt-recent-projects-dialog',
+  selector: 'debrief-recent-projects-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (projects.recent().length) {

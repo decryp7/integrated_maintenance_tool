@@ -11,16 +11,16 @@ export { BUILTIN_IMPORTERS, contributionLabel } from './plugins-installed';
  * failures, reset and enable/disable). Per-plugin settings are in Settings ▸ Plugins.
  */
 @Component({
-  selector: 'imt-plugins-view',
+  selector: 'debrief-plugins-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [PluginsInstalled, PluginHealthView, Tabs],
   template: `
-    <imt-tabs class="tabs" label="Plugins" i18n-label="@@pluginsPanel.tabs" idPrefix="plugins-tab-" [items]="tabs" [selected]="state.tab()" [panelId]="panelOf" (selectedChange)="state.show($any($event))" />
+    <debrief-tabs class="tabs" label="Plugins" i18n-label="@@pluginsPanel.tabs" idPrefix="plugins-tab-" [items]="tabs" [selected]="state.tab()" [panelId]="panelOf" (selectedChange)="state.show($any($event))" />
     <div class="body" role="tabpanel" [id]="'plugins-panel-' + state.tab()" [attr.aria-labelledby]="'plugins-tab-' + state.tab()">
       @if (state.tab() === 'installed') {
-        <imt-plugins-installed />
+        <debrief-plugins-installed />
       } @else {
-        <imt-plugin-health-view />
+        <debrief-plugin-health-view />
       }
     </div>
   `,

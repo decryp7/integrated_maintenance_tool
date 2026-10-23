@@ -1,0 +1,81 @@
+---
+source: crates/debrief-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: runs/shared/workers-20261014.log
+importer: text
+records: 1345
+skipped: 0
+levels:
+  2-Information: 1344
+  4-Error: 1
+with_timestamp: 1345
+first_timestamp: "2026-10-14T09:00:34.000Z"
+last_timestamp: "2026-10-14T11:59:58.529Z"
+fields:
+  - Application
+  - Batch
+  - Images
+  - MachineName
+  - ProcessId
+  - SourceContext
+  - Worker
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:00:34.000Z"
+    level: Information
+    message: "Worker B started: batch 1"
+    fields:
+      Application: ImageWorker
+      Batch: 1
+      MachineName: WORKER02
+      ProcessId: 7102
+      SourceContext: Images.BatchWorker
+      Worker: B
+  - line: 2
+    timestamp: "2026-10-14T09:00:35.000Z"
+    level: Information
+    message: "Worker A started: batch 1"
+    fields:
+      Application: ImageWorker
+      Batch: 1
+      MachineName: WORKER02
+      ProcessId: 7101
+      SourceContext: Images.BatchWorker
+      Worker: A
+  - line: 3
+    timestamp: "2026-10-14T09:00:43.388Z"
+    level: Information
+    message: Worker A resized 27 images
+    fields:
+      Application: ImageWorker
+      Batch: 1
+      Images: 27
+      MachineName: WORKER02
+      ProcessId: 7101
+      SourceContext: Images.BatchWorker
+      Worker: A
+  - line: 4
+    timestamp: "2026-10-14T09:00:50.271Z"
+    level: Information
+    message: Worker B resized 18 images
+    fields:
+      Application: ImageWorker
+      Batch: 1
+      Images: 18
+      MachineName: WORKER02
+      ProcessId: 7102
+      SourceContext: Images.BatchWorker
+      Worker: B
+  - line: 5
+    timestamp: "2026-10-14T09:00:56.535Z"
+    level: Information
+    message: Worker A resized 34 images
+    fields:
+      Application: ImageWorker
+      Batch: 1
+      Images: 34
+      MachineName: WORKER02
+      ProcessId: 7101
+      SourceContext: Images.BatchWorker
+      Worker: A

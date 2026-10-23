@@ -32,15 +32,15 @@ describe('Sidebar fields with the facet popover', () => {
     const fields = all<HTMLButtonElement>(fixture, '.field');
     at(fields, 0).click();
     await settle(fixture);
-    const pop = el<HTMLElement>(fixture, 'imt-facet-popover');
+    const pop = el<HTMLElement>(fixture, 'debrief-facet-popover');
     expect(pop.style.left).not.toBe('');
     expect(Number.parseFloat(pop.style.top)).toBeGreaterThanOrEqual(40);
     at(fields, 0).click();
     await settle(fixture);
-    expect(all(fixture, 'imt-facet-popover')).toHaveLength(0);
+    expect(all(fixture, 'debrief-facet-popover')).toHaveLength(0);
     at(fields, 1).click();
     await settle(fixture);
-    expect(el(fixture, 'imt-facet-popover [data-testid=facet-summary]').textContent).toContain('values');
+    expect(el(fixture, 'debrief-facet-popover [data-testid=facet-summary]').textContent).toContain('values');
   });
 
   it('adds a column from the popover and closes it', async () => {
@@ -52,14 +52,14 @@ describe('Sidebar fields with the facet popover', () => {
     buttonByText(fixture, 'Add column').click();
     await settle(fixture);
     expect(store.extraColumns().length).toBe(before + 1);
-    expect(all(fixture, 'imt-facet-popover')).toHaveLength(0);
+    expect(all(fixture, 'debrief-facet-popover')).toHaveLength(0);
   });
 
   it('hides the Fields section in an empty workspace, and copes with a filter that matches nothing', async () => {
     const { fixture, store } = await render(new MockBackend({ latency: false, dataset: () => ({ sources: [], unrecognized: [], records: [] }) }));
     expect(all(fixture, '.field')).toHaveLength(0);
     expect(text(fixture)).toContain('No files open');
-    expect(fixture.nativeElement.querySelector('imt-fields-panel')).toBeNull();
+    expect(fixture.nativeElement.querySelector('debrief-fields-panel')).toBeNull();
     TestBed.resetTestingModule();
     const loaded = await render();
     typeInto(el<HTMLInputElement>(loaded.fixture, 'input.filter'), 'zzz');
@@ -112,12 +112,12 @@ describe('FieldsPanel statistics action', () => {
     // An open facet popover closes when statistics are requested.
     at(all<HTMLButtonElement>(fixture, '.field'), 1).click();
     await settle(fixture);
-    expect(all(fixture, 'imt-facet-popover')).toHaveLength(1);
+    expect(all(fixture, 'debrief-facet-popover')).toHaveLength(1);
     at(buttons, 0).click();
     await settle(fixture);
     expect(TestBed.inject(AnalysisTargets).field()).toBe(names[0]);
     expect(dock.calls).toContain('show:field-stats');
-    expect(all(fixture, 'imt-facet-popover')).toHaveLength(0);
+    expect(all(fixture, 'debrief-facet-popover')).toHaveLength(0);
   });
 
   it('charts a field from the popover in the metrics view', async () => {
@@ -129,11 +129,11 @@ describe('FieldsPanel statistics action', () => {
     const index = all(fixture, '.field .fname').findIndex((n) => n.textContent?.trim() === numeric);
     at(all<HTMLButtonElement>(fixture, '.field'), index).click();
     await settle(fixture);
-    const chart = all<HTMLButtonElement>(fixture, 'imt-facet-popover button').find((b) => /chart/i.test(b.textContent ?? ''));
+    const chart = all<HTMLButtonElement>(fixture, 'debrief-facet-popover button').find((b) => /chart/i.test(b.textContent ?? ''));
     expect(chart).toBeDefined();
     chart!.click();
     await settle(fixture);
     expect(dock.calls).toContain('show:metrics');
-    expect(all(fixture, 'imt-facet-popover')).toHaveLength(0);
+    expect(all(fixture, 'debrief-facet-popover')).toHaveLength(0);
   });
 });

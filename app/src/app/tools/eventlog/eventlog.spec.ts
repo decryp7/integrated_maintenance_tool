@@ -173,7 +173,7 @@ describe('EventLogView', () => {
     expect(validation).toContain('Backfill query:');
     expect(validation).toContain('System OK');
 
-    el<HTMLInputElement>(fixture, 'imt-switch input').click();
+    el<HTMLInputElement>(fixture, 'debrief-switch input').click();
     typeInto(at(all<HTMLInputElement>(fixture, 'input.mono'), 0), '/out');
     await settle(fixture);
     buttonByText(fixture, 'Start').click();

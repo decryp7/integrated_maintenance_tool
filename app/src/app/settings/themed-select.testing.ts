@@ -1,6 +1,6 @@
 import { ComponentFixture } from '@angular/core/testing';
 
-/** Test helper: opens the `imt-select` whose trigger matches `trigger` and clicks the option whose text contains `label`. */
+/** Test helper: opens the `debrief-select` whose trigger matches `trigger` and clicks the option whose text contains `label`. */
 export async function pick(fixture: ComponentFixture<unknown>, trigger: string, label: string): Promise<void> {
   const button = fixture.nativeElement.querySelector(trigger) as HTMLButtonElement;
   button.click();

@@ -117,14 +117,14 @@ describe('platform save and open dialogs for shared files', () => {
     setTauri(false);
     const p = new Platform();
     expect(await p.pickSavePath('Save', 'report.html', [{ name: 'HTML', extensions: ['html'] }])).toBe('report.html');
-    expect(await p.pickOpenPath('Open bundle', [{ name: 'IMT bundle', extensions: ['imtz'] }])).toBe('/demo/shared.imtz');
+    expect(await p.pickOpenPath('Open bundle', [{ name: 'Debrief bundle', extensions: ['debriefz'] }])).toBe('/demo/shared.debriefz');
     expect(await p.pickOpenPath('Open', [])).toBe('/demo/shared.txt');
     setTauri(true);
     core.invoke.mockResolvedValueOnce(['/out/r.pdf']);
     expect(await p.pickSavePath('Export report', 'r.pdf', [{ name: 'PDF', extensions: ['pdf'] }])).toBe('/out/r.pdf');
     expect(request()).toEqual({ kind: 'save', title: 'Export report', defaultName: 'r.pdf', filters: [{ name: 'PDF', extensions: ['pdf'] }] });
-    core.invoke.mockResolvedValueOnce(['/in/case.imtz']).mockResolvedValueOnce([]);
-    expect(await p.pickOpenPath('Open bundle', [{ name: 'IMT bundle', extensions: ['imtz'] }])).toBe('/in/case.imtz');
+    core.invoke.mockResolvedValueOnce(['/in/case.debriefz']).mockResolvedValueOnce([]);
+    expect(await p.pickOpenPath('Open bundle', [{ name: 'Debrief bundle', extensions: ['debriefz'] }])).toBe('/in/case.debriefz');
     expect(request()).toMatchObject({ kind: 'openFile', title: 'Open bundle' });
     expect(await p.pickOpenPath('Open bundle', [])).toBeNull();
   });

@@ -1,12 +1,12 @@
-//! `imt-app --export-diagnostics [<path.zip>] [--force]`: writes the same report as Help ▸ Report a problem
+//! `debrief-app --export-diagnostics [<path.zip>] [--force]`: writes the same report as Help ▸ Report a problem
 //! without the UI — no window, no plugins, no workers — and exits 0 (printing where it went) or 1 (with
-//! what to fix). Without a path it writes `imt-diagnostics-<timestamp>.zip` into Documents (else Downloads,
+//! what to fix). Without a path it writes `debrief-diagnostics-<timestamp>.zip` into Documents (else Downloads,
 //! else the home folder). A path must end in `.zip` and its folder must exist; an existing file is replaced
 //! only with `--force`.
 //!
-//! The report has no description; the steps come from the activity entries of IMT's log (the last
+//! The report has no description; the steps come from the activity entries of Debrief's log (the last
 //! session's breadcrumbs), and settings files that cannot be read are listed instead of failing the export.
-//! IMT's folders are found as the app finds them (`IMT_DATA_DIR` in debug builds, see `dev_overrides`).
+//! Debrief's folders are found as the app finds them (`DEBRIEF_DATA_DIR` in debug builds, see `dev_overrides`).
 
 use super::{breadcrumbs_from_log, ReportInputs, REPORT_BREADCRUMBS};
 use crate::app_dirs::{under, AppDir};
@@ -19,7 +19,7 @@ pub const FLAG: &str = "--export-diagnostics";
 /// Replace an existing file.
 pub const FORCE: &str = "--force";
 /// The app's identifier (`tauri.conf.json`), which names its folders.
-pub const IDENTIFIER: &str = "net.decryptology.imt";
+pub const IDENTIFIER: &str = "net.decryptology.debrief";
 
 /// Where the report goes.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,9 +58,9 @@ pub fn parse<S: AsRef<str>>(args: &[S]) -> Option<Result<ExportArgs, String>> {
     })
 }
 
-/// `imt-diagnostics-20261014-091503.zip` (local time).
+/// `debrief-diagnostics-20261014-091503.zip` (local time).
 pub fn default_file_name(now: &DateTime<Local>) -> String {
-    format!("imt-diagnostics-{}.zip", now.format("%Y%m%d-%H%M%S"))
+    format!("debrief-diagnostics-{}.zip", now.format("%Y%m%d-%H%M%S"))
 }
 
 /// The absolute path to write: relative paths are taken from `cwd`; the folder must exist (it is
@@ -93,7 +93,7 @@ pub fn resolve(args: &ExportArgs, cwd: &Path, default_dirs: &[PathBuf], now: &Da
     Ok(dest)
 }
 
-/// IMT's folders.
+/// Debrief's folders.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Folders {
     pub data: PathBuf,
@@ -184,21 +184,21 @@ pub fn run_if_requested() -> Option<i32> {
         .flatten()
         .collect();
     let result = parsed.and_then(|a| {
-        let f = folders(crate::dev_overrides::current().data_dir.as_deref()).ok_or("cannot find IMT's folders (no home folder)")?;
+        let f = folders(crate::dev_overrides::current().data_dir.as_deref()).ok_or("cannot find Debrief's folders (no home folder)")?;
         let cwd = std::env::current_dir().map_err(|e| format!("cannot read the current folder: {e}"))?;
         export(&a, &f, &cwd, &defaults, Utc::now())
     });
     Some(match result {
         Ok(done) => {
             for u in &done.unreadable {
-                eprintln!("IMT diagnostics: could not read {u}");
+                eprintln!("Debrief diagnostics: could not read {u}");
             }
             println!("{}", done.path.display());
-            eprintln!("Saved IMT diagnostics ({} files) to {}", done.files, done.path.display());
+            eprintln!("Saved Debrief diagnostics ({} files) to {}", done.files, done.path.display());
             0
         }
         Err(e) => {
-            eprintln!("IMT could not export diagnostics: {e}");
+            eprintln!("Debrief could not export diagnostics: {e}");
             1
         }
     })
@@ -270,14 +270,14 @@ mod tests {
         };
         let got = resolve(&def, &d, &[d.join("nope"), d.clone()], &local).unwrap();
         assert_eq!(got.file_name().unwrap().to_string_lossy(), default_file_name(&local));
-        assert!(default_file_name(&local).starts_with("imt-diagnostics-2026101"));
+        assert!(default_file_name(&local).starts_with("debrief-diagnostics-2026101"));
         assert!(resolve(&def, &d, &[d.join("nope")], &local).unwrap_err().contains("Documents"));
         std::fs::remove_dir_all(d).unwrap();
     }
 
     #[test]
     fn folders_follow_the_override_root_and_the_identifier() {
-        let root = std::env::temp_dir().join("imt-cli-root");
+        let root = std::env::temp_dir().join("debrief-cli-root");
         let f = folders(Some(&root)).unwrap();
         assert_eq!(
             (f.data, f.config, f.log),
@@ -299,8 +299,8 @@ mod tests {
         std::fs::create_dir_all(&f.config).unwrap();
         std::fs::create_dir_all(&f.data).unwrap();
         std::fs::write(
-            f.log.join("imt.2026-10-14.log"),
-            "{\"@t\":\"2026-10-14T09:00:00Z\",\"SourceContext\":\"IMT.Activity\",\"Operation\":\"file.open\",\"Trigger\":\"menu\",\"Window\":\"main\"}\n",
+            f.log.join("debrief.2026-10-14.log"),
+            "{\"@t\":\"2026-10-14T09:00:00Z\",\"SourceContext\":\"Debrief.Activity\",\"Operation\":\"file.open\",\"Trigger\":\"menu\",\"Window\":\"main\"}\n",
         )
         .unwrap();
         std::fs::write(f.config.join("settings.json"), "{ corrupt").unwrap();

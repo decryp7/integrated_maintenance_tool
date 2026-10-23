@@ -141,7 +141,7 @@ export class VisualExportService {
       .items()
       .filter((a) => this.annotations.isShown(a.kind))
       .map((a) => ({ from: a.from, to: a.to, label: a.label, color: kinds.get(a.kind)?.color ?? null }));
-    const profile = this.store.summary()?.profileName ?? 'IMT';
+    const profile = this.store.summary()?.profileName ?? 'Debrief';
     const title = $localize`:@@share.visualExport.timelineTitle:Timeline — ${profile}:profile:`;
     return timelineToSvg({ timeline, title, markerColors, annotations, theme, tz: this.store.timezone() });
   }

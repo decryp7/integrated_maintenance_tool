@@ -18,7 +18,7 @@ async function render(backend = tinyBackend()) {
 describe('TimelinePanel runs', () => {
   it('draws runs as bands per lane behind the markers, out of the tab order', async () => {
     const { fixture } = await render();
-    const runs = all<HTMLButtonElement>(fixture, '.lane imt-run-track .run');
+    const runs = all<HTMLButtonElement>(fixture, '.lane debrief-run-track .run');
     expect(runs.map((r) => r.getAttribute('data-status')).sort()).toEqual(['closed', 'closed', 'open']);
     expect(runs.every((r) => r.getAttribute('tabindex') === '-1')).toBe(true);
     const open = must(runs.find((r) => r.getAttribute('data-status') === 'open'));

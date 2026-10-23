@@ -4,7 +4,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, signal } from '@angular/core';
 import { ActivityItems } from '../extensions/activity-items';
 import { ariaKeyshortcuts, formatKeybinding } from '../extensions/keybinding';
-import { ImtActivityItem, ImtActivityMenuItem, ImtActivityTarget } from '../extensions/tokens';
+import { DebriefActivityItem, DebriefActivityMenuItem, DebriefActivityTarget } from '../extensions/tokens';
 import { Icon } from '../shared/icon';
 import { fittingTopItems } from './activity-overflow';
 
@@ -15,12 +15,12 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
 ];
 
 /**
- * The left activity bar: one button per `ImtActivityItem` (built-in features and plugins contribute them through
- * `IMT_ACTIVITY_ITEMS`), in order, with Settings and other bottom items pinned below. Items with a menu open a CDK
+ * The left activity bar: one button per `DebriefActivityItem` (built-in features and plugins contribute them through
+ * `DEBRIEF_ACTIVITY_ITEMS`), in order, with Settings and other bottom items pinned below. Items with a menu open a CDK
  * fly-out to the right. When the window is too short, the last top items collapse into a More fly-out.
  */
 @Component({
-  selector: 'imt-activity-bar',
+  selector: 'debrief-activity-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, NgTemplateOutlet, CdkMenu, CdkMenuItem, CdkMenuItemCheckbox, CdkMenuTrigger],
   template: `
@@ -42,7 +42,7 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
         [class.on]="moreTrigger.isOpen()"
         (keydown.arrowright)="openWithKeyboard(moreTrigger, $event)"
       >
-        <imt-icon name="more" [size]="18" [stroke]="2.6" />
+        <debrief-icon name="more" [size]="18" [stroke]="2.6" />
       </button>
     }
     <div class="spacer"></div>
@@ -87,7 +87,7 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
     </ng-template>
 
     <ng-template #face let-item>
-      <imt-icon [name]="item.icon" [size]="18" />
+      <debrief-icon [name]="item.icon" [size]="18" />
       @if (items.isOpenElsewhere(item) || (items.hasMenu(item) && items.menuState(item) === 'open')) {
         <span class="open-dot" aria-hidden="true" data-testid="open-elsewhere"></span>
       }
@@ -166,10 +166,10 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
     <ng-template #entryFace let-entry let-checked="checked" let-submenu="submenu">
       <span class="check" aria-hidden="true">
         @if (checked) {
-          <imt-icon name="check" [size]="14" />
+          <debrief-icon name="check" [size]="14" />
         }
       </span>
-      <imt-icon class="mi-icon" [name]="entry.icon ?? ''" [size]="14" />
+      <debrief-icon class="mi-icon" [name]="entry.icon ?? ''" [size]="14" />
       <span class="label">{{ entry.label }}</span>
       @if (submenu) {
         <span class="hint" aria-hidden="true">›</span>
@@ -188,8 +188,8 @@ export const FLYOUT_POSITIONS: ConnectedPosition[] = [
     .act[aria-disabled='true']:hover { color: var(--faint); }
     .spacer { flex: 1; min-height: 0; }
     .open-dot { position: absolute; bottom: 5px; inset-inline-start: 5px; width: 5px; height: 5px; border-radius: 50%; background: var(--faint); }
-    .pulse { position: absolute; top: 6px; inset-inline-end: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: imt-activity-pulse 1.6s ease-in-out infinite; }
-    @keyframes imt-activity-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
+    .pulse { position: absolute; top: 6px; inset-inline-end: 6px; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); animation: debrief-activity-pulse 1.6s ease-in-out infinite; }
+    @keyframes debrief-activity-pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.7); } }
     @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
     .badge {
       position: absolute; bottom: 2px; inset-inline-end: 1px; min-width: 14px; height: 14px; padding: 0 3px; box-sizing: border-box; border-radius: 7px;
@@ -236,9 +236,9 @@ export class ActivityBar {
   }
 
   /** Shows the view or runs the command, unless the item is inert. */
-  protected activate(item: ImtActivityItem): void {
+  protected activate(item: DebriefActivityItem): void {
     if (this.items.disabledReason(item) || this.items.hasMenu(item)) return;
-    this.items.run(item.run as ImtActivityTarget);
+    this.items.run(item.run as DebriefActivityTarget);
   }
 
   /** ArrowRight on a fly-out button opens it with the first entry focused (Enter, Space and ArrowDown do too). */
@@ -252,25 +252,25 @@ export class ActivityBar {
    * The button's name with its badge ("Notifications, 2"): the count it shows is part of its name (WCAG 2.5.3). Not in
    * parentheses: name-in-label checks (axe) ignore parentheticals, so "Notifications (2)" would not contain the visible "2".
    */
-  protected ariaLabel(item: ImtActivityItem): string {
+  protected ariaLabel(item: DebriefActivityItem): string {
     const badge = this.items.badge(item);
     return badge === null ? item.label : $localize`:Activity bar button name with its badge@@shell.activityBar.labelBadge:${item.label}:label:, ${badge}:badge:`;
   }
 
   /** "Label (Ctrl+B)", with the reason when the item is inert. */
-  protected tooltip(item: ImtActivityItem): string {
+  protected tooltip(item: DebriefActivityItem): string {
     const keys = this.hint(item);
     const label = keys ? $localize`:Activity bar tooltip with its shortcut@@shell.activityBar.tooltipKeys:${item.label}:label: (${keys}:keys:)` : item.label;
     const reason = this.items.disabledReason(item);
     return reason ? $localize`:Activity bar tooltip of an unavailable button@@shell.activityBar.tooltipReason:${label}:label: — ${reason}:reason:` : label;
   }
 
-  protected hint(item: ImtActivityItem | ImtActivityMenuItem): string {
+  protected hint(item: DebriefActivityItem | DebriefActivityMenuItem): string {
     const binding = this.items.keybinding(item);
     return binding ? formatKeybinding(binding) : '';
   }
 
-  protected keys(item: ImtActivityItem | ImtActivityMenuItem): string | null {
+  protected keys(item: DebriefActivityItem | DebriefActivityMenuItem): string | null {
     const binding = this.items.keybinding(item);
     return binding ? ariaKeyshortcuts(binding) : null;
   }

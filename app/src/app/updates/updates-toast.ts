@@ -2,14 +2,14 @@ import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { UpdatesCommands } from './updates.commands';
 import { UpdatesStore } from './updates.store';
 
-/** "IMT x.y is available — View" after an automatic check. Mounted once over the app. */
+/** "Debrief x.y is available — View" after an automatic check. Mounted once over the app. */
 @Component({
-  selector: 'imt-updates-toast',
+  selector: 'debrief-updates-toast',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (store.notice(); as version) {
       <div class="toast" role="status" aria-live="polite" data-testid="updates-toast">
-        <span i18n="@@updates.toast.text"><strong>IMT {{ version }} is available</strong> — <button type="button" class="link" (click)="view()">View</button></span>
+        <span i18n="@@updates.toast.text"><strong>Debrief {{ version }} is available</strong> — <button type="button" class="link" (click)="view()">View</button></span>
         <button type="button" class="x" aria-label="Dismiss" i18n-aria-label="@@updates.toast.dismiss" (click)="store.dismissNotice()">×</button>
       </div>
     }

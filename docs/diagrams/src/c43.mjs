@@ -7,7 +7,7 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
 
 // ---------- engine 1: ingest ----------
 {
-  const d = P({ title: 'imt-core — ingest', kind: 'C4 · Level 3 — Components of imt-core (1 of 4)', w: 1472,
+  const d = P({ title: 'debrief-core — ingest', kind: 'C4 · Level 3 — Components of debrief-core (1 of 4)', w: 1472,
     desc: 'From a file on disk to events in the store: read, ingest, interpret with the profile, hand to the Store ports.' });
   grp(d, 'g1', GX(0), Y0, 'Read files', [
     C('arc', 'archive', 'zip · tar · gzip', 'Expands archives under size and entry limits.'),
@@ -25,8 +25,8 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
     C('ske', 'skew', 'Clock offsets', 'Per-file offsets applied to stored events (ADR 0006, 0037).'),
   ]);
   grp(d, 'g4', GX(3), Y0, 'Store ports', [
-    C('por', 'ports', '`imt_core::ports`', 'Fourteen traits combined as `Store`: `Ingest`, `Profiles`, `Skew`, `Tail` and the readers.', 'accent'),
-    C('bat', 'imt-batch', '`EventBatch`', 'The Arrow batch that flows to the writer and the index.'),
+    C('por', 'ports', '`debrief_core::ports`', 'Fourteen traits combined as `Store`: `Ingest`, `Profiles`, `Skew`, `Tail` and the readers.', 'accent'),
+    C('bat', 'debrief-batch', '`EventBatch`', 'The Arrow batch that flows to the writer and the index.'),
   ]);
   const y2 = Math.max(gb(d, 'g1'), gb(d, 'g2'), gb(d, 'g3'), gb(d, 'g4')) + 56;
   grp(d, 'g5', GX(0), y2, 'Plugin runtime', [
@@ -46,7 +46,7 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
 
 // ---------- engine 2: query and aggregation ----------
 {
-  const d = P({ title: 'imt-core — query and aggregation', kind: 'C4 · Level 3 — Components of imt-core (2 of 4)', w: 1344,
+  const d = P({ title: 'debrief-core — query and aggregation', kind: 'C4 · Level 3 — Components of debrief-core (2 of 4)', w: 1344,
     desc: 'Filters, the query language and aggregates. Every view reads through the ports; no view holds records.' });
   grp(d, 'g1', GX(0), Y0, 'Views over the ports', [
     C('hom', 'home', '`HomeSummary`', 'Counts, history by level, markers and anomalies from store queries.'),
@@ -74,7 +74,7 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
 
 // ---------- engine 3: analysis and investigation ----------
 {
-  const d = P({ title: 'imt-core — analysis and investigation', kind: 'C4 · Level 3 — Components of imt-core (3 of 4)', w: 1344,
+  const d = P({ title: 'debrief-core — analysis and investigation', kind: 'C4 · Level 3 — Components of debrief-core (3 of 4)', w: 1344,
     desc: 'Analyses are functions over the Query port or implementations of the Analysis port; each result says how much data it covers.' });
   grp(d, 'g1', GX(0), Y0, 'Investigate', [
     C('kin', 'known_issues', 'Known-issue blocks', 'Declared errors matched by running their filter through the store.'),
@@ -99,17 +99,17 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
 
 // ---------- engine 4: sharing and projects ----------
 {
-  const d = P({ title: 'imt-core — sharing, projects and settings', kind: 'C4 · Level 3 — Components of imt-core (4 of 4)', w: 1504,
+  const d = P({ title: 'debrief-core — sharing, projects and settings', kind: 'C4 · Level 3 — Components of debrief-core (4 of 4)', w: 1504,
     desc: 'What leaves the app or is saved: exports, reports, bundles, projects and dashboards. One redactor serves them all.' });
-  d.node('pdf', 72, Y0 + 40, 232, null, 'accent', { name: 'imt-pdf', tech: 'Rust library, adapter', desc: 'PDF reports behind the `ReportRenderer` port.' });
+  d.node('pdf', 72, Y0 + 40, 232, null, 'accent', { name: 'debrief-pdf', tech: 'Rust library, adapter', desc: 'PDF reports behind the `ReportRenderer` port.' });
   grp(d, 'g1', GX(1), Y0, 'Share', [
     C('exp', 'export', 'CSV · CLEF · JSON', 'Exports of the filtered events.'),
     C('rep', 'report', '`Report`, `ReportRenderer`', 'Versioned report model in Markdown and HTML (ADR 0007).'),
     C('red', 'redact', '`Redactor`, `redact::copy`', 'One redactor for the view, exports, reports, bundles and the redacted copy.'),
   ]);
   grp(d, 'g2', GX(2), Y0, 'Projects', [
-    C('prj', 'project, package', '`ProjectManifest`', 'Session files and the manifest of a `.imtz` project.'),
-    C('bun', 'bundle', '`.imtz`', 'Reads and writes bundles with archive limits and hashes.'),
+    C('prj', 'project, package', '`ProjectManifest`', 'Session files and the manifest of a `.debriefz` project.'),
+    C('bun', 'bundle', '`.debriefz`', 'Reads and writes bundles with archive limits and hashes.'),
     C('das', 'dashboard, tiles', '`DashboardCfg`', 'Per-profile tile grids.'),
   ]);
   grp(d, 'g3', GX(3), Y0, 'Configuration', [
@@ -134,8 +134,8 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
   grp(d, 'g1', GX(0), Y0, 'App frame', [
     U('shell', 'shell, windowing', 'Title bar, menus, status bar', 'Activity bar, native or in-window menus (ADR 0008), windows and the tray.'),
     U('dock', 'dock, popout', 'dockview', 'VS-style docking, named layouts, auto-hide, panels in OS windows.'),
-    U('ext', 'extensions, builtin, palette', '`IMT_VIEWS`, commands', 'View and command registries, keybindings and the command palette.'),
-    U('ui', 'ui, shared', 'Angular CDK + Material', 'Dialogs, context menus, `imt-icon`, switches, overwrite guard.'),
+    U('ext', 'extensions, builtin, palette', '`DEBRIEF_VIEWS`, commands', 'View and command registries, keybindings and the command palette.'),
+    U('ui', 'ui, shared', 'Angular CDK + Material', 'Dialogs, context menus, `debrief-icon`, switches, overwrite guard.'),
   ]);
   grp(d, 'g2', GX(1), Y0, 'State', [
     U('wss', 'WorkspaceStore', 'SignalStore', 'Sources, summary, selection and the data version that views watch.'),
@@ -144,7 +144,7 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
     U('log', 'logger, failure-reporter', 'Diagnostics', 'UI log to the app log; inline errors with Retry.'),
   ]);
   grp(d, 'g3', GX(2), Y0, 'Backends', [
-    U('be', 'ImtBackend', 'DI token, abstract class', 'Typed by `api.types.ts` (camelCase JSON); small domain backends per area.'),
+    U('be', 'DebriefBackend', 'DI token, abstract class', 'Typed by `api.types.ts` (camelCase JSON); small domain backends per area.'),
     U('tb', 'TauriBackend', '`invoke()`, `listen()`', 'The only place that calls Tauri.'),
     U('mb', 'MockBackend', '`core/mock`', 'Plausible data for browser development and UI tests; never the reference.'),
   ]);
@@ -183,7 +183,7 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
   ]);
   const y2 = Math.max(...['g1', 'g2', 'g3', 'g4'].map((g) => bottom(d, g))) + 56;
   const gw = 4 * 280 + 3 * 96;
-  d.node('bar', 48, y2, gw, 72, 'ui', { name: 'WorkspaceStore, QueryStore and the ImtBackend token', tech: 'See “frame, state and backends”', desc: 'Views read signals and call the backend; none calls Tauri.' });
+  d.node('bar', 48, y2, gw, 72, 'ui', { name: 'WorkspaceStore, QueryStore and the DebriefBackend token', tech: 'See “frame, state and backends”', desc: 'Views read signals and call the backend; none calls Tauri.' });
   for (const g of ['g1', 'g2', 'g3', 'g4']) link(d, g, 'B', 'bar', 'T', { t: [0.5, (d.rect[g][0] + d.rect[g][2] / 2 - 48) / gw] });
   d.legend([{ kind: 'ui', label: 'UI component (folder)' }, { kind: 'line', label: 'Uses' }]);
   save('c4-3-ui-investigate', d, y2 + 72);
@@ -201,7 +201,7 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
   ]);
   grp(d, 'g2', GX(1), Y0, 'Open and share', [
     U('imp', 'import, sources', 'Import', 'Progress with Cancel, a time-range import and per-source actions.'),
-    U('shr', 'share, export', 'Reports and bundles', 'Incident reports, exports, redacted copies and `.imtz` bundles.'),
+    U('shr', 'share, export', 'Reports and bundles', 'Incident reports, exports, redacted copies and `.debriefz` bundles.'),
     U('prj', 'projects, lifecycle', 'Projects', 'Save, open and recent projects; crash recovery and autosave.'),
   ]);
   grp(d, 'g3', GX(2), Y0, 'Specialist views', [
@@ -216,7 +216,7 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
   ]);
   const y2 = Math.max(...['g1', 'g2', 'g3', 'g4'].map((g) => bottom(d, g))) + 56;
   const gw = 4 * 280 + 3 * 96;
-  d.node('bar', 48, y2, gw, 72, 'ui', { name: 'WorkspaceStore, QueryStore and the ImtBackend token', tech: 'See “frame, state and backends”', desc: 'Views read signals and call the backend; none calls Tauri.' });
+  d.node('bar', 48, y2, gw, 72, 'ui', { name: 'WorkspaceStore, QueryStore and the DebriefBackend token', tech: 'See “frame, state and backends”', desc: 'Views read signals and call the backend; none calls Tauri.' });
   for (const g of ['g1', 'g2', 'g3', 'g4']) link(d, g, 'B', 'bar', 'T', { t: [0.5, (d.rect[g][0] + d.rect[g][2] / 2 - 48) / gw] });
   d.legend([{ kind: 'ui', label: 'UI component (folder)' }, { kind: 'line', label: 'Uses' }]);
   save('c4-3-ui-tools', d, y2 + 72);
@@ -226,7 +226,7 @@ const gb = (d, id) => d.rect[id][1] + d.rect[id][3];
 {
   const d = P({ title: 'Research browser — components', kind: 'C4 · Level 3 — Research and Agent mode over a real Chromium', w: 1504,
     desc: 'The AI sees and drives a page only through three ports. A neutral driver crate speaks DevTools; every indicator that the AI is browsing lives outside the page.' });
-  grp(d, 'g1', GX(0), Y0, 'imt-ai: browser ports and rules', [
+  grp(d, 'g1', GX(0), Y0, 'debrief-ai: browser ports and rules', [
     C('por', 'ports', '`PageReader`, `ResultsReader`, `PageDriver`', 'What the AI may ask of a page; the same page scripts as before.', 'accent'),
     C('pol', 'policy, leak guard', '`check_query`, site rules', 'Checks a search for workspace data; site rules and approvals.'),
     C('gate', 'ReplyGate', 'Nonce · origin · size', 'Every reply from a page passes a one-shot gate.'),

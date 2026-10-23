@@ -104,7 +104,7 @@ pub enum JobState {
     Done,
     Failed,
     Cancelled,
-    /// IMT closed or crashed while the job was queued or running.
+    /// Debrief closed or crashed while the job was queued or running.
     Interrupted,
 }
 
@@ -278,7 +278,7 @@ pub enum JobResult {
     },
     /// The folder survey's proposals: View reopens the set-up wizard with them.
     FolderSurvey { outcome: Value },
-    /// What clearing IMT's storage freed and kept: View opens Settings ▸ Storage with it.
+    /// What clearing Debrief's storage freed and kept: View opens Settings ▸ Storage with it.
     Storage { result: Value },
     /// The logs related to an image (ADR 0025): View opens the image with its links.
     RelatedLogs { result: Value },

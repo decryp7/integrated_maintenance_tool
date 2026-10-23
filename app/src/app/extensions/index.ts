@@ -1,45 +1,45 @@
 /**
- * Public API for IMT UI plugins.
+ * Public API for Debrief UI plugins.
  *
  * A plugin is a set of contributions registered in `app.config.ts` with one call:
  *
  * ```ts
- * provideImtPlugin({ views, commands, inspectorSections, fieldFormatters })
+ * provideDebriefPlugin({ views, commands, inspectorSections, fieldFormatters })
  * ```
  *
- * - `ImtView`            dockable panel, loaded lazily, offered while `when(summary)` holds
- * - `ImtCommand`         palette / menu action with optional key binding; receives a `CommandContext`
- * - `ImtInspectorSection` extra block in the event inspector (component with a `record` input)
- * - `ImtFieldFormatter`  display formatting for fields in the grid and inspector
- * - `ImtActivityItem`    button in the left activity bar: shows a view, runs a command or opens a fly-out menu
- * - `ImtEvents`          read-only streams of workspace / query / selection / profile changes
+ * - `DebriefView`            dockable panel, loaded lazily, offered while `when(summary)` holds
+ * - `DebriefCommand`         palette / menu action with optional key binding; receives a `CommandContext`
+ * - `DebriefInspectorSection` extra block in the event inspector (component with a `record` input)
+ * - `DebriefFieldFormatter`  display formatting for fields in the grid and inspector
+ * - `DebriefActivityItem`    button in the left activity bar: shows a view, runs a command or opens a fly-out menu
+ * - `DebriefEvents`          read-only streams of workspace / query / selection / profile changes
  *
- * Plugins never touch the stores: they observe through `ImtEvents` and act through `CommandContext`.
+ * Plugins never touch the stores: they observe through `DebriefEvents` and act through `CommandContext`.
  */
 export { ActivityItems, viewCategoryMenu } from './activity-items';
 export { CommandRegistry, COMMAND_CONTEXT } from './command-registry';
 export { JUMP_TIMEOUT_MS, WorkspaceCommandContext } from './command-context';
-export { ImtEvents, StoreImtEvents } from './events';
+export { DebriefEvents, StoreDebriefEvents } from './events';
 export { EVENT_ID_FORMATTER, FieldFormatters, findFormatter } from './field-formatters';
 export { fuzzyFilter, fuzzyScore } from './fuzzy';
 export { InspectorSections } from './inspector-sections';
 export { formatKeybinding, matchesKeybinding } from './keybinding';
-export { provideImtPlugin, type ImtPlugin } from './provide';
+export { provideDebriefPlugin, type DebriefPlugin } from './provide';
 export {
   flattenContributions,
-  IMT_ACTIVITY_ITEMS,
-  IMT_COMMANDS,
-  IMT_FIELD_FORMATTERS,
-  IMT_INSPECTOR_SECTIONS,
-  IMT_VIEWS,
+  DEBRIEF_ACTIVITY_ITEMS,
+  DEBRIEF_COMMANDS,
+  DEBRIEF_FIELD_FORMATTERS,
+  DEBRIEF_INSPECTOR_SECTIONS,
+  DEBRIEF_VIEWS,
   type CommandContext,
-  type ImtActivityItem,
-  type ImtActivityMenuItem,
-  type ImtActivityTarget,
-  type ImtCommand,
-  type ImtFieldFormatter,
-  type ImtInspectorSection,
-  type ImtView,
+  type DebriefActivityItem,
+  type DebriefActivityMenuItem,
+  type DebriefActivityTarget,
+  type DebriefCommand,
+  type DebriefFieldFormatter,
+  type DebriefInspectorSection,
+  type DebriefView,
   type ViewCategory,
   type ViewPosition,
 } from './tokens';

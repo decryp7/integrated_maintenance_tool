@@ -1,0 +1,39 @@
+[package]
+name = "debrief-store-duck"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+description = "Debrief's DuckDB store (ADR 0014): events as zstd Parquet segments with a DuckDB catalog, queries compiled to SQL with a batch-scan fallback, a Tantivy full-text index"
+
+# It links the official prebuilt libduckdb (never `bundled`, which needs several GB of RAM to compile):
+#   eval "$(crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
+
+[dependencies]
+debrief-core = { path = "../debrief-core" }
+# Gives freed memory back to the OS when an import or an index build ends (`debrief_alloc::release`).
+debrief-alloc = { path = "../debrief-alloc" }
+anyhow.workspace = true
+# CSV export of SQL console results.
+csv.workspace = true
+duckdb = { workspace = true, features = ["appender-arrow"] }
+log.workspace = true
+serde.workspace = true
+toml.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+# Event segments: zstd Parquet written by the parse threads (Apache-2.0); the Arrow version of duckdb-rs.
+parquet = { workspace = true, features = ["arrow", "zstd"] }
+rayon.workspace = true
+# Full-text index (MIT).
+tantivy = { workspace = true, features = ["mmap", "lz4-compression"] }
+
+[dev-dependencies]
+# The worker's allocator environment (`allocator::worker_env`), so the memory budget test measures what ships.
+debrief-store-client = { path = "../debrief-store-client" }
+# Current resident set size on Windows, macOS and Linux (MIT OR Apache-2.0), for the memory budget test.
+memory-stats.workspace = true
+getrandom.workspace = true
+chrono.workspace = true
+zip.workspace = true

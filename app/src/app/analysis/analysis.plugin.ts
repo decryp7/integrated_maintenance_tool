@@ -1,17 +1,17 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
 import { AnalysisBackend, TauriAnalysisBackend } from '../core/analysis-backend';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, ImtView } from '../extensions/tokens';
-import { provideImtPlugin } from '../extensions/provide';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DebriefView } from '../extensions/tokens';
+import { provideDebriefPlugin } from '../extensions/provide';
 import { analysisActivityItems } from './analysis-activity';
 import { AnalysisCommands } from './analysis-commands';
 import { browserMocks } from '../core/mock-registry';
 
 /** The analysis views; they open from the palette, menus and the Analyze activity. Queries are typed in the filter bar. */
-export const ANALYSIS_VIEWS: ImtView[] = [
+export const ANALYSIS_VIEWS: DebriefView[] = [
   { id: 'query-results', category: 'Analysis', title: $localize`:@@analysis.plugin.view.queryResults:Query results`, icon: 'columns', defaultPosition: 'bottom', component: () => import('./query-results-view').then((m) => m.QueryResultsView) },
   { id: 'moment', category: 'Analysis', area: 'analysis', title: $localize`:@@analysis.plugin.view.moment:Moment`, icon: 'timeline', defaultPosition: 'center', component: () => import('./moment-view').then((m) => m.MomentView) },
   { id: 'anomalies', category: 'Analysis', title: $localize`:@@analysis.plugin.view.anomalies:Anomalies`, icon: 'alert', defaultPosition: 'bottom', component: () => import('./anomalies-view').then((m) => m.AnomaliesView) },
@@ -25,7 +25,7 @@ export const ANALYSIS_VIEWS: ImtView[] = [
 
 /** The engine-backed analysis backend inside Tauri, the mock (derived from the demo records) in a browser. */
 export function createAnalysisBackend(): AnalysisBackend {
-  const backend: AnalysisBackend = isTauri() ? new TauriAnalysisBackend() : new (browserMocks().MockAnalysisBackend)(browserMocks().recordsFrom(inject(ImtBackend)));
+  const backend: AnalysisBackend = isTauri() ? new TauriAnalysisBackend() : new (browserMocks().MockAnalysisBackend)(browserMocks().recordsFrom(inject(DebriefBackend)));
   return withFailureLogging<AnalysisBackend>(backend, inject(Logger), { onFailure: reportBackendFailures() });
 }
 
@@ -33,8 +33,8 @@ export function createAnalysisBackend(): AnalysisBackend {
 export function provideAnalysis(): EnvironmentProviders {
   return makeEnvironmentProviders([
     { provide: AnalysisBackend, useFactory: createAnalysisBackend },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(AnalysisCommands).commands },
-    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: analysisActivityItems },
-    provideImtPlugin({ views: ANALYSIS_VIEWS }),
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(AnalysisCommands).commands },
+    { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: analysisActivityItems },
+    provideDebriefPlugin({ views: ANALYSIS_VIEWS }),
   ]);
 }

@@ -8,7 +8,7 @@ import { SchedulesBackend } from './schedules-backend';
 import { plural } from '../i18n/locale';
 
 interface SchedulesState {
-  /** The config file (empty: IMT's default). */
+  /** The config file (empty: Debrief's default). */
   path: string;
   config: AgentConfigFile | null;
   /** The file exists (false: a starter document). */
@@ -25,7 +25,7 @@ interface SchedulesState {
 
 const INITIAL: SchedulesState = { path: '', config: null, exists: false, loadedPath: '', schema: null, issues: [], dirty: false, busy: null, error: null, notice: null };
 
-/** Editing `imt-agent.toml`: the engine validates and saves; the store keeps the draft and its issues. */
+/** Editing `debrief-agent.toml`: the engine validates and saves; the store keeps the draft and its issues. */
 export const SchedulesStore = signalStore(
   { providedIn: 'root' },
   withState<SchedulesState>(INITIAL),

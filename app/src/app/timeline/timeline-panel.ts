@@ -49,21 +49,21 @@ function timelineSource(): TimelineSource {
  * them, and `TimelineInteraction` handles pointer and keyboard input on the plot.
  */
 @Component({
-  selector: 'imt-timeline-panel',
+  selector: 'debrief-timeline-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TimeCursorLine, AnnotationTrack, ProfileSpanTrack, DumpMarkerTrack, NoteTimelineTrack, TimelineHeader, TimelineLegend, TimelineMinimap, TimelineLanes, TimelineTooltips, TimelineInteraction, ErrorDetails],
   // One store per panel: an additional timeline gets its own `TimelineInstanceStore` (created only when used).
   providers: [TimelineInstanceStore, { provide: TIMELINE_SOURCE, useFactory: timelineSource }],
   host: { '[class.instance]': '!src.main' },
   template: `
-    <imt-timeline-header />
-    <imt-timeline-legend [inView]="annInView()" />
+    <debrief-timeline-header />
+    <debrief-timeline-legend [inView]="annInView()" />
 
     <div
       class="wrap"
       #wrap
-      [imtTimelineInteraction]="range()"
-      #ix="imtTimelineInteraction"
+      [debriefTimelineInteraction]="range()"
+      #ix="debriefTimelineInteraction"
       [plotLeft]="plotLeft()"
       [plotWidth]="plotWidth()"
       [panel]="hostEl"
@@ -74,7 +74,7 @@ function timelineSource(): TimelineSource {
         <div class="sticky">
           <div class="row mini-row">
             <div class="label"></div>
-            <div class="plot"><imt-timeline-minimap /></div>
+            <div class="plot"><debrief-timeline-minimap /></div>
           </div>
           <div class="row hist-row">
             <div class="label hist-label small">
@@ -101,7 +101,7 @@ function timelineSource(): TimelineSource {
           </div>
         </div>
 
-        <imt-timeline-lanes
+        <debrief-timeline-lanes
           [lanes]="lanes()"
           [runLayout]="runLayout()"
           [annLanes]="annLayout().lanes"
@@ -125,11 +125,11 @@ function timelineSource(): TimelineSource {
 
       <div class="overlay" [style.left.px]="plotLeft()" [style.width.px]="plotWidth()">
         @if (annLayout().global.length) {
-          <imt-annotation-track class="global" [items]="annLayout().global" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" (menuRequested)="spanMenu($event)" />
+          <debrief-annotation-track class="global" [items]="annLayout().global" (hovered)="annHover.set($event)" (activated)="ann.showEvidence($event.ann)" (menuRequested)="spanMenu($event)" />
         }
-        <imt-profile-span-track [view]="range()" [width]="plotWidth()" />
-        <imt-dump-marker-track [view]="range()" [width]="plotWidth()" />
-        <imt-note-timeline-track [view]="range()" [width]="plotWidth()" />
+        <debrief-profile-span-track [view]="range()" [width]="plotWidth()" />
+        <debrief-dump-marker-track [view]="range()" [width]="plotWidth()" />
+        <debrief-note-timeline-track [view]="range()" [width]="plotWidth()" />
         @for (x of fatalLines(); track $index) {
           <!-- The band shows only where the theme asks for it (data-crash-band); the rule always. -->
           <div class="crash-band" [style.left.%]="x" aria-hidden="true"></div>
@@ -140,7 +140,7 @@ function timelineSource(): TimelineSource {
           <!-- The floating summary shows only where the theme asks for it (data-brush-pill). -->
           <div class="brush-pill mono" data-testid="brush-pill" [style.left.px]="(b.x0 + b.x1) / 2" aria-hidden="true">{{ brushText(b) }}</div>
         }
-        <div class="cursor" [imtTimeCursorLine]="range()" [imtTimeCursorLineOf]="cursor" [imtTimeCursorLineWidth]="plotWidth()" [imtTimeCursorLineLabel]="cursorLabel">
+        <div class="cursor" [debriefTimeCursorLine]="range()" [debriefTimeCursorLineOf]="cursor" [debriefTimeCursorLineWidth]="plotWidth()" [debriefTimeCursorLineLabel]="cursorLabel">
           <span class="cursor-label mono" data-cursor-label></span>
         </div>
       </div>
@@ -148,11 +148,11 @@ function timelineSource(): TimelineSource {
 
     @if (src.error(); as err) {
       <div class="err-card" role="alert">
-        <imt-error-details summary="Couldn't load the timeline." i18n-summary="@@timeline.error.summary" [detail]="err" (retry)="src.retry()" />
+        <debrief-error-details summary="Couldn't load the timeline." i18n-summary="@@timeline.error.summary" [detail]="err" (retry)="src.retry()" />
       </div>
     }
 
-    <imt-timeline-tooltips [marker]="hover()" [run]="runHover()" [annotation]="annHover()" />
+    <debrief-timeline-tooltips [marker]="hover()" [run]="runHover()" [annotation]="annHover()" />
   `,
   styles: `
     :host { flex: 1; min-height: 0; min-width: 0; display: flex; flex-direction: column; background: var(--bg-1); overflow: hidden; position: relative; }

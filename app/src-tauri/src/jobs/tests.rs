@@ -240,7 +240,7 @@ fn the_history_round_trips_through_the_project_and_unfinished_jobs_come_back_int
     wait_until("done", || jobs(&app).state_of(id) == Some(JobState::Done));
     let mut record = ipc(&main, "jobs_record", json!({})).unwrap();
     assert_eq!((record["version"].as_u64(), record["jobs"].as_array().unwrap().len()), (Some(1), 1));
-    // A session saved while an AI request ran (IMT crashed): it comes back interrupted, with Retry.
+    // A session saved while an AI request ran (Debrief crashed): it comes back interrupted, with Retry.
     record["jobs"].as_array_mut().unwrap().push(json!({
         "id": 77, "kind": "ai", "title": "Summarize a time range", "source": {"window": "main"}, "state": "running",
         "queuedAt": 1, "startedAt": 2, "cancellable": true, "request": {"op": "summarize", "from": 0, "to": 1}

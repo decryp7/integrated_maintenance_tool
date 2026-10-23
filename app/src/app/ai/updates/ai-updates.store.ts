@@ -12,7 +12,7 @@ interface AiUpdatesState {
 }
 
 /**
- * The runtime and model update checks as the engine reports them (`ai_updates_*`, `imt://ai-updates`):
+ * The runtime and model update checks as the engine reports them (`ai_updates_*`, `debrief://ai-updates`):
  * policies, the last check and its quiet failure, and the updates on offer. The engine decides everything;
  * this only asks and shows.
  */
@@ -44,7 +44,7 @@ export const AiUpdatesStore = signalStore(
       apply: (key: string) => run(() => backend.updatesApply(key)),
       skip: (key: string) => run(() => backend.updatesSkip(key)),
       later: (key: string) => run(() => backend.updatesLater(key)),
-      /** An `imt://ai-updates` status from the engine. */
+      /** An `debrief://ai-updates` status from the engine. */
       onStatus(status: AiUpdatesStatus): void {
         patchState(store, { status });
       },

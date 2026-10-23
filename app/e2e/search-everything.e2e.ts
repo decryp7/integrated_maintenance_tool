@@ -9,7 +9,7 @@ test.describe('search everything', () => {
 
   test('Mod+Shift+F finds a source and choosing it filters the grid; Escape closes the palette', async ({ page }) => {
     const total = await initialTotal(page);
-    await page.locator('imt-events-grid').first().click();
+    await page.locator('debrief-events-grid').first().click();
     await page.keyboard.press('ControlOrMeta+Shift+F');
     const dialog = page.getByRole('dialog', { name: 'Search everything' });
     await expect(dialog).toBeVisible();

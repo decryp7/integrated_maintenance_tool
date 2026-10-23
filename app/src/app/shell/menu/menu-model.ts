@@ -67,7 +67,7 @@ export const MENU_IDS = {
 } as const;
 
 /**
- * Commands that live in the macOS app menu (IMT ▸) in native mode instead of Help and Tools: the `app` menu of the
+ * Commands that live in the macOS app menu (Debrief ▸) in native mode instead of Help and Tools: the `app` menu of the
  * model, which the shell merges with the standard items (Services, Hide, Quit).
  */
 export const APP_MENU_COMMANDS = ['help.about', 'help.checkForUpdates', 'settings.open'] as const;
@@ -231,14 +231,14 @@ export function buildMenus(state: MenuState): TopMenu[] {
       ? [
           {
             id: 'app',
-            label: 'IMT',
+            label: 'Debrief',
             items: tidy([
-              cmd('help.about', $localize`:@@shell.menu.help.about:About IMT`),
+              cmd('help.about', $localize`:@@shell.menu.help.about:About Debrief`),
               cmd('help.checkForUpdates', $localize`:@@shell.menu.help.checkForUpdates:Check for updates…`),
               SEP,
               cmd('settings.open', $localize`:@@shell.menu.settings:Settings…`),
               SEP,
-              cmd('app.quit', $localize`:@@shell.menu.app.quit:Quit IMT`),
+              cmd('app.quit', $localize`:@@shell.menu.app.quit:Quit Debrief`),
             ]),
           },
         ]
@@ -372,7 +372,7 @@ export function buildMenus(state: MenuState): TopMenu[] {
         SEP,
         appMenu('help.checkForUpdates', $localize`:@@shell.menu.help.checkForUpdates:Check for updates…`),
         cmd('help.notices', $localize`:@@shell.menu.help.notices:Third-party notices`),
-        appMenu('help.about', $localize`:@@shell.menu.help.about:About IMT`),
+        appMenu('help.about', $localize`:@@shell.menu.help.about:About Debrief`),
       ]),
     },
   ];

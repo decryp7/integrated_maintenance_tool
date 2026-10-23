@@ -1,7 +1,7 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
 import { TailFileChange, TailFileState, TailStatus } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { describeError } from '../core/logger';
 
 interface TailStatusState {
@@ -30,7 +30,7 @@ export const TailStatusStore = signalStore(
       return map;
     }),
   })),
-  withMethods((store, backend = inject(ImtBackend)) => {
+  withMethods((store, backend = inject(DebriefBackend)) => {
     let seq = 0;
     /** Fetches the status again; overlapping calls keep only the newest answer. Never rejects. */
     const refresh = async (): Promise<void> => {

@@ -2,20 +2,20 @@
 
 The command line runs the same engine and store worker as the app, without a window: import files and folders,
 run query-language queries, run the analyses and build the incident report as HTML or PDF. It is meant for scripts,
-CI and headless machines. The executable is called `imt` for now (one constant in `crates/imt-cli`, changed when the
-product is renamed); the store worker (`imt-store-worker`) and libduckdb must sit next to it, or be named by
-`IMT_STORE_WORKER` and `IMT_LIB_DIR`.
+CI and headless machines. The executable is called `debrief` for now (one constant in `crates/debrief-cli`, changed when the
+product is renamed); the store worker (`debrief-store-worker`) and libduckdb must sit next to it, or be named by
+`DEBRIEF_STORE_WORKER` and `DEBRIEF_LIB_DIR`.
 
 ```text
-imt import PATH... [SOURCE OPTIONS] [--json]
-imt query QL [SOURCE OPTIONS] [--format table|csv|json] [--json] [--limit N]
-imt analyze anomalies|patterns|exceptions|issues|outliers [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
+debrief import PATH... [SOURCE OPTIONS] [--json]
+debrief query QL [SOURCE OPTIONS] [--format table|csv|json] [--json] [--limit N]
+debrief analyze anomalies|patterns|exceptions|issues|outliers [SOURCE OPTIONS] [--filter QL] [--limit N] [--json]
             [--knowledge FILE]... [--fail-on-findings] [--subset QL] [--fields A,B]
-imt watch DIR [--store DIR] [--knowledge FILE]... [--interval SECS] [--debounce SECS] [--once] [--json]
+debrief watch DIR [--store DIR] [--knowledge FILE]... [--interval SECS] [--debounce SECS] [--once] [--json]
             [--fail-on-findings]
-imt report --out FILE [SOURCE OPTIONS] [--format html|pdf] [--title TEXT] [--knowledge FILE]...
+debrief report --out FILE [SOURCE OPTIONS] [--format html|pdf] [--title TEXT] [--knowledge FILE]...
             [--from TIME] [--to TIME] [--top N] [--overwrite] [--json]
-imt help | --version
+debrief help | --version
 ```
 
 ## Source options
@@ -26,7 +26,7 @@ Every command that reads data takes these.
 |---|---|
 | `--open PATH` | A file or folder to import (repeatable). `import` also takes them as plain arguments. Folders are read recursively with the default profile's include and exclude globs. |
 | `--since TIME`, `--until TIME` | Import only events from `TIME` / up to `TIME` (both inclusive; UTC unless an offset is given). Events outside the range are dropped before the pipeline and the store, so one hour of a very large folder costs one hour of memory and disk. Files last modified more than 26 hours before `--since` are not opened at all. Events without a readable time are left out when a range is set. Applies to files read in this run (a kept store keeps what it already holds). |
-| `--store DIR` | Keep the store in `DIR`. A later run with the same `--store` reuses it: files already read are skipped, so `imt import` once and then query as often as you like. Without it a scratch store is made in the temporary folder and removed when the command ends. |
+| `--store DIR` | Keep the store in `DIR`. A later run with the same `--store` reuses it: files already read are skipped, so `debrief import` once and then query as often as you like. Without it a scratch store is made in the temporary folder and removed when the command ends. |
 
 Paths are canonicalised; a path that does not exist is an error naming it. A file no importer can read is skipped with a
 note on standard error (and the command fails only when nothing at all could be read from a scratch store).
@@ -96,13 +96,13 @@ rows there were. Knowledge files are limited to 4 MB. The store worker caps its 
 
 ```sh
 # Prepare a store once, ask many questions
-imt import /var/log/myapp --store ./incident
-imt query 'where level = "Error" | stats count() by source' --store ./incident --format csv
-imt analyze exceptions --store ./incident --limit 10
+debrief import /var/log/myapp --store ./incident
+debrief query 'where level = "Error" | stats count() by source' --store ./incident --format csv
+debrief analyze exceptions --store ./incident --limit 10
 
 # A CI gate: fail the build when a known issue shows up in the test logs
-imt analyze issues --open build/logs --knowledge docs/known-issues.md --fail-on-findings --json
+debrief analyze issues --open build/logs --knowledge docs/known-issues.md --fail-on-findings --json
 
 # A report for the ticket
-imt report --open /var/log/myapp --out incident.pdf --title "Checkout outage" --from 2026-10-14 --to 2026-10-15
+debrief report --open /var/log/myapp --out incident.pdf --title "Checkout outage" --from 2026-10-14 --to 2026-10-15
 ```

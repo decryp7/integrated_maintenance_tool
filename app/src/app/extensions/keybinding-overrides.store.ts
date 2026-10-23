@@ -1,8 +1,8 @@
 import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { KeybindingOverrides, sanitizeOverrides } from './keybinding-overrides';
 
-/** Where the user's key bindings live in the browser (UI preference, like the theme in `imt.prefs.v1`). */
-export const KEYBINDINGS_KEY = 'imt.keybindings';
+/** Where the user's key bindings live in the browser (UI preference, like the theme in `debrief.prefs.v1`). */
+export const KEYBINDINGS_KEY = 'debrief.keybindings';
 /** Schema version of the stored value; a different version is ignored (defaults apply). */
 export const KEYBINDINGS_VERSION = 1;
 

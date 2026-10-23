@@ -26,7 +26,7 @@ Offsets are applied on load (import, live-tail append and re-import, reload, pro
 
 - Offsets are stored per source **path** (`ClockOffsets`), so they survive reloads, rotation
   (a rotated file keeps its offset; a new file at the old name gets it too) and projects
-  (`.imtproj` version 2, key `clock`, paths relative to the project like `sources`).
+  (`.debriefproj` version 2, key `clock`, paths relative to the project like `sources`).
 - Changing an offset moves one source's records with live tail's merge (two sorted runs,
   O(n), no full sort). Ids before the first moved record stay; later ones are renumbered
   exactly as a fresh load with that offset numbers them, so ids saved in a project match after

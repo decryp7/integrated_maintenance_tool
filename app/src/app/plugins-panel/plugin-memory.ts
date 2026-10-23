@@ -7,7 +7,7 @@ import { MAX_PLUGIN_MB, MIN_PLUGIN_MB } from '../settings/performance/performanc
  * start), saved when the field loses focus or on Enter. The engine validates the cap.
  */
 @Component({
-  selector: 'imt-plugin-memory',
+  selector: 'debrief-plugin-memory',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (row(); as r) {

@@ -3,11 +3,11 @@ import { Icon } from '../shared/icon';
 
 /** A designed empty state for a pane: a 32 px icon, a short title and one sentence. */
 @Component({
-  selector: 'imt-panel-empty',
+  selector: 'debrief-panel-empty',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
-    <imt-icon [name]="icon()" [size]="32" />
+    <debrief-icon [name]="icon()" [size]="32" />
     <h3 class="title">{{ title() }}</h3>
     <p class="text"><ng-content /></p>
   `,

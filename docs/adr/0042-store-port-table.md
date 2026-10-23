@@ -7,12 +7,12 @@
 ## Context
 
 `Store` is a supertrait of fourteen port traits. Each new port method was wired three times by hand: a variant in
-the `ops!` enum (`imt-store-client` protocol), an arm in the worker's `call` match and a method in `RemoteStore`.
+the `ops!` enum (`debrief-store-client` protocol), an arm in the worker's `call` match and a method in `RemoteStore`.
 The three lists drifted easily and the order of the enum (the postcard encoding) was only a comment.
 
 ## Decision
 
-`imt-store-client/src/port_table.rs` holds **one declarative table**, `store_port_table!`, listing per port trait
+`debrief-store-client/src/port_table.rs` holds **one declarative table**, `store_port_table!`, listing per port trait
 every method that crosses to the worker. Three callbacks expand the same table:
 
 - `store_ops_enum!` generates `StoreOp` (`ALL`, `name`);
@@ -36,7 +36,7 @@ requires bumping `WIRE_VERSION` and the snapshot.
 
 ## Adding a port
 
-1. The trait method in `imt_core::ports` and its implementation in the store.
+1. The trait method in `debrief_core::ports` and its implementation in the store.
 2. One row in `store_port_table!`.
 
 A toy port test (`a_new_port_is_one_table_row`) shows that one row yields the operation and the client method; the

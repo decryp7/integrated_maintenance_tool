@@ -4,8 +4,8 @@ import { DiagnosticsReportState, DiagnosticsReportView } from '../diagnostics-re
 export const SAMPLE_REPORT_IMAGE =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGP4z8DwHwAFAAH/q842iQAAAABJRU5ErkJggg==';
 
-/** Matches the path or name of an opened IMT diagnostics zip. */
-export const DIAGNOSTICS_ZIP = /imt-diagnostics.*\.zip/i;
+/** Matches the path or name of an opened Debrief diagnostics zip. */
+export const DIAGNOSTICS_ZIP = /debrief-diagnostics.*\.zip/i;
 
 /** A plausible report for browser development and UI tests. The Rust engine reads the real ones. */
 export function sampleReport(name: string): DiagnosticsReportView {
@@ -13,7 +13,7 @@ export function sampleReport(name: string): DiagnosticsReportView {
     name,
     manifest: {
       schemaVersion: 1,
-      imtVersion: '0.9.0',
+      debriefVersion: '0.9.0',
       commit: 'ac7f592',
       createdAt: '2026-10-14T09:31:12Z',
       files: [

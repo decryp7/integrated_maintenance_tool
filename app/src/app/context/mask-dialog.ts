@@ -22,11 +22,11 @@ export function applyMask(text: string, regex: string, replace: string): string 
 
 /** "Mask in message": hides the selected text (digits generalised) in every message via a `mask` pipeline step. */
 @Component({
-  selector: 'imt-mask-dialog',
+  selector: 'debrief-mask-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [HelpHint],
   template: `
-    <p><ng-container i18n="@@context.maskDialog.intro">Replace the selected text in every event's message, so secrets and ids never show up in the workspace. This adds a <span class="mono">mask</span> step to the pipeline.</ng-container>&ngsp;<imt-help label="Mask" i18n-label="@@context.maskDialog.helpLabel" i18n-text="@@context.maskDialog.helpText" text="The regex is generated from your selection: numbers become \\d+ so other ids match too. Use $1 in the replacement to keep a captured group." /></p>
+    <p><ng-container i18n="@@context.maskDialog.intro">Replace the selected text in every event's message, so secrets and ids never show up in the workspace. This adds a <span class="mono">mask</span> step to the pipeline.</ng-container>&ngsp;<debrief-help label="Mask" i18n-label="@@context.maskDialog.helpLabel" i18n-text="@@context.maskDialog.helpText" text="The regex is generated from your selection: numbers become \\d+ so other ids match too. Use $1 in the replacement to keep a captured group." /></p>
     <div class="row">
       <label class="lbl"><ng-container i18n="@@context.maskDialog.regex">Regex</ng-container><input class="input mono" [value]="regex()" (input)="regex.set($any($event.target).value)" /></label>
       <label class="lbl"><ng-container i18n="@@context.maskDialog.replaceWith">Replace with</ng-container><input class="input mono" [value]="replace()" (input)="replace.set($any($event.target).value)" /></label>

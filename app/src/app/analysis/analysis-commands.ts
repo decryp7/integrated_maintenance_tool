@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { CommandContext, ImtCommand } from '../extensions/tokens';
+import { CommandContext, DebriefCommand } from '../extensions/tokens';
 import { AnalysisTargets } from './analysis-targets';
 import { QuerySession } from './query-session';
 import { TimeCursor } from './time-cursor';
@@ -15,11 +15,11 @@ export class AnalysisCommands {
   private readonly cursor = inject(TimeCursor);
   private readonly session = inject(QuerySession);
 
-  private show(id: string, title: string, viewId: string): ImtCommand {
+  private show(id: string, title: string, viewId: string): DebriefCommand {
     return { id, title, category: CATEGORY, view: viewId, when: loaded, run: (ctx) => ctx.showView(viewId) };
   }
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'query.focus', title: $localize`:@@analysis.commands.queryFocus:Query: focus the search field`, category: CATEGORY, keybinding: 'Mod+/', when: loaded, run: () => this.session.requestFocus() },
     { id: 'query.run', title: $localize`:@@analysis.commands.queryRun:Query: run`, category: CATEGORY, when: loaded, run: async () => void (await this.session.run()) },
     { id: 'query.clear', title: $localize`:@@analysis.commands.queryClear:Query: clear applied query`, category: CATEGORY, when: loaded, run: () => this.session.clearApplied() },

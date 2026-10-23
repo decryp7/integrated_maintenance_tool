@@ -4,11 +4,11 @@
 //! - `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS`: msedgedriver turns on WebView2's remote debugging through this
 //!   variable, but WebView2 ignores it for elevated host processes. It still honours arguments given through
 //!   the API, so debug builds pass the value to every webview they create, merged with wry's defaults.
-//! - `IMT_DATA_DIR`: an absolute folder that replaces IMT's data, config, cache and log folders and the
+//! - `DEBRIEF_DATA_DIR`: an absolute folder that replaces Debrief's data, config, cache and log folders and the
 //!   webview's user data folder, so a test run never touches the user's profile (see [`crate::app_dirs`]). It
 //!   also gives the run its own app identifier ([`instance_identifier`]), so the single-instance lock never hands
-//!   a test launch to another run or to an installed IMT.
-//! - `IMT_OPEN_PATHS`: absolute paths (separated like `PATH`) to open at start-up, as if given on the command
+//!   a test launch to another run or to an installed Debrief.
+//! - `DEBRIEF_OPEN_PATHS`: absolute paths (separated like `PATH`) to open at start-up, as if given on the command
 //!   line. msedgedriver turns every launch argument into a `--switch` (a path arrives as `--c:\…`), so a driven
 //!   app on Windows cannot receive paths on its command line.
 //!
@@ -24,10 +24,10 @@ use tauri::{Manager, Runtime, WebviewWindowBuilder};
 
 /// The variable msedgedriver sets for WebView2.
 pub const BROWSER_ARGS_VAR: &str = "WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS";
-/// The variable that relocates all of IMT's folders.
-pub const DATA_DIR_VAR: &str = "IMT_DATA_DIR";
+/// The variable that relocates all of Debrief's folders.
+pub const DATA_DIR_VAR: &str = "DEBRIEF_DATA_DIR";
 /// The variable listing paths to open at start-up.
-pub const OPEN_PATHS_VAR: &str = "IMT_OPEN_PATHS";
+pub const OPEN_PATHS_VAR: &str = "DEBRIEF_OPEN_PATHS";
 
 /// The arguments wry passes when none are given; setting `additional_browser_args` replaces them, so they are
 /// always part of the merged value.
@@ -37,9 +37,9 @@ pub const WRY_DEFAULT_ARGS: &str = "--disable-features=msWebOOUI,msPdfOOUI,msSma
 pub const MAX_BROWSER_ARGS_LEN: usize = 4096;
 /// Most `--flag[=value]` tokens accepted.
 pub const MAX_BROWSER_ARGS: usize = 64;
-/// Longest accepted `IMT_DATA_DIR` (and `IMT_OPEN_PATHS` entry), in bytes.
+/// Longest accepted `DEBRIEF_DATA_DIR` (and `DEBRIEF_OPEN_PATHS` entry), in bytes.
 pub const MAX_DATA_DIR_LEN: usize = 1024;
-/// Most `IMT_OPEN_PATHS` entries accepted.
+/// Most `DEBRIEF_OPEN_PATHS` entries accepted.
 pub const MAX_OPEN_PATHS: usize = 16;
 
 const DISABLE_FEATURES: &str = "--disable-features";
@@ -96,7 +96,7 @@ impl std::error::Error for OverrideError {}
 pub struct Overrides {
     /// The full `additional_browser_args` value (wry's defaults merged with the variable's flags).
     pub browser_args: Option<String>,
-    /// The root that replaces IMT's folders.
+    /// The root that replaces Debrief's folders.
     pub data_dir: Option<PathBuf>,
     /// Paths to open at start-up, after the command line's.
     pub open_paths: Vec<PathBuf>,
@@ -157,7 +157,7 @@ pub fn current() -> &'static Overrides {
 }
 
 /// The app identifier for this process: with a relocated data folder, `base` plus a suffix derived from that
-/// folder, so parallel test runs on one machine (and an installed IMT) each get their own single-instance lock;
+/// folder, so parallel test runs on one machine (and an installed Debrief) each get their own single-instance lock;
 /// otherwise `base` unchanged. The suffix is a valid D-Bus name element (the lock's name on Linux).
 pub fn instance_identifier(base: &str, data_dir: Option<&Path>) -> String {
     match data_dir {
@@ -252,7 +252,7 @@ fn valid_flag(token: &str) -> bool {
     name_ok && value_ok
 }
 
-/// `IMT_DATA_DIR` as an absolute path without `..`; blank means no override.
+/// `DEBRIEF_DATA_DIR` as an absolute path without `..`; blank means no override.
 pub fn parse_data_dir(value: &std::ffi::OsStr) -> Result<Option<PathBuf>, OverrideError> {
     let text = value.to_str().ok_or(OverrideError::DataDirNotUnicode)?.trim();
     if text.is_empty() {
@@ -271,7 +271,7 @@ pub fn parse_data_dir(value: &std::ffi::OsStr) -> Result<Option<PathBuf>, Overri
     Ok(Some(path.to_path_buf()))
 }
 
-/// `IMT_OPEN_PATHS` split like `PATH`: absolute paths only; blank entries are skipped. They are checked for
+/// `DEBRIEF_OPEN_PATHS` split like `PATH`: absolute paths only; blank entries are skipped. They are checked for
 /// existence and canonicalized later, like command-line paths ([`crate::instance::existing`]).
 pub fn parse_open_paths(value: &std::ffi::OsStr) -> Result<Vec<PathBuf>, OverrideError> {
     let text = value.to_str().ok_or(OverrideError::OpenPathsNotUnicode)?;
@@ -375,7 +375,10 @@ mod tests {
     #[test]
     fn data_dir_must_be_absolute_without_parents() {
         assert_eq!(parse_data_dir("".as_ref()), Ok(None));
-        assert_eq!(parse_data_dir(abs("imt-e2e").as_ref()), Ok(Some(PathBuf::from(abs("imt-e2e")))));
+        assert_eq!(
+            parse_data_dir(abs("debrief-e2e").as_ref()),
+            Ok(Some(PathBuf::from(abs("debrief-e2e"))))
+        );
         assert_eq!(
             parse_data_dir("relative/dir".as_ref()),
             Err(OverrideError::DataDirNotAbsolute("relative/dir".into()))
@@ -419,7 +422,7 @@ mod tests {
 
     #[test]
     fn enabled_lookup_parses_every_variable() {
-        let dir = abs("imt-e2e");
+        let dir = abs("debrief-e2e");
         let o = Overrides::from_lookup(
             true,
             lookup(&[(BROWSER_ARGS_VAR, "--remote-debugging-port=0"), (DATA_DIR_VAR, &dir)]),
@@ -512,9 +515,9 @@ mod tests {
 
     #[test]
     fn a_relocated_data_folder_gets_its_own_identifier() {
-        let base = "net.decryptology.imt";
+        let base = "net.decryptology.debrief";
         assert_eq!(instance_identifier(base, None), base);
-        let (a, b) = (PathBuf::from(abs("imt-e2e-a")), PathBuf::from(abs("imt-e2e-b")));
+        let (a, b) = (PathBuf::from(abs("debrief-e2e-a")), PathBuf::from(abs("debrief-e2e-b")));
         let id_a = instance_identifier(base, Some(&a));
         assert_eq!(id_a, instance_identifier(base, Some(&a)), "stable across processes of one run");
         assert_ne!(id_a, instance_identifier(base, Some(&b)), "parallel runs do not share the lock");
@@ -525,7 +528,7 @@ mod tests {
     #[test]
     fn apply_sets_args_and_data_folder_on_the_builder() {
         let app = crate::test_support::test_app_with_commands(None);
-        let dir = std::env::temp_dir().join("imt-dev-overrides-test");
+        let dir = std::env::temp_dir().join("debrief-dev-overrides-test");
         let o = Overrides {
             browser_args: Some(WRY_DEFAULT_ARGS.into()),
             data_dir: Some(dir),

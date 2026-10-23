@@ -88,14 +88,14 @@ describe('ProposalApply', () => {
     expect(saveParser).toHaveBeenCalledWith(profile.toml, { overwrite: true });
     expect(reread).toHaveBeenCalled();
     expect(follow).toHaveBeenCalledWith(7);
-    expect(await apply.apply({ ...profile, toml: '' })).toEqual({ kind: 'applied', message: "IMT's parsers already read this file." });
+    expect(await apply.apply({ ...profile, toml: '' })).toEqual({ kind: 'applied', message: "Debrief's parsers already read this file." });
     expect(saveParser).toHaveBeenCalledTimes(1);
   });
 });
 
 @Component({
   imports: [AiProposalCard],
-  template: `<imt-ai-proposal-card [proposal]="p()" [state]="state()" [customApply]="custom()" [applyLabel]="label()" (applied)="events.push('applied:' + $event)" (applyRequested)="events.push('requested:' + $event.kind)" (dismissed)="events.push('dismissed')" />`,
+  template: `<debrief-ai-proposal-card [proposal]="p()" [state]="state()" [customApply]="custom()" [applyLabel]="label()" (applied)="events.push('applied:' + $event)" (applyRequested)="events.push('requested:' + $event.kind)" (dismissed)="events.push('dismissed')" />`,
 })
 class CardHost {
   readonly p = signal<Proposal>(query);
@@ -124,7 +124,7 @@ describe('AiProposalCard', () => {
       [mockRegexProposal(['2026-10-14 09:00:02 [INF] x', 'nope']), ['Regular expression', 'Matches 1 of 2 examples', 'timestamp: timestamp', 'Group "level"', 'Add as highlight…']],
       [{ ...mockRegexProposal(['x']), source: 'inferred', groups: [], explanation: [] }, ["the engine's own inference", 'Matches 0 of 1 example']],
       [mockParserProposal(), ['Parser', 'Worker text logs · text · parses 58 entries, 58 with a timestamp', 'Queue depth 812', 'Parser TOML', 'Add to parsers']],
-      [{ ...mockParserProposal(), toml: '' }, ["IMT's parsers already read this file."]],
+      [{ ...mockParserProposal(), toml: '' }, ["Debrief's parsers already read this file."]],
       [{ ...mockParserProposal(), importer: null, preview: [] }, ['no importer']],
       [mockPipelineProposal('g'), ['Pipeline steps', 'keeps 52, drops 8, changes 0', '60 → 52', 'GET /health check', 'Add to profile']],
       [mockMarkersProposal('g'), ['Markers', 'Timeout', '6 matches']],

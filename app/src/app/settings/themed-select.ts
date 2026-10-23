@@ -2,7 +2,7 @@ import { CdkListbox, CdkOption, ListboxValueChangeEvent } from '@angular/cdk/lis
 import { CdkConnectedOverlay, CdkOverlayOrigin, ConnectedPosition } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, computed, input, output, signal, viewChild } from '@angular/core';
 
-/** One choice of an `ImtSelect`. */
+/** One choice of an `DebriefSelect`. */
 export interface SelectOption<T extends string | number = string> {
   value: T;
   label: string;
@@ -10,10 +10,10 @@ export interface SelectOption<T extends string | number = string> {
 
 /**
  * A single-choice picker that replaces the native `select`: a trigger styled like `.select` that opens a CDK listbox in
- * a CDK overlay (keyboard, roles and focus from the CDK), themed only by IMT's CSS tokens in dark and light.
+ * a CDK overlay (keyboard, roles and focus from the CDK), themed only by Debrief's CSS tokens in dark and light.
  */
 @Component({
-  selector: 'imt-select',
+  selector: 'debrief-select',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkListbox, CdkOption, CdkConnectedOverlay, CdkOverlayOrigin],
   template: `
@@ -66,7 +66,7 @@ export interface SelectOption<T extends string | number = string> {
     .check { inline-size: 14px; color: var(--accent); }
   `,
 })
-export class ImtSelect {
+export class DebriefSelect {
   readonly options = input.required<readonly SelectOption<string | number>[]>();
   readonly value = input.required<string | number>();
   readonly ariaLabel = input<string>('');

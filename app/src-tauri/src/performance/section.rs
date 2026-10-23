@@ -5,13 +5,13 @@ use super::live::Live;
 use super::PerformanceSettings;
 use crate::builtin_sections::{int, PERFORMANCE_SECTION};
 use crate::settings::ExternalValues;
-use imt_core::settings::{Configurable, FieldError, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_core::settings::{Configurable, FieldError, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-/// Smallest and largest per-plugin cap, MB (the bounds every plugin gets, `imt_plugin_api::sandbox`).
+/// Smallest and largest per-plugin cap, MB (the bounds every plugin gets, `debrief_plugin_api::sandbox`).
 pub const MIN_PLUGIN_MB: u32 = 64;
 pub const MAX_PLUGIN_MB: u32 = 4096;
 /// The store worker's own use before DuckDB's limit (its code, the catalog, buffers), MB: the query budget minus
@@ -24,14 +24,14 @@ pub fn schema() -> SettingsSection {
     let mb = |min: i64, max: i64| int(min, max, Some("MB"));
     SettingsSection::new(PERFORMANCE_SECTION, "Performance", SectionOwner::App)
         .describe(
-            "How much memory and processor IMT's background processes may use: the database worker that imports and \
+            "How much memory and processor Debrief's background processes may use: the database worker that imports and \
              queries, the plugins and the AI. Suggest settings proposes values for this computer.",
         )
         // ---- memory ----
         .field(
             SettingField::new("storeCapMb", "Database worker memory cap", mb(512, 65_536), d.store_cap_mb)
                 .describe(
-                    "The most memory the database worker may use. Above it IMT stops the worker and says so; it starts \
+                    "The most memory the database worker may use. Above it Debrief stops the worker and says so; it starts \
                      again on the next action. You are warned at 80%.",
                 )
                 .needs_restart(),
@@ -39,7 +39,7 @@ pub fn schema() -> SettingsSection {
         .field(
             SettingField::new("importBudgetMb", "Memory for imports", mb(128, 32_768), d.import_budget_mb)
                 .describe(
-                    "How much of the worker's memory an import plans to use. More lets IMT read more files at once; it \
+                    "How much of the worker's memory an import plans to use. More lets Debrief read more files at once; it \
                      must fit in the cap.",
                 )
                 .needs_restart(),
@@ -102,7 +102,7 @@ pub fn schema() -> SettingsSection {
         )
         .field(
             SettingField::new("leaveCoresFree", "Cores left free", int(0, 32, None), d.leave_cores_free)
-                .describe("Cores IMT's thread pools leave for the rest of the computer, so it stays responsive during an import.")
+                .describe("Cores Debrief's thread pools leave for the rest of the computer, so it stays responsive during an import.")
                 .needs_restart(),
         )
         // ---- DuckDB (advanced) ----
@@ -325,7 +325,7 @@ mod tests {
             query_budget_mb: 1500,
             duck_memory_limit_mb: 2000,
             leave_cores_free: 4,
-            spill_folder: "/definitely/not/a/folder/imt".into(),
+            spill_folder: "/definitely/not/a/folder/debrief".into(),
             ..PerformanceSettings::default()
         };
         let keys: Vec<String> = check(&s, 4).into_iter().map(|e| e.key).collect();
@@ -351,7 +351,7 @@ mod tests {
     fn presets_are_values_the_schema_accepts() {
         let s = schema();
         for p in [Preset::Standard, Preset::LowMemory] {
-            let (_, errors) = imt_core::settings::sanitize(&s, &p.values());
+            let (_, errors) = debrief_core::settings::sanitize(&s, &p.values());
             assert!(errors.is_empty(), "{p:?}: {errors:?}");
             let applied = PerformanceSettings::default().with_values(&p.values());
             assert!(check(&applied, 8).is_empty(), "{p:?}");
@@ -377,12 +377,12 @@ mod tests {
             live: None,
         };
         let schema = section.settings_section();
-        let (valid, _) = imt_core::settings::sanitize(&schema, &json!({"storeCapMb": 4096, "importBudgetMb": 1024}));
+        let (valid, _) = debrief_core::settings::sanitize(&schema, &json!({"storeCapMb": 4096, "importBudgetMb": 1024}));
         assert!(section.check(&valid).is_empty());
         section.apply_settings(&valid).unwrap();
         assert_eq!(super::super::load(Some(&d)).store_cap_mb, 4096);
         assert_eq!(section.load()["importBudgetMb"], 1024);
-        let (too_big, _) = imt_core::settings::sanitize(&schema, &json!({"storeCapMb": 512, "importBudgetMb": 1024}));
+        let (too_big, _) = debrief_core::settings::sanitize(&schema, &json!({"storeCapMb": 512, "importBudgetMb": 1024}));
         assert_eq!(section.check(&too_big)[0].key, "importBudgetMb");
         assert!(section.apply_settings(&too_big).is_err(), "applying re-checks");
         assert_eq!(super::super::load(Some(&d)).store_cap_mb, 4096, "nothing saved");

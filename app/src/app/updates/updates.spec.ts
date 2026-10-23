@@ -193,7 +193,7 @@ describe('UpdatesDialog', () => {
     const { store, el, settle, button } = render();
     await store.check();
     await settle();
-    expect(el.querySelector('[data-testid=updates-available]')?.textContent).toContain('IMT 0.2.0 is available');
+    expect(el.querySelector('[data-testid=updates-available]')?.textContent).toContain('Debrief 0.2.0 is available');
     const notes = el.querySelector('[data-testid=updates-notes]')!;
     // Notes are text: markup in them is shown, not rendered.
     expect(notes.textContent).toContain('<b>Faster</b>');
@@ -215,7 +215,7 @@ describe('UpdatesDialog', () => {
     button('Restart to update')!.click();
     await until(() => store.phase()?.kind === 'installing');
     await settle();
-    expect(el.textContent).toContain('Restarting to install IMT 0.2.0');
+    expect(el.textContent).toContain('Restarting to install Debrief 0.2.0');
   });
 
   it('shows typed errors with their next step and a retry', async () => {
@@ -280,7 +280,7 @@ describe('UpdatesCommands and toast', () => {
     await store.check();
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('[data-testid=updates-toast]')?.textContent).toContain('IMT 0.2.0 is available');
+    expect(el.querySelector('[data-testid=updates-toast]')?.textContent).toContain('Debrief 0.2.0 is available');
     el.querySelector<HTMLButtonElement>('.link')!.click();
     fixture.detectChanges();
     expect(TestBed.inject(DialogService).stack().some((d) => d.component === UpdatesDialog)).toBe(true);

@@ -1,6 +1,6 @@
 //! Knowledge files (ADR 0029): the global ones ([`GlobalKnowledge`], kept by [`super::AiCore`]) and the window's
 //! project ones ([`ProjectKnowledge`], saved in the project's UI state under `knowledge`, like the chats). The
-//! assistant of every AI feature reads both (`AiCore::assistant`). Knowledge text never goes to IMT's log.
+//! assistant of every AI feature reads both (`AiCore::assistant`). Knowledge text never goes to Debrief's log.
 
 pub(crate) mod commands;
 mod global;
@@ -8,7 +8,7 @@ mod global;
 pub use global::GlobalKnowledge;
 
 use crate::sync::lock;
-use imt_ai::knowledge::{KnowledgeFile, KnowledgeSet};
+use debrief_ai::knowledge::{KnowledgeFile, KnowledgeSet};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Manager, Runtime};
 
@@ -25,7 +25,7 @@ impl ProjectKnowledge {
     }
 
     /// Applies `f` to a copy and keeps it when `f` succeeds.
-    pub fn change<T>(&self, f: impl FnOnce(&mut KnowledgeSet) -> imt_ai::Result<T>) -> imt_ai::Result<T> {
+    pub fn change<T>(&self, f: impl FnOnce(&mut KnowledgeSet) -> debrief_ai::Result<T>) -> debrief_ai::Result<T> {
         let mut cur = lock(&self.set);
         let mut next = (**cur).clone();
         let out = f(&mut next)?;
@@ -40,15 +40,15 @@ impl ProjectKnowledge {
 
 /// The project knowledge files the AI reads in window `win`: the user's, then the window's notes (ADR 0021) as one
 /// more file, the notes about `focus` first.
-pub fn for_window(win: &crate::windows::WindowState, focus: &imt_notes::context::Focus) -> Vec<KnowledgeFile> {
+pub fn for_window(win: &crate::windows::WindowState, focus: &debrief_notes::context::Focus) -> Vec<KnowledgeFile> {
     let mut files = win.ai.knowledge.snapshot().files().to_vec();
     files.extend(crate::notes::ai_file(&win.notes.snapshot(), focus));
     files
 }
 
 /// What a chat turn looks at, for ordering the notes: the selected events and the time range.
-pub fn chat_focus(ctx: &imt_ai::chat::ChatContext) -> imt_notes::context::Focus {
-    imt_notes::context::Focus {
+pub fn chat_focus(ctx: &debrief_ai::chat::ChatContext) -> debrief_notes::context::Focus {
+    debrief_notes::context::Focus {
         events: ctx.selected_ids.iter().map(|&id| u64::from(id)).collect(),
         range: ctx.time_range,
         image: None,
@@ -59,7 +59,7 @@ pub fn chat_focus(ctx: &imt_ai::chat::ChatContext) -> imt_notes::context::Focus 
 pub fn project_of<R: Runtime>(app: &AppHandle<R>, label: &str) -> Vec<KnowledgeFile> {
     app.try_state::<crate::windows::Windows>()
         .and_then(|w| w.get(label))
-        .map(|w| for_window(&w, &imt_notes::context::Focus::default()))
+        .map(|w| for_window(&w, &debrief_notes::context::Focus::default()))
         .unwrap_or_default()
 }
 

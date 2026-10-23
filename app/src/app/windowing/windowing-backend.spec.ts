@@ -27,7 +27,7 @@ describe('TauriWindowingBackend', () => {
       [() => b.closeWindow(), 'close_window'],
       [() => b.listWindows(), 'list_windows'],
       [() => b.focusWindow('main'), 'focus_window', { label: 'main' }],
-      [() => b.setWindowTitle('P — IMT'), 'set_window_title', { title: 'P — IMT' }],
+      [() => b.setWindowTitle('P — Debrief'), 'set_window_title', { title: 'P — Debrief' }],
       [() => b.restoreWindows(), 'restore_windows'],
       [() => b.resolveClose('tray', true), 'resolve_close', { choice: 'tray', remember: true }],
       [() => b.resolveOpen('newWindow'), 'resolve_open', { choice: 'newWindow' }],
@@ -46,7 +46,7 @@ describe('TauriWindowingBackend', () => {
   });
 
   it('parses list results', async () => {
-    expect(await fakes([{ label: 'main', title: 'IMT', focused: true, visible: true }, 7]).backend.listWindows()).toEqual([{ label: 'main', title: 'IMT', focused: true, visible: true }]);
+    expect(await fakes([{ label: 'main', title: 'Debrief', focused: true, visible: true }, 7]).backend.listWindows()).toEqual([{ label: 'main', title: 'Debrief', focused: true, visible: true }]);
     expect(await fakes([task]).backend.backgroundTasks()).toEqual([task]);
     expect(await fakes(null).backend.backgroundTasks()).toEqual([]);
   });
@@ -61,20 +61,20 @@ describe('TauriWindowingBackend', () => {
     await backend.onBackgroundTasks((t) => got.push(t));
     await backend.onWindowsChanged((w) => got.push(w));
     expect(listen.mock.calls.map((c) => c[0])).toEqual([
-      'imt://close-requested',
-      'imt://open-ask',
-      'imt://capture',
-      'imt://live-stopped',
-      'imt://background-tasks',
-      'imt://windows-changed',
+      'debrief://close-requested',
+      'debrief://open-ask',
+      'debrief://capture',
+      'debrief://live-stopped',
+      'debrief://background-tasks',
+      'debrief://windows-changed',
     ]);
-    handlers.get('imt://close-requested')!(null);
-    handlers.get('imt://open-ask')!({ count: 2, names: ['a.log', 'b.log'] });
-    handlers.get('imt://open-ask')!('garbage');
-    handlers.get('imt://capture')!(null);
-    handlers.get('imt://live-stopped')!(null);
-    handlers.get('imt://background-tasks')!([task]);
-    handlers.get('imt://windows-changed')!([{ label: 'main' }]);
+    handlers.get('debrief://close-requested')!(null);
+    handlers.get('debrief://open-ask')!({ count: 2, names: ['a.log', 'b.log'] });
+    handlers.get('debrief://open-ask')!('garbage');
+    handlers.get('debrief://capture')!(null);
+    handlers.get('debrief://live-stopped')!(null);
+    handlers.get('debrief://background-tasks')!([task]);
+    handlers.get('debrief://windows-changed')!([{ label: 'main' }]);
     expect(got).toEqual(['close', { count: 2, names: ['a.log', 'b.log'] }, 'capture', 'live', [task], [{ label: 'main', title: '', focused: false, visible: true }]]);
   });
 });

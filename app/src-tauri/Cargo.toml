@@ -1,46 +1,46 @@
 [package]
-name = "imt-app"
+name = "debrief-app"
 license.workspace = true
 repository.workspace = true
 version = "0.1.0"
-description = "IMT — integrated maintenance tool for analysing logs and diagnostic files"
+description = "Debrief — an IDE for analysing logs and diagnostic files"
 authors = ["decryp7"]
 edition.workspace = true
 publish = false
 rust-version.workspace = true
 
 [lib]
-name = "imt_app_lib"
+name = "debrief_app_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
 tauri-build = { version = "2.7.3", features = [] }
 
 [dependencies]
-imt-alloc = { path = "../../crates/imt-alloc" }
-imt-core = { path = "../../crates/imt-core" }
-imt-pdf = { path = "../../crates/imt-pdf" }
-imt-profile = { path = "../../crates/imt-profile" }
+debrief-alloc = { path = "../../crates/debrief-alloc" }
+debrief-core = { path = "../../crates/debrief-core" }
+debrief-pdf = { path = "../../crates/debrief-pdf" }
+debrief-profile = { path = "../../crates/debrief-profile" }
 # Dumps and UMDH logs (ADR 0023): the engine; the readers run in the dumps plugin's process.
-imt-dump = { path = "../../crates/imt-dump" }
+debrief-dump = { path = "../../crates/debrief-dump" }
 # PDB identities, the symbol cache and (user-enabled) symbol-server downloads for dumps (ADR 0036).
-imt-symbols = { path = "../../crates/imt-symbols", default-features = false, features = ["server"] }
-imt-notes = { path = "../../crates/imt-notes" }
+debrief-symbols = { path = "../../crates/debrief-symbols", default-features = false, features = ["server"] }
+debrief-notes = { path = "../../crates/debrief-notes" }
 # Video sources (ADR 0033): the FFmpeg runtime, the sandboxed analysis and the project's video records.
-imt-video = { path = "../../crates/imt-video" }
+debrief-video = { path = "../../crates/debrief-video" }
 chromium-driver = { path = "../../crates/chromium-driver" }
-imt-agent = { path = "../../crates/imt-agent" }
+debrief-agent = { path = "../../crates/debrief-agent" }
 # Plugins run out of process (ADR 0017): the host side only; no plugin is linked into the app.
-imt-plugin-host = { path = "../../crates/imt-plugin-host" }
-imt-plugin-api = { path = "../../crates/imt-plugin-api" }
-imt-plugin-package = { path = "../../crates/imt-plugin-package" }
-imt-ai = { path = "../../crates/imt-ai" }
-imt-collect = { path = "../../crates/imt-collect" }
-# Child-process logs (`imt_ipc::child_log`) for problem reports.
-imt-ipc = { path = "../../crates/imt-ipc" }
+debrief-plugin-host = { path = "../../crates/debrief-plugin-host" }
+debrief-plugin-api = { path = "../../crates/debrief-plugin-api" }
+debrief-plugin-package = { path = "../../crates/debrief-plugin-package" }
+debrief-ai = { path = "../../crates/debrief-ai" }
+debrief-collect = { path = "../../crates/debrief-collect" }
+# Child-process logs (`debrief_ipc::child_log`) for problem reports.
+debrief-ipc = { path = "../../crates/debrief-ipc" }
 # The store worker's client (ADR 0014): every window's store over the worker; links no database.
-imt-store-client = { path = "../../crates/imt-store-client" }
-# IMT's folders for `--export-diagnostics` without starting Tauri (the same crate Tauri resolves them with).
+debrief-store-client = { path = "../../crates/debrief-store-client" }
+# Debrief's folders for `--export-diagnostics` without starting Tauri (the same crate Tauri resolves them with).
 dirs = "7"
 open = "5"
 serde.workspace = true
@@ -59,9 +59,9 @@ tracing-subscriber = { version = "0.3.23", default-features = false, features = 
 tracing-appender = "0.2.5"
 tracing-log = { version = "0.2", default-features = false, features = ["std"] }
 # >= 2.12 fixes GHSA-j38x-g3m3-95fr (downgrade through the unsigned manifest version), 2.13.3 rejects non-canonical signatures: see `updater.rs`.
-# No "zip": IMT publishes v2 updater artifacts (the installers themselves), and zip 4 has open advisories.
+# No "zip": Debrief publishes v2 updater artifacts (the installers themselves), and zip 4 has open advisories.
 # "rustls-tls" is reqwest 0.13's `rustls-no-provider`, whose default verifier is rustls-platform-verifier: update checks
-# trust the OS certificate store like the AI downloads (`imt_ai::net`), so they work behind TLS-inspecting proxies.
+# trust the OS certificate store like the AI downloads (`debrief_ai::net`), so they work behind TLS-inspecting proxies.
 tauri-plugin-updater = { version = "2.14", default-features = false, features = ["rustls-tls", "system-proxy"] }
 semver.workspace = true
 notify-debouncer-mini = "0.7"
@@ -77,18 +77,18 @@ tokio = { workspace = true, features = ["sync", "time"] }
 [dev-dependencies]
 tempfile.workspace = true
 # The store in process for the shell's tests (the real adapter on a temp folder).
-imt-store-duck = { path = "../../crates/imt-store-duck" }
-# The profile importers as a library, for the profiling store's tests (in IMT they run in the profiling plugin's process).
-imt-plugin-profiling = { path = "../../crates/imt-plugin-profiling", default-features = false }
-# The dump readers as a library, for the dumps store's tests (in IMT they run in the dumps plugin's process).
-imt-plugin-dumps = { path = "../../crates/imt-plugin-dumps", default-features = false }
+debrief-store-duck = { path = "../../crates/debrief-store-duck" }
+# The profile importers as a library, for the profiling store's tests (in Debrief they run in the profiling plugin's process).
+debrief-plugin-profiling = { path = "../../crates/debrief-plugin-profiling", default-features = false }
+# The dump readers as a library, for the dumps store's tests (in Debrief they run in the dumps plugin's process).
+debrief-plugin-dumps = { path = "../../crates/debrief-plugin-dumps", default-features = false }
 # The dump DTOs' TypeScript bindings (`generated_types`).
-imt-dump = { path = "../../crates/imt-dump", features = ["ts"] }
-imt-notes = { path = "../../crates/imt-notes", features = ["ts"] }
+debrief-dump = { path = "../../crates/debrief-dump", features = ["ts"] }
+debrief-notes = { path = "../../crates/debrief-notes", features = ["ts"] }
 # The video DTOs' TypeScript bindings (`generated_types`, ADR 0033).
-imt-video = { path = "../../crates/imt-video", features = ["ts"] }
+debrief-video = { path = "../../crates/debrief-video", features = ["ts"] }
 # The Store pane's DTOs' TypeScript bindings (`generated_types`, ADR 0030).
-imt-core = { path = "../../crates/imt-core", features = ["ts"] }
+debrief-core = { path = "../../crates/debrief-core", features = ["ts"] }
 # TypeScript bindings of the wire types (`generated_types` test; ADR 0016).
 ts-rs = "11.1"
 # The base64 that tauri-plugin-updater's `Error::Base64` wraps, to build that error in the updater tests.

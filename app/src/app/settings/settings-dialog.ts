@@ -3,7 +3,7 @@ import { EngineSettingsStore } from './engine-settings.store';
 import { DialogService } from '../ui/dialog.service';
 import { SettingsScreen } from './settings-screen';
 
-/** Section id of IMT's own logs and error snapshots (Rust `settings::DIAGNOSTICS_SECTION`). */
+/** Section id of Debrief's own logs and error snapshots (Rust `settings::DIAGNOSTICS_SECTION`). */
 export const DIAGNOSTICS_SECTION = 'diagnostics';
 /** Command that opens the Settings screen at the Diagnostics section. */
 export const SETTINGS_DIAGNOSTICS_COMMAND = 'settings.diagnostics';

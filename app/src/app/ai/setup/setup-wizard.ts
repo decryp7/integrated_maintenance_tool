@@ -45,7 +45,7 @@ import {
  * hardware and the models that fit it, downloads and verifies the chosen one, loads it (GPU first, CPU fallback) and warms it up. Opened in a dialog.
  */
 @Component({
-  selector: 'imt-ai-setup-wizard',
+  selector: 'debrief-ai-setup-wizard',
   imports: [AiManualDownload, AiRuntimePanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -66,7 +66,7 @@ import {
             First, download the engine that runs the model on this computer. The suggested build
             suits its hardware; you can switch later in the model manager.
           </p>
-          <imt-ai-runtime-panel />
+          <debrief-ai-runtime-panel />
         </section>
         <div class="foot">
           <button type="button" class="btn ghost" (click)="close()" i18n="@@ai.setup.notNow">Not now</button>
@@ -221,12 +221,12 @@ import {
         @if (failed(); as f) {
           <p class="err" role="alert" data-testid="ai-setup-error">{{ f.message }}</p>
           @if (manualModel(); as id) {
-            <imt-ai-manual-download kind="model" [id]="id" [code]="f.code" (added)="retry()" />
+            <debrief-ai-manual-download kind="model" [id]="id" [code]="f.code" (added)="retry()" />
           }
           @if (f.code === 'noRuntime') {
             <section aria-labelledby="ai-runtime-fix-title" data-testid="ai-setup-runtime">
               <h3 id="ai-runtime-fix-title" i18n="@@ai.models.runtime">Inference runtime</h3>
-              <imt-ai-runtime-panel />
+              <debrief-ai-runtime-panel />
             </section>
           }
           <div class="foot">

@@ -47,7 +47,7 @@ describe('packageRow', () => {
     expect(quarantined).toMatchObject({ status: 'quarantined', lastError: 'Crashed' });
     const waiting = packageRow(pkg({ state: 'pendingRestart' }));
     expect(waiting).toMatchObject({ status: 'inactive', inactiveReason: 'pending restart' });
-    expect(packageRow(pkg({ state: 'unavailable', problem: 'Needs a newer IMT' })).inactiveReason).toBe('Needs a newer IMT');
+    expect(packageRow(pkg({ state: 'unavailable', problem: 'Needs a newer Debrief' })).inactiveReason).toBe('Needs a newer Debrief');
     expect(packageRow(pkg({ warning: 'Developer mode' })).warnings).toEqual(['Developer mode']);
   });
 });

@@ -72,11 +72,11 @@ describe('LiveAutoOpen', () => {
     expect(localDismissedStore.load()).toEqual([]);
     localDismissedStore.save(['tail-status']);
     expect(localDismissedStore.load()).toEqual(['tail-status']);
-    localStorage.setItem('imt.live.autoOpen.dismissed.v1', '{not json');
+    localStorage.setItem('debrief.live.autoOpen.dismissed.v1', '{not json');
     expect(localDismissedStore.load()).toEqual([]);
-    localStorage.setItem('imt.live.autoOpen.dismissed.v1', '{"a":1}');
+    localStorage.setItem('debrief.live.autoOpen.dismissed.v1', '{"a":1}');
     expect(localDismissedStore.load()).toEqual([]);
-    localStorage.setItem('imt.live.autoOpen.dismissed.v1', '["x", 3]');
+    localStorage.setItem('debrief.live.autoOpen.dismissed.v1', '["x", 3]');
     expect(localDismissedStore.load()).toEqual(['x']);
     const set = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
       throw new Error('quota');

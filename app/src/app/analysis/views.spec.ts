@@ -429,7 +429,7 @@ describe('CompareView', () => {
     expect(targets.windowA()).toEqual({ from: mid - 300_000, to: mid });
     expect(targets.windowB()).toEqual({ from: mid, to: mid + 300_000 });
 
-    el<HTMLButtonElement>(fixture, 'imt-select button').click();
+    el<HTMLButtonElement>(fixture, 'debrief-select button').click();
     fixture.detectChanges();
     await fixture.whenStable();
     const option = [...document.querySelectorAll<HTMLElement>('.cdk-overlay-container [role=option]')].find((o) => o.textContent?.includes('1 minute'));

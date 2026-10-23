@@ -1,7 +1,7 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, input, output, signal, untracked } from '@angular/core';
 import type { EChartsCoreOption } from 'echarts/core';
 import { ChartData, ChartDef, ChartSeries, LEVELS } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { formatDateTime, formatDuration, formatNumber } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
@@ -165,7 +165,7 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
 }
 
 @Component({
-  selector: 'imt-chart-card',
+  selector: 'debrief-chart-card',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [EChart, Icon, TimeCursorSource, TimeCursorLine],
   template: `
@@ -182,12 +182,12 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
         </span>
       }
       <span class="actions">
-        <button class="icon-btn small" type="button" [attr.aria-label]="addLabel()" title="Add to report" i18n-title="@@metrics.chart.addToReport.title" [disabled]="!option()" (click)="addToReport()"><imt-icon name="plus" [size]="13" /></button>
+        <button class="icon-btn small" type="button" [attr.aria-label]="addLabel()" title="Add to report" i18n-title="@@metrics.chart.addToReport.title" [disabled]="!option()" (click)="addToReport()"><debrief-icon name="plus" [size]="13" /></button>
         <button class="icon-btn small" type="button" [attr.aria-label]="exportLabelPng()" title="Export PNG" i18n-title="@@metrics.chart.exportPng.title" [disabled]="!option()" (click)="exportImage('png')">PNG</button>
         <button class="icon-btn small" type="button" [attr.aria-label]="exportLabelSvg()" title="Export SVG" i18n-title="@@metrics.chart.exportSvg.title" [disabled]="!option()" (click)="exportImage('svg')">SVG</button>
       </span>
       @if (removable()) {
-        <button class="icon-btn" [attr.aria-label]="removeLabel()" (click)="remove.emit()" [attr.title]="removeLabel()"><imt-icon name="close" [size]="14" /></button>
+        <button class="icon-btn" [attr.aria-label]="removeLabel()" (click)="remove.emit()" [attr.title]="removeLabel()"><debrief-icon name="close" [size]="14" /></button>
       }
     </div>
     @if (error(); as e) {
@@ -195,13 +195,13 @@ export function buildOption(data: ChartData, t: ChartTokens, tz: 'utc' | 'local'
     } @else if (empty()) {
       <div class="msg faint" i18n="@@metrics.chart.empty">No numeric values for {{ def().y }} in the current results.</div>
     } @else if (option(); as o) {
-      <div class="plot" [imtTimeCursor]="range()" [imtTimeCursorLeft]="grid().left" [imtTimeCursorRight]="grid().right">
-        <imt-echart class="chart" [options]="o" [merge]="live.enabled()" (brushed)="brushed($event)" (pointMenu)="pointMenu($event)" />
+      <div class="plot" [debriefTimeCursor]="range()" [debriefTimeCursorLeft]="grid().left" [debriefTimeCursorRight]="grid().right">
+        <debrief-echart class="chart" [options]="o" [merge]="live.enabled()" (brushed)="brushed($event)" (pointMenu)="pointMenu($event)" />
         <div
           class="hover-line"
-          [imtTimeCursorLine]="range()"
-          [imtTimeCursorLineLeft]="grid().left"
-          [imtTimeCursorLineRight]="grid().right"
+          [debriefTimeCursorLine]="range()"
+          [debriefTimeCursorLineLeft]="grid().left"
+          [debriefTimeCursorLineRight]="grid().right"
           [style.top.px]="grid().top"
           [style.bottom.px]="grid().bottom"
           aria-hidden="true"
@@ -239,7 +239,7 @@ export class ChartCard {
   protected readonly store = inject(WorkspaceStore);
   protected readonly zoom = inject(TimelineZoom);
   private readonly cursor = inject(TimeCursor);
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly theme = inject(ChartTheme);
   protected readonly live = inject(LiveTail);
   /** The card is on screen; live refreshes of cards scrolled out of view wait until they are visible again. */

@@ -3,9 +3,9 @@ import type { Unlisten } from './window-events';
 import { BackgroundTask, CloseChoice, OpenAsk, OpenChoice, WindowInfo } from './windowing.types';
 
 /** localStorage key of the mock's "when the last window is closed" preference. */
-export const MOCK_ON_CLOSE_KEY = 'imt.mock.onClose';
+export const MOCK_ON_CLOSE_KEY = 'debrief.mock.onClose';
 /** localStorage key of the counter that names new mock windows (shared by all tabs of the origin). */
-export const MOCK_WINDOW_SEQ_KEY = 'imt.mock.windowSeq';
+export const MOCK_WINDOW_SEQ_KEY = 'debrief.mock.windowSeq';
 
 type OnClose = 'ask' | CloseChoice;
 
@@ -128,7 +128,7 @@ export class MockWindowingBackend implements WindowingBackend {
     const url = new URL(this.host.href());
     url.searchParams.set('window', label);
     this.opened.set(label, this.host.open(url.toString()));
-    const info: WindowInfo = { label, title: `IMT — ${label}`, focused: true, visible: true };
+    const info: WindowInfo = { label, title: `Debrief — ${label}`, focused: true, visible: true };
     this.windowsChanged.emit(await this.listWindows());
     return info;
   }
@@ -150,10 +150,10 @@ export class MockWindowingBackend implements WindowingBackend {
   }
 
   async listWindows(): Promise<WindowInfo[]> {
-    const own: WindowInfo = { label: this.ownLabel, title: this.host.title() || 'IMT', focused: this.host.hasFocus(), visible: true };
+    const own: WindowInfo = { label: this.ownLabel, title: this.host.title() || 'Debrief', focused: this.host.hasFocus(), visible: true };
     const others = [...this.opened]
       .filter(([, w]) => !w?.closed)
-      .map(([label]): WindowInfo => ({ label, title: `IMT — ${label}`, focused: false, visible: true }));
+      .map(([label]): WindowInfo => ({ label, title: `Debrief — ${label}`, focused: false, visible: true }));
     return [own, ...others];
   }
 

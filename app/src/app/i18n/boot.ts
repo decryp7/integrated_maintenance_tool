@@ -52,7 +52,7 @@ export async function initI18n(deps: Partial<I18nDeps> = {}): Promise<string> {
     try {
       d.load(await loader());
     } catch (err) {
-      console.warn(`IMT: could not load the ${locale} translations; using English.`, err);
+      console.warn(`Debrief: could not load the ${locale} translations; using English.`, err);
       locale = SOURCE_LOCALE;
     }
   }

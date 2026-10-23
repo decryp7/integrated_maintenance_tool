@@ -11,7 +11,7 @@ import { BrowserLauncher } from './provide-browser';
  * web for the selected event".
  */
 @Component({
-  selector: 'imt-chat-browser-bar',
+  selector: 'debrief-chat-browser-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar" data-testid="chat-browser-bar">

@@ -12,7 +12,7 @@ miner already visits every event.
 
 ## Decision
 
-Both live **inside `PatternMiner`** (`imt-core/src/patterns/`), so every store and the Moment view get them without a
+Both live **inside `PatternMiner`** (`debrief-core/src/patterns/`), so every store and the Moment view get them without a
 store operation or a wire change, and the DTO `Pattern` grows four optional fields.
 
 **Trend** (`patterns/trend.rs`). The time range is unknown until the events are read, so a `TrendScale` grows with

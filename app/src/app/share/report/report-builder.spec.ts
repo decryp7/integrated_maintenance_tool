@@ -47,7 +47,7 @@ describe('ReportActions', () => {
     const { store, reports, actions } = await setup();
     expect(actions.addSelectedEvent()).toBe(false);
     expect(actions.addNotes()).toBe(false);
-    const page = await (TestBed.inject(ShareBackend) as MockShareBackend)['imt'].queryPage({ query: store.query(), offset: 0, limit: 3, descending: false, anchor: null });
+    const page = await (TestBed.inject(ShareBackend) as MockShareBackend)['debrief'].queryPage({ query: store.query(), offset: 0, limit: 3, descending: false, anchor: null });
     store.select(at(page.rows, 1));
     expect(actions.addSelectedEvent()).toBe(true);
     expect(store.notice()).toBe('Added the selected event to the report');
@@ -181,22 +181,22 @@ describe('ReportView and ReportBlockView', () => {
     typeInto(el<HTMLTextAreaElement>(f, 'textarea.summary'), 'Payments **failed**', 'change');
     await settle(f);
     expect(reports.active()!.title).toBe('Outage');
-    expect(el(f, 'imt-markdown-view strong').textContent).toBe('failed');
+    expect(el(f, 'debrief-markdown-view strong').textContent).toBe('failed');
 
     buttonByText(f, 'Text').click();
     buttonByText(f, 'Timeline').click();
     await settle(f);
-    expect(all(f, 'imt-report-block')).toHaveLength(2);
-    typeInto(el<HTMLTextAreaElement>(f, 'imt-report-block textarea'), '# Hello', 'change');
+    expect(all(f, 'debrief-report-block')).toHaveLength(2);
+    typeInto(el<HTMLTextAreaElement>(f, 'debrief-report-block textarea'), '# Hello', 'change');
     await settle(f);
-    expect(el(f, 'imt-report-block imt-markdown-view [role=heading]').textContent?.trim()).toBe('Hello');
-    typeInto(el<HTMLInputElement>(f, 'imt-report-block input.caption'), 'The whole day', 'change');
+    expect(el(f, 'debrief-report-block debrief-markdown-view [role=heading]').textContent?.trim()).toBe('Hello');
+    typeInto(el<HTMLInputElement>(f, 'debrief-report-block input.caption'), 'The whole day', 'change');
     await settle(f);
     expect(blocksOf(reports.active()!)[1]).toMatchObject({ caption: 'The whole day' });
-    expect(el<HTMLImageElement>(f, 'imt-report-block img').src).toContain('data:image/svg+xml');
+    expect(el<HTMLImageElement>(f, 'debrief-report-block img').src).toContain('data:image/svg+xml');
 
     // Keyboard move: Alt+ArrowUp on the focused second block, focus follows it.
-    const second = at(all<HTMLElement>(f, 'imt-report-block'), 1);
+    const second = at(all<HTMLElement>(f, 'debrief-report-block'), 1);
     second.focus();
     second.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', altKey: true, bubbles: true }));
     // Focus is back on the moved block before the next key arrives (a later refocus drops a quick second Alt+↑).
@@ -207,12 +207,12 @@ describe('ReportView and ReportBlockView', () => {
     expect(document.activeElement?.getAttribute('data-block-id')).toBe(at(blocksOf(reports.active()!), 0).id);
 
     // Buttons: move down, remove.
-    at(all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Move down"]'), 0).click();
+    at(all<HTMLButtonElement>(f, 'debrief-report-block button[aria-label^="Move down"]'), 0).click();
     await settle(f);
     expect(blocksOf(reports.active()!).map((b) => b.type)).toEqual(['text', 'timeline']);
-    at(all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Move up"]'), 1).click();
+    at(all<HTMLButtonElement>(f, 'debrief-report-block button[aria-label^="Move up"]'), 1).click();
     await settle(f);
-    at(all<HTMLButtonElement>(f, 'imt-report-block button[aria-label^="Remove"]'), 0).click();
+    at(all<HTMLButtonElement>(f, 'debrief-report-block button[aria-label^="Remove"]'), 0).click();
     await settle(f);
     expect(blocksOf(reports.active()!).map((b) => b.type)).toEqual(['text']);
 
@@ -268,7 +268,7 @@ describe('ReportView and ReportBlockView', () => {
     const jump = vi.spyOn(store, 'jumpTo');
     el<HTMLButtonElement>(f, 'button[aria-label="Show event 5"]').click();
     expect(jump).toHaveBeenCalledWith(5);
-    const labels = all(f, 'imt-report-block').map((b) => b.getAttribute('aria-label'));
+    const labels = all(f, 'debrief-report-block').map((b) => b.getAttribute('aria-label'));
     expect(labels).toEqual(['Events block: cap', 'Finding block: <b>Spike</b>', 'Query result block', 'Query result block', 'Annotations block', 'Chart block: C', 'hologram block']);
     expect(svgImageUrl('<svg>#</svg>')).toBe('data:image/svg+xml;charset=utf-8,%3Csvg%3E%23%3C%2Fsvg%3E');
     expect(ReportBlockView).toBeDefined();

@@ -14,7 +14,7 @@ import { MarkerHover } from './timeline-lanes';
 
 /** The timeline's hover cards: for a marker, a run band and an annotation. */
 @Component({
-  selector: 'imt-timeline-tooltips',
+  selector: 'debrief-timeline-tooltips',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerGlyph, SeverityBadge],
   host: { style: 'display: contents' },
@@ -22,7 +22,7 @@ import { MarkerHover } from './timeline-lanes';
     @if (marker(); as h) {
       <div class="popover tip" [style.left.px]="h.x + 14" [style.top.px]="h.y + 12" role="tooltip">
         <div class="tip-head">
-          <imt-marker-glyph [kind]="h.marker.cluster.kind" [size]="18" />
+          <debrief-marker-glyph [kind]="h.marker.cluster.kind" [size]="18" />
           <strong>{{ h.marker.label }}</strong>
           <span class="faint" i18n="@@timeline.tip.count">{h.marker.cluster.count, plural, =1 {1 event} other {{{ fmt(h.marker.cluster.count) // i18n(ph: "count") }} events in this interval}}</span>
           <span class="spacer"></span>
@@ -68,7 +68,7 @@ import { MarkerHover } from './timeline-lanes';
     @if (annotation(); as h) {
       <div class="popover tip" data-testid="annotation-tip" [style.left.px]="h.x + 14" [style.top.px]="h.y + 12" role="tooltip">
         <div class="tip-head">
-          <imt-severity-badge [severity]="h.vm.ann.severity" />
+          <debrief-severity-badge [severity]="h.vm.ann.severity" />
           <strong>{{ h.vm.ann.label }}</strong>
         </div>
         <div class="mono small">{{ annTime(h.vm.ann.from, h.vm.ann.to) }}</div>

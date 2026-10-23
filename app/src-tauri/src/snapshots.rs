@@ -1,11 +1,11 @@
-//! Error snapshots: screenshots of the IMT window, taken natively by `capture_window_image`
+//! Error snapshots: screenshots of the Debrief window, taken natively by `capture_window_image`
 //! (`crate::window_capture`, ADR 0034) and handed over by the UI when something goes wrong, so a problem can be diagnosed afterwards. Everything stays on this
 //! machine: images are written to `<app log dir>/snapshots/` (never to a path the UI names) and leave
 //! only when the user exports them with `export_diagnostics`.
 //!
 //! Commands: `save_error_snapshot`, `list_error_snapshots`, `read_error_snapshot`,
 //! `delete_error_snapshot`, `open_snapshots_folder`, `export_diagnostics`. Limits and the on/off switch are the
-//! shared `snapshots` section of the diagnostics settings (`crate::diagnostics`). Event: `imt://error` (see [`EngineError`]). The wire contract is
+//! shared `snapshots` section of the diagnostics settings (`crate::diagnostics`). Event: `debrief://error` (see [`EngineError`]). The wire contract is
 //! `app/src/app/diagnostics/snapshot.types.ts`.
 
 use crate::activity::Breadcrumb;
@@ -20,7 +20,7 @@ use std::io::Write;
 use std::path::{Path, PathBuf};
 
 /// Event the shell emits when the engine contained a failure (plugin crash, quarantine, a file that crashed its importer).
-pub const ERROR_EVENT: &str = "imt://error";
+pub const ERROR_EVENT: &str = "debrief://error";
 const NOTICE_MARKER: &str = "notice-shown";
 /// Largest image accepted from the UI.
 pub const MAX_IMAGE_BYTES: usize = 3 * 1024 * 1024;
@@ -28,9 +28,9 @@ const MAX_REASON: usize = 100;
 const MAX_MESSAGE: usize = 1_000;
 const MAX_STACK: usize = 8_000;
 const MAX_VIEW: usize = 100;
-/// How many trailing IMT log lines a sidecar references.
+/// How many trailing Debrief log lines a sidecar references.
 const LOG_REFS: usize = 20;
-/// IMT log lines (bytes) bundled into an export.
+/// Debrief log lines (bytes) bundled into an export.
 const EXPORT_LOG_TAIL: u64 = 256 * 1024;
 /// Logs larger than this are not scanned for line references.
 const MAX_LOG_SCAN: u64 = 16 * 1024 * 1024;
@@ -188,7 +188,7 @@ fn truncate(text: &str, max: usize) -> String {
     }
 }
 
-/// A reference into IMT's own log (not its content).
+/// A reference into Debrief's own log (not its content).
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct LogRef {
@@ -366,7 +366,7 @@ impl SnapshotStore {
         Ok(())
     }
 
-    /// Zips the chosen snapshots (image and sidecar) and the recent IMT log into `dest`.
+    /// Zips the chosen snapshots (image and sidecar) and the recent Debrief log into `dest`.
     /// Returns the number of files written.
     pub fn export(&self, ids: &[String], dest: &Path) -> Result<usize, SnapshotError> {
         let chosen: Vec<(Sidecar, ImageFormat)> = ids.iter().map(|id| self.find(id)).collect::<Result<_, _>>()?;
@@ -400,7 +400,7 @@ impl SnapshotStore {
             count += 1;
         }
         if let Some(tail) = self.log_file.as_deref().and_then(|p| tail_of(p, EXPORT_LOG_TAIL)) {
-            // Named `imt.log` in the archive whatever today's file is called.
+            // Named `debrief.log` in the archive whatever today's file is called.
             zip.start_file(format!("logs/{}.log", crate::diagnostics::LOG_NAME), opts)
                 .map_err(zerr)?;
             zip.write_all(&tail)?;
@@ -557,7 +557,7 @@ pub(crate) fn tail_of(path: &Path, max_bytes: u64) -> Option<Vec<u8>> {
     Some(buf)
 }
 
-/// Line numbers (and CLEF timestamps) of the last `n` lines of IMT's log. Contents are not kept.
+/// Line numbers (and CLEF timestamps) of the last `n` lines of Debrief's log. Contents are not kept.
 fn last_log_refs(path: &Path, n: usize) -> Vec<LogRef> {
     if std::fs::metadata(path).map(|m| m.len() > MAX_LOG_SCAN).unwrap_or(true) {
         return Vec::new();
@@ -578,7 +578,7 @@ fn last_log_refs(path: &Path, n: usize) -> Vec<LogRef> {
         .collect()
 }
 
-/// Payload of `imt://error`.
+/// Payload of `debrief://error`.
 #[derive(Debug, Clone, Serialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct EngineError {
@@ -707,12 +707,12 @@ pub(crate) fn save_snapshot<R: tauri::Runtime>(
     Ok(SaveResult { id, first_time })
 }
 
-/// Tells every window's plugins that a snapshot was saved (`imt_core::events::SnapshotTaken`).
+/// Tells every window's plugins that a snapshot was saved (`debrief_core::events::SnapshotTaken`).
 fn publish_snapshot_taken<R: tauri::Runtime>(app: &tauri::AppHandle<R>, id: &str) {
     use tauri::Manager;
     if let Some(windows) = app.try_state::<crate::windows::Windows>() {
         for w in windows.all() {
-            w.publish(imt_core::events::SnapshotTaken { id: id.to_string() });
+            w.publish(debrief_core::events::SnapshotTaken { id: id.to_string() });
         }
     }
 }
@@ -748,7 +748,7 @@ pub async fn open_snapshots_folder<R: tauri::Runtime>(app: tauri::AppHandle<R>) 
     Ok(store.dir().to_string_lossy().into_owned())
 }
 
-/// Zips the chosen snapshots and the recent IMT log to `path` (chosen in the save dialog) as a background
+/// Zips the chosen snapshots and the recent Debrief log to `path` (chosen in the save dialog) as a background
 /// export job; returns the job at once ("Show in folder" when the zip is there).
 #[tauri::command]
 pub async fn export_diagnostics<R: tauri::Runtime>(
@@ -759,7 +759,7 @@ pub async fn export_diagnostics<R: tauri::Runtime>(
     overwrite: Option<bool>,
 ) -> CmdResult<u64> {
     let target = grants.write(&path, &["zip"])?.path().to_path_buf();
-    imt_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
+    debrief_core::overwrite::check_overwrite(Path::new(&path), overwrite.unwrap_or(false))?;
     let store = store(&app)?;
     let path = target.to_string_lossy().into_owned();
     let spec = crate::jobs::export_spec("Export diagnostics to", None, &target);
@@ -778,7 +778,7 @@ mod tests {
     fn temp(tag: &str) -> PathBuf {
         static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
         let n = N.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let d = std::env::temp_dir().join(format!("imt-snap-{tag}-{}-{n}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("debrief-snap-{tag}-{}-{n}", std::process::id()));
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         d
@@ -812,7 +812,7 @@ mod tests {
     }
 
     fn store_in(d: &Path, limits: Limits) -> SnapshotStore {
-        SnapshotStore::new(d.join("snapshots"), Some(d.join("imt.log")), limits)
+        SnapshotStore::new(d.join("snapshots"), Some(d.join("debrief.log")), limits)
     }
 
     #[test]
@@ -869,7 +869,7 @@ mod tests {
     fn saves_lists_reads_and_deletes() {
         let d = temp("crud");
         std::fs::write(
-            d.join("imt.log"),
+            d.join("debrief.log"),
             "{\"@t\":\"2026-10-17T08:00:00Z\",\"@m\":\"secret text\"}\nplain line\n{\"@t\":\"2026-10-17T08:00:02Z\"}\n",
         )
         .unwrap();
@@ -1039,7 +1039,7 @@ mod tests {
     #[test]
     fn exports_a_zip_with_images_sidecars_and_the_log() {
         let d = temp("zip");
-        std::fs::write(d.join("imt.log"), "{\"@t\":\"2026-10-17T08:00:00Z\"}\nsecond\n").unwrap();
+        std::fs::write(d.join("debrief.log"), "{\"@t\":\"2026-10-17T08:00:00Z\"}\nsecond\n").unwrap();
         let store = store_in(&d, Limits::default());
         let a = store.save(ImageFormat::Png, &png(5), &ctx("a"), &env()).unwrap();
         let b = store.save(ImageFormat::Jpeg, &[0xFF, 0xD8, 0xFF, 9], &ctx("b"), &env()).unwrap();
@@ -1056,7 +1056,7 @@ mod tests {
             format!("snapshots/{a}.json"),
             format!("snapshots/{b}.jpg"),
             format!("snapshots/{b}.json"),
-            "logs/imt.log".to_string(),
+            "logs/debrief.log".to_string(),
         ];
         want.sort();
         assert_eq!(names, want);
@@ -1064,7 +1064,7 @@ mod tests {
         std::io::Read::read_to_end(&mut zip.by_name(&format!("snapshots/{a}.png")).unwrap(), &mut img).unwrap();
         assert_eq!(img, png(5));
         let mut log = String::new();
-        std::io::Read::read_to_string(&mut zip.by_name("logs/imt.log").unwrap(), &mut log).unwrap();
+        std::io::Read::read_to_string(&mut zip.by_name("logs/debrief.log").unwrap(), &mut log).unwrap();
         assert!(log.contains("second"));
 
         // Without a log file the zip simply has no log entry.
@@ -1129,7 +1129,7 @@ mod tests {
         );
         assert_eq!(serde_json::to_value(EngineErrorKind::ImportCrash).unwrap(), "import-crash");
         assert_eq!(serde_json::to_value(EngineErrorKind::PluginCrash).unwrap(), "plugin-crash");
-        assert_eq!(ERROR_EVENT, "imt://error");
+        assert_eq!(ERROR_EVENT, "debrief://error");
     }
 
     #[test]
@@ -1255,7 +1255,7 @@ mod tests {
         main.host
             .registry
             .events()
-            .subscribe::<imt_core::events::SnapshotTaken>("test.snapshots", move |e| {
+            .subscribe::<debrief_core::events::SnapshotTaken>("test.snapshots", move |e| {
                 let _ = tx.send(e.id.clone());
             })
             .unwrap();
@@ -1279,7 +1279,7 @@ mod tests {
             .starts_with("data:image/png;base64,"));
         let bad = save_snapshot(&handle, "main", "AAAA".into(), "image/png".into(), ctx("bad"));
         assert!(bad.is_err());
-        let out = std::env::temp_dir().join(format!("imt-snap-cmd-{}.zip", std::process::id()));
+        let out = std::env::temp_dir().join(format!("debrief-snap-cmd-{}.zip", std::process::id()));
         let grants = || crate::paths::WindowGrants::of(&handle, "main");
         let refused = export_diagnostics(handle.clone(), grants(), out.to_string_lossy().into(), vec![], None).now();
         assert!(refused.unwrap_err().contains("only writes where you choose"));

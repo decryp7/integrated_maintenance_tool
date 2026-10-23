@@ -1,12 +1,12 @@
 import { TestBed } from '@angular/core/testing';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { BundleManifest, Query, Report, TileCfg } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { Logger } from '../core/logger';
 import { MockBackend } from '../core/mock/mock-backend';
 import { EMPTY_QUERY } from '../core/workspace.store';
 import { MockAnalysisBackend, recordsFrom } from '../analysis/mock/mock-analysis-backend';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { MemoryLogger } from '../../testing/helpers';
 import { mockDashboards, mockDashboardsError, mockTileError } from './mock/mock-dashboards';
 import { mockRedactCfg, mockRedactionPreview, MockRedactor } from './mock/mock-redact';
@@ -38,7 +38,7 @@ describe('TauriShareBackend', () => {
       [() => b.dashboardTile({ tile: tile({ type: 'stat' }), query: q }), 'dashboard_tile', { request: { tile: tile({ type: 'stat' }), query: q } }],
       [() => b.exportReport({ report: report(), format: 'pdf', path: '/r.pdf', redact: true, theme: 'dark' }), 'export_report', { request: { report: report(), format: 'pdf', path: '/r.pdf', redact: true, theme: 'dark' } }],
       [() => b.saveVisual({ path: '/a.svg', kind: 'svg', data: '<svg/>' }), 'save_visual', { request: { path: '/a.svg', kind: 'svg', data: '<svg/>' } }],
-      [() => b.openBundle('/x.imtz'), 'open_bundle', { path: '/x.imtz' }],
+      [() => b.openBundle('/x.debriefz'), 'open_bundle', { path: '/x.debriefz' }],
       [() => b.overview(q), 'overview', { request: { query: q } }],
     ];
     for (const [call, name, args] of calls) {
@@ -51,17 +51,17 @@ describe('TauriShareBackend', () => {
 
 describe('provideShare', () => {
   it('provides the mock backend in a browser and registers its command batches', () => {
-    const imt = new MockBackend({ latency: false });
+    const debrief = new MockBackend({ latency: false });
     TestBed.configureTestingModule({
       providers: [
         { provide: Logger, useClass: MemoryLogger },
-        { provide: ImtBackend, useValue: imt },
-        { provide: AnalysisBackend, useValue: new MockAnalysisBackend(recordsFrom(imt)) },
+        { provide: DebriefBackend, useValue: debrief },
+        { provide: AnalysisBackend, useValue: new MockAnalysisBackend(recordsFrom(debrief)) },
         provideShare(),
       ],
     });
     expect(TestBed.inject(ShareBackend)).toBeDefined();
-    expect(Array.isArray(TestBed.inject(IMT_COMMANDS))).toBe(true);
+    expect(Array.isArray(TestBed.inject(DEBRIEF_COMMANDS))).toBe(true);
     expect(TestBed.runInInjectionContext(() => createShareBackend())).toBeDefined();
   });
 });
@@ -150,41 +150,41 @@ describe('mock dashboards', () => {
 });
 
 describe('MockShareBackend', () => {
-  let imt: MockBackend;
+  let debrief: MockBackend;
   let share: MockShareBackend;
   beforeEach(() => {
-    imt = new MockBackend({ latency: false });
-    share = new MockShareBackend(imt, new MockAnalysisBackend(recordsFrom(imt)));
+    debrief = new MockBackend({ latency: false });
+    share = new MockShareBackend(debrief, new MockAnalysisBackend(recordsFrom(debrief)));
   });
 
   it('switches the redacted view of the mock workspace (pages, facets, context, exports)', async () => {
     const listening = { ...q, text: 'listening' };
-    const before = await imt.queryPage({ query: listening, offset: 0, limit: 1, descending: false });
+    const before = await debrief.queryPage({ query: listening, offset: 0, limit: 1, descending: false });
     expect(before.rows[0]?.message).toContain('0.0.0.0');
     const on = await share.setRedactedView(true);
     expect(on.redactedView).toBe(true);
-    const after = await imt.queryPage({ query: listening, offset: 0, limit: 1, descending: false });
+    const after = await debrief.queryPage({ query: listening, offset: 0, limit: 1, descending: false });
     expect(after.rows[0]?.message).toContain('<ipv4>');
     expect(after.rows[0]?.fields['Address']).toContain('<ipv4>');
-    const facet = await imt.queryFacet({ query: q, field: 'CorrelationId', limit: 10 });
+    const facet = await debrief.queryFacet({ query: q, field: 'CorrelationId', limit: 10 });
     expect(facet.values).toEqual([{ value: '<guid>', count: expect.any(Number) }]);
-    const ctx = await imt.sourceContext({ recordId: at(after.rows, 0).id, before: 0, after: 0 });
+    const ctx = await debrief.sourceContext({ recordId: at(after.rows, 0).id, before: 0, after: 0 });
     expect(ctx.lines[0]?.text).toContain('<ipv4>');
-    const exported = await imt.exportEvents({ query: listening, format: 'csv', path: 'x.csv', redact: true });
+    const exported = await debrief.exportEvents({ query: listening, format: 'csv', path: 'x.csv', redact: true });
     expect(exported).toEqual(expect.any(Number));
     expect((await mockJobs().wait(exported)).message).toMatch(/^Exported \d+ events \(redacted, [1-9]\d* values masked\)\.$/);
     // A profile without rules switches the view off; switching on then fails.
-    await mockJobs().wait(await imt.saveProfile('name = "x"\n[redact]\ndetectors = []'));
-    expect((await imt.workspaceSummary()).redactedView).toBe(false);
+    await mockJobs().wait(await debrief.saveProfile('name = "x"\n[redact]\ndetectors = []'));
+    expect((await debrief.workspaceSummary()).redactedView).toBe(false);
     await expect(share.setRedactedView(true)).rejects.toThrow(/no redaction rules/);
     expect((await share.setRedactedView(false)).redactedView).toBe(false);
   });
 
   it('keeps redacting with the new rules after a profile change', async () => {
     await share.setRedactedView(true);
-    const doc = await imt.getProfile();
-    await mockJobs().wait(await imt.saveProfile(doc.toml.replace('mode = "mask"', 'mode = "drop"')));
-    const page = await imt.queryPage({ query: { ...q, text: 'listening' }, offset: 0, limit: 1, descending: false });
+    const doc = await debrief.getProfile();
+    await mockJobs().wait(await debrief.saveProfile(doc.toml.replace('mode = "mask"', 'mode = "drop"')));
+    const page = await debrief.queryPage({ query: { ...q, text: 'listening' }, offset: 0, limit: 1, descending: false });
     expect(at(page.rows, 0).message).not.toContain('0.0.0.0');
     expect(at(page.rows, 0).message).not.toContain('<ipv4>');
   });
@@ -199,7 +199,7 @@ describe('MockShareBackend', () => {
   });
 
   it('evaluates every tile kind of the demo dashboard', async () => {
-    const dashboards = (await imt.workspaceSummary()).dashboards;
+    const dashboards = (await debrief.workspaceSummary()).dashboards;
     const health = at(dashboards, 0);
     expect(health.title).toBe('OrderService health');
     const kinds = new Set<string>();
@@ -224,17 +224,17 @@ describe('MockShareBackend', () => {
 
   it('computes a stat sparkline from one workspace snapshot, bucket by bucket like a per-bucket query', async () => {
     const stat = tile({ type: 'stat', query: 'level >= error | stats count()' });
-    const pages = vi.spyOn(imt, 'queryPage');
+    const pages = vi.spyOn(debrief, 'queryPage');
     const data = await share.dashboardTile({ tile: stat, query: q });
     // The total and the snapshot: not one full reload per bucket (that made a stat tile take seconds).
     expect(pages.mock.calls.length).toBeLessThanOrEqual(2);
     if (data.kind !== 'stat') throw new Error('not a stat tile');
     expect(data.sparkline).toHaveLength(24);
-    const analysis = new MockAnalysisBackend(recordsFrom(imt));
+    const analysis = new MockAnalysisBackend(recordsFrom(debrief));
     const picks = [0, 11, 23];
     for (const i of picks) {
       const [start] = at(data.sparkline, i);
-      const end = i === 23 ? (await imt.workspaceSummary()).to! : at(data.sparkline, i + 1)[0] - 1;
+      const end = i === 23 ? (await debrief.workspaceSummary()).to! : at(data.sparkline, i + 1)[0] - 1;
       const out = await analysis.runQuery(mockTileQuery({ ...q, window: null, from: start, to: end }, stat.query));
       if ('error' in out || out.result.kind !== 'table') throw new Error('expected a table');
       expect(data.sparkline[i]?.[1]).toBe(out.result.rows[0]?.[0] ?? null);
@@ -265,23 +265,23 @@ describe('MockShareBackend', () => {
     await expect(share.saveVisual({ path: '/c.svg', kind: 'svg', data: '<p/>' })).rejects.toThrow(/svg/);
     await expect(share.saveVisual({ path: '/c.gif', kind: 'svg', data: '<svg/>' })).rejects.toThrow(/\.svg/);
     expect(share.written.map((w) => w.path)).toEqual(['/r.html', '/r.pdf', '/c.png', '/c.svg']);
-    expect((globalThis as Record<string, unknown>)['__imtMockShareWritten']).toBe(share.written);
+    expect((globalThis as Record<string, unknown>)['__debriefMockShareWritten']).toBe(share.written);
   });
 
   it('opens old share bundles read-only (creating them is replaced by saving a project)', async () => {
-    const manifest: BundleManifest = { format: 'imt-share', schema: 1, name: 'Case 42', createdAt: 1, imtVersion: '0.1.0', content: 'events', redacted: true, redaction: { email: 3 }, events: 4, entries: [], skipped: [] };
-    share.addBundle('/out/case.imtz', { name: 'Case 42', ui: { k: 1 }, reports: [report()], manifest });
-    const opened = await share.openBundle('/out/case.imtz');
-    expect(opened).toMatchObject({ readOnly: true, name: 'Case 42', ui: { k: 1 }, reports: [report()], bundle: { format: 'imt-share', name: 'Case 42', redacted: true, content: 'events' } });
-    const other = await share.openBundle('/demo/shared.imtz');
+    const manifest: BundleManifest = { format: 'debrief-share', schema: 1, name: 'Case 42', createdAt: 1, debriefVersion: '0.1.0', content: 'events', redacted: true, redaction: { email: 3 }, events: 4, entries: [], skipped: [] };
+    share.addBundle('/out/case.debriefz', { name: 'Case 42', ui: { k: 1 }, reports: [report()], manifest });
+    const opened = await share.openBundle('/out/case.debriefz');
+    expect(opened).toMatchObject({ readOnly: true, name: 'Case 42', ui: { k: 1 }, reports: [report()], bundle: { format: 'debrief-share', name: 'Case 42', redacted: true, content: 'events' } });
+    const other = await share.openBundle('/demo/shared.debriefz');
     expect(other).toMatchObject({ name: 'shared', bundle: null, reports: [], ui: null });
-    await expect(share.openBundle('/demo/x.zip')).rejects.toThrow(/not an IMT bundle/);
+    await expect(share.openBundle('/demo/x.zip')).rejects.toThrow(/not a Debrief bundle/);
     expect('estimateBundle' in share || 'createBundle' in share).toBe(false);
   });
 
   it('answers like the log store: the redacted view and the summary work, and a profile without rules refuses the view', async () => {
     const backend = new MockBackend({ latency: false });
-    const plain = new MockShareBackend(backend, new MockAnalysisBackend(recordsFrom(imt)));
+    const plain = new MockShareBackend(backend, new MockAnalysisBackend(recordsFrom(debrief)));
     expect((await plain.setRedactedView(true)).redactedView).toBe(true);
     expect((await plain.setRedactedView(false)).redactedView).toBe(false);
     expect((await plain.redactionSummary({ query: q })).scanned).toBeGreaterThan(0);
@@ -298,16 +298,16 @@ describe('MockShareBackend', () => {
   });
 
   it('refuses profiles with a broken [redact] section or dashboard, like the engine', async () => {
-    const bad = await imt.validateProfile('[redact]\ndetectors = ["nope"]');
+    const bad = await debrief.validateProfile('[redact]\ndetectors = ["nope"]');
     expect(bad.ok).toBe(false);
     expect(bad.error).toMatch(/unknown variant/);
-    const dash = await imt.validateProfile('[[dashboard]]\nid = "d"\ntitle = "D"\n[[dashboard.tile]]\nid = "t"\ntype = "stat"');
+    const dash = await debrief.validateProfile('[[dashboard]]\nid = "d"\ntitle = "D"\n[[dashboard.tile]]\nid = "t"\ntype = "stat"');
     expect(dash).toMatchObject({ ok: false, error: expect.stringContaining('needs a query') });
-    expect((await imt.validateProfile('[redact]\ndetectors = ["email"]')).ok).toBe(true);
+    expect((await debrief.validateProfile('[redact]\ndetectors = ["email"]')).ok).toBe(true);
   });
 
   it('works over a non-mock workspace backend (the engine owns the redacted view; the mock leaves the summary as it is)', async () => {
-    const other = new MockShareBackend({ workspaceSummary: () => imt.workspaceSummary(), getProfile: () => imt.getProfile() } as unknown as ImtBackend, new MockAnalysisBackend(recordsFrom(imt)));
+    const other = new MockShareBackend({ workspaceSummary: () => debrief.workspaceSummary(), getProfile: () => debrief.getProfile() } as unknown as DebriefBackend, new MockAnalysisBackend(recordsFrom(debrief)));
     expect((await other.setRedactedView(true)).redactedView).toBe(false);
     expect((await other.setRedactedView(false)).redactedView).toBe(false);
   });

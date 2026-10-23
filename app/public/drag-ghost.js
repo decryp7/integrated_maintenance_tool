@@ -1,4 +1,4 @@
-// The drag ghost's page (see drag-ghost.html). The shell calls `window.imtGhost(content)` with
+// The drag ghost's page (see drag-ghost.html). The shell calls `window.debriefGhost(content)` with
 // `{ title, icon, snapshot, dark }`: text goes in with textContent, the icon is an SVG path's `d`, the snapshot a PNG
 // data URL; nothing is ever parsed as markup.
 (function () {
@@ -8,7 +8,7 @@
   var icon = document.querySelector('.icon');
   var path = document.querySelector('.icon path');
   var snapshot = document.querySelector('.snapshot');
-  window.imtGhost = function (c) {
+  window.debriefGhost = function (c) {
     if (!c || typeof c !== 'object') return;
     root.setAttribute('data-scheme', c.dark ? 'dark' : 'light');
     title.textContent = typeof c.title === 'string' ? c.title : '';

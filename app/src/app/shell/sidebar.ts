@@ -53,27 +53,27 @@ function shortPath(path: string): string {
 }
 
 @Component({
-  selector: 'imt-sidebar',
+  selector: 'debrief-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch, TimestampWarning],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@shell.sidebar.explorer">Explorer</span>
       <span class="tools">
-        <button class="icon-btn" aria-label="Open files" title="Open files" i18n-aria-label="@@shell.sidebar.openFiles" i18n-title="@@shell.sidebar.openFilesTitle" (click)="store.pickAndOpen(false)"><imt-icon name="file" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Open folder" title="Open folder" i18n-aria-label="@@shell.sidebar.openFolder" i18n-title="@@shell.sidebar.openFolderTitle" (click)="store.pickAndOpen(true)"><imt-icon name="folder" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Open a time range" title="Open a time range…" i18n-aria-label="@@shell.sidebar.openRange" i18n-title="@@shell.sidebar.openRangeTitle" data-testid="open-range" (click)="importRange.pickAndOpen(true)"><imt-icon name="metrics" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Open for live tail" title="Open for live tail…" i18n-aria-label="@@shell.sidebar.openLive" i18n-title="@@shell.sidebar.openLiveTitle" (click)="openLive()"><imt-icon name="timeline" [size]="14" /></button>
-        <button class="icon-btn" aria-label="Re-import all" title="Re-import all" i18n-aria-label="@@shell.sidebar.reimportAll" i18n-title="@@shell.sidebar.reimportAllTitle" (click)="store.reload()"><imt-icon name="refresh" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open files" title="Open files" i18n-aria-label="@@shell.sidebar.openFiles" i18n-title="@@shell.sidebar.openFilesTitle" (click)="store.pickAndOpen(false)"><debrief-icon name="file" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open folder" title="Open folder" i18n-aria-label="@@shell.sidebar.openFolder" i18n-title="@@shell.sidebar.openFolderTitle" (click)="store.pickAndOpen(true)"><debrief-icon name="folder" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open a time range" title="Open a time range…" i18n-aria-label="@@shell.sidebar.openRange" i18n-title="@@shell.sidebar.openRangeTitle" data-testid="open-range" (click)="importRange.pickAndOpen(true)"><debrief-icon name="metrics" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Open for live tail" title="Open for live tail…" i18n-aria-label="@@shell.sidebar.openLive" i18n-title="@@shell.sidebar.openLiveTitle" (click)="openLive()"><debrief-icon name="timeline" [size]="14" /></button>
+        <button class="icon-btn" aria-label="Re-import all" title="Re-import all" i18n-aria-label="@@shell.sidebar.reimportAll" i18n-title="@@shell.sidebar.reimportAllTitle" (click)="store.reload()"><debrief-icon name="refresh" [size]="14" /></button>
       </span>
     </div>
 
-    <div class="sources" role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="imt-sources-read-only">
-      <span id="imt-sources-read-only" class="sr">{{ readOnly }}</span>
+    <div class="sources" role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="debrief-sources-read-only">
+      <span id="debrief-sources-read-only" class="sr">{{ readOnly }}</span>
       @for (row of layout().rows; track row.item.kind === 'file' ? 'f' + row.item.source.id : 'g' + row.item.group.key) {
         @let item = row.item;
         @if (row.heading; as h) {
-          <div class="folder-head" data-testid="folder-heading" [title]="h.path"><imt-icon name="folder" [size]="12" /><span class="ellipsis">{{ h.label }}</span></div>
+          <div class="folder-head" data-testid="folder-heading" [title]="h.path"><debrief-icon name="folder" [size]="12" /><span class="ellipsis">{{ h.label }}</span></div>
         }
         @if (item.kind === 'file') {
           <ng-container *ngTemplateOutlet="file; context: { $implicit: item.source, member: false, nameOnly: layout().byFolder }" />
@@ -87,8 +87,8 @@ function shortPath(path: string): string {
               [attr.aria-expanded]="isOpen(g.key)"
               (click)="toggle(g.key)"
             >
-              <imt-icon [name]="isOpen(g.key) ? 'chevronDown' : 'chevronRight'" [size]="12" />
-              <imt-icon name="files" [size]="13" class="faint" />
+              <debrief-icon [name]="isOpen(g.key) ? 'chevronDown' : 'chevronRight'" [size]="12" />
+              <debrief-icon name="files" [size]="13" class="faint" />
               <span class="ellipsis name">{{ g.label }}</span>
               @if (g.split) {
                 <span class="badge" data-testid="split-badge" i18n="@@shell.sidebar.groupSources">{{ g.sources.length }} sources</span>
@@ -119,7 +119,7 @@ function shortPath(path: string): string {
       }
       @for (u of unrecognized(); track u.path) {
         <div class="src dim unparsed" [title]="u.reason">
-          <imt-icon name="file" [size]="13" />
+          <debrief-icon name="file" [size]="13" />
           <span class="ellipsis name">{{ short(u.path) }}</span>
           @if (isImage(u.path)) {
             <button class="btn ghost setup" data-testid="mark-up-image" [attr.aria-label]="markUpLabel(u.name)" title="Open the image to mark areas and write notes" i18n-title="@@shell.sidebar.markUpTitle" (click)="markUp(u)" i18n="@@shell.sidebar.markUp">Mark up</button>
@@ -127,7 +127,7 @@ function shortPath(path: string): string {
           @if (canOpenImage(u.path)) {
             <button class="btn ghost setup" data-testid="open-image" [attr.aria-label]="openImageLabel(u.name)" title="Open the image for the AI assistant" i18n-title="@@shell.sidebar.openImageTitle" (click)="openImage(u)" i18n="@@shell.sidebar.openImage">Open image</button>
           } @else if (!isImage(u.path)) {
-            <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach IMT how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
+            <button class="btn ghost setup" [attr.aria-label]="setUpFormatLabel(u.name)" title="Teach Debrief how to read this file" i18n-title="@@shell.sidebar.setUpFormatTitle" (click)="setUpFormat(u)" i18n="@@shell.sidebar.setUpFormat">Set up format…</button>
           }
         </div>
       }
@@ -135,15 +135,15 @@ function shortPath(path: string): string {
 
     @if (sources().length) {
       <div class="divider"></div>
-      <imt-fields-panel />
+      <debrief-fields-panel />
     }
 
     <ng-template #file let-s let-member="member" let-nameOnly="nameOnly">
       <div class="src" [class.member]="member" [title]="sourceTitle(s)" (contextmenu)="sourceMenu($event, s)">
         @if (colors.forExplorer(s); as m) {
-          <imt-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="12" />
+          <debrief-source-swatch [swatch]="m.swatch" [label]="m.label" [size]="12" />
         } @else {
-          <imt-icon name="file" [size]="13" class="faint" />
+          <debrief-icon name="file" [size]="13" class="faint" />
         }
         @let nm = splitName(member || nameOnly ? s.name : short(s.path));
         <span class="name" [title]="s.path"><span class="head">{{ nm.head }}</span><span class="tail">{{ nm.tail }}</span></span>
@@ -153,18 +153,18 @@ function shortPath(path: string): string {
         @if (s.offsetMs) {
           <span class="skew mono" data-testid="skew-badge" [title]="skewLabel(s.offsetMs)" [attr.aria-label]="skewLabel(s.offsetMs)" role="img">{{ offset(s.offsetMs) }}</span>
         }
-        <imt-timestamp-warning [source]="s" />
+        <debrief-timestamp-warning [source]="s" />
         @if (notes.bySource().get(s.path); as n) {
-          <span class="notes-badge" data-testid="source-notes-badge" role="img" [title]="notesLabel(n)" [attr.aria-label]="notesLabel(n)"><imt-icon name="note" [size]="11" />{{ n }}</span>
+          <span class="notes-badge" data-testid="source-notes-badge" role="img" [title]="notesLabel(n)" [attr.aria-label]="notesLabel(n)"><debrief-icon name="note" [size]="11" />{{ n }}</span>
         }
         @if (encodingShown(s); as enc) {
-          <span class="enc mono" data-testid="encoding-badge" [class.low]="isLowConfidence(enc)" role="img" [title]="encodingTitle(enc)" [attr.aria-label]="encodingTitle(enc)"><imt-icon name="alert" [size]="12" /><span class="sr">{{ encodingBadge(enc) }}</span></span>
+          <span class="enc mono" data-testid="encoding-badge" [class.low]="isLowConfidence(enc)" role="img" [title]="encodingTitle(enc)" [attr.aria-label]="encodingTitle(enc)"><debrief-icon name="alert" [size]="12" /><span class="sr">{{ encodingBadge(enc) }}</span></span>
         }
         <span class="count">{{ compact(s.records) }}</span>
         <span class="actions">
-        <button class="icon-btn rm" aria-haspopup="menu" data-testid="source-actions" [attr.aria-label]="actionsLabel(s.name)" [attr.title]="actionsLabel(s.name)" (click)="sourceMenu($event, s)"><imt-icon name="drag" [size]="12" /></button>
-        <button class="icon-btn rm" [attr.aria-label]="adjustClockLabel(s.name)" [attr.title]="adjustClockTitle(s.name)" (click)="adjustClock(s)"><imt-icon name="timeline" [size]="12" /></button>
-        <button class="icon-btn rm" [attr.aria-label]="removeLabel(s.name)" (click)="store.removeSource(s.id)" [attr.title]="removeLabel(s.name)"><imt-icon name="close" [size]="12" /></button>
+        <button class="icon-btn rm" aria-haspopup="menu" data-testid="source-actions" [attr.aria-label]="actionsLabel(s.name)" [attr.title]="actionsLabel(s.name)" (click)="sourceMenu($event, s)"><debrief-icon name="drag" [size]="12" /></button>
+        <button class="icon-btn rm" [attr.aria-label]="adjustClockLabel(s.name)" [attr.title]="adjustClockTitle(s.name)" (click)="adjustClock(s)"><debrief-icon name="timeline" [size]="12" /></button>
+        <button class="icon-btn rm" [attr.aria-label]="removeLabel(s.name)" (click)="store.removeSource(s.id)" [attr.title]="removeLabel(s.name)"><debrief-icon name="close" [size]="12" /></button>
         </span>
       </div>
       @if (s.error) {
@@ -192,7 +192,7 @@ function shortPath(path: string): string {
     .src:hover .actions, .src:focus-within .actions { display: flex; }
     .src .rm { width: 20px; height: 20px; }
     .src.dim { color: var(--faint); font-style: italic; }
-    .src.dim imt-icon { opacity: 0.6; }
+    .src.dim debrief-icon { opacity: 0.6; }
     .src.unparsed .name { flex-basis: calc(100% - 22px); }
     .src.unparsed { flex-wrap: wrap; height: auto; min-height: 26px; padding-block: 2px; }
     .setup { height: 20px; padding: 0 6px; font-size: var(--fs-xs); font-style: normal; margin-inline-start: 21px; }

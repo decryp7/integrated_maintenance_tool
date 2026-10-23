@@ -11,7 +11,7 @@ import { Segments } from './chat-cards';
  * it ("Research anyway"). The research then runs as a job and its answer goes to the chat.
  */
 @Component({
-  selector: 'imt-research-dialog',
+  selector: 'debrief-research-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Segments],
   template: `
@@ -22,7 +22,7 @@ import { Segments } from './chat-cards';
     <p id="research-query-note" class="muted small" data-testid="research-source">{{ sourceNote() }}</p>
     @if (flagged().length) {
       <div class="flagged" role="alert" data-testid="research-flagged">
-        <p><imt-segments [segments]="flagged()" /></p>
+        <p><debrief-segments [segments]="flagged()" /></p>
         <p class="warn small" i18n="@@browser.researchDialog.flagged">Highlighted parts come from your logs or look private. Edit them out, or research anyway to send them to the search engine.</p>
       </div>
     }
@@ -89,7 +89,7 @@ export class ResearchDialog {
       case 'model':
         return $localize`:@@browser.researchDialog.byModel:The AI wrote it from the question and the event, asked to leave out ids, names, paths and other values of this installation. Check it before it is sent.`;
       case 'engine':
-        return $localize`:@@browser.researchDialog.byEngine:Built by IMT (the AI could not write it). Check it before it is sent.`;
+        return $localize`:@@browser.researchDialog.byEngine:Built by Debrief (the AI could not write it). Check it before it is sent.`;
       default:
         return $localize`:@@browser.researchDialog.byUser:Only this text goes to the search engine.`;
     }

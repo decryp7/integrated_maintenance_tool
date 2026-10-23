@@ -6,7 +6,7 @@ import { chooseMenu, menuItem, openMenuPath } from './menu-support';
 
 // Perspectives: named window arrangements switched from the activity bar, Window ▸ Perspectives and Ctrl+1…9.
 
-const bar = (page: Page) => page.locator('imt-activity-bar');
+const bar = (page: Page) => page.locator('debrief-activity-bar');
 const switcher = (page: Page) => bar(page).locator('[data-activity-id=perspectives]');
 const flyout = (page: Page) => page.getByRole('menu', { name: 'Perspectives' });
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
@@ -22,8 +22,8 @@ test.describe('perspectives', () => {
   test.beforeEach(async ({ page }) => {
     // Cleared once, not on the reload the remember-across-reload test makes.
     await page.addInitScript(() => {
-      if (sessionStorage.getItem('imt-e2e-cleared')) return;
-      sessionStorage.setItem('imt-e2e-cleared', '1');
+      if (sessionStorage.getItem('debrief-e2e-cleared')) return;
+      sessionStorage.setItem('debrief-e2e-cleared', '1');
       localStorage.clear();
     });
     await openApp(page);
@@ -43,7 +43,7 @@ test.describe('perspectives', () => {
     // Diagnostics adds problems, jobs, ... below the events; the timeline and events stay.
     await expect(page.getByRole('tab', { name: /^Problems/ })).toBeVisible();
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
-    await expect(page.locator('imt-timeline-panel')).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel')).toBeVisible();
   });
 
   test('Window ▸ Perspectives lists them with their keys and switches', async ({ page }, testInfo) => {
@@ -51,31 +51,31 @@ test.describe('perspectives', () => {
     for (const name of ['Perspective: Investigate', 'Perspective: Profiling', 'Perspective: Live', 'Perspective: Diagnostics', 'Save current as perspective…', 'Manage perspectives…', 'Reset perspective'])
       await expect(menuItem(menu, name)).toBeVisible();
     await expect(menuItem(menu, 'Perspective: Investigate')).toHaveAttribute('aria-checked', 'true');
-    await expectNoSeriousViolations(page, testInfo, 'perspectives-window-menu', '.cdk-overlay-container, imt-menu-bar');
+    await expectNoSeriousViolations(page, testInfo, 'perspectives-window-menu', '.cdk-overlay-container, debrief-menu-bar');
     await menuItem(menu, 'Perspective: Live').click();
-    await expect(page.locator('.imt-tab[data-panel-id="tail-status"]')).toBeVisible();
+    await expect(page.locator('.debrief-tab[data-panel-id="tail-status"]')).toBeVisible();
     await chooseMenu(page, 'Window', 'Perspectives', 'Perspective: Investigate');
-    await expect(page.locator('.imt-tab[data-panel-id="tail-status"]')).toHaveCount(0);
+    await expect(page.locator('.debrief-tab[data-panel-id="tail-status"]')).toHaveCount(0);
   });
 
   test('Ctrl+2 switches to Profiling and Ctrl+1 restores Investigate as it was left', async ({ page }) => {
     await runCommand(page, 'Show anomalies');
     await expect(tab(page, 'Anomalies')).toBeVisible();
     await page.keyboard.press('ControlOrMeta+2');
-    await expect(page.locator('imt-captures-view')).toBeVisible();
+    await expect(page.locator('debrief-captures-view')).toBeVisible();
     await expect(page.getByTestId('captures-landing')).toBeVisible();
-    await expect(page.locator('imt-timeline-panel')).toHaveCount(0);
+    await expect(page.locator('debrief-timeline-panel')).toHaveCount(0);
     await expect(page.getByRole('grid', { name: 'Events' })).toHaveCount(0);
 
     await page.keyboard.press('ControlOrMeta+1');
-    await expect(page.locator('imt-timeline-panel')).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel')).toBeVisible();
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
     await expect(tab(page, 'Anomalies')).toBeVisible();
     // The choice is remembered across a reload.
     await page.keyboard.press('ControlOrMeta+2');
-    await expect(page.locator('imt-captures-view')).toBeVisible();
+    await expect(page.locator('debrief-captures-view')).toBeVisible();
     // The layout is saved a moment after a change: wait for it before reloading.
-    await expect.poll(() => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('imt.layout') ?? '{}').layout?.panels ?? {}).includes('profiling-captures'))).toBe(true);
+    await expect.poll(() => page.evaluate(() => Object.keys(JSON.parse(localStorage.getItem('debrief.layout') ?? '{}').layout?.panels ?? {}).includes('profiling-captures'))).toBe(true);
     await page.reload();
     await expect(page.getByRole('grid', { name: 'Events' })).toHaveCount(0);
     await expect(tab(page, 'Captures')).toBeVisible({ timeout: 20_000 });
@@ -115,7 +115,7 @@ test.describe('perspectives', () => {
     await expect(rowByName(page, 'Outage')).toHaveCount(0);
     await manage.getByRole('button', { name: 'Switch to Profiling' }).click();
     await expect(manage).toHaveCount(0);
-    await expect(page.locator('imt-captures-view')).toBeVisible();
+    await expect(page.locator('debrief-captures-view')).toBeVisible();
   });
 
   test('Reset perspective rebuilds the active one as it comes', async ({ page }) => {

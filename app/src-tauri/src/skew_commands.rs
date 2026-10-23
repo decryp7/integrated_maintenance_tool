@@ -5,7 +5,7 @@
 use crate::activity::OpId;
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_core::skew::{OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult};
+use debrief_core::skew::{OffsetChange, SetOffsetRequest, SuggestRequest, SuggestResult};
 
 /// Sets a source's clock offset and moves its events.
 #[tauri::command]

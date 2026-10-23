@@ -8,7 +8,7 @@ async function runCommand(page: Page, text: string): Promise<void> {
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill(text);
-  await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText(text);
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText(text);
   await page.keyboard.press('Enter');
 }
 
@@ -63,9 +63,9 @@ test('AI is hidden when it is unavailable', async ({ page }) => {
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill('Set up AI assistant');
-  await expect(page.locator('imt-command-palette').getByRole('option', { name: /Set up AI assistant/ })).toHaveCount(0);
+  await expect(page.locator('debrief-command-palette').getByRole('option', { name: /Set up AI assistant/ })).toHaveCount(0);
   await input.fill('AI:');
-  await expect(page.locator('imt-command-palette').getByRole('option', { name: /^AI:/ })).toHaveCount(0);
+  await expect(page.locator('debrief-command-palette').getByRole('option', { name: /^AI:/ })).toHaveCount(0);
   await page.keyboard.press('Escape');
   await page.keyboard.press('ControlOrMeta+Comma');
   const settings = page.getByRole('dialog', { name: 'Settings' });

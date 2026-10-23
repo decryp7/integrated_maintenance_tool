@@ -4,7 +4,7 @@ import { isAccessDenied } from './tool-errors';
 
 /** Shows an inline error and, when it was caused by missing rights, the way forward. */
 @Component({
-  selector: 'imt-tool-error',
+  selector: 'debrief-tool-error',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (message(); as text) {
@@ -14,7 +14,7 @@ import { isAccessDenied } from './tool-errors';
           @if (life.canRestartElevated()) {
             <button type="button" class="btn" (click)="life.restartElevated()" i18n="@@tools.elevation.restart">Restart as administrator</button>
           } @else if (!life.elevated()) {
-            <span class="faint" i18n="@@tools.elevation.runAsAdmin">Run IMT as administrator and try again.</span>
+            <span class="faint" i18n="@@tools.elevation.runAsAdmin">Run Debrief as administrator and try again.</span>
           }
         }
         @if (retry()) {

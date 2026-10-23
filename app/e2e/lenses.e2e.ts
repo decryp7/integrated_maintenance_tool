@@ -26,7 +26,7 @@ test.describe('lenses and filter sets', () => {
     await lensMenu(page, 'Warnings and worse');
     await expect(levels.getByRole('button', { name: /^WRN/ })).toHaveAttribute('aria-pressed', 'true');
     // The lens also brings its extra column.
-    await expect(page.locator('imt-events-grid .hcell.extra', { hasText: 'SourceContext' })).toBeVisible();
+    await expect(page.locator('debrief-events-grid .hcell.extra', { hasText: 'SourceContext' })).toBeVisible();
     await expect(total).not.toHaveText(all);
   });
 

@@ -11,7 +11,7 @@ const S = (d, id, x, y, w, h, name, desc, role = 'accent') => d.node(id, x, y, w
   const oy = gy + 64, oc = oy + WH / 2;
   S(d, 'off', 72, oy, 200, WH, 'Off', 'Nothing runs. The tray and the Live toggle are idle.', 'process');
   dot(d, 'ini', 72 + 100 - 8, Y0 - 8 + 0, 'start');
-  d.group('live', gx, gy, gw, gh, 'Live [thread `imt-live-tail`]');
+  d.group('live', gx, gy, gw, gh, 'Live [thread `debrief-live-tail`]');
   const sx = (i) => gx + 24 + i * (WS + GAP);
   S(d, 'wat', sx(0), oy, WS, WH, 'Watching', 'Notify events per root, or a poll every 2 s on network paths; a tick every 1 s.');
   S(d, 'coa', sx(1), oy, WS, WH, 'Coalescing', 'Changed paths are batched; more than 100,000 pending means a full rescan.');
@@ -117,7 +117,7 @@ const S = (d, id, x, y, w, h, name, desc, role = 'accent') => d.node(id, x, y, w
 // ---------- project ----------
 {
   const d = P({ title: 'Project — saved, unsaved and modified', kind: 'UML · State machine (1 of 2)', w: 1344,
-    desc: 'The open project as `ProjectService` tracks it. A project is the window’s store folder saved as `.imtz`; it opens without the original logs.' });
+    desc: 'The open project as `ProjectService` tracks it. A project is the window’s store folder saved as `.debriefz`; it opens without the original logs.' });
   const W = 192, H = 88, SG = 112, gw = 24 + 2 * W + SG + 24, gh = 64 + H + 24;
   const g1 = 48, g2 = 48 + gw + 232, gy = Y0 + 40;
   d.group('un', g1, gy, gw, gh, 'Untitled [path = null]');
@@ -140,7 +140,7 @@ const S = (d, id, x, y, w, h, name, desc, role = 'accent') => d.node(id, x, y, w
   d.lbl('new, clear', (g1 + gw + g2) / 2, sy + H * 0.75, 'a');
   const ny = gy + gh + 72;
   d.note('n1', 48, ny, 592, 'Unsaved changes: New, Open and Open recent ask Save, Discard or Cancel while the project is dirty (Escape cancels); Save continues only if it succeeds. Closing a window does not ask. Dirty means the sources, the tracked UI snapshot or the reports differ from the baseline.');
-  d.note('n2', 688, ny, 592, 'Save writes `save_project` as `.imtz` and sets the baseline to what was written; Save as goes through the picker and the overwrite guard. Opening fails with a message (cannot read, not a Debrief project, newer format, store locked) and leaves the state unchanged.');
+  d.note('n2', 688, ny, 592, 'Save writes `save_project` as `.debriefz` and sets the baseline to what was written; Save as goes through the picker and the overwrite guard. Opening fails with a message (cannot read, not a Debrief project, newer format, store locked) and leaves the state unchanged.');
   d.legend([{ kind: 'accent', label: 'State' }, { kind: 'line', label: 'Event / action' }]);
   save('uml-state-project', d, Math.max(d.rect.n1[1] + d.rect.n1[3], d.rect.n2[1] + d.rect.n2[3]));
 }
@@ -176,7 +176,7 @@ const S = (d, id, x, y, w, h, name, desc, role = 'accent') => d.node(id, x, y, w
   route(d, 'run', 'R', fr(sy + H / 2), 'ex', 'L', 0.5);
   d.lbl('close, exit', (gx + gw + gx + gw + 168) / 2 - 8, sy + H / 2, 'a');
   d.note('n1', gx + gw + 96 - 0, ry - 8, 1296 - (gx + gw + 96), 'On “snapshot changed” the 10 s timer starts; after 10 quiet seconds or when the window loses focus the session is written with `save_session`. Closing a window forgets its session; exit removes the marker. Safe mode restarts without plugins.');
-  d.note('n2', gx + gw + 96, d.rect.n1[1] + d.rect.n1[3] + 24, 1296 - (gx + gw + 96), 'Sessions live in `sessions/<window>/last-session.imtproj` with `manifest.json` (version 2); a missing or corrupt manifest falls back to scanning the folders.');
+  d.note('n2', gx + gw + 96, d.rect.n1[1] + d.rect.n1[3] + 24, 1296 - (gx + gw + 96), 'Sessions live in `sessions/<window>/last-session.debriefproj` with `manifest.json` (version 2); a missing or corrupt manifest falls back to scanning the folders.');
   d.legend([{ kind: 'accent', label: 'State' }, { kind: 'line', label: 'Event / action' }]);
   save('uml-state-session', d, Math.max(d.rect.n2[1] + d.rect.n2[3], gh + Y0, sm_bottom(d)));
   function sm_bottom(dd) { return dd.rect.sm[1] + dd.rect.sm[3]; }

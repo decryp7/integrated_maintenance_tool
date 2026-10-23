@@ -19,7 +19,7 @@ interface Column {
  * the engine, plus a summary per span kind. Choosing a run filters the timeline and events to it.
  */
 @Component({
-  selector: 'imt-runs-view',
+  selector: 'debrief-runs-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Switch],
   template: `
@@ -41,7 +41,7 @@ interface Column {
           @for (s of statuses; track s) { <option [value]="s" [selected]="runs.status() === s">{{ statusLabel(s) }}</option> }
         </select>
       </label>
-      <imt-switch size="small" [checked]="runs.inView()" (checkedChange)="runs.inView.set($event)" i18n="@@runs.view.inView">Visible time range only</imt-switch>
+      <debrief-switch size="small" [checked]="runs.inView()" (checkedChange)="runs.inView.set($event)" i18n="@@runs.view.inView">Visible time range only</debrief-switch>
       <button type="button" class="btn" (click)="setUp()" i18n="@@runs.view.setUp">Set up runs…</button>
     </div>
 

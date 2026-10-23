@@ -1,25 +1,25 @@
 //! Nightly and manual live test of research's results-page step against the real search engines, in a real Chromium
 //! (ADR 0043; it replaces the web view probe). Ignored by default: run it with
-//! `IMT_LIVE_SEARCH=1 cargo test -p imt-app --lib live_search -- --ignored --nocapture`. It uses the same ports and
+//! `DEBRIEF_LIVE_SEARCH=1 cargo test -p debrief-app --lib live_search -- --ignored --nocapture`. It uses the same ports and
 //! functions research does (`research::search`, `research::read_results`, `research::open_result`) through
 //! [`ChromiumPage`], once per built-in engine, and fails with diagnostics (page kind, link counts, ready state, a
 //! screenshot) unless an engine gives at least [`MIN_LINKS`] result links or a recognised consent/CAPTCHA hand-off.
-//! `IMT_E2E_LIVE_SEARCH_OUT` names an absolute folder for `live-search.json` and the screenshots; the queries are
+//! `DEBRIEF_E2E_LIVE_SEARCH_OUT` names an absolute folder for `live-search.json` and the screenshots; the queries are
 //! neutral (never user data) and the report keeps page addresses without their query string.
 
 use super::renderer::{ChromiumPage, Renderers};
 use super::research::ReadOnlyDriver;
-use imt_ai::browser::research::{self, ResearchEnv, ResultsOutcome, ResultsRead};
-use imt_ai::browser::{AgentLimits, ChatBrowser, PageDiagnostics, PageKind, SearchEngine, SearchSettings};
+use debrief_ai::browser::research::{self, ResearchEnv, ResultsOutcome, ResultsRead};
+use debrief_ai::browser::{AgentLimits, ChatBrowser, PageDiagnostics, PageKind, SearchEngine, SearchSettings};
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-pub const OUT_VAR: &str = "IMT_E2E_LIVE_SEARCH_OUT";
-pub const QUERY_VAR: &str = "IMT_E2E_LIVE_SEARCH_QUERY";
-pub const ENGINES_VAR: &str = "IMT_E2E_LIVE_SEARCH_ENGINES";
+pub const OUT_VAR: &str = "DEBRIEF_E2E_LIVE_SEARCH_OUT";
+pub const QUERY_VAR: &str = "DEBRIEF_E2E_LIVE_SEARCH_QUERY";
+pub const ENGINES_VAR: &str = "DEBRIEF_E2E_LIVE_SEARCH_ENGINES";
 pub const DEFAULT_QUERY: &str = "System.TimeoutException";
 pub const REPORT: &str = "live-search.json";
 const MAX_QUERY: usize = 100;
@@ -119,8 +119,8 @@ pub fn query_from(var: Option<String>) -> Result<String, String> {
 }
 
 struct NoLog;
-impl imt_ai::browser::ActionLog for NoLog {
-    fn record(&self, _: &imt_ai::browser::ActionEntry) {}
+impl debrief_ai::browser::ActionLog for NoLog {
+    fn record(&self, _: &debrief_ai::browser::ActionEntry) {}
 }
 
 fn screenshot(renderers: &Renderers, path: &Path) -> Result<(), String> {
@@ -145,7 +145,7 @@ fn read(
         on_screen: false,
         may_drive: drive.then(|| Box::new(|| true) as Box<dyn Fn() -> bool + Send + Sync>),
         rules: Some(control.clone()),
-        product: "IMT".into(),
+        product: "Debrief".into(),
         notify: Arc::new(|_| {}),
     };
     let reader = page(false);
@@ -229,13 +229,13 @@ fn probe(renderers: &Arc<Renderers>, engine: SearchEngine, query: &str, out: &Pa
 #[test]
 #[ignore = "live: needs a browser and the network (nightly / manual)"]
 fn live_search_every_engine_gives_results_or_a_recognised_hand_off() {
-    if std::env::var("IMT_LIVE_SEARCH").is_err() {
-        eprintln!("set IMT_LIVE_SEARCH=1 to run the live search test");
+    if std::env::var("DEBRIEF_LIVE_SEARCH").is_err() {
+        eprintln!("set DEBRIEF_LIVE_SEARCH=1 to run the live search test");
         return;
     }
     let out = std::env::var_os(OUT_VAR)
         .map(PathBuf::from)
-        .unwrap_or_else(|| std::env::temp_dir().join("imt-live-search"));
+        .unwrap_or_else(|| std::env::temp_dir().join("debrief-live-search"));
     assert!(out.is_absolute(), "{OUT_VAR} must be an absolute folder");
     std::fs::create_dir_all(&out).unwrap();
     let query = query_from(std::env::var(QUERY_VAR).ok()).unwrap();
@@ -266,7 +266,7 @@ fn live_search_every_engine_gives_results_or_a_recognised_hand_off() {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_ai::browser::WebUrl;
+    use debrief_ai::browser::WebUrl;
 
     fn links(n: usize) -> ResultsOutcome {
         ResultsOutcome::Links(

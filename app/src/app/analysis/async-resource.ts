@@ -8,7 +8,7 @@ export function errorText(e: unknown): string {
 
 /**
  * Loading / error / data signals for one request. Latest call wins; `retry()` repeats the last
- * call. Views render it through `<imt-analysis-state>` (error boundary with Retry).
+ * call. Views render it through `<debrief-analysis-state>` (error boundary with Retry).
  */
 export class AsyncResource<T> {
   readonly data = signal<T | null>(null);
@@ -51,7 +51,7 @@ export class AsyncResource<T> {
   }
 }
 
-/** An `AsyncResource` of an analysis: its `result` for the view, its `coverage` for `<imt-coverage-note>`. */
+/** An `AsyncResource` of an analysis: its `result` for the view, its `coverage` for `<debrief-coverage-note>`. */
 export class AnalysisResource<T> extends AsyncResource<Analyzed<T>> {
   readonly result = computed(() => this.data()?.result ?? null);
   readonly coverage = computed(() => this.data()?.coverage ?? null);

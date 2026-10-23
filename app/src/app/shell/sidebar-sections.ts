@@ -1,6 +1,6 @@
 import { Injectable, signal } from '@angular/core';
 
-export const FIELDS_OPEN_KEY = 'imt.sidebar.fieldsOpen.v1';
+export const FIELDS_OPEN_KEY = 'debrief.sidebar.fieldsOpen.v1';
 
 function readOpen(): boolean {
   try {

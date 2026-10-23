@@ -1,10 +1,10 @@
 import { Injectable } from '@angular/core';
-import { ImtCommand } from '../extensions/tokens';
+import { DebriefCommand } from '../extensions/tokens';
 
 /** Commands for saved queries (the panel itself is the `saved-queries` view). */
 @Injectable({ providedIn: 'root' })
 export class SavedQueryCommands {
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     {
       id: 'savedQueries.show',
       title: $localize`:@@projects.cmd.savedQueries.show:Show saved queries`,

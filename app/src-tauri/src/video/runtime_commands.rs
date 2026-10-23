@@ -1,16 +1,16 @@
 //! Settings ▸ Video (ADR 0033 §1): the FFmpeg runtime. Install (a download job: pinned build, SHA-256, unpack,
 //! self-test, then switch), roll back, delete, and use the user's own ffmpeg (Homebrew's, a package manager's). The
-//! self-test runs the whole sandboxed pipeline on a clip IMT generates; a runtime that fails it is never used.
+//! self-test runs the whole sandboxed pipeline on a clip Debrief generates; a runtime that fails it is never used.
 
 use super::{cmd, state, VideoState};
 use crate::error::{CmdError, CmdResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobKind, JobProgress, JobSpec};
-use imt_ai::models::{Progress, SystemDisk};
-use imt_ai::runtimes::{GithubReleases, ReleaseConfig};
-use imt_video::api::VideoRuntimeView;
-use imt_video::run::Tools;
-use imt_video::runtime::{current_platform, detect, self_test, SelfTestReport};
-use imt_video::VideoError;
+use debrief_ai::models::{Progress, SystemDisk};
+use debrief_ai::runtimes::{GithubReleases, ReleaseConfig};
+use debrief_video::api::VideoRuntimeView;
+use debrief_video::run::Tools;
+use debrief_video::runtime::{current_platform, detect, self_test, SelfTestReport};
+use debrief_video::VideoError;
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
@@ -33,7 +33,7 @@ fn view(st: &VideoState) -> VideoRuntimeView {
 }
 
 /// The self-test as the store wants it: in a scratch folder of its own, with the job's cancel flag.
-fn check<'a>(st: &'a VideoState, cancel: &'a AtomicBool) -> impl Fn(&Tools) -> imt_video::Result<SelfTestReport> + 'a {
+fn check<'a>(st: &'a VideoState, cancel: &'a AtomicBool) -> impl Fn(&Tools) -> debrief_video::Result<SelfTestReport> + 'a {
     move |tools| {
         let scratch = st.scratch_dir("selftest")?;
         self_test(tools, scratch.path(), cancel)
@@ -58,7 +58,7 @@ pub async fn video_runtime_install<R: Runtime>(app: AppHandle<R>) -> CmdResult<V
         if st.catalog.asset(&platform).is_none() {
             return Err(CmdError::new(
                 crate::ErrorCode::Unsupported,
-                "IMT has no FFmpeg build to download for this computer yet",
+                "Debrief has no FFmpeg build to download for this computer yet",
             )
             .hint("Install FFmpeg yourself (on macOS: brew install ffmpeg) and choose it in Settings ▸ Video."));
         }

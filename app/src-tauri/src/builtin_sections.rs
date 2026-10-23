@@ -4,7 +4,7 @@
 use crate::diagnostics;
 use crate::settings::ExternalValues;
 use crate::settings::DEFAULT_LIVE_TAIL_DEBOUNCE;
-use imt_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_core::settings::{Configurable, EnumOption, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -24,7 +24,7 @@ pub(crate) fn int(min: i64, max: i64, unit: Option<&str>) -> FieldKind {
     }
 }
 
-/// Adapter over `diagnostics.rs`: IMT's own log files and error snapshots.
+/// Adapter over `diagnostics.rs`: Debrief's own log files and error snapshots.
 /// `diagnostics.json` stays the source of truth (it is read at startup,
 /// before this service exists, and by the snapshot store).
 pub struct DiagnosticsSection {
@@ -39,7 +39,7 @@ impl Configurable for DiagnosticsSection {
             .map(|l| EnumOption::new(*l, capitalized(l)))
             .collect();
         SettingsSection::new(DIAGNOSTICS_SECTION, "Diagnostics", SectionOwner::App)
-            .describe("IMT's own log files and the screenshots taken when something fails. Nothing is sent anywhere.")
+            .describe("Debrief's own log files and the screenshots taken when something fails. Nothing is sent anywhere.")
             .field(
                 SettingField::new(
                     "logLevel",
@@ -47,11 +47,13 @@ impl Configurable for DiagnosticsSection {
                     FieldKind::Enum { options: levels },
                     level_name(d.log.level),
                 )
-                .describe("How much IMT writes to its own log. Debug and Trace help when reporting a problem."),
+                .describe("How much Debrief writes to its own log. Debug and Trace help when reporting a problem."),
             )
             .field(
                 SettingField::new("logMaxFileMb", "Log file size", int(1, 100, Some("MB")), d.log.max_file_mb)
-                    .describe("IMT starts a new log file every day. Past this size in one day, only errors are written until the next day.")
+                    .describe(
+                        "Debrief starts a new log file every day. Past this size in one day, only errors are written until the next day.",
+                    )
                     .needs_restart(),
             )
             .field(
@@ -97,7 +99,7 @@ impl Configurable for DiagnosticsSection {
             )
             .field(
                 SettingField::new("snapshotsEnabled", "Error snapshots", FieldKind::Bool, d.snapshots.enabled)
-                    .describe("Save a screenshot of IMT locally when an error is shown, to attach to a bug report."),
+                    .describe("Save a screenshot of Debrief locally when an error is shown, to attach to a bug report."),
             )
             .field(
                 SettingField::new("snapshotsMaxCount", "Snapshots kept", int(1, 500, None), d.snapshots.max_count)
@@ -199,7 +201,7 @@ pub struct WorkspaceSection {
 impl Configurable for WorkspaceSection {
     fn settings_section(&self) -> SettingsSection {
         SettingsSection::new(WORKSPACE_SECTION, "Live tail", SectionOwner::App)
-            .describe("How IMT follows files that change while they are open.")
+            .describe("How Debrief follows files that change while they are open.")
             .field(
                 SettingField::new(
                     "liveTailDebounce",

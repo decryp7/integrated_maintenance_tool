@@ -1,18 +1,18 @@
 //! Symbols for dumps (ADR 0036): Settings ▸ Symbols and the host's part of naming a dump's frames.
 //!
-//! A dump is opened by the dumps plugin, which names frames from the symbol folders (the user's, then IMT's symbol
+//! A dump is opened by the dumps plugin, which names frames from the symbol folders (the user's, then Debrief's symbol
 //! cache) by PDB identity (name, GUID, age) and records each module's [`SymbolStatus`]. The modules whose PDB is
 //! missing are then asked of the user's symbol servers here, into the cache, as a Jobs job (cancellable, with
 //! progress) that runs after the dump is open: the dump shows at once with those modules "downloading", and is read
 //! again with the new PDBs when they arrive. Downloads are off until the user turns them on; nothing is requested
 //! while they are off.
 
-use imt_core::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
-use imt_dump::model::{Document, SymbolStatus};
-use imt_dump::DumpDocs;
-use imt_symbols::fetch::{FetchError, Fetcher};
-use imt_symbols::id::PdbKey;
-use imt_symbols::servers::{get_all, get_all_observed, Gate, Outcome, ServersConfig, MAX_CONCURRENT, MAX_SERVERS};
+use debrief_core::settings::{Configurable, FieldKind, SectionOwner, SettingField, SettingsSection, ValidValues};
+use debrief_dump::model::{Document, SymbolStatus};
+use debrief_dump::DumpDocs;
+use debrief_symbols::fetch::{FetchError, Fetcher};
+use debrief_symbols::id::PdbKey;
+use debrief_symbols::servers::{get_all, get_all_observed, Gate, Outcome, ServersConfig, MAX_CONCURRENT, MAX_SERVERS};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
@@ -27,7 +27,7 @@ pub const MAX_DOWNLOADS: usize = 256;
 #[derive(Debug, Clone, Default)]
 pub struct SymbolSettings {
     pub servers: ServersConfig,
-    /// Where PDBs are cached; `None` = the default folder below IMT's data folder.
+    /// Where PDBs are cached; `None` = the default folder below Debrief's data folder.
     pub cache_folder: Option<PathBuf>,
 }
 
@@ -77,13 +77,13 @@ impl Symbols {
                 let detail = e.to_string();
                 let mut doc = doc;
                 if let Document::Dump(d) = &mut doc {
-                    imt_dump::symbols::mark_missing(d, |_| Some(SymbolStatus::DownloadFailed { detail: detail.clone() }), max_text);
+                    debrief_dump::symbols::mark_missing(d, |_| Some(SymbolStatus::DownloadFailed { detail: detail.clone() }), max_text);
                 }
                 return Opened::Final(doc);
             }
         };
         let Document::Dump(dump) = &doc else { return Opened::Final(doc) };
-        let keys = imt_dump::symbols::missing(dump, MAX_DOWNLOADS);
+        let keys = debrief_dump::symbols::missing(dump, MAX_DOWNLOADS);
         if keys.is_empty() {
             return Opened::Final(doc);
         }
@@ -100,7 +100,7 @@ impl Symbols {
         };
         let mut doc = doc;
         if let Document::Dump(d) = &mut doc {
-            imt_dump::symbols::mark_downloading(d, &keys);
+            debrief_dump::symbols::mark_downloading(d, &keys);
         }
         Opened::Downloading(
             doc,
@@ -135,9 +135,9 @@ pub struct Download {
 impl Download {
     /// A download of `dump`'s missing PDBs through `fetcher` (tests).
     #[cfg(test)]
-    pub(crate) fn with_fetcher(dump: &imt_dump::model::Dump, cache: &std::path::Path, fetcher: Arc<dyn Fetcher>) -> Download {
+    pub(crate) fn with_fetcher(dump: &debrief_dump::model::Dump, cache: &std::path::Path, fetcher: Arc<dyn Fetcher>) -> Download {
         Download {
-            keys: imt_dump::symbols::missing(dump, MAX_DOWNLOADS),
+            keys: debrief_dump::symbols::missing(dump, MAX_DOWNLOADS),
             cache: cache.to_path_buf(),
             fetcher,
             gate: Arc::new(Gate::new(1)),
@@ -163,7 +163,7 @@ impl Download {
         &self,
         cancel: &AtomicBool,
         progress: &(dyn Fn(usize, usize) + Sync),
-        reimport: impl FnOnce() -> imt_dump::Result<Document>,
+        reimport: impl FnOnce() -> debrief_dump::Result<Document>,
     ) -> Update {
         let total = self.keys.len();
         let done = AtomicUsize::new(0);
@@ -172,7 +172,7 @@ impl Download {
         });
         let arrived = outcomes.iter().any(|(_, o)| matches!(o, Outcome::Downloaded(_)));
         let reimported = if arrived {
-            imt_symbols::cache::prune(&self.cache, self.config.cache_max_bytes);
+            debrief_symbols::cache::prune(&self.cache, self.config.cache_max_bytes);
             reimport().ok()
         } else {
             None
@@ -244,8 +244,8 @@ impl Update {
 }
 
 /// Gives every module still missing or downloading the status its PDB's outcome says (none heard: missing).
-fn mark_outcomes(d: &mut imt_dump::model::Dump, outcomes: &[(PdbKey, Outcome)], max_text: usize) {
-    imt_dump::symbols::mark_missing(
+fn mark_outcomes(d: &mut debrief_dump::model::Dump, outcomes: &[(PdbKey, Outcome)], max_text: usize) {
+    debrief_dump::symbols::mark_missing(
         d,
         |k| {
             Some(
@@ -311,7 +311,7 @@ impl Configurable for SymbolsSection {
         let d = ServersConfig::default();
         SettingsSection::new(SECTION, "Symbols", SectionOwner::App)
             .describe(
-                "Where IMT finds the symbols (PDB files) that name the functions in a crash dump. A PDB is used only \
+                "Where Debrief finds the symbols (PDB files) that name the functions in a crash dump. A PDB is used only \
                  when it matches the module's own identity (name, GUID and age), never by its file name alone. \
                  Downloads are off until you turn them on; then a dump's missing PDBs are asked of the servers below \
                  (each request sends the PDB's name, GUID and age, which are in the dump) and kept in the cache.",
@@ -381,7 +381,7 @@ impl Configurable for SymbolsSection {
             )
             .field(
                 SettingField::new("cacheFolder", "Cache folder", FieldKind::Path { dir: true }, "")
-                    .describe("Where downloaded PDBs are kept. Empty uses a folder in IMT's data folder."),
+                    .describe("Where downloaded PDBs are kept. Empty uses a folder in Debrief's data folder."),
             )
     }
 
@@ -410,8 +410,8 @@ pub fn of<R: Runtime>(app: &AppHandle<R>) -> Arc<Symbols> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use imt_dump::model::Dump;
-    use imt_dump::testing::sample_dump;
+    use debrief_dump::model::Dump;
+    use debrief_dump::testing::sample_dump;
     use std::path::Path;
     use std::sync::Mutex;
 
@@ -457,7 +457,10 @@ mod tests {
     }
 
     fn missing_names(d: &Dump) -> Vec<String> {
-        imt_dump::symbols::missing(d, 100).iter().map(|k| k.name().to_string()).collect()
+        debrief_dump::symbols::missing(d, 100)
+            .iter()
+            .map(|k| k.name().to_string())
+            .collect()
     }
 
     fn status(d: &Dump, pdb: &str) -> SymbolStatus {
@@ -475,15 +478,15 @@ mod tests {
     /// The dump with its missing modules marked, in a document set under id 1.
     fn opened(dump: &Dump, download: &Download) -> (RwLock<DumpDocs>, u32) {
         let mut marked = dump.clone();
-        imt_dump::symbols::mark_downloading(&mut marked, &download.keys);
-        let mut docs = DumpDocs::new(Vec::new(), imt_dump::Limits::default());
+        debrief_dump::symbols::mark_downloading(&mut marked, &download.keys);
+        let mut docs = DumpDocs::new(Vec::new(), debrief_dump::Limits::default());
         let id = docs.insert("a.dmp", Some("/x/a.dmp"), Document::Dump(marked)).unwrap().id;
         (RwLock::new(docs), id)
     }
 
     fn stored(docs: &RwLock<DumpDocs>, id: u32) -> Dump {
         let rows = crate::sync::read(docs)
-            .modules(&imt_dump::api::ModulesRequest {
+            .modules(&debrief_dump::api::ModulesRequest {
                 id,
                 offset: 0,
                 limit: 100,
@@ -496,12 +499,12 @@ mod tests {
                 continue;
             };
             m.symbols = match row.symbols.clone() {
-                imt_dump::api::SymbolStatusDto::Downloading => SymbolStatus::Downloading,
-                imt_dump::api::SymbolStatusDto::Loaded => SymbolStatus::Loaded,
-                imt_dump::api::SymbolStatusDto::Missing => SymbolStatus::Missing,
-                imt_dump::api::SymbolStatusDto::NotOnServer => SymbolStatus::NotOnServer,
-                imt_dump::api::SymbolStatusDto::DownloadFailed { detail } => SymbolStatus::DownloadFailed { detail },
-                imt_dump::api::SymbolStatusDto::Mismatch { detail } => SymbolStatus::Mismatch { detail },
+                debrief_dump::api::SymbolStatusDto::Downloading => SymbolStatus::Downloading,
+                debrief_dump::api::SymbolStatusDto::Loaded => SymbolStatus::Loaded,
+                debrief_dump::api::SymbolStatusDto::Missing => SymbolStatus::Missing,
+                debrief_dump::api::SymbolStatusDto::NotOnServer => SymbolStatus::NotOnServer,
+                debrief_dump::api::SymbolStatusDto::DownloadFailed { detail } => SymbolStatus::DownloadFailed { detail },
+                debrief_dump::api::SymbolStatusDto::Mismatch { detail } => SymbolStatus::Mismatch { detail },
                 other => panic!("unexpected {other:?}"),
             };
         }
@@ -553,7 +556,11 @@ mod tests {
         assert!(missing_names(&d).is_empty(), "none is both missing and downloading");
         // Nothing missing, or a UMDH log: nothing to download.
         assert!(matches!(symbols.begin(Document::Dump(sample_dump()), 120), Opened::Final(_)));
-        let umdh = Document::Umdh(imt_dump::testing::sample_umdh(imt_dump::model::UmdhKind::Diff, 0, &[(1, 2, 3)]));
+        let umdh = Document::Umdh(debrief_dump::testing::sample_umdh(
+            debrief_dump::model::UmdhKind::Diff,
+            0,
+            &[(1, 2, 3)],
+        ));
         assert!(matches!(symbols.begin(umdh, 120), Opened::Final(_)));
     }
 
@@ -653,7 +660,7 @@ mod tests {
         let dl = download(Arc::new(table(vec![(&names[0], Ok(()))])), &missing_dump(), cache.path());
         let (docs, id) = opened(&missing_dump(), &dl);
         let update = dl.run(&AtomicBool::new(false), &|_, _| {}, || {
-            Err(imt_dump::DumpError::new(imt_dump::ErrorCode::Invalid, "gone"))
+            Err(debrief_dump::DumpError::new(debrief_dump::ErrorCode::Invalid, "gone"))
         });
         assert!(update.arrived());
         assert!(update.apply(&docs, id, 120));
@@ -680,7 +687,7 @@ mod tests {
         .settings_section();
         let mut v = section.defaults().to_json();
         v.as_object_mut().unwrap().extend(extra.as_object().unwrap().clone());
-        let valid = imt_core::settings::validate(&section, &v).map_err(|e| anyhow::anyhow!("{e:?}"))?;
+        let valid = debrief_core::settings::validate(&section, &v).map_err(|e| anyhow::anyhow!("{e:?}"))?;
         SymbolsSection::from_values(&valid)
     }
 

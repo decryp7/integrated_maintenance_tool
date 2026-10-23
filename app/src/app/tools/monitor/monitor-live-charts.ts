@@ -12,7 +12,7 @@ import { MonitorChartsStore } from './monitor-charts.store';
  * process over the last minutes, following new samples as live tail brings them in. The engine computes every series.
  */
 @Component({
-  selector: 'imt-monitor-live-charts',
+  selector: 'debrief-monitor-live-charts',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [EChart],
   providers: [MonitorChartsStore],
@@ -72,7 +72,7 @@ import { MonitorChartsStore } from './monitor-charts.store';
                   <figure class="card" [attr.data-metric]="m.metric.id" [attr.aria-label]="chartLabel(m.metric.title, m.metric.unit)">
                     <figcaption><span class="title">{{ m.metric.title }}</span>@if (m.metric.unit && !autoUnit(m.metric.unit)) { <span class="faint mono small">{{ m.metric.unit }}</span> }</figcaption>
                     @if (options()[m.index]; as o) {
-                      <imt-echart class="chart" [options]="o" [merge]="store.following()" />
+                      <debrief-echart class="chart" [options]="o" [merge]="store.following()" />
                     } @else {
                       <div class="none faint" i18n="@@tools.monitor.live.notRecorded">Not recorded for these processes.</div>
                     }

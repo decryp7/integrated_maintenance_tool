@@ -48,7 +48,7 @@ describe('MockStorageBackend (stores)', () => {
     expect(result.skipped).toEqual([
       { id: open.id, reason: 'a window has this store open' },
       { id: session.id, reason: 'an autosaved session reopens it' },
-      { id: running.id, reason: 'another IMT process is using it' },
+      { id: running.id, reason: 'another Debrief process is using it' },
       { id: 'nope', reason: 'there is no such store' },
     ]);
     const after = await b.stores();

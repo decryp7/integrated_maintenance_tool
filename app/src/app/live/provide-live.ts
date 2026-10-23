@@ -1,6 +1,6 @@
 import { ApplicationRef, effect, EnvironmentInjector, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideAppInitializer, untracked } from '@angular/core';
 import { DockService } from '../dock/dock.service';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { DialogService } from '../ui/dialog.service';
 import { LiveTail } from '../workspace/live-tail';
@@ -17,7 +17,7 @@ import { LiveUiState } from './live-ui-state';
 export const ALERTS_VIEW = 'live-alerts';
 export const TAIL_STATUS_VIEW = 'tail-status';
 
-export const LIVE_VIEWS: ImtView[] = [
+export const LIVE_VIEWS: DebriefView[] = [
   {
     id: ALERTS_VIEW,
     title: $localize`:@@live.views.alerts:Alerts`,
@@ -49,7 +49,7 @@ export class LiveCommands {
   private readonly follow = inject(LiveFollow);
   private readonly dialogs = inject(DialogService);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'live.toggle', title: $localize`:@@live.commands.toggle:Toggle live tail`, category: $localize`:@@live.commands.categoryFile:File`, when: () => this.live.available(), run: () => this.live.toggle() },
     {
       id: 'live.open',
@@ -78,7 +78,7 @@ export class LiveCommands {
 /** Mounts the alert toasts, starts listening to alerts and refreshing on changes, and keeps the alerts tab count. */
 export function startLive(): void {
   const injector = inject(EnvironmentInjector);
-  mountInToastStack(AlertToasts, 'imt-alert-toasts', injector, inject(ApplicationRef));
+  mountInToastStack(AlertToasts, 'debrief-alert-toasts', injector, inject(ApplicationRef));
   inject(LiveFeed);
   inject(LiveAutoOpen);
   inject(LiveFollow);
@@ -98,13 +98,13 @@ export function startLive(): void {
 /**
  * Real-time features on top of live tail: follow now and the live window, coalesced incremental refresh,
  * alerts (toasts, panel, rules editor), the tail status panel, and the saved live settings. Put it AFTER
- * `provideImtBuiltins()` in `app.config.ts`.
+ * `provideDebriefBuiltins()` in `app.config.ts`.
  */
 export function provideLive(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useValue: LIVE_VIEWS },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(LiveCommands).commands },
-    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => liveActivityItems(inject(LiveTail), inject(LiveFollow)) },
+    { provide: DEBRIEF_VIEWS, multi: true, useValue: LIVE_VIEWS },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(LiveCommands).commands },
+    { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: () => liveActivityItems(inject(LiveTail), inject(LiveFollow)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(LiveUiState).contributions },
     provideAppInitializer(() => startLive()),
   ]);

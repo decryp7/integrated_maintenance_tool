@@ -17,8 +17,8 @@ moment a person reads it.
 4. **Speed and time left come from samples**, not from a producer's guess: `TransferMeter` smooths bytes over time
    (about 3 s) and shows nothing until it has 2 s of data. Never call it from a template; feed it from an effect.
 5. **Text that must be composed in Rust** (AI summaries, exports, reports, log lines, errors that are only text)
-   uses `imt_plugin_api::units` (`bytes`, `exact_bytes`, `duration_ms`, `count`, `percent`), which follows the same
-   rules in the source locale. `crates/imt-plugin-api/units-cases.json` is a table both implementations are tested
+   uses `debrief_plugin_api::units` (`bytes`, `exact_bytes`, `duration_ms`, `count`, `percent`), which follows the same
+   rules in the source locale. `crates/debrief-plugin-api/units-cases.json` is a table both implementations are tested
    against (`units.rs` and `units.spec.ts`); add a case when you change a rule.
 
 ## Enforcement
@@ -32,6 +32,6 @@ verbatim goes into the guard's `ALLOWED` map with the reason.
 
 Messages that reach the UI as finished sentences and are not yet structured: job step messages
 (`ctx.message(...)`), `Notice` bodies of AI update checks (now formatted by `units`, but still English text), and
-engine findings in `crates/imt-core/src/analysis` (anomaly, trend, alert messages). They use the shared Rust rules;
+engine findings in `crates/debrief-core/src/analysis` (anomaly, trend, alert messages). They use the shared Rust rules;
 moving them to `{ key, args: [{ bytes | count | durationMs | percent | ts }] }` so the UI can localize and format is
 the next step.

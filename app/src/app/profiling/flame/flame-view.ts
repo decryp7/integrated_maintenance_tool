@@ -19,13 +19,13 @@ import { measuredWidth } from './measured-width';
  * until the view has been laid out and its width is known.
  */
 @Component({
-  selector: 'imt-flame-view',
+  selector: 'debrief-flame-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileBar, CaptureNotes, NoCapture, FlameChart],
   template: `
     @if (active.profile(); as p) {
-      <imt-profile-bar />
-      <imt-capture-notes [notes]="p.notes" [name]="p.name" />
+      <debrief-profile-bar />
+      <debrief-capture-notes [notes]="p.notes" [name]="p.name" />
       <div class="bar">
         <span class="section-title" i18n="@@profiling.flameView.title">Flame graph</span>
         <div class="seg" role="group" aria-label="Layout" i18n-aria-label="@@profiling.flameView.layout">
@@ -69,8 +69,8 @@ import { measuredWidth } from './measured-width';
       @if (res.data()?.truncated) {
         <div class="notice" role="status" i18n="@@profiling.flameView.truncated">More frames than the drawing limit: the smallest are left out. Zoom in for detail.</div>
       }
-      <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.rects?.length === 0" emptyText="No samples match this view." i18n-emptyText="@@profiling.flameView.empty" (retry)="res.retry()">
-        <imt-flame-chart
+      <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="res.data()?.rects?.length === 0" emptyText="No samples match this view." i18n-emptyText="@@profiling.flameView.empty" (retry)="res.retry()">
+        <debrief-flame-chart
           [graph]="res.data()"
           [orientation]="orientation()"
           [colorBy]="colorBy()"
@@ -80,9 +80,9 @@ import { measuredWidth } from './measured-width';
           (zoomOut)="zoomOut()"
           (selected)="state.selectFrame($event)"
         />
-      </imt-analysis-state>
+      </debrief-analysis-state>
     } @else {
-      <imt-no-capture text="Open a performance capture to see its flame graph." i18n-text="@@profiling.flameView.noCapture" />
+      <debrief-no-capture text="Open a performance capture to see its flame graph." i18n-text="@@profiling.flameView.noCapture" />
     }
   `,
   styles: [

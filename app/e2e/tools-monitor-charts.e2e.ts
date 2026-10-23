@@ -6,7 +6,7 @@ import { openAppWith, openView } from './tools-support';
 async function startMonitor(page: Page, search = '', dotnet = false) {
   await openAppWith(page, search);
   await openView(page, 'Process Monitor');
-  const panel = page.locator('imt-monitor-view');
+  const panel = page.locator('debrief-monitor-view');
   await expect(panel.getByTestId('monitor-live')).toHaveCount(0);
   await panel.getByLabel('Target value 1').fill('OrderService*');
   if (dotnet) await panel.getByLabel('.NET runtime counters (Framework)').check();
@@ -65,7 +65,7 @@ test.describe('Process monitor live charts', () => {
 
   test('a second run charts only its own processes, never the earlier run still open', async ({ page }) => {
     const live = await startMonitor(page);
-    const panel = page.locator('imt-monitor-view');
+    const panel = page.locator('debrief-monitor-view');
     const legend = live.getByRole('group', { name: 'Processes' });
     await expect(legend.getByRole('button')).toHaveText(['OrderService.exe · 4120', 'Worker.exe · 5232', 'sqlservr.exe · 1880']);
 

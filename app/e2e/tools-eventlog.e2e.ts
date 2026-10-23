@@ -12,7 +12,7 @@ test.describe('Event Log follower', () => {
     await openAppWith(page);
     const before = await sourceCount(page);
     await openView(page, 'Event Log Follower');
-    const panel = page.locator('imt-eventlog-view');
+    const panel = page.locator('debrief-eventlog-view');
     const status = panel.getByTestId('eventlog-status');
     await expect(status).toContainText('Stopped');
     await expect(panel.getByRole('button', { name: 'Start', exact: true })).toBeDisabled();
@@ -56,7 +56,7 @@ test.describe('Event Log follower', () => {
   test('Security without administrator rights offers Restart as administrator', async ({ page }) => {
     await openAppWith(page);
     await openView(page, 'Event Log Follower');
-    const panel = page.locator('imt-eventlog-view');
+    const panel = page.locator('debrief-eventlog-view');
     await panel.getByRole('checkbox', { name: 'Security' }).check();
     await expect(panel.getByTestId('eventlog-admin-note')).toContainText('Security needs administrator rights');
 

@@ -20,6 +20,6 @@ test('never throws when git cannot run', () => {
 
 test('builds the define argument and appends it to the ng arguments', () => {
   const info = { commit: 'abc1234', date: '2026-10-17' };
-  assert.equal(defineArg(info), 'IMT_BUILD_INFO={"commit":"abc1234","date":"2026-10-17"}');
+  assert.equal(defineArg(info), 'DEBRIEF_BUILD_INFO={"commit":"abc1234","date":"2026-10-17"}');
   assert.deepEqual(ngArgs(['build', '--configuration', 'production'], info), ['build', '--configuration', 'production', '--define', defineArg(info)]);
 });

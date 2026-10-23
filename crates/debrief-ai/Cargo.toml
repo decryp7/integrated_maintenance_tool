@@ -1,0 +1,52 @@
+[package]
+name = "debrief-ai"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Local AI assistant for Debrief: engine supervisor, model download, hardware-aware recommendations, engine-validated proposals and chat (no llama.cpp linkage; see debrief-ai-worker)"
+
+# A fake inference worker (crash, hang, malformed output, ...) used only by the supervisor tests.
+# It is not part of the app and is never bundled.
+[[bin]]
+name = "debrief-ai-fake-worker"
+path = "src/bin/fake_worker.rs"
+test = false
+
+[dependencies]
+debrief-core = { path = "../debrief-core" }
+debrief-collect = { path = "../debrief-collect" }
+debrief-ipc = { path = "../debrief-ipc" }
+anyhow.workspace = true
+base64.workspace = true
+serde.workspace = true
+serde_json = { workspace = true, features = ["preserve_order"] }
+sha2.workspace = true
+sysinfo = { workspace = true, features = ["system", "disk"] }
+thiserror.workspace = true
+toml.workspace = true
+log.workspace = true
+regex.workspace = true
+tokio = { workspace = true, features = ["rt", "net", "time", "sync", "macros", "io-util"] }
+getrandom.workspace = true
+zip.workspace = true
+flate2.workspace = true
+tar = { version = "0.4", default-features = false }
+url = "2"
+# Decoding untrusted images for the model (ADR 0025): only these formats, no others compiled in.
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "bmp", "gif", "webp"] }
+percent-encoding = "2"
+ureq = { version = "3", default-features = false, features = ["rustls", "gzip", "platform-verifier"] }
+# The TLS stack ureq already uses; named here only to recognise certificate errors (`net::classify`).
+rustls = { version = "0.23", default-features = false, features = ["std"] }
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = ["Win32_Graphics_Dxgi", "Win32_System_JobObjects", "Win32_Security_Authorization", "Win32_System_Memory"] }
+
+[dev-dependencies]
+tempfile.workspace = true
+# A local HTTPS server with a certificate no trust store knows (tests/net_tls.rs).
+rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
+proptest.workspace = true

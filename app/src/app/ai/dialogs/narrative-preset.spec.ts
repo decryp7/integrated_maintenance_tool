@@ -49,7 +49,7 @@ describe('AiProposalResultDialog', () => {
   it('shows the proposal card and closes', async () => {
     const { f, ref } = open(AiProposalResultDialog, { proposal });
     f.detectChanges();
-    expect(f.nativeElement.querySelector('imt-ai-proposal-card')).toBeTruthy();
+    expect(f.nativeElement.querySelector('debrief-ai-proposal-card')).toBeTruthy();
     buttonByText(f, 'Close').click();
     expect(ref.close).toHaveBeenCalled();
   });
@@ -59,7 +59,7 @@ describe('AiProposalResultDialog', () => {
     f.detectChanges();
     buttonByText(f, 'Dismiss').click();
     f.detectChanges();
-    expect(f.nativeElement.querySelector('imt-ai-proposal-card')).toBeNull();
+    expect(f.nativeElement.querySelector('debrief-ai-proposal-card')).toBeNull();
     expect(f.nativeElement.textContent).toContain('Dismissed.');
   });
 });

@@ -11,7 +11,7 @@ fn main() {
         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
         .filter(|c| !c.is_empty() && c.bytes().all(|b| b.is_ascii_hexdigit()))
         .unwrap_or_else(|| "unknown".into());
-    println!("cargo:rustc-env=IMT_BUILD_COMMIT={commit}");
+    println!("cargo:rustc-env=DEBRIEF_BUILD_COMMIT={commit}");
     println!("cargo:rerun-if-changed=../../.git/HEAD");
 
     // Tauri embeds its app manifest into the app binary only; test binaries then fail to load on Windows

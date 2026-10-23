@@ -1,4 +1,4 @@
-//! Video sources (ADR 0033): the shell's side. The engine is `imt_video` (FFmpeg runtime, sandboxed passes, frame
+//! Video sources (ADR 0033): the shell's side. The engine is `debrief_video` (FFmpeg runtime, sandboxed passes, frame
 //! selection, alignment, the records kept in the project); this module holds the app-wide runtime state
 //! ([`VideoState`]), turns engine errors into [`CmdError`]s, builds the views the UI shows and keeps each video's
 //! frames source in the window's workspace up to date ([`source`]). Commands: [`runtime_commands`] (Settings ▸ Video)
@@ -13,11 +13,11 @@ pub(crate) mod source;
 
 use crate::error::{CmdError, ErrorCode};
 use crate::windows::WindowState;
-use imt_video::api::{MediaState, VideoView};
-use imt_video::ingest::media_file;
-use imt_video::record::{VideoFolder, VideoRecord};
-use imt_video::runtime::{FfmpegCatalog, FfmpegStore};
-use imt_video::AiUnavailable;
+use debrief_video::api::{MediaState, VideoView};
+use debrief_video::ingest::media_file;
+use debrief_video::record::{VideoFolder, VideoRecord};
+use debrief_video::runtime::{FfmpegCatalog, FfmpegStore};
+use debrief_video::AiUnavailable;
 use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, Runtime};
@@ -89,7 +89,7 @@ impl Drop for Scratch {
 /// Registers the video state (call from `setup`). Never fails: without a data folder the runtime lives in the
 /// temporary one.
 pub fn init<R: Runtime>(app: &AppHandle<R>) {
-    let data = crate::app_dirs::data(app).unwrap_or_else(|_| std::env::temp_dir().join("imt-data"));
+    let data = crate::app_dirs::data(app).unwrap_or_else(|_| std::env::temp_dir().join("debrief-data"));
     app.manage(VideoState::new(data.join("video")));
 }
 
@@ -100,8 +100,8 @@ pub(crate) fn state<R: Runtime>(app: &AppHandle<R>) -> Result<tauri::State<'_, V
 }
 
 /// An engine error as the one command error.
-pub(crate) fn cmd(e: imt_video::VideoError) -> CmdError {
-    use imt_video::VideoError as V;
+pub(crate) fn cmd(e: debrief_video::VideoError) -> CmdError {
+    use debrief_video::VideoError as V;
     let msg = e.to_string();
     match e {
         V::Invalid(_) => CmdError::invalid(msg),
@@ -134,7 +134,7 @@ pub(crate) fn folder_of(win: &WindowState) -> Result<VideoFolder, CmdError> {
 
 /// The zone for times shown without one: the generic parser's (formats are parsers, ADR 0026).
 pub(crate) fn timezone() -> String {
-    imt_core::parser::builtin::generic().format.assume_timezone
+    debrief_core::parser::builtin::generic().format.assume_timezone
 }
 
 /// A record as the Video view shows it.

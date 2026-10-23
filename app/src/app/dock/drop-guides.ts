@@ -33,11 +33,11 @@ export class DropGuides {
   private external = false;
 
   constructor(private readonly root: HTMLElement) {
-    this.layer.className = 'imt-drop-guides';
+    this.layer.className = 'debrief-drop-guides';
     this.layer.setAttribute('aria-hidden', 'true');
-    this.compass.className = 'imt-guide-compass';
-    this.edges.className = 'imt-guide-edges';
-    this.preview.className = 'imt-guide-preview';
+    this.compass.className = 'debrief-guide-compass';
+    this.edges.className = 'debrief-guide-edges';
+    this.preview.className = 'debrief-guide-preview';
     this.preview.hidden = true;
     this.layer.append(this.preview, this.edges, this.compass);
     root.appendChild(this.layer);
@@ -71,7 +71,7 @@ export class DropGuides {
     this.active = true;
     this.layer.classList.add('on');
     // Marked as an overlay while shown (pop-out snapshots leave overlays out).
-    this.layer.setAttribute('data-imt-overlay', '');
+    this.layer.setAttribute('data-debrief-overlay', '');
     this.drawEdges();
   }
 
@@ -89,7 +89,7 @@ export class DropGuides {
     this.active = false;
     this.group = null;
     this.layer.classList.remove('on');
-    this.layer.removeAttribute('data-imt-overlay');
+    this.layer.removeAttribute('data-debrief-overlay');
     this.preview.hidden = true;
     this.compass.replaceChildren();
     this.edges.replaceChildren();
@@ -122,7 +122,7 @@ export class DropGuides {
 
   private cell(c: GuideCell, dx: number, dy: number): HTMLElement {
     const el = document.createElement('div');
-    el.className = `imt-guide imt-guide-${c.position}`;
+    el.className = `debrief-guide debrief-guide-${c.position}`;
     el.dataset['position'] = c.position;
     el.style.left = `${dx + c.rect.x}px`;
     el.style.top = `${dy + c.rect.y}px`;

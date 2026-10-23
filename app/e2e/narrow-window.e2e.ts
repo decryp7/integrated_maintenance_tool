@@ -6,7 +6,7 @@ import { expectNoSeriousViolations } from './axe';
 // closes by itself below 1100 px (and comes back), low-priority status items go below 1000 px, and the page never
 // scrolls sideways.
 
-const sidebar = (page: Page) => page.locator('imt-sidebar');
+const sidebar = (page: Page) => page.locator('debrief-sidebar');
 const more = (page: Page) => page.getByTestId('filter-more');
 const noHorizontalScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth);
 
@@ -23,7 +23,7 @@ test.describe('narrow window', () => {
   test('wide: the Explorer is open, nothing is folded, the status bar shows everything', async ({ page }) => {
     await expect(sidebar(page)).toBeVisible();
     await expect(more(page)).toHaveCount(0);
-    await expect(page.locator('imt-status-bar .low').first()).toBeVisible();
+    await expect(page.locator('debrief-status-bar .low').first()).toBeVisible();
   });
 
   test('1024 px: the Explorer has closed by itself, the page does not scroll sideways', async ({ page }, testInfo) => {
@@ -38,19 +38,19 @@ test.describe('narrow window', () => {
     await resize(page, 900);
     await expect(sidebar(page)).toHaveCount(0);
     await expect(more(page)).toBeVisible();
-    await expect(page.locator('imt-filter-bar .tz.fold')).toBeHidden();
+    await expect(page.locator('debrief-filter-bar .tz.fold')).toBeHidden();
     expect(await noHorizontalScroll(page)).toBe(true);
     // The search and the level chips always stay.
     await expect(page.getByTestId('query-field')).toBeVisible();
     await expect(page.getByRole('toolbar', { name: 'Levels' })).toBeVisible();
-    await expect(page.locator('imt-status-bar .low').first()).toBeHidden();
+    await expect(page.locator('debrief-status-bar .low').first()).toBeHidden();
 
     await page.getByRole('toolbar', { name: 'Levels' }).getByRole('button', { name: /^ERR/ }).click();
     await more(page).click();
     const menu = page.getByRole('menu', { name: 'More filter controls' });
     await expect(menu.getByRole('menuitem', { name: /Time zone/ })).toBeVisible();
     await expect(menu.getByRole('menuitem', { name: 'Clear all' })).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'narrow-900-more', 'imt-filter-bar');
+    await expectNoSeriousViolations(page, testInfo, 'narrow-900-more', 'debrief-filter-bar');
     await menu.getByRole('menuitem', { name: /Time zone/ }).click();
     await expect(menu).toHaveCount(0);
     await more(page).click();
@@ -60,7 +60,7 @@ test.describe('narrow window', () => {
 
   test('the message column stays readable at 900 px and the grid does not overflow the window', async ({ page }) => {
     await resize(page, 900);
-    const msg = page.locator('imt-events-grid [role=row].row').first().locator('.msg');
+    const msg = page.locator('debrief-events-grid [role=row].row').first().locator('.msg');
     await expect(msg).toBeVisible();
     expect((await msg.boundingBox())!.width).toBeGreaterThan(200);
     // The dock re-lays out after the window's resize event, so the group's edge settles a moment later.
@@ -75,7 +75,7 @@ test.describe('narrow window', () => {
     await expect(page.getByTestId('query-field')).toBeVisible();
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
     expect(await noHorizontalScroll(page)).toBe(true);
-    await expect(page.locator('imt-status-bar .low').first()).toBeHidden();
+    await expect(page.locator('debrief-status-bar .low').first()).toBeHidden();
     await expectNoSeriousViolations(page, testInfo, 'narrow-600');
   });
 

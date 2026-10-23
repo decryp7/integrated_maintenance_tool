@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideTinyBackendBare, tinyBackend } from '../../../testing/helpers';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { CmdError } from '../../core/cmd-error';
 import { mockJobs } from '../../jobs/mock-jobs';
 import { MockParsersBackend } from './mock-parsers-backend';
@@ -55,8 +55,8 @@ describe('ParsersBackend', () => {
 
 describe('MockParsersBackend', () => {
   it('follows the mock workspace: import, stale sources, re-read and the summary', async () => {
-    const imt = tinyBackend();
-    const b = new MockParsersBackend(imt);
+    const debrief = tinyBackend();
+    const b = new MockParsersBackend(debrief);
     const check = await b.importCheck(DEMO_PARSER_IMPORT);
     expect(check).toMatchObject({ id: 'inventory-csv', relation: 'new', existing: null });
     await b.save(check.toml);
@@ -68,22 +68,22 @@ describe('MockParsersBackend', () => {
     const lib = await b.list();
     expect(lib.stale).toBe(0);
     expect(lib.parsers.find((p) => p.id === 'web-log')?.sources.map((s) => s.name)).toEqual(['app.log']);
-    expect((await imt.workspaceSummary()).sources.map((s) => s.parser)).toEqual(['serilog-clef', 'web-log']);
+    expect((await debrief.workspaceSummary()).sources.map((s) => s.parser)).toEqual(['serilog-clef', 'web-log']);
   });
 
   it('assigns a parser to one source, and back to the automatic choice', async () => {
-    const imt = tinyBackend();
-    const b = new MockParsersBackend(imt);
+    const debrief = tinyBackend();
+    const b = new MockParsersBackend(debrief);
     await mockJobs().wait(await b.assign(1, 'generic'));
-    expect((await imt.workspaceSummary()).sources[1]?.parser).toBe('generic');
+    expect((await debrief.workspaceSummary()).sources[1]?.parser).toBe('generic');
     await mockJobs().wait(await b.assign(1, null));
-    expect((await imt.workspaceSummary()).sources[1]?.parser).toBe('serilog-text');
+    expect((await debrief.workspaceSummary()).sources[1]?.parser).toBe('serilog-text');
     await expect(b.assign(9, null)).rejects.toThrow('no longer open');
     await expect(b.assign(1, 'nope')).rejects.toBeInstanceOf(CmdError);
   });
 
   it('refuses files that are not parser files and keeps its own library over another backend', async () => {
-    const b = new MockParsersBackend({} as ImtBackend);
+    const b = new MockParsersBackend({} as DebriefBackend);
     await expect(b.importCheck('/demo/x.json')).rejects.toThrow('not a parser file');
     const lib = await b.list();
     expect(lib.parsers.length).toBeGreaterThan(10);

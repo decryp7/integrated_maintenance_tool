@@ -11,9 +11,9 @@ use super::commands::{core, sample_of, Emit, WindowStore};
 use super::error::{AiCmdError, AiResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobId, JobKind, JobLink, JobResult, JobSpec};
 use crate::windows::WindowState;
-use imt_ai::assistant::{Assistant, FolderRefinement, Narrative, Proposal};
-use imt_ai::llm::LlmProvider;
-use imt_ai::{StoreAccess, StoreRef};
+use debrief_ai::assistant::{Assistant, FolderRefinement, Narrative, Proposal};
+use debrief_ai::llm::LlmProvider;
+use debrief_ai::{StoreAccess, StoreRef};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::sync::Arc;
@@ -121,7 +121,7 @@ pub enum AiOutcome {
     Narrative(Narrative),
     Proposal(Proposal),
     Folder(FolderRefinement),
-    Related(Box<imt_ai::vision::RelatedOutcome>),
+    Related(Box<debrief_ai::vision::RelatedOutcome>),
 }
 
 impl AiOutcome {
@@ -333,7 +333,7 @@ impl AiRequest {
                 source_id,
             } => {
                 let input = super::parser_job::parser_input(store, record_id, source_id, sample, file_name)?;
-                let job = imt_ai::assistant::ParserJob {
+                let job = debrief_ai::assistant::ParserJob {
                     file_name: &input.file_name,
                     content: &input.content,
                     facts: input.facts.clone(),
@@ -354,7 +354,7 @@ impl AiRequest {
             }
             Query { question } => AiOutcome::Proposal(Proposal::Query(a.nl_to_query(store, &question)?)),
             FolderSetup { request } => {
-                let req: imt_core::survey::SurveyRequest = match request {
+                let req: debrief_core::survey::SurveyRequest = match request {
                     Some(v) => {
                         serde_json::from_value(v).map_err(|e| AiCmdError::invalid(format!("the survey request is not valid: {e}")))?
                     }
@@ -418,13 +418,13 @@ fn use_case_work(
     }
 }
 
-/// Starts a chat turn as a job; the answer streams as `imt://ai-chat` events. Returns the job.
+/// Starts a chat turn as a job; the answer streams as `debrief://ai-chat` events. Returns the job.
 pub(crate) fn start_turn<R: Runtime>(
     app: &AppHandle<R>,
     win: &Arc<WindowState>,
     sid: &str,
     text: String,
-    context: imt_ai::chat::ChatContext,
+    context: debrief_ai::chat::ChatContext,
     emit: Emit,
 ) -> AiResult<JobId> {
     start_turn_with_images(app, win, sid, text, context, vec![], emit)
@@ -436,14 +436,14 @@ pub(crate) fn start_turn_with_images<R: Runtime>(
     win: &Arc<WindowState>,
     sid: &str,
     text: String,
-    context: imt_ai::chat::ChatContext,
+    context: debrief_ai::chat::ChatContext,
     images: Vec<Arc<super::vision::OpenImage>>,
     emit: Emit,
 ) -> AiResult<JobId> {
     let core = core(app)?;
     let provider = core.provider()?;
     if !images.is_empty() && !provider.vision() {
-        return Err(imt_ai::AiError::NoVision.into());
+        return Err(debrief_ai::AiError::NoVision.into());
     }
     let req = AiRequest::Chat {
         session_id: sid.to_string(),
@@ -486,7 +486,7 @@ pub(crate) fn start_turn_with_images<R: Runtime>(
     jobs::spawn(app, spec, controls, work).map_err(AiCmdError::busy)
 }
 
-/// A turn that was queued but never ran (cancelled while waiting, IMT closing, the queue refused it):
+/// A turn that was queued but never ran (cancelled while waiting, Debrief closing, the queue refused it):
 /// the chat is freed and told, so it never stays "answering".
 struct PendingTurn {
     turn: Option<super::chats::TurnHandle>,
@@ -498,9 +498,9 @@ struct PendingTurn {
 impl Drop for PendingTurn {
     fn drop(&mut self) {
         let Some(turn) = self.turn.take() else { return };
-        let env = imt_ai::chat::Envelope {
+        let env = debrief_ai::chat::Envelope {
             seq: 0,
-            event: imt_ai::chat::ChatEvent::Error {
+            event: debrief_ai::chat::ChatEvent::Error {
                 message: "Stopped before it started.".into(),
                 cancelled: true,
             },
@@ -551,7 +551,7 @@ pub(crate) fn start_use_case<R: Runtime>(app: &AppHandle<R>, win: &Arc<WindowSta
             .get(id)
             .ok_or_else(|| AiCmdError::not_found("the image is no longer open: open it again"))?;
         if !core.provider()?.vision() {
-            return Err(imt_ai::AiError::NoVision.into());
+            return Err(debrief_ai::AiError::NoVision.into());
         }
         if let Some(l) = super::vision::link_of(&img) {
             spec = spec.link(l);
@@ -664,7 +664,7 @@ mod tests {
 
     #[test]
     fn outcomes_become_results_view_can_open() {
-        let p = Proposal::Query(imt_ai::assistant::QueryProposal {
+        let p = Proposal::Query(debrief_ai::assistant::QueryProposal {
             ql: "level >= error".into(),
             explanation: "Errors.".into(),
             estimated_matches: None,

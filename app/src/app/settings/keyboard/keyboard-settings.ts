@@ -21,7 +21,7 @@ interface PendingConflict {
  * the browser like the other interface preferences.
  */
 @Component({
-  selector: 'imt-keyboard-settings',
+  selector: 'debrief-keyboard-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">
@@ -32,8 +32,8 @@ interface PendingConflict {
     <p class="status" role="status" aria-live="polite" data-testid="shortcut-status">{{ status() }}</p>
 
     @if (pending(); as p) {
-      <div class="conflict" role="alertdialog" aria-labelledby="imt-kb-conflict" data-testid="shortcut-conflict">
-        <span id="imt-kb-conflict">{{ conflictText(p) }}</span>
+      <div class="conflict" role="alertdialog" aria-labelledby="debrief-kb-conflict" data-testid="shortcut-conflict">
+        <span id="debrief-kb-conflict">{{ conflictText(p) }}</span>
         @if (canReplace(p)) {
           <button class="btn primary" type="button" data-testid="shortcut-replace" (click)="replace(p)" i18n="@@settings.keyboard.replace">Replace</button>
         }

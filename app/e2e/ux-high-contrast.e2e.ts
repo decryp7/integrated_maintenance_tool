@@ -31,12 +31,12 @@ test.describe('high contrast', () => {
 
   for (const scheme of ['light', 'dark'] as const) {
     test(`${scheme}: the high contrast main window has strong outlines and passes axe`, async ({ page }, testInfo) => {
-      await page.addInitScript((s) => localStorage.setItem('imt.prefs.v1', JSON.stringify({ theme: 'contrast', scheme: s })), scheme);
+      await page.addInitScript((s) => localStorage.setItem('debrief.prefs.v1', JSON.stringify({ theme: 'contrast', scheme: s })), scheme);
       await page.emulateMedia({ colorScheme: scheme, reducedMotion: 'reduce' });
       await openApp(page);
       await expect(html(page)).toHaveAttribute('data-theme', 'contrast');
       expect(await page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--text').trim())).toBe(scheme === 'dark' ? '#ffffff' : '#000000');
-      await page.locator('imt-events-grid [role=row].row').first().click();
+      await page.locator('debrief-events-grid [role=row].row').first().click();
       await expectNoSeriousViolations(page, testInfo, `high-contrast-${scheme}`);
       await page.screenshot({ path: testInfo.outputPath(`high-contrast-${scheme}.png`) });
     });

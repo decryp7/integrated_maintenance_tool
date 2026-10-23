@@ -51,7 +51,7 @@ export function layoutSpans(spans: readonly ProfileSpan[], view: { from: number;
  * opens the profile on the visible part of the capture. Renders nothing without the profiling plugin.
  */
 @Component({
-  selector: 'imt-profile-span-track',
+  selector: 'debrief-profile-span-track',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (s of items(); track s.span.id) {

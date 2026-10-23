@@ -17,7 +17,7 @@ describe('AppearanceSettings', () => {
 
   it('offers every built-in theme as a radio card with a preview in the scheme in effect', async () => {
     const { fixture, prefs, theme } = await setup();
-    const cards = all<HTMLInputElement>(fixture, 'input[type=radio][name=imt-theme]');
+    const cards = all<HTMLInputElement>(fixture, 'input[type=radio][name=debrief-theme]');
     expect(cards.map((c) => c.closest('label')?.getAttribute('data-theme-card'))).toEqual(['system', 'calm', 'console', 'precision', 'contrast']);
     expect(cards[0]?.checked).toBe(true);
     expect(prefs.theme()).toBeNull();

@@ -44,6 +44,6 @@ export class MockBrowserRuntimeBackend extends BrowserRuntimeBackend {
   }
 
   private installed(version: string): RuntimeStatus {
-    return { available: true, source: 'installed', path: '/Users/me/.local/share/imt/chromium/chrome', installedVersion: version, pinnedVersion: PINNED, canInstall: true };
+    return { available: true, source: 'installed', path: '/Users/me/.local/share/debrief/chromium/chrome', installedVersion: version, pinnedVersion: PINNED, canInstall: true };
   }
 }

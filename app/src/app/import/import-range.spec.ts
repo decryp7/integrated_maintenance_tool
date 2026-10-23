@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { settle } from '../../testing/helpers';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { MockBackend } from '../core/mock/mock-backend';
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -31,7 +31,7 @@ describe('ImportRange', () => {
     const backend = new MockBackend({ latency: false });
     TestBed.configureTestingModule({
       providers: [
-        { provide: ImtBackend, useValue: backend },
+        { provide: DebriefBackend, useValue: backend },
         { provide: Platform, useValue: { pickPaths: async () => pick, isTauri: () => false } },
       ],
     });

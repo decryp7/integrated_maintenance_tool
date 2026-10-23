@@ -15,7 +15,7 @@ describe('real app: start-up', () => {
     await waitForShell();
     // The start-up import re-renders the menus; wait for it so later menu clicks hit what they aim at.
     await waitForEvents();
-    await expect(browser).toHaveTitle(/IMT/);
+    await expect(browser).toHaveTitle(/Debrief/);
     const size = await browser.getWindowSize();
     expect(size.width).toBeGreaterThan(0);
     expect(size.height).toBeGreaterThan(0);
@@ -25,8 +25,8 @@ describe('real app: start-up', () => {
   });
 
   it('About shows the version of this build', async () => {
-    await chooseMenu('Help', 'About IMT');
-    const about = dialog('About IMT');
+    await chooseMenu('Help', 'About Debrief');
+    const about = dialog('About Debrief');
     await about.waitForDisplayed();
     await expect(about.$('.version')).toHaveText(version);
     await browser.keys('Escape');

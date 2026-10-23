@@ -1,0 +1,21 @@
+[package]
+name = "debrief-profile"
+license.workspace = true
+repository.workspace = true
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+publish = false
+description = "Debrief profiling engine: the common profile model (CPU, allocation, wall clock, heap snapshots) and every analysis over it"
+
+[dependencies]
+# The capture on the wire from the profiling plugin's process (`wire`, ADR 0017).
+postcard.workspace = true
+regex.workspace = true
+rustc-hash = "2"
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+proptest.workspace = true
+serde_json.workspace = true

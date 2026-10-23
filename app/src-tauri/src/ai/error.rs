@@ -1,8 +1,8 @@
 //! The typed error every AI command returns: a stable `code` the UI can act on (hide AI, offer set-up,
 //! retry) and a message that tells the user what to do next. Never carries file contents or secrets.
 
-use imt_ai::net::NetKind;
-use imt_ai::AiError;
+use debrief_ai::net::NetKind;
+use debrief_ai::AiError;
 
 /// The AI's error codes are part of the one [`crate::error::ErrorCode`].
 pub type AiErrorCode = crate::error::ErrorCode;
@@ -53,7 +53,7 @@ mod tests {
     use super::*;
 
     fn net(kind: NetKind) -> AiError {
-        AiError::Connection(imt_ai::net::NetError::new(kind, "huggingface.co", "x"))
+        AiError::Connection(debrief_ai::net::NetError::new(kind, "huggingface.co", "x"))
     }
 
     #[test]
@@ -100,8 +100,8 @@ mod tests {
         assert_eq!(serde_json::to_value(AiErrorCode::SelfTestFailed).unwrap(), "selfTestFailed");
         assert!(AiErrorCode::Browser.retryable(), "a page that did not answer may answer next time");
         assert_eq!(AiCmdError::busy("b").to_string(), "b");
-        let fe = AiCmdError::from(imt_core::overwrite::FileExists("/x/a.md".into()));
+        let fe = AiCmdError::from(debrief_core::overwrite::FileExists("/x/a.md".into()));
         assert_eq!(fe.code, AiErrorCode::FileExists);
-        assert!(fe.message.ends_with(imt_core::overwrite::FILE_EXISTS_SUFFIX));
+        assert!(fe.message.ends_with(debrief_core::overwrite::FILE_EXISTS_SUFFIX));
     }
 }

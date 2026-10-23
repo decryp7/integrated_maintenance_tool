@@ -1,5 +1,5 @@
 /**
- * Contract between the Angular UI and the Rust backend (crates/imt-core, exposed
+ * Contract between the Angular UI and the Rust backend (crates/debrief-core, exposed
  * through Tauri commands in app/src-tauri). Field names are camelCase on the wire.
  *
  * Commands (invoke name -> args -> result):
@@ -42,9 +42,9 @@
  * commands (`dumps_*`): see "Dumps". Parser library commands (`parsers_*`, `parser_*`): see "Parsers". Store pane and
  * SQL console commands (`store_*`, `sql_*`): see "The Store pane" at the end.
  *
- * Events (Tauri): "imt://workspace-changed" (payload `TailReport`; listeners must accept none) after live tail changed the workspace
- * (at most about four per second); "imt://live-alert" (`LiveAlert`) for each alert a live refresh raised;
- * "imt://error" (EngineError) when the engine contained a new plugin crash, quarantine or import crash.
+ * Events (Tauri): "debrief://workspace-changed" (payload `TailReport`; listeners must accept none) after live tail changed the workspace
+ * (at most about four per second); "debrief://live-alert" (`LiveAlert`) for each alert a live refresh raised;
+ * "debrief://error" (EngineError) when the engine contained a new plugin crash, quarantine or import crash.
  *
  * Timestamps are epoch milliseconds (UTC). Records whose timestamp could not be
  * determined have ts = null and never appear on the timeline or in charts.
@@ -167,7 +167,7 @@ export interface FileOpened {
 
 /**
  * A source whose timestamps could not be read: more than 5 % of its events, or all of its first 20 (Rust
- * `imt_core::api::TimestampIssue`, decided by `imt_core::timestamp_issue`).
+ * `debrief_core::api::TimestampIssue`, decided by `debrief_core::timestamp_issue`).
  */
 export interface TimestampIssue {
   /** Events (lines that start an event) without a readable timestamp. */
@@ -368,7 +368,7 @@ export interface PluginInfo {
 export interface SubscriberMetrics {
   id: number;
   plugin: string;
-  /** Rust type name of the event, e.g. `imt_core::events::RecordsAppended`. */
+  /** Rust type name of the event, e.g. `debrief_core::events::RecordsAppended`. */
   event: string;
   delivered: number;
   /** Dropped because the subscriber's queue was full (oldest first). */
@@ -465,7 +465,7 @@ export interface PartialMatches {
   complete: boolean;
 }
 
-// ---- Search everything (Rust `imt_core::search_all`; `search_everything({ request })` → `SearchAllReply | null`) ----
+// ---- Search everything (Rust `debrief_core::search_all`; `search_everything({ request })` → `SearchAllReply | null`) ----
 
 /** What the search everything palette asks: its text (words like smart search) and results per kind (0/absent = 8, at most 50). */
 export interface SearchAllRequest {
@@ -795,7 +795,7 @@ export interface ParsePreview {
 
 // ---- Regex assistance -----------------------------------------------------------------------
 
-/** What an inferred group captures (crates/imt-core/src/regex_assist.rs `InferredGroup.kind`). */
+/** What an inferred group captures (crates/debrief-core/src/regex_assist.rs `InferredGroup.kind`). */
 export type GroupKind = 'number' | 'decimal' | 'guid' | 'ipv4' | 'hex' | 'timestamp' | 'word' | 'token' | 'text';
 
 export interface InferredGroup {
@@ -827,7 +827,7 @@ export interface InferredRegex {
 /**
  * Analysis commands (query language, patterns, exceptions, anomalies, comparison,
  * field statistics, traces, requests, Moment view). Mirrors the Rust DTOs in
- * `crates/imt-core/src/{api.rs,ql,analysis,patterns.rs,exceptions.rs}`; camelCase on the wire.
+ * `crates/debrief-core/src/{api.rs,ql,analysis,patterns.rs,exceptions.rs}`; camelCase on the wire.
  *
  *   run_query        { request: { query } }                 -> { result: QlResult } | { error: QlError }
  *   check_query      { text }                               -> QlError | null
@@ -1184,13 +1184,13 @@ export interface MomentSummary {
  *   open_snapshots_folder  {}                     -> string (folder path)
  *   export_diagnostics     { path, ids }          -> number (the export job writing the zip)
  *   diagnostics_settings   {}                     -> { snapshots: { enabled: boolean } }
- * Event "imt://error" carries an EngineError.
+ * Event "debrief://error" carries an EngineError.
  *
  * Problem reports and the activity log (app/src-tauri/src/activity/report.rs):
  *   problem_report_preview { description? }               -> ProblemReportPreview
  *   save_problem_report    { path, description?, overwrite? } -> number (the export job writing the zip)
- *   open_activity_log      {}                              -> string (label of the new window showing IMT's own logs,
- *                                                             filtered to SourceContext = "IMT.Activity")
+ *   open_activity_log      {}                              -> string (label of the new window showing Debrief's own logs,
+ *                                                             filtered to SourceContext = "Debrief.Activity")
  */
 
 export type * from '../diagnostics/diagnostics-report.types';
@@ -1284,7 +1284,7 @@ export interface ProblemReportPreview {
 /** `plugin-inactive`: a plugin stopped running (a dependency became unavailable or activation failed). */
 export type EngineErrorKind = 'plugin-crash' | 'plugin-quarantined' | 'plugin-inactive' | 'import-crash';
 
-/** Payload of the `imt://error` event: a failure the engine contained. */
+/** Payload of the `debrief://error` event: a failure the engine contained. */
 export interface EngineError {
   kind: EngineErrorKind;
   message: string;
@@ -1293,11 +1293,11 @@ export interface EngineError {
 }
 
 /** Name of the event the engine emits for contained failures. */
-export const ENGINE_ERROR_EVENT = 'imt://error';
+export const ENGINE_ERROR_EVENT = 'debrief://error';
 export type * from '../settings/settings.types';
 
 // ---------------------------------------------------------------------------------------------
-// Live tail (crates/imt-core/src/workspace/tail/types.rs, app/src-tauri/src/live.rs)
+// Live tail (crates/debrief-core/src/workspace/tail/types.rs, app/src-tauri/src/live.rs)
 // ---------------------------------------------------------------------------------------------
 
 /** How urgent a finding is (health check, live alerts). */
@@ -1341,7 +1341,7 @@ export interface RotatedSource {
   to: string;
 }
 
-/** What one live refresh changed: the payload of `imt://workspace-changed`. */
+/** What one live refresh changed: the payload of `debrief://workspace-changed`. */
 export interface TailReport {
   /** New records (not counting records rewritten in place). */
   appended: number;
@@ -1366,7 +1366,7 @@ export interface TailReport {
   instancesChanged: string[];
   /** Files whose live state changed in this refresh (new files included), for badges without polling `tail_status`. */
   fileStates: TailFileChange[];
-  /** Number of `imt://live-alert` alerts raised by this refresh. */
+  /** Number of `debrief://live-alert` alerts raised by this refresh. */
   alertsRaised: number;
   elapsedMs: number;
 }
@@ -1420,7 +1420,7 @@ export interface TailStatus {
   totals: TailTotals;
 }
 
-/** A finding of the live detectors or of a user alert rule: the payload of `imt://live-alert`. */
+/** A finding of the live detectors or of a user alert rule: the payload of `debrief://live-alert`. */
 export interface LiveAlert {
   /**
    * Stable id: the same finding has the same id (`kind:who:bucket`, `who` = rule name or instance, `bucket` = `from`
@@ -1447,10 +1447,10 @@ export type AlertTarget = { kind: AnomalyKind } | { rule: string };
 export const MAX_MUTE_MS = 86_400_000;
 
 /** Tauri event carrying one `LiveAlert`. */
-export const LIVE_ALERT_EVENT = 'imt://live-alert';
+export const LIVE_ALERT_EVENT = 'debrief://live-alert';
 
 // ---------------------------------------------------------------------------------------------
-// Annotations (crates/imt-core/src/plugin/annotate.rs)
+// Annotations (crates/debrief-core/src/plugin/annotate.rs)
 // ---------------------------------------------------------------------------------------------
 
 /** Records with `field == value` (e.g. `Computer = WEB01`): a machine-wide range. */
@@ -1493,7 +1493,7 @@ export interface AnnotationsRequest {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Runs between lifecycle markers (crates/imt-core/src/spans): `[[span]]` rules pair start and stop
+// Runs between lifecycle markers (crates/debrief-core/src/spans): `[[span]]` rules pair start and stop
 // markers per timeline lane. Runs are annotations (owner "profile", annotator RUN_ANNOTATOR) with `run`.
 //   query_runs     { request: RunsRequest }        -> RunsReply   (sorted page + summaries per span kind)
 //   preview_spans  { request: SpanPreviewRequest } -> SpanPreview (the Runs editor's live preview)
@@ -1701,7 +1701,7 @@ export interface SuggestResult {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Profiling: CPU/allocation profiles and heap snapshots (crates/imt-profile/src/api.rs,
+// Profiling: CPU/allocation profiles and heap snapshots (crates/debrief-profile/src/api.rs,
 // commands in app/src-tauri/src/profiling.rs). Per window. Ids are capture ids from
 // `profiling_open`. Times inside a profile are nanoseconds since its start; `*Ms` are Unix ms.
 // Every request is validated in Rust; commands reject with a `ProfilingError` ({ code, message }).
@@ -2389,7 +2389,7 @@ export interface HeapPaths {
 }
 // ---------------------------------------------------------------------------------------------
 // Explain and share: redaction, dashboards, reports, images, bundles
-// (crates/imt-core/src/{redact,dashboard,report,bundle}, app/src-tauri/src/share.rs)
+// (crates/debrief-core/src/{redact,dashboard,report,bundle}, app/src-tauri/src/share.rs)
 //   overview           { request: { query } }    -> Analyzed<Finding[]>   (the health check)
 //   set_redacted_view  { enabled }               -> WorkspaceSummary   (while on, pages, facets, source context, query
 //                                                  tables and dashboard tiles come back redacted; `invalid` when the
@@ -2573,7 +2573,7 @@ export interface RedactionSummary {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Share a redacted copy of the project (.imtz) (crates/imt-core, app/src-tauri/src/share.rs)
+// Share a redacted copy of the project (.debriefz) (crates/debrief-core, app/src-tauri/src/share.rs)
 //   redacted_copy_choices  {}                              -> RedactedCopyChoices   (detectors, custom rules, what the profile selects)
 //   redacted_copy_preview  { options }                     -> RedactedCopyPreview   (`invalid`, field "options", when nothing is picked)
 //   export_redacted_copy   { path, name, options, ui, reports?, overwrite? } -> RedactedExport   (never replaces a file unless `overwrite`)
@@ -2726,7 +2726,7 @@ export interface ReportAnnotation {
   kind?: string;
 }
 
-/** A report block; `id` is stable within the report. Unknown types (a newer IMT's) are kept as they are. */
+/** A report block; `id` is stable within the report. Unknown types (a newer Debrief's) are kept as they are. */
 export type ReportBlock =
   | { id: string; type: 'text'; markdown: string }
   | { id: string; type: 'events'; caption?: string; ids: number[] }
@@ -2744,7 +2744,7 @@ export interface ReportSection {
   blocks: ReportBlock[];
 }
 
-/** An incident report (crates/imt-core/src/report), saved in the project. */
+/** An incident report (crates/debrief-core/src/report), saved in the project. */
 export interface Report {
   version: number;
   id: string;
@@ -2803,7 +2803,7 @@ export interface BundleManifest {
   schema: number;
   name: string;
   createdAt: number;
-  imtVersion: string;
+  debriefVersion: string;
   content: BundleContent;
   redacted: boolean;
   redaction: Record<string, number>;
@@ -2812,7 +2812,7 @@ export interface BundleManifest {
   skipped: SkippedSource[];
 }
 
-/** `open_bundle`: like `open_project`, read-only, with the bundle's manifest (null for other `.imtz` files). */
+/** `open_bundle`: like `open_project`, read-only, with the bundle's manifest (null for other `.debriefz` files). */
 export interface BundleOpened {
   path: string;
   name: string;
@@ -2829,7 +2829,7 @@ export interface BundleOpened {
 
 // ---------------------------------------------------------------------------------------------
 // Ease of use: import progress, profile history, the demo, overwrite protection
-// (crates/imt-core/src/workspace, app/src-tauri/src/{workspace_commands,profile}.rs)
+// (crates/debrief-core/src/workspace, app/src-tauri/src/{workspace_commands,profile}.rs)
 //   import_progress    {}                         -> ImportProgress   (readable while an import runs)
 //   profile_history    {}                         -> ProfileVersionInfo[]  (newest first, at most 20)
 //   profile_version    { file }                   -> ProfileDoc       (not applied until saved again)
@@ -2883,7 +2883,7 @@ export interface ProfileVersionInfo {
 
 /**
  * Query-language runs with progress, as analysis jobs. Mirrors `app/src-tauri/src/query_cancel.rs` and
- * `crates/imt-core/src/ql/control.rs`. `onProgress` is a Tauri `Channel<QueryStreamEvent>`: first the run's job
+ * `crates/debrief-core/src/ql/control.rs`. `onProgress` is a Tauri `Channel<QueryStreamEvent>`: first the run's job
  * (cancel it with `jobs_cancel`), then progress sampled every ~150 ms.
  *
  *   run_query_stream { request: { query }, onProgress } -> StreamedQueryOutcome
@@ -2905,7 +2905,7 @@ export type StreamedQueryOutcome = QueryOutcome | { cancelled: true };
 // What a native dialog asks for (`pick_paths`, see core/native-dialog.ts): generated from `paths::PickRequest`.
 export type { PickFilter, PickKind, PickRequest } from './generated/paths';
 
-/** What went wrong while reading a source (Rust `imt_plugin_api::problems::ProblemKind`): the same kinds as `SourceProblemKind`. */
+/** What went wrong while reading a source (Rust `debrief_plugin_api::problems::ProblemKind`): the same kinds as `SourceProblemKind`. */
 export type ProblemKind = SourceProblemKind;
 
 /** An engine-proposed fix of an import problem (Rust `ports::DiagnosticFix`). */
@@ -2977,7 +2977,7 @@ export function fullCoverage(n: number): Coverage {
   return { matched: n, analysed: n, limits: [] };
 }
 
-// ---- .NET profiling (plugin net.decryptology.dotnet, tool `dotnet-profiler`; Rust: crates/imt-plugin-dotnet) ----
+// ---- .NET profiling (plugin net.decryptology.dotnet, tool `dotnet-profiler`; Rust: crates/debrief-plugin-dotnet) ----
 
 /** A process that can be recorded (Rust `ProcessInfo`). */
 export interface DotnetProcess {
@@ -2989,7 +2989,7 @@ export interface DotnetProcess {
   arch: string | null;
   /** .NET Framework processes are recorded with ETW (administrator), .NET Core with EventPipe. */
   runtime: 'framework' | 'core';
-  /** Recording it needs administrator rights IMT does not have. */
+  /** Recording it needs administrator rights Debrief does not have. */
   needsElevation: boolean;
 }
 
@@ -3041,7 +3041,7 @@ export interface EtlConverted {
   notes: string[];
 }
 
-// ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `imt://recent-changed`) ----
+// ---- Recent files and projects (`recent_list`, `recent_remove`, `recent_clear`; event `debrief://recent-changed`) ----
 // Generated from `recent.rs`. Rust records an entry after a granted open or save.
 export type { RecentFile, RecentKind, RecentLists, RecentProject } from './generated/recent';
 
@@ -3067,7 +3067,7 @@ export type {
 export type { CmdErrorDto, ErrorCode } from './generated/errors';
 
 // ---- Native profiling (plugin net.decryptology.native; tools `native-profiler` and `native-profiler.etw`;
-// Rust: crates/imt-plugin-native, ADR 0022) ----
+// Rust: crates/debrief-plugin-native, ADR 0022) ----
 
 /** A process that can be profiled (Rust `NativeProcess`). */
 export interface NativeProcess {
@@ -3132,7 +3132,7 @@ export interface NativeCaptureStatus {
 }
 
 // ---- Dumps and UMDH heap logs (app/src-tauri/src/dumps.rs; ADR 0023) ----
-// Generated from `imt_dump::api`. Commands (invoke name -> args -> result):
+// Generated from `debrief_dump::api`. Commands (invoke name -> args -> result):
 //   dumps_sniff     { paths: string[] }                    -> DumpSniffResult[]   (first 64 KiB; nothing is opened)
 //   dumps_open      { path: string }                       -> DumpDocSummary      (a path the user chose)
 //   dumps_list      {}                                     -> DumpDocSummary[]
@@ -3188,7 +3188,7 @@ export type {
   UmdhTreeRequest,
 } from './generated/dumps';
 
-// ---- Parsers (ADR 0026; app/src-tauri/src/parsers.rs, crates/imt-core/src/parser) ----
+// ---- Parsers (ADR 0026; app/src-tauri/src/parsers.rs, crates/debrief-core/src/parser) ----
 // A parser is one TOML file describing one log format; the library holds the built-in parsers, the user's and
 // overrides of built-ins. Parsing, validation, matching and drafting are the engine's; the UI sends TOML text and ids.
 //   parsers_list        {}                                         -> ParserLibraryDto   (stale = sources of this window read with a
@@ -3240,7 +3240,7 @@ export type {
   ParserSourceDto,
   ParserValidationDto,
 } from './generated/parsers';
-// Notes (ADR 0021): generated from `imt_notes` and `notes::commands`.
+// Notes (ADR 0021): generated from `debrief_notes` and `notes::commands`.
 export type {
   Note,
   NoteAnchor,
@@ -3257,7 +3257,7 @@ export type {
 } from './generated/notes';
 
 /*
- * The Store pane and the read-only SQL console (ADR 0030; types generated from `imt_core::ports::{inspect, console}`):
+ * The Store pane and the read-only SQL console (ADR 0030; types generated from `debrief_core::ports::{inspect, console}`):
  *   store_overview    {}                                   -> StoreOverview
  *   store_segments    { request: SegmentsRequest }         -> SegmentsPage   (at most 500 rows a page)
  *   store_fields      {}                                   -> StoreFields
@@ -3304,7 +3304,7 @@ export type {
 /** A console run's outcome (`sql_run`). Mirrors `store_pane::SqlOutcome`. */
 export type SqlOutcome = { result: import('./generated/store').SqlResult } | { error: QlError } | { cancelled: true };
 
-// ---- Known issues, incident summary and playbooks (ADR 0039; crates/imt-core/src/{known_issues,incident,playbook}) ----
+// ---- Known issues, incident summary and playbooks (ADR 0039; crates/debrief-core/src/{known_issues,incident,playbook}) ----
 
 /** How a known issue is recognised: a regex over the message and exception, or a query-language filter. */
 export type IssueMatcher = { type: 'pattern'; pattern: string } | { type: 'query'; ql: string };

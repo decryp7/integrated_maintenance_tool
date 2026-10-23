@@ -13,7 +13,7 @@ import { CoverageNote } from './coverage-note';
 
 /** Exceptions grouped by fingerprint; a group expands into its instances and sample events. */
 @Component({
-  selector: 'imt-exceptions-view',
+  selector: 'debrief-exceptions-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, CoverageNote],
   template: `
@@ -22,8 +22,8 @@ import { CoverageNote } from './coverage-note';
       <span class="spacer"></span>
       <button class="btn" type="button" (click)="res.retry()" i18n="@@analysis.exceptions.refresh">Refresh</button>
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="res.result()?.length === 0" emptyText="No exceptions in the current query." i18n-emptyText="@@analysis.exceptions.emptyText" emptyHint="Events that carry an exception (a stack trace) are grouped here by type and top frame." i18n-emptyHint="@@analysis.exceptions.emptyHint" suggest (retry)="res.retry()">
       <ul class="list body" aria-label="Exception groups" i18n-aria-label="@@analysis.exceptions.listLabel">
         @for (g of res.result() ?? []; track g.fingerprint) {
           <li class="group" [class.selected]="selected() === g.fingerprint" [attr.data-fingerprint]="g.fingerprint">
@@ -54,7 +54,7 @@ import { CoverageNote } from './coverage-note';
           </li>
         }
       </ul>
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,

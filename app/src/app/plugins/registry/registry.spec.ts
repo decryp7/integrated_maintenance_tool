@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { all, el, FakeDock, provideFakeDock, provideTinyBackend, settle, typeInto } from '../../../testing/helpers';
 import { RecordView } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { MockBackend } from '../../core/mock/mock-backend';
 import { MockDataset, registryRecords } from '../../core/mock/mock-data';
 import { WorkspaceStore } from '../../core/workspace.store';
@@ -87,7 +87,7 @@ describe('loadRegistryRows', () => {
         const all = Array.from({ length: 5 }, (_, i) => ({ ...row({ Hive: 'H', Key: `K${i}` }, i), source: at(req.query.filters, 0).value === 'a.reg' ? 1 : 2 }));
         return { total: 5, offset: req.offset, anchorIndex: null, rows: all.slice(req.offset, req.offset + 2) };
       },
-    } as unknown as ImtBackend;
+    } as unknown as DebriefBackend;
     const out = await loadRegistryRows(backend, [source(1, 'a.reg'), source(2, 'b.reg')], 100);
     expect(out.truncated).toBe(false);
     expect(out.rows).toHaveLength(10);
@@ -95,7 +95,7 @@ describe('loadRegistryRows', () => {
   });
 
   it('caps the number of rows and says so', async () => {
-    const backend = { queryPage: async (req: { limit: number }) => ({ total: 100, offset: 0, anchorIndex: null, rows: Array.from({ length: req.limit }, (_, i) => ({ ...row({ Hive: 'H', Key: `K${i}` }), source: 1 })) }) } as unknown as ImtBackend;
+    const backend = { queryPage: async (req: { limit: number }) => ({ total: 100, offset: 0, anchorIndex: null, rows: Array.from({ length: req.limit }, (_, i) => ({ ...row({ Hive: 'H', Key: `K${i}` }), source: 1 })) }) } as unknown as DebriefBackend;
     const out = await loadRegistryRows(backend, [source(1, 'a.reg'), source(2, 'b.reg')], 7);
     expect(out.rows).toHaveLength(7);
     expect(out.truncated).toBe(true);
@@ -103,7 +103,7 @@ describe('loadRegistryRows', () => {
   });
 
   it('stops on an empty page', async () => {
-    const backend = { queryPage: async () => ({ total: 9, offset: 0, anchorIndex: null, rows: [] }) } as unknown as ImtBackend;
+    const backend = { queryPage: async () => ({ total: 9, offset: 0, anchorIndex: null, rows: [] }) } as unknown as DebriefBackend;
     expect((await loadRegistryRows(backend, [source(1, 'a.reg')])).rows).toEqual([]);
   });
 });

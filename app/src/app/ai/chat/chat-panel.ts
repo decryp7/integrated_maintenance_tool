@@ -29,7 +29,7 @@ import { AiRichText } from './rich-text';
  * sources, suggested links, and agent mode's steps, approval cards and Stop.
  */
 @Component({
-  selector: 'imt-ai-chat-panel',
+  selector: 'debrief-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, ChatComposer, Icon, CdkMenu, CdkMenuItem, CdkMenuTrigger],
   template: `
@@ -40,8 +40,8 @@ import { AiRichText } from './rich-text';
           <option [value]="s.id">{{ sessionLabel(s) }}</option>
         }
       </select>
-      <button type="button" class="icon-btn" (click)="store.newChat()" aria-label="New chat" i18n-aria-label="@@ai.chat.newChat" title="New chat" i18n-title="@@ai.chat.newChat"><imt-icon name="plus" [size]="16" /></button>
-      <button type="button" class="icon-btn" [cdkMenuTriggerFor]="chatMenu" aria-label="Chat actions" i18n-aria-label="@@ai.chat.actions" title="Chat actions" i18n-title="@@ai.chat.actions" data-testid="ai-chat-actions"><imt-icon name="more" [size]="16" /></button>
+      <button type="button" class="icon-btn" (click)="store.newChat()" aria-label="New chat" i18n-aria-label="@@ai.chat.newChat" title="New chat" i18n-title="@@ai.chat.newChat"><debrief-icon name="plus" [size]="16" /></button>
+      <button type="button" class="icon-btn" [cdkMenuTriggerFor]="chatMenu" aria-label="Chat actions" i18n-aria-label="@@ai.chat.actions" title="Chat actions" i18n-title="@@ai.chat.actions" data-testid="ai-chat-actions"><debrief-icon name="more" [size]="16" /></button>
     </div>
     <p class="engine muted" data-testid="ai-engine-state">{{ engineLine() }}</p>
 
@@ -74,7 +74,7 @@ import { AiRichText } from './rich-text';
       }
       @for (t of store.activeTurns(); track $index; let ti = $index) {
         <div class="turn">
-          <p class="user imt-selectable"><span class="sr-only" i18n="@@ai.chat.you">You: </span>{{ t.user }}</p>
+          <p class="user debrief-selectable"><span class="sr-only" i18n="@@ai.chat.you">You: </span>{{ t.user }}</p>
           @let shown = store.imagesOf(ti);
           @if (shown.length) {
             <div class="user-images" role="group" aria-label="Images with this question" i18n-aria-label="@@ai.vision.chat.turnImages" data-testid="ai-turn-images">
@@ -97,19 +97,19 @@ import { AiRichText } from './rich-text';
               <p class="step muted" role="status" data-testid="agent-step">{{ stepText(st.step, st.limit, st.action, st.site) }}</p>
             }
             @for (ap of t.approvals; track ap.request.requestId) {
-              <imt-agent-approval [approval]="ap" (decide)="respond(ap.request.requestId, $event)" />
+              <debrief-agent-approval [approval]="ap" (decide)="respond(ap.request.requestId, $event)" />
             }
             @for (l of t.links; track l.url) {
-              <imt-link-card [link]="l" (open)="openSuggested($event)" (read)="readSuggested($event)" />
+              <debrief-link-card [link]="l" (open)="openSuggested($event)" (read)="readSuggested($event)" />
             }
             @for (o of t.offers; track o.query) {
-              <imt-research-offer [offer]="o" (research)="researchOffer(o)" (agent)="agentForChat()" />
+              <debrief-research-offer [offer]="o" (research)="researchOffer(o)" (agent)="agentForChat()" />
             }
             @if (t.paused; as p) {
-              <imt-agent-paused [paused]="p" [canContinue]="!t.running && $last" (continue)="continueTask()" />
+              <debrief-agent-paused [paused]="p" [canContinue]="!t.running && $last" (continue)="continueTask()" />
             }
             @if (t.text) {
-              <imt-ai-rich-text class="imt-selectable" [text]="t.text" [citations]="t.citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
+              <debrief-ai-rich-text class="debrief-selectable" [text]="t.text" [citations]="t.citations" (record)="jump($event)" (query)="applyQuery($event)" (link)="openWeb($event.url, $event.title)" />
             } @else if (t.running && !hasPendingApproval(t)) {
               @if (queuedTurn(); as q) {
                 <p class="muted thinking" role="status" data-testid="ai-chat-queued">{{ queuedText(q.position) }}</p>
@@ -118,7 +118,7 @@ import { AiRichText } from './rich-text';
               }
             }
             @for (pv of t.proposals; track $index; let pi = $index) {
-              <imt-ai-proposal-card [proposal]="pv.proposal" [state]="pv.state" (applied)="store.setProposalState(ti, pi, 'applied')" (dismissed)="store.setProposalState(ti, pi, 'dismissed')" />
+              <debrief-ai-proposal-card [proposal]="pv.proposal" [state]="pv.state" (applied)="store.setProposalState(ti, pi, 'applied')" (dismissed)="store.setProposalState(ti, pi, 'dismissed')" />
             }
             @let sources = webSources(t);
             @if (sources.length) {
@@ -127,7 +127,7 @@ import { AiRichText } from './rich-text';
               </p>
             }
             @for (n of t.notes; track $index) {
-              <p class="note muted imt-selectable">{{ n }}</p>
+              <p class="note muted debrief-selectable">{{ n }}</p>
             }
             @if (t.cancelled) {
               <p class="note muted" i18n="@@ai.chat.stopped">Stopped.</p>
@@ -148,10 +148,10 @@ import { AiRichText } from './rich-text';
     }
 
     @if (store.activeId(); as sid) {
-      <imt-chat-browser-bar [sessionId]="sid" />
+      <debrief-chat-browser-bar [sessionId]="sid" />
     }
 
-    <imt-chat-composer [sessionId]="store.activeId()" />
+    <debrief-chat-composer [sessionId]="store.activeId()" />
   `,
   styles: `
     :host { display: flex; flex-direction: column; height: 100%; min-height: 0; font-size: var(--fs-md); }
@@ -174,7 +174,7 @@ import { AiRichText } from './rich-text';
     .turn { display: flex; flex-direction: column; gap: 6px; }
     .user { align-self: flex-end; max-width: 85%; margin: 0; background: var(--accent-soft); padding: 6px 10px; border-radius: 10px 10px 2px 10px; white-space: pre-wrap; overflow-wrap: anywhere; }
     .answer { display: flex; flex-direction: column; gap: 8px; }
-    .answer.neutral imt-ai-rich-text { color: var(--muted); font-style: italic; }
+    .answer.neutral debrief-ai-rich-text { color: var(--muted); font-style: italic; }
     .tools { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; }
     .tool { font-size: var(--fs-xs); }
     .tool.running { opacity: 0.8; }

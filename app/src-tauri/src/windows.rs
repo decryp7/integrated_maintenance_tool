@@ -27,7 +27,7 @@ pub const MAIN: &str = "main";
 /// Labels of windows opened later: `w-2`, `w-3`, ... (never reused in a run).
 pub const LABEL_PREFIX: &str = "w-";
 /// Event telling a window that `take_pending_open` has paths for it.
-pub const OPEN_EVENT: &str = "imt://open";
+pub const OPEN_EVENT: &str = "debrief://open";
 
 /// One window's workspace and everything that belongs to it.
 pub struct WindowState {
@@ -38,7 +38,7 @@ pub struct WindowState {
     pub(crate) host: Host,
     pub(crate) profile: RwLock<ProfileDoc>,
     /// Paths to open that arrived outside the UI (launch arguments, files
-    /// opened from the OS, restored sessions); the UI takes them after `imt://open`.
+    /// opened from the OS, restored sessions); the UI takes them after `debrief://open`.
     pending: Mutex<Vec<String>>,
     /// Paths waiting for the user's answer to "open here or in a new window?".
     pending_ask: Mutex<Vec<String>>,
@@ -91,7 +91,7 @@ impl WindowState {
     }
 
     /// Deactivates the window's plugins and closes its store (window closed, app exiting). `keep` keeps a
-    /// scratch store's folder (IMT is quitting: the session reopens it).
+    /// scratch store's folder (Debrief is quitting: the session reopens it).
     pub(crate) fn shutdown(&self, keep: bool) {
         self.host.registry.shutdown();
         self.engine.shutdown(keep);
@@ -103,12 +103,12 @@ impl WindowState {
     }
 
     /// Delivery counters of every event subscriber of the workspace's plugins.
-    pub(crate) fn event_metrics(&self) -> Vec<imt_core::events::SubscriberMetrics> {
+    pub(crate) fn event_metrics(&self) -> Vec<debrief_core::events::SubscriberMetrics> {
         self.host.registry.events().metrics()
     }
 
     /// The tools of the window's plugins.
-    pub(crate) fn tools(&self) -> imt_core::plugin::tools::ToolHost {
+    pub(crate) fn tools(&self) -> debrief_core::plugin::tools::ToolHost {
         self.host.registry.tools()
     }
 
@@ -272,7 +272,7 @@ impl Windows {
         self.get(&label).map(|_| label)
     }
 
-    /// IMT is quitting: windows being destroyed now keep their sessions.
+    /// Debrief is quitting: windows being destroyed now keep their sessions.
     pub fn set_exiting(&self) {
         self.exiting.store(true, Ordering::SeqCst);
     }
@@ -302,7 +302,7 @@ impl CurrentWindow {
     /// The state of window `label` (created on first use). A pop-out panel
     /// window (`p-<host>-<n>`) has no workspace of its own: it gets its window's.
     pub fn of<R: Runtime, M: Manager<R>>(manager: &M, label: &str) -> CmdResult<CurrentWindow> {
-        let windows = manager.try_state::<Windows>().ok_or("IMT is not ready yet")?;
+        let windows = manager.try_state::<Windows>().ok_or("Debrief is not ready yet")?;
         crate::error::lift(
             windows
                 .get_or_create(crate::panel_windows::resolve(label))
@@ -327,10 +327,10 @@ impl<'de, R: Runtime> CommandArg<'de, R> for CurrentWindow {
     fn from_command(command: CommandItem<'de, R>) -> Result<Self, InvokeError> {
         let webview = command.message.webview();
         let label = webview.window().label().to_string();
-        // IMT's own webview is its window's only one with the window's label; another webview in it (the browser's
+        // Debrief's own webview is its window's only one with the window's label; another webview in it (the browser's
         // page, ADR 0024) never acts for the window.
         if webview.label() != label {
-            return Err(InvokeError::from("this webview is not IMT's"));
+            return Err(InvokeError::from("this webview is not Debrief's"));
         }
         CurrentWindow::of(&webview, &label).map_err(InvokeError::from)
     }
@@ -380,11 +380,11 @@ pub fn queue_open<R: Runtime>(app: &tauri::AppHandle<R>, label: &str, paths: Vec
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use imt_core::{PluginRegistry, Profile};
+    use debrief_core::{PluginRegistry, Profile};
 
     /// A window's state with the store in process (scratch folders under the system temp folder).
     pub(crate) fn window_state(label: &str, registry: PluginRegistry) -> WindowState {
-        let root = std::env::temp_dir().join(format!("imt-test-stores-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("debrief-test-stores-{}", std::process::id()));
         let engine = Engine::new(crate::engine::local::host(), root, label, Profile::default_profile());
         registry.resolve();
         let host = Host::new(registry, Profile::default_profile()).unwrap();
@@ -472,11 +472,11 @@ pub(crate) mod tests {
         w.set_pending_ask(vec!["/b".into()]);
         assert_eq!(w.take_pending_ask(), ["/b"]);
         assert!(w.take_pending_ask().is_empty());
-        w.set_title("Incident — IMT");
-        assert_eq!(w.title(), "Incident — IMT");
-        w.set_project(Some("/p.imtz".into()));
+        w.set_title("Incident — Debrief");
+        assert_eq!(w.title(), "Incident — Debrief");
+        w.set_project(Some("/p.debriefz".into()));
         assert!(!w.is_pristine());
-        assert_eq!(w.project().as_deref(), Some("/p.imtz"));
+        assert_eq!(w.project().as_deref(), Some("/p.debriefz"));
         w.set_project(None);
         w.set_loaded(true);
         assert!(!w.is_pristine(), "a window with data is not reused");
@@ -492,7 +492,7 @@ pub(crate) mod tests {
 
     /// A plugin counting how often it was deactivated.
     struct Counting(Arc<std::sync::atomic::AtomicUsize>);
-    impl imt_core::Plugin for Counting {
+    impl debrief_core::Plugin for Counting {
         fn id(&self) -> &'static str {
             "test.counting"
         }
@@ -502,7 +502,7 @@ pub(crate) mod tests {
         fn version(&self) -> &'static str {
             "1.0.0"
         }
-        fn register(&self, _: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
+        fn register(&self, _: &mut debrief_core::PluginRegistry) -> anyhow::Result<()> {
             Ok(())
         }
         fn deactivate(&self) {
@@ -535,11 +535,11 @@ pub(crate) mod tests {
         let w = windows.get_or_create(MAIN).unwrap();
         let bus = w.host.registry.events();
         let (tx, rx) = std::sync::mpsc::channel();
-        bus.subscribe::<imt_core::events::SnapshotTaken>("test.listener", move |e| {
+        bus.subscribe::<debrief_core::events::SnapshotTaken>("test.listener", move |e| {
             let _ = tx.send(e.id.clone());
         })
         .unwrap();
-        w.publish(imt_core::events::SnapshotTaken { id: "snap-1".into() });
+        w.publish(debrief_core::events::SnapshotTaken { id: "snap-1".into() });
         assert_eq!(rx.recv_timeout(std::time::Duration::from_secs(5)).unwrap(), "snap-1");
         let m = w.event_metrics();
         assert_eq!(m.len(), 1);

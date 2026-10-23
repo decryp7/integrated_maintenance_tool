@@ -4,7 +4,7 @@ import { Completion, QlError, QlResult } from '../api.types';
 /**
  * A tiny stand-in for the engine's query language, for the browser mock and UI tests only.
  * It understands `field op value`, bare text, `and`/`or`/`not` and the stages
- * `where`, `stats`, `sort`, `head`/`limit`, `fields`. The real grammar lives in `imt-core::ql`.
+ * `where`, `stats`, `sort`, `head`/`limit`, `fields`. The real grammar lives in `debrief-core::ql`.
  */
 
 interface Tok {

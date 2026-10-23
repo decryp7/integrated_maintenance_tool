@@ -138,7 +138,7 @@ describe('JobsPanel', () => {
     const { f, root } = setup();
     await render(f);
     expect(el(f, '[data-testid=jobs-empty]').textContent).toContain('No jobs');
-    expect(root.querySelector('[data-testid=jobs-empty] imt-icon')).not.toBeNull();
+    expect(root.querySelector('[data-testid=jobs-empty] debrief-icon')).not.toBeNull();
     expect(root.querySelector('[data-testid=jobs-empty] h3')?.textContent).toBe('No jobs');
     expect(all(f, 'h3').filter((h) => !h.closest('[data-testid=jobs-empty]'))).toHaveLength(0);
     expect((el(f, '[data-testid=jobs-clear]') as HTMLButtonElement).disabled).toBe(true);

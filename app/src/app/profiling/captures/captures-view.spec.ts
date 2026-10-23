@@ -8,7 +8,7 @@ import { CapturesStore } from '../captures.store';
 import { ProfileViewState } from '../profile-view-state';
 import { openDemoCaptures, provideProfilingTesting, setupProfiling } from '../testing/profiling-test-support';
 import { MOCK_CAPTURE_PATHS } from '../../core/mock/mock-profiling-data';
-import { IMT_COMMANDS, ImtCommand } from '../../extensions/tokens';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../../extensions/tokens';
 import { RecentService } from '../../core/recent/recent.service';
 import { MOCK_RECENT_KEY } from '../../core/recent/mock-recent-backend';
 import { CapturesView } from './captures-view';
@@ -201,13 +201,13 @@ describe('CapturesView', () => {
     it('offers the Profile .NET / native process commands when the build has them, and runs the chosen one', async () => {
       const ran: string[] = [];
       const { providers } = provideProfilingTesting();
-      const commands: ImtCommand[] = [
+      const commands: DebriefCommand[] = [
         { id: 'profiling.dotnet', title: 'Profile .NET process…', run: () => void ran.push('dotnet') },
         { id: 'profiling.native', title: 'Profile native process…', run: () => void ran.push('native') },
         { id: 'profiling.other', title: 'Not offered', run: () => void ran.push('other') },
         { id: 'profiling.off', title: 'Off', when: () => false, run: () => void ran.push('off') },
       ];
-      TestBed.configureTestingModule({ providers: [...providers, { provide: IMT_COMMANDS, multi: true, useValue: commands }] });
+      TestBed.configureTestingModule({ providers: [...providers, { provide: DEBRIEF_COMMANDS, multi: true, useValue: commands }] });
       const fixture = TestBed.createComponent(CapturesView);
       fixture.detectChanges();
       await settle(fixture, 4);

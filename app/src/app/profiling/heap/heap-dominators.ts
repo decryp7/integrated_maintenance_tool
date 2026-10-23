@@ -43,7 +43,7 @@ export function flattenDominators(levels: ReadonlyMap<number | null, Level>, exp
 
 /** The dominator tree ("what keeps what alive"), loaded lazily level by level, as a treegrid. */
 @Component({
-  selector: 'imt-heap-dominators',
+  selector: 'debrief-heap-dominators',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (top().error; as e) {

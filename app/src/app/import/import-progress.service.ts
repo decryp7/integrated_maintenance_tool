@@ -18,7 +18,7 @@ export interface PartialImport {
 /** What the widgets show before the import's job reports (the engine lists a job once it ran a moment). */
 const STARTING: ImportProgress = { running: true, done: 0, total: 0, cancelled: false, bytesDone: 0, bytesTotal: 0, current: null, elapsedMs: 0, etaMs: null };
 
-/** A running import job's progress (\`imt://jobs\`) in the shape the widgets show. */
+/** A running import job's progress (\`debrief://jobs\`) in the shape the widgets show. */
 export function jobImportProgress(job: JobInfo): ImportProgress {
   const p = job.progress;
   return {

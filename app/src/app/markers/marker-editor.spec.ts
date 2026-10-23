@@ -102,7 +102,7 @@ describe('MarkerEditor', () => {
     buttonByText(fixture, /Import SVG or PNG/).click();
     await settle(fixture, 6);
     expect(text(fixture)).toContain('Acme-Logo');
-    expect(el(fixture, '.current imt-marker-glyph').innerHTML).not.toContain('script');
+    expect(el(fixture, '.current debrief-marker-glyph').innerHTML).not.toContain('script');
     buttonByText(fixture, 'Add marker').click();
     await settle(fixture, 8);
     await applied(fixture);
@@ -206,12 +206,12 @@ describe('MarkerEditor', () => {
     expect(buttonByText(fixture, 'Add marker').disabled).toBe(false);
     buttonByText(fixture, 'Convert to conditions').click();
     await settle(fixture);
-    expect(all(fixture, 'imt-conditions-editor .cond')).toHaveLength(2);
+    expect(all(fixture, 'debrief-conditions-editor .cond')).toHaveLength(2);
     buttonByText(fixture, /Advanced: query language/).click();
     await settle(fixture);
     buttonByText(fixture, 'Back to the condition builder').click();
     await settle(fixture);
-    expect(all(fixture, 'imt-conditions-editor .cond')).toHaveLength(2);
+    expect(all(fixture, 'debrief-conditions-editor .cond')).toHaveLength(2);
   });
 
   it('saves a simple query-language expression as conditions', async () => {

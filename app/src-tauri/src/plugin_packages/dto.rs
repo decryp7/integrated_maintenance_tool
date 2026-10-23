@@ -2,24 +2,24 @@
 //! and re-exported by `api.types.ts`).
 
 use crate::{CmdError, ErrorCode};
-use imt_plugin_api::manifest::{Permission, PermissionRequest};
-use imt_plugin_package::{PackageError, SignatureStatus};
+use debrief_plugin_api::manifest::{Permission, PermissionRequest};
+use debrief_plugin_package::{PackageError, SignatureStatus};
 use serde::{Deserialize, Serialize};
 
-/// A right a plugin asks for (mirrors `imt_plugin_api::manifest::Permission`).
+/// A right a plugin asks for (mirrors `debrief_plugin_api::manifest::Permission`).
 #[cfg_attr(test, derive(ts_rs::TS))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum PermissionDto {
-    /// Read the files the user opens directly (IMT's own plugins only).
+    /// Read the files the user opens directly (Debrief's own plugins only).
     OpenedFilePaths,
     /// Start other programs.
     RunPrograms,
-    /// Write into folders the user chooses (IMT's own plugins only).
+    /// Write into folders the user chooses (Debrief's own plugins only).
     WriteFolders,
     /// Connect to the network.
     Network,
-    /// Read files in folders the user configures (IMT's own plugins only).
+    /// Read files in folders the user configures (Debrief's own plugins only).
     ReadFolders,
 }
 
@@ -55,7 +55,7 @@ pub struct PermissionRequestDto {
     pub permission: PermissionDto,
     /// The publisher's reason.
     pub reason: String,
-    /// What the user allows, in IMT's words ("connect to the network").
+    /// What the user allows, in Debrief's words ("connect to the network").
     pub allows: String,
 }
 
@@ -197,7 +197,7 @@ pub enum InstalledState {
     Quarantined,
     /// Turned off.
     Disabled,
-    /// Installed, updated or turned on since IMT started: it takes effect after a restart.
+    /// Installed, updated or turned on since Debrief started: it takes effect after a restart.
     PendingRestart,
     /// It cannot run (see `problem`).
     Unavailable,

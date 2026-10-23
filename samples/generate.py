@@ -273,7 +273,7 @@ with open(path("windows", "msinfo32.nfo"), "w", encoding="utf-8", newline="\n") 
             '<Data><Item><![CDATA[OS Name]]></Item><Value><![CDATA[Microsoft Windows Server 2022 Datacenter]]></Value></Data></Category></MsInfo>\n')
 
 # --------------------------------------------------------------------------
-# imt-plugin-formats: log4j/NLog XML events, SQL Server ERRORLOG, Docker
+# debrief-plugin-formats: log4j/NLog XML events, SQL Server ERRORLOG, Docker
 # json-file and Kubernetes CRI logs. Own random generator, so the files above
 # do not change when this section does.
 
@@ -921,7 +921,7 @@ while t <= END:
 write_bytes(("\r\n".join(rows) + "\r\n").encode("utf-8"), "windows", "WEB02", "perfmon-OrderService_000001.csv")
 
 # --------------------------------------------------------------------------
-# IMT process monitor (imt-monitor) output on BILL01: CLEF written by
+# Debrief process monitor (debrief-monitor) output on BILL01: CLEF written by
 # ClefFileSink, "Process stats" every 15 s with the .NET Framework runtime
 # counters (Dotnet*) of the legacy billing service and the IIS worker process
 # of the billing API. The app pool recycles at 11:00 (exit + restart detected).
@@ -937,7 +937,7 @@ def mon_event(t, level, template, message, name, pid, **fields):
         e["@l"] = level
     e["@m"] = message
     e["@mt"] = template
-    e.update({"ProcessName": name, "ProcessId": pid, "MachineName": MON_HOST, "SourceContext": "IMT.Monitor"})
+    e.update({"ProcessName": name, "ProcessId": pid, "MachineName": MON_HOST, "SourceContext": "Debrief.Monitor"})
     e.update(fields)
     mon.append(e)
 
@@ -1633,7 +1633,7 @@ write_text(serilog_text(run_rows), "runs", "shared", "workers-20261014.log")
 #     two processes (pid 7001, 7002) named in the message ("host=SRV2 pid=7001");
 #   - Payments writing CLEF JSON lines (PAY01, pid 6100);
 #   - a few haproxy lines in BSD syslog format that no default format reads.
-# Read with profiles/logserver.imtprofile.toml, routes split it into logical
+# Read with profiles/logserver.debriefprofile.toml, routes split it into logical
 # sources per product and host.
 #
 # linux/logserver01/syslog-20261014.log: RFC 5424 lines from three hosts
@@ -1716,7 +1716,7 @@ source = "{Application}@{MachineName}"
 when = [{ field = "Logger", op = "contains", value = "Inventory" }]
 source = "Inventory@{Host}"
 '''
-write_text(LOGSERVER_PROFILE, "profiles", "logserver.imtprofile.toml")
+write_text(LOGSERVER_PROFILE, "profiles", "logserver.debriefprofile.toml")
 
 lrnd = random.Random(2021)
 relay = []
@@ -1736,18 +1736,18 @@ relay.sort(key=lambda x: x[0])
 write_text("\n".join(l for _, l in relay) + "\n", "linux", "logserver01", "syslog-20261014.log")
 
 # --------------------------------------------------------------------------
-# Share: an .imtproj project over the samples (paths relative to it, the
-# OrderService profile, WEB02's clock offset) and an .imtz bundle of the
+# Share: an .debriefproj project over the samples (paths relative to it, the
+# OrderService profile, WEB02's clock offset) and an .debriefz bundle of the
 # clock-skew logs in the format Workspace::write_bundle writes (project,
 # profile, dashboards, logs and a manifest with SHA-256 per file).
 
-with open(path("profiles", "orderservice.imtprofile.toml"), encoding="utf-8", newline="") as f:
+with open(path("profiles", "orderservice.debriefprofile.toml"), encoding="utf-8", newline="") as f:
     SAMPLE_PROFILE = f.read()
 project = {"version": 2, "name": "OrderService incident 14 Oct 2026",
            "sources": ["../serilog-clef", "../serilog-json", "../serilog-text", "../log4net", "../csv", "../clock-skew"],
            "removed": [], "profile": SAMPLE_PROFILE, "ui": {},
            "clock": {"../clock-skew/web02/requests-20261014.clef": SKEW_MS}}
-write_text(json.dumps(project, indent=2, ensure_ascii=False), "share", "orderservice-incident.imtproj")
+write_text(json.dumps(project, indent=2, ensure_ascii=False), "share", "orderservice-incident.debriefproj")
 
 BUNDLE_PROFILE = 'name = "WEB02 clock skew (shared)"\n\n[instance]\nkey = ["MachineName", "ProcessId"]\n'
 entries = []
@@ -1759,12 +1759,12 @@ files.append(("profile.toml", "profile", BUNDLE_PROFILE.encode("utf-8")))
 files.append(("dashboards.json", "dashboards", b"[]"))
 bundle_project = {"version": 2, "name": "WEB02 clock skew", "sources": ["logs"], "removed": [], "profile": BUNDLE_PROFILE, "ui": {},
                   "clock": {"logs/1/requests-20261014.clef": SKEW_MS}}
-files.append(("project.imtproj", "project", json.dumps(bundle_project, indent=2).encode("utf-8")))
-manifest = {"format": "imt-share", "schema": 1, "name": "WEB02 clock skew", "createdAt": ms_of(END), "imtVersion": "0.1.0", "content": "raw",
+files.append(("project.debriefproj", "project", json.dumps(bundle_project, indent=2).encode("utf-8")))
+manifest = {"format": "debrief-share", "schema": 1, "name": "WEB02 clock skew", "createdAt": ms_of(END), "debriefVersion": "0.1.0", "content": "raw",
             "redacted": False, "redaction": {}, "events": None,
             "entries": [{"path": p, "kind": k, "bytes": len(d), "sha256": hashlib.sha256(d).hexdigest()} for p, k, d in files], "skipped": []}
 write_bytes(stored_zip([(p, d) for p, _, d in files] + [("manifest.json", json.dumps(manifest, indent=2).encode("utf-8"))]),
-            "share", "web02-clock-skew.imtz")
+            "share", "web02-clock-skew.debriefz")
 
 # --------------------------------------------------------------------------
 # UMDH: three heap snapshots of OrderService on WEB02 (pid 4120) taken while it
@@ -1883,7 +1883,7 @@ write_text(umdh_diff(0, 2), "dumps", "umdh", "OrderService-4120-diff-1030-1040.t
 # API slow down from 10:30, the app crashes on the failed payment at 10:41:24
 # (pid 4211, every stack frame its own line as logcat writes them) and is
 # started again as pid 4588. "--------- beginning of crash" is logcat's buffer
-# divider, not an event. logcat writes no year: IMT takes it from the file date.
+# divider, not an event. logcat writes no year: Debrief takes it from the file date.
 grnd = random.Random(3001)
 
 
@@ -2156,7 +2156,7 @@ for t in rtimes(prnd2, START + timedelta(seconds=1), END, 50.0):
         mp.append(f"Polly retry {prnd2.randint(1, 3)}/3 for capture {order}")
 write_text("\n".join(mp) + "\n", "mel-console", "payments01", "payments-adapter-20261014.log")
 
-# Text encodings (invented messages, one file each): the same short story told in the encodings IMT detects at
+# Text encodings (invented messages, one file each): the same short story told in the encodings Debrief detects at
 # import. The text is made up for these files; the ASCII timestamps and levels are plain Serilog text lines.
 # `encodings/utf16le-bom.log` has a byte-order mark, `encodings/utf16be-nomark.log` has none.
 ENC_LINES = {
@@ -2180,7 +2180,7 @@ for enc_name, (codec, messages) in ENC_LINES.items():
         data = b"\xff\xfe" + data
     write_bytes(data, "encodings", f"{enc_name}.log")
 
-# Video frames (ADR 0033 §4): what `imt-video` writes for a screen recording of the checkout page on WEB02 while it
+# Video frames (ADR 0033 §4): what `debrief-video` writes for a screen recording of the checkout page on WEB02 while it
 # struggles. The header and one JSON line per kept frame; the file name is `<video name>.frames`. Invented content.
 vrnd = random.Random(3007)
 VIDEO_START = datetime(2026, 10, 14, 10, 36, 40, tzinfo=timezone.utc)

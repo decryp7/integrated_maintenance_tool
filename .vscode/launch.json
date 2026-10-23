@@ -1,47 +1,47 @@
 {
-  // Debug IMT from VS Code (Run and Debug, F5).
+  // Debug Debrief from VS Code (Run and Debug, F5).
   // The desktop app in a debug build loads its UI from the Angular dev server (tauri.conf.json devUrl),
-  // so the app configurations start "IMT: UI dev server" first and build the binary with cargo.
+  // so the app configurations start "Debrief: UI dev server" first and build the binary with cargo.
   // Windows uses the C/C++ extension's debugger (cppvsdbg); macOS and Linux use CodeLLDB.
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug IMT app (Windows)",
+      "name": "Debug Debrief app (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/target/debug/imt-app.exe",
+      "program": "${workspaceFolder}/target/debug/debrief-app.exe",
       "args": [],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "preLaunchTask": "IMT: debug prerequisites"
+      "preLaunchTask": "Debrief: debug prerequisites"
     },
     {
-      "name": "Debug IMT app (macOS / Linux)",
+      "name": "Debug Debrief app (macOS / Linux)",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/target/debug/imt-app",
+      "program": "${workspaceFolder}/target/debug/debrief-app",
       "args": [],
       "cwd": "${workspaceFolder}",
-      "preLaunchTask": "IMT: debug prerequisites"
+      "preLaunchTask": "Debrief: debug prerequisites"
     },
     {
-      "name": "Debug IMT app with the samples (Windows)",
+      "name": "Debug Debrief app with the samples (Windows)",
       "type": "cppvsdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/target/debug/imt-app.exe",
+      "program": "${workspaceFolder}/target/debug/debrief-app.exe",
       "args": ["${workspaceFolder}/samples/serilog-clef"],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal",
-      "preLaunchTask": "IMT: debug prerequisites"
+      "preLaunchTask": "Debrief: debug prerequisites"
     },
     {
-      "name": "Debug IMT app with the samples (macOS / Linux)",
+      "name": "Debug Debrief app with the samples (macOS / Linux)",
       "type": "lldb",
       "request": "launch",
-      "program": "${workspaceFolder}/target/debug/imt-app",
+      "program": "${workspaceFolder}/target/debug/debrief-app",
       "args": ["${workspaceFolder}/samples/serilog-clef"],
       "cwd": "${workspaceFolder}",
-      "preLaunchTask": "IMT: debug prerequisites"
+      "preLaunchTask": "Debrief: debug prerequisites"
     },
     {
       "name": "Debug UI in the browser (mock backend)",
@@ -49,13 +49,13 @@
       "request": "launch",
       "url": "http://localhost:4200/",
       "webRoot": "${workspaceFolder}/app",
-      "preLaunchTask": "IMT: UI dev server"
+      "preLaunchTask": "Debrief: UI dev server"
     },
     {
-      "name": "Debug imt-core tests (macOS / Linux)",
+      "name": "Debug debrief-core tests (macOS / Linux)",
       "type": "lldb",
       "request": "launch",
-      "cargo": { "args": ["test", "--no-run", "-p", "imt-core", "--lib"], "filter": { "kind": "lib" } },
+      "cargo": { "args": ["test", "--no-run", "-p", "debrief-core", "--lib"], "filter": { "kind": "lib" } },
       "args": [],
       "cwd": "${workspaceFolder}"
     }

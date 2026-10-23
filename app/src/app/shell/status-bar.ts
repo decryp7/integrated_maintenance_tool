@@ -12,7 +12,7 @@ import { ProblemsBadge } from '../problems/problems-badge';
 import { AiBrowsingChip } from '../browser/ai-browsing-chip';
 
 @Component({
-  selector: 'imt-status-bar',
+  selector: 'debrief-status-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkConnectedOverlay, CdkOverlayOrigin, BackgroundWork, ImportStatus, StatusJobs, ProblemsBadge, AiBrowsingChip],
   template: `
@@ -36,8 +36,8 @@ import { AiBrowsingChip } from '../browser/ai-browsing-chip';
     @if (otherBusy(); as busy) {
       <span class="busy keep" role="status" data-testid="status-busy"><span class="spinner" aria-hidden="true"></span>{{ busy }}</span>
     }
-    <imt-import-status />
-    <imt-ai-browsing-chip />
+    <debrief-import-status />
+    <debrief-ai-browsing-chip />
     <button
       type="button"
       class="live"
@@ -54,9 +54,9 @@ import { AiBrowsingChip } from '../browser/ai-browsing-chip';
     >
       <span class="live-dot" aria-hidden="true"></span>Live
     </button>
-    <imt-background-work />
-    <imt-problems-badge />
-    <imt-status-jobs />
+    <debrief-background-work />
+    <debrief-problems-badge />
+    <debrief-status-jobs />
     <button class="tz" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@shell.statusBar.toggleTimezone">{{ tz() }}</button>
     <button type="button" class="tz details" data-testid="status-details" cdkOverlayOrigin #origin="cdkOverlayOrigin" aria-haspopup="dialog" [attr.aria-expanded]="detailsOpen()" (click)="detailsOpen.set(!detailsOpen())" i18n="@@shell.statusBar.details">Details</button>
     <ng-template cdkConnectedOverlay [cdkConnectedOverlayOrigin]="origin" [cdkConnectedOverlayOpen]="detailsOpen()" [cdkConnectedOverlayPositions]="positions" cdkConnectedOverlayHasBackdrop cdkConnectedOverlayBackdropClass="cdk-overlay-transparent-backdrop" (backdropClick)="detailsOpen.set(false)" (detach)="detailsOpen.set(false)" (overlayKeydown)="$event.key === 'Escape' && detailsOpen.set(false)">
@@ -73,7 +73,7 @@ import { AiBrowsingChip } from '../browser/ai-browsing-chip';
           <div><dt i18n="@@shell.statusBar.detail.group">Group</dt><dd>{{ store.effectiveGroupBy().join(', ') || '—' }}</dd></div>
         }
         <div><dt i18n="@@shell.statusBar.detail.importers">Importers</dt><dd>{{ importers() }}</dd></div>
-        <div><dt i18n="@@shell.statusBar.detail.version">Version</dt><dd>IMT 0.1.0</dd></div>
+        <div><dt i18n="@@shell.statusBar.detail.version">Version</dt><dd>Debrief 0.1.0</dd></div>
       </dl>
     </ng-template>
   `,

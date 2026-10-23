@@ -1,7 +1,7 @@
 import type { SpanCfgToml } from './api.types';
 
 /**
- * Shape of a parsing profile (TOML), mirroring crates/imt-core/src/default_profile.toml.
+ * Shape of a parsing profile (TOML), mirroring crates/debrief-core/src/default_profile.toml.
  * Keys are snake_case as written in the file. Unknown keys are preserved by the editor.
  */
 

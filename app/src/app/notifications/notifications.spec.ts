@@ -5,7 +5,7 @@ import { FakeContext } from '../analysis/test-setup';
 import { LifecycleBackend } from '../core/tools-backend';
 import { Logger } from '../core/logger';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { IMT_COMMANDS, IMT_VIEWS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS } from '../extensions/tokens';
 import { JobViewer } from '../jobs/job-viewer';
 import { JobsBackend } from '../jobs/jobs-backend';
 import { JobsStore } from '../jobs/jobs.store';
@@ -110,7 +110,7 @@ describe('TauriNotificationsBackend', () => {
 
     const seen: NoticesEvent[] = [];
     await b.onChange((e) => seen.push(e));
-    const change = must(handlers.get('imt://notifications'));
+    const change = must(handlers.get('debrief://notifications'));
     change({ notices: [], unread: 0 });
     change({ notices: [], unread: 1, posted: notice({ id: 1 }) });
     for (const bad of [null, 'x', 4, {}, { notices: [] }, { notices: 'x', unread: 0 }, { notices: [], unread: '0' }]) change(bad);
@@ -120,7 +120,7 @@ describe('TauriNotificationsBackend', () => {
 
     const ids: number[] = [];
     await b.onOpen((id) => ids.push(id));
-    const open = must(handlers.get('imt://notifications-open'));
+    const open = must(handlers.get('debrief://notifications-open'));
     open(5);
     open('5');
     open(null);
@@ -250,7 +250,7 @@ describe('MockNotifications', () => {
   it('shares one centre per page until reset', () => {
     const a = mockNotifications();
     expect(mockNotifications()).toBe(a);
-    expect((window as unknown as { __imtMockNotifications?: unknown }).__imtMockNotifications).toBe(a);
+    expect((window as unknown as { __debriefMockNotifications?: unknown }).__debriefMockNotifications).toBe(a);
     resetMockNotifications();
     expect(mockNotifications()).not.toBe(a);
   });
@@ -773,7 +773,7 @@ describe('NotificationsPersistence', () => {
 
 describe('provide-notifications', () => {
   afterEach(() => {
-    document.querySelectorAll('imt-notification-toasts').forEach((e) => e.remove());
+    document.querySelectorAll('debrief-notification-toasts').forEach((e) => e.remove());
     TestBed.resetTestingModule();
   });
 
@@ -810,7 +810,7 @@ describe('provide-notifications', () => {
       ],
     });
     TestBed.runInInjectionContext(() => startNotifications());
-    expect(document.querySelectorAll('imt-notification-toasts')).toHaveLength(1);
+    expect(document.querySelectorAll('debrief-notification-toasts')).toHaveLength(1);
     TestBed.tick();
     expect(dock.calls).toEqual([]);
     TestBed.inject(NotificationsStore).setFocus(4);
@@ -823,8 +823,8 @@ describe('provide-notifications', () => {
     TestBed.configureTestingModule({
       providers: [{ provide: NotificationsBackend, useValue: fake }, { provide: DockService, useValue: new FakeDock() }, { provide: COMMAND_CONTEXT, useValue: new FakeContext() }, { provide: NoticeActions, useValue: {} }, { provide: Logger, useFactory: () => new MemoryLogger() }, provideNotifications()],
     });
-    expect(TestBed.inject(IMT_VIEWS).flat().map((v) => v.id)).toContain('notifications');
-    expect(TestBed.inject(IMT_COMMANDS).flat().map((c) => c.id)).toEqual(expect.arrayContaining(['notifications.show', 'notifications.markAllRead']));
+    expect(TestBed.inject(DEBRIEF_VIEWS).flat().map((v) => v.id)).toContain('notifications');
+    expect(TestBed.inject(DEBRIEF_COMMANDS).flat().map((c) => c.id)).toEqual(expect.arrayContaining(['notifications.show', 'notifications.markAllRead']));
     expect(TestBed.inject(UI_STATE_CONTRIBUTIONS).flat().map((c) => c.key)).toContain('notifications');
     await settle();
     expect(fake.list).toHaveBeenCalled();

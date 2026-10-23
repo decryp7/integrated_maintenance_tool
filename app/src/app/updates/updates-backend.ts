@@ -15,7 +15,7 @@ export abstract class UpdatesBackend {
   abstract download(): Promise<UpdateStatus>;
   abstract cancel(): Promise<UpdateStatus>;
   abstract installOnQuit(enabled: boolean): Promise<UpdateStatus>;
-  /** IMT quits, installs the verified update and starts again. */
+  /** Debrief quits, installs the verified update and starts again. */
   abstract restart(): Promise<void>;
   abstract openReleases(): Promise<void>;
   /** Every status change (in any window). */

@@ -5,7 +5,7 @@ import { EChart } from '../metrics/echart';
 import { formatCount, formatNumber } from '../core/format';
 import { FieldStats, NumericStats } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
-import { ImtEvents } from '../extensions/events';
+import { DebriefEvents } from '../extensions/events';
 import { AnalysisActions } from './analysis-actions';
 import { barWidth } from './analysis-format';
 import { AnalysisState } from './analysis-state';
@@ -31,7 +31,7 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
 
 /** Distribution of one field: numeric histogram with percentiles, and the most common values. */
 @Component({
-  selector: 'imt-field-stats-view',
+  selector: 'debrief-field-stats-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, EChart],
   template: `
@@ -43,14 +43,14 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
         </select>
       </label>
     </div>
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!targets.field()" emptyText="Choose a field to see its distribution." i18n-emptyText="@@analysis.fieldStats.emptyText" (retry)="res.retry()">
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.data()" [empty]="!targets.field()" emptyText="Choose a field to see its distribution." i18n-emptyText="@@analysis.fieldStats.emptyText" (retry)="res.retry()">
       @if (res.data(); as s) {
         <div class="body" tabindex="0" role="region" aria-label="Field statistics" i18n-aria-label="@@analysis.fieldStats.region">
           <p class="facts mono" i18n="@@analysis.fieldStats.facts">{{ count(s.count) }} events with the field · {{ count(s.missing) }} without · {{ count(s.distinct) }} distinct</p>
           @if (s.numeric; as n) {
             <h3 class="sec first" i18n="@@analysis.fieldStats.distribution">Distribution</h3>
             <div class="chart" role="img" [attr.aria-label]="histogramLabel(targets.field(), num(n.min), num(n.max))">
-              <imt-echart [options]="option()!" />
+              <debrief-echart [options]="option()!" />
             </div>
             <dl class="pcts mono">
               @for (p of percentiles(n); track p[0]) { <div><dt>{{ p[0] }}</dt><dd>{{ num(p[1]) }}</dd></div> }
@@ -72,7 +72,7 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
           } @else { <p class="muted" i18n="@@analysis.fieldStats.noValues">No values.</p> }
         </div>
       }
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,
@@ -81,7 +81,7 @@ export function histogramOption(stats: NumericStats, t: ChartTokens): EChartsCor
       .facts { margin: 0 0 4px; }
       .sec.first { margin-top: 8px; }
       .chart { height: 220px; border: 1px solid var(--border); border-radius: 6px; padding: 4px; }
-      imt-echart { height: 100%; }
+      debrief-echart { height: 100%; }
       .pcts { display: flex; gap: 18px; flex-wrap: wrap; margin: 8px 0 0; }
       .pcts div { display: flex; gap: 6px; }
       .pcts dt { color: var(--muted); }
@@ -102,7 +102,7 @@ export class FieldStatsView {
   protected readonly res = new AsyncResource<FieldStats>();
   protected readonly count = formatCount;
   protected readonly num = formatNumber;
-  private readonly events = inject(ImtEvents);
+  private readonly events = inject(DebriefEvents);
   private readonly backend = inject(AnalysisBackend);
   private readonly actions = inject(AnalysisActions);
   private readonly theme = inject(ChartTheme);

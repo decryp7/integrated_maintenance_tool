@@ -26,10 +26,10 @@ test('a declared known issue shows its fix, count and rule origin, and Show even
   const before = await gridRows(page).count();
   await card.getByRole('button', { name: 'Show events' }).click();
   await expect(gridRows(page).first()).toBeVisible();
-  await expect(page.locator('imt-status-bar')).toContainText('events');
+  await expect(page.locator('debrief-status-bar')).toContainText('events');
   await expect.poll(async () => gridRows(page).count()).toBeLessThanOrEqual(before);
   await expect(gridRows(page).first()).toContainText(/timed out/i);
-  await expectNoSeriousViolations(page, testInfo, 'known-issues', 'imt-known-issues');
+  await expectNoSeriousViolations(page, testInfo, 'known-issues', 'debrief-known-issues');
 });
 
 test('Suggest with AI lists engine-verified suggestions with the AI badge', async ({ page }, testInfo) => {
@@ -39,7 +39,7 @@ test('Suggest with AI lists engine-verified suggestions with the AI badge', asyn
   const card = section.getByTestId('known-issue-ai-lock-rollbacks');
   await expect(card).toBeVisible();
   await expect(card.getByTestId('known-issue-origin')).toHaveText('AI suggested, verified by the engine');
-  await expectNoSeriousViolations(page, testInfo, 'known-issues-ai', 'imt-known-issues');
+  await expectNoSeriousViolations(page, testInfo, 'known-issues-ai', 'debrief-known-issues');
 });
 
 test('without an AI model the suggest button is disabled and says what to do', async ({ page }) => {

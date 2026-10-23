@@ -1,7 +1,7 @@
 //! The activity log: every user operation and every IPC command, correlated by an operation id, so a
 //! problem a user hit can be reproduced and fixed.
 //!
-//! Two layers write to IMT's own CLEF log under `SourceContext = "IMT.Activity"`:
+//! Two layers write to Debrief's own CLEF log under `SourceContext = "Debrief.Activity"`:
 //! - **UI intent** (Angular, `app/src/app/core/activity`): one entry per user operation at the point of
 //!   intent (`User {Operation} via {Trigger}`), with an `OperationId` that travels to Rust as the
 //!   [`OP_HEADER`] IPC header.
@@ -38,7 +38,7 @@ pub(crate) use logger::{captured, test_capture, Captured};
 pub use steps::{steps, steps_text};
 
 /// `SourceContext` of every activity entry (UI and Rust), the filter of Help ▸ Show activity log.
-pub const SOURCE_CONTEXT: &str = "IMT.Activity";
+pub const SOURCE_CONTEXT: &str = "Debrief.Activity";
 
 /// Logs a domain event caused by a user command (profile saved, plugin enabled, export written, ...) under
 /// [`SOURCE_CONTEXT`], with the operation id of the command that caused it. `props` must already be safe

@@ -38,7 +38,7 @@ const initial: ChatState = { sessions: [], activeId: null, turns: {}, lastSeq: {
 
 /**
  * The chat panel's state for this window. The engine runs the turns and owns the history; this store
- * keeps what the panel shows, folding the `imt://ai-chat` stream into the running turn.
+ * keeps what the panel shows, folding the `debrief://ai-chat` stream into the running turn.
  */
 export const ChatStore = signalStore(
   { providedIn: 'root' },

@@ -23,7 +23,7 @@ import {
   WorkspaceSummary,
 } from '../../core/api.types';
 import { AnalysisBackend } from '../../core/analysis-backend';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { MockBackend } from '../../core/mock/mock-backend';
 import { EMPTY_QUERY } from '../../core/workspace.store';
 import { ShareBackend } from '../share-backend';
@@ -82,19 +82,19 @@ export class MockShareBackend extends ShareBackend {
   private readonly files = new MockFiles();
 
   constructor(
-    private readonly imt: ImtBackend,
+    private readonly debrief: DebriefBackend,
     private readonly analysis: AnalysisBackend,
   ) {
     super();
-    (globalThis as Record<string, unknown>)['__imtMockShareWritten'] = this.written;
+    (globalThis as Record<string, unknown>)['__debriefMockShareWritten'] = this.written;
   }
 
   private mock(): MockBackend | null {
-    return this.imt instanceof MockBackend ? this.imt : null;
+    return this.debrief instanceof MockBackend ? this.debrief : null;
   }
 
   private async profileModel(): Promise<Record<string, unknown>> {
-    return parse((await this.imt.getProfile()).toml) as Record<string, unknown>;
+    return parse((await this.debrief.getProfile()).toml) as Record<string, unknown>;
   }
 
   /** Like the engine: a profile without `[redact]` rules refuses the view with what to add (`invalid`). */
@@ -104,7 +104,7 @@ export class MockShareBackend extends ShareBackend {
     } catch (e) {
       throw new CmdError({ code: 'invalid', message: e instanceof Error ? e.message : String(e), retryable: false, hint: 'Edit the profile: add detectors or [[redact.rule]] entries to its [redact] section.' });
     }
-    return this.imt.workspaceSummary();
+    return this.debrief.workspaceSummary();
   }
 
   async previewRedaction(request: RedactionPreviewRequest): Promise<RedactionPreview> {
@@ -114,7 +114,7 @@ export class MockShareBackend extends ShareBackend {
   /** What the profile's rules would change in the first page of matching events (the engine scans up to 200,000). */
   async redactionSummary(request: RedactionSummaryRequest): Promise<RedactionSummary> {
     const r = new MockRedactor(mockRedactCfg(await this.profileModel()), 'summary');
-    const page = await this.imt.queryPage({ query: request.query, offset: 0, limit: 5000, descending: false, anchor: null });
+    const page = await this.debrief.queryPage({ query: request.query, offset: 0, limit: 5000, descending: false, anchor: null });
     const counts: Record<string, number> = {};
     const samples = [];
     let changed = 0;
@@ -140,7 +140,7 @@ export class MockShareBackend extends ShareBackend {
         const def = tile.chart
           ? null
           : { id: tile.id, title: tile.title || tile.id, y: tile.value ?? 'count()', bucket: 'auto', splitBy: tile.by ?? [], type: tile.style ?? 'line', unit: tile.unit ?? '' };
-        const data = await this.imt.queryChart({ query: mockTileQuery(base, tile.query), chartId: tile.chart ?? null, def, buckets: 120 });
+        const data = await this.debrief.queryChart({ query: mockTileQuery(base, tile.query), chartId: tile.chart ?? null, def, buckets: 120 });
         return { kind: 'chart', data };
       }
       case 'stat':
@@ -150,7 +150,7 @@ export class MockShareBackend extends ShareBackend {
         if ('error' in out) throw new Error(out.error.message);
         const limit = Math.min(100, Math.max(1, tile.limit ?? 100));
         if (out.result.kind === 'table') return { kind: 'table', columns: out.result.columns, rows: out.result.rows.slice(0, limit), truncated: out.result.rows.length > limit };
-        const page = await this.imt.queryPage({ query: { ...EMPTY_QUERY }, offset: 0, limit: 1_000_000, descending: false, anchor: null });
+        const page = await this.debrief.queryPage({ query: { ...EMPTY_QUERY }, offset: 0, limit: 1_000_000, descending: false, anchor: null });
         const byId = new Map(page.rows.map((r) => [r.id, r]));
         const rows = out.result.ids.slice(0, limit).map((id) => {
           const r = byId.get(id);
@@ -159,11 +159,11 @@ export class MockShareBackend extends ShareBackend {
         return { kind: 'table', columns: ['@t', '@level', '@message'], rows, truncated: out.result.ids.length > limit };
       }
       case 'top':
-        return { kind: 'top', facet: await this.imt.queryFacet({ query: mockTileQuery(base, tile.query), field: tile.field ?? '', limit: tile.limit ?? 10 }) };
+        return { kind: 'top', facet: await this.debrief.queryFacet({ query: mockTileQuery(base, tile.query), field: tile.field ?? '', limit: tile.limit ?? 10 }) };
       case 'alerts':
         return { kind: 'alerts', items: (await this.analysis.queryAnomalies(mockTileQuery(base, tile.query))).result.slice(0, tile.limit ?? 20) };
       case 'annotations':
-        return { kind: 'annotations', items: (await this.imt.annotations({ from: base.from ?? null, to: base.to ?? null })).slice(0, tile.limit ?? 20) };
+        return { kind: 'annotations', items: (await this.debrief.annotations({ from: base.from ?? null, to: base.to ?? null })).slice(0, tile.limit ?? 20) };
     }
   }
 
@@ -175,13 +175,13 @@ export class MockShareBackend extends ShareBackend {
       return { label: out.result.columns[out.result.columns.length - 1] ?? '', value: out.result.rows[0]?.[out.result.rows[0].length - 1] ?? null };
     };
     const total = await value(this.analysis, base);
-    const summary = await this.imt.workspaceSummary();
+    const summary = await this.debrief.workspaceSummary();
     const from = base.from ?? summary.from ?? 0;
     const to = base.to ?? summary.to ?? from;
     const step = Math.max(1, Math.floor((to - from) / SPARK));
     // One snapshot of the workspace for all the buckets, each bucket evaluated over its own slice only: reloading
     // and filtering every record per bucket made a stat tile cost SPARK full scans (seconds on the demo data).
-    const records = await recordsFrom(this.imt)();
+    const records = await recordsFrom(this.debrief)();
     const sparkline: [number, number | null][] = [];
     for (let i = 0; i < SPARK; i++) {
       const start = from + i * step;
@@ -229,7 +229,7 @@ export class MockShareBackend extends ShareBackend {
   /** Findings derived from the mock anomalies, unrecognised files and plugin problems (the engine's health check covers much more). */
   async overview(query: Query): Promise<Analyzed<Finding[]>> {
     const { result: anomalies, coverage } = await this.analysis.queryAnomalies(query);
-    const summary = await this.imt.workspaceSummary();
+    const summary = await this.debrief.workspaceSummary();
     const severity = (kind: string): Finding['severity'] => (kind === 'crash' ? 'critical' : kind === 'errorSpike' || kind === 'memoryGrowth' || kind === 'silence' ? 'warning' : 'info');
     const rank = { critical: 0, warning: 1, info: 2 };
     const found: Finding[] = anomalies.map((a): Finding => ({
@@ -273,7 +273,7 @@ export class MockShareBackend extends ShareBackend {
 
   /** Sources of a format that cannot be redacted (only JSON and text logs can) and the reason. */
   private async copyScope(): Promise<{ included: number; excluded: { name: string; reason: string }[]; textIds: Set<number> }> {
-    const sources = (await this.imt.workspaceSummary()).sources;
+    const sources = (await this.debrief.workspaceSummary()).sources;
     const text = sources.filter((s) => s.importer === 'json' || s.importer === 'text');
     return {
       included: text.length,
@@ -285,7 +285,7 @@ export class MockShareBackend extends ShareBackend {
   async redactedCopyPreview(options: RedactedCopyOptions): Promise<RedactedCopyPreview> {
     const r = await this.copyRedactor(options, 'copy-preview');
     const scope = await this.copyScope();
-    const page = await this.imt.queryPage({ query: { ...EMPTY_QUERY }, offset: 0, limit: 5000, descending: false, anchor: null });
+    const page = await this.debrief.queryPage({ query: { ...EMPTY_QUERY }, offset: 0, limit: 5000, descending: false, anchor: null });
     const rows = page.rows.filter((row) => scope.textIds.has(row.source));
     const counts: Record<string, number> = {};
     const samples = [];
@@ -305,11 +305,11 @@ export class MockShareBackend extends ShareBackend {
   }
 
   async exportRedactedCopy(request: RedactedCopyRequest): Promise<RedactedExport> {
-    if (!request.path.toLowerCase().endsWith('.imtz')) throw new Error('the file must end in .imtz');
+    if (!request.path.toLowerCase().endsWith('.debriefz')) throw new Error('the file must end in .debriefz');
     const preview = await this.redactedCopyPreview(request.options);
     this.files.write(request.path, request.overwrite);
     const bytes = JSON.stringify({ ui: request.ui, reports: request.reports ?? [], samples: preview.summary.samples }).length + preview.summary.scanned * 120;
-    this.written.push({ path: request.path, kind: 'imtz', bytes });
+    this.written.push({ path: request.path, kind: 'debriefz', bytes });
     return { bytes, sources: preview.included, events: preview.summary.scanned, excluded: preview.excluded, hits: preview.summary.hits };
   }
 
@@ -320,18 +320,18 @@ export class MockShareBackend extends ShareBackend {
 
   async openBundle(path: string): Promise<BundleOpened> {
     const known = this.bundles.get(path);
-    if (!known && !path.toLowerCase().endsWith('.imtz')) throw new Error(`${path} is not an IMT bundle (not a zip file)`);
-    const summary = await this.imt.workspaceSummary();
+    if (!known && !path.toLowerCase().endsWith('.debriefz')) throw new Error(`${path} is not a Debrief bundle (not a zip file)`);
+    const summary = await this.debrief.workspaceSummary();
     return {
       path,
-      name: known?.name ?? path.split(/[\\/]/).pop()!.replace(/\.imtz$/i, ''),
+      name: known?.name ?? path.split(/[\\/]/).pop()!.replace(/\.debriefz$/i, ''),
       summary,
       ui: known ? structuredClone(known.ui) : null,
       reports: known ? structuredClone(known.reports) : [],
       missing: [],
       readOnly: true,
       bundle: known?.manifest ?? null,
-      folder: `/tmp/imt-bundles/${encodeURIComponent(path)}`,
+      folder: `/tmp/debrief-bundles/${encodeURIComponent(path)}`,
     };
   }
 }

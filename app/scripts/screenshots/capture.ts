@@ -9,9 +9,9 @@ import { ensureInspector, openApp } from '../../e2e/app';
  * skipped with a warning and the others still run. Navigation uses roles, labels and the
  * command palette (command titles) instead of CSS structure.
  */
-// IMT_SHOT_OUT redirects a trial run elsewhere; the default is the committed set. Run from app/ (npm run screenshots).
-const OUT = process.env['IMT_SHOT_OUT'] ? resolve(process.env['IMT_SHOT_OUT']) : resolve(process.cwd(), '../docs/screenshots');
-const THEMES = (process.env['IMT_SHOT_THEMES'] ?? 'dark,light').split(',') as ('dark' | 'light')[];
+// DEBRIEF_SHOT_OUT redirects a trial run elsewhere; the default is the committed set. Run from app/ (npm run screenshots).
+const OUT = process.env['DEBRIEF_SHOT_OUT'] ? resolve(process.env['DEBRIEF_SHOT_OUT']) : resolve(process.cwd(), '../docs/screenshots');
+const THEMES = (process.env['DEBRIEF_SHOT_THEMES'] ?? 'dark,light').split(',') as ('dark' | 'light')[];
 let suffix = '';
 const skipped: string[] = [];
 
@@ -49,8 +49,8 @@ async function settle(page: Page, ms = 600): Promise<void> {
  * With `maximize`, the dock group holding that tab fills the window for the capture.
  */
 async function shot(page: Page, name: string, prepare: () => Promise<void>, maximize?: string): Promise<void> {
-  // IMT_SHOT_ONLY=home,light restricts a run to the named shots.
-  const only = process.env['IMT_SHOT_ONLY'];
+  // DEBRIEF_SHOT_ONLY=home,light restricts a run to the named shots.
+  const only = process.env['DEBRIEF_SHOT_ONLY'];
   if (only && !only.split(',').includes(name)) return;
   const file = `${name}${suffix}`;
   let restore: (() => Promise<void>) | undefined;
@@ -93,8 +93,8 @@ async function showPanel(page: Page, tab: string, ...commands: string[]): Promis
  * click cannot reach); the first row when none is.
  */
 async function clickRow(page: Page, text: string): Promise<void> {
-  const grid = (await page.locator('imt-events-grid').boundingBox())!;
-  const rows = page.locator('imt-events-grid [role=row].row');
+  const grid = (await page.locator('debrief-events-grid').boundingBox())!;
+  const rows = page.locator('debrief-events-grid [role=row].row');
   for (let i = 0; i < (await rows.count()); i++) {
     const row = rows.nth(i);
     const b = await row.boundingBox();
@@ -135,7 +135,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
 
   await shot(page, 'welcome', async () => {
     await need(page, 'Close workspace');
-    await expect(page.locator('imt-welcome')).toBeVisible();
+    await expect(page.locator('debrief-welcome')).toBeVisible();
   });
   await fresh(page, theme);
   await growTimeline(page);
@@ -144,7 +144,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     // The default layout keeps the inspector auto-hidden; the README shot shows it docked with an event selected.
     await clickRow(page, 'HTTP POST');
     await ensureInspector(page).catch(() => undefined); // an inspector that stays auto-hidden is fine for the shot
-    await expect(page.locator('imt-timeline-panel .lane').first()).toBeVisible();
+    await expect(page.locator('debrief-timeline-panel .lane').first()).toBeVisible();
   });
 
   await shot(page, 'format-wizard', async () => {
@@ -163,7 +163,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await shot(page, 'inspector', async () => {
     await clickRow(page, 'HTTP POST');
     await ensureInspector(page).catch(() => undefined);
-    await expect(page.locator('imt-inspector')).toBeVisible();
+    await expect(page.locator('debrief-inspector')).toBeVisible();
   });
 
   await shot(page, 'query', async () => {
@@ -209,7 +209,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
 
   await shot(page, 'moment', async () => {
     await showPanel(page, 'Events', 'Show events');
-    await page.locator('imt-events-grid [role=row].row').nth(8).click();
+    await page.locator('debrief-events-grid [role=row].row').nth(8).click();
     await need(page, 'Analyse this moment');
     await page.waitForTimeout(1500);
   }, 'Moment');
@@ -253,7 +253,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await shot(page, 'home', async () => {
     await page.setViewportSize({ width: 1440, height: 1000 });
     await command(page, 'Show Home');
-    await expect(page.locator('imt-home-view [data-testid=home-history]')).toBeVisible();
+    await expect(page.locator('debrief-home-view [data-testid=home-history]')).toBeVisible();
     await page.waitForTimeout(800);
   }, 'Home');
   await page.setViewportSize({ width: 1440, height: 900 });

@@ -70,7 +70,7 @@ describe('FieldStatsView', () => {
     const { fixture, targets } = await mount(FieldStatsView, stubBackend({ fieldStats: async () => FIX.textStats }));
     targets.setField('Host');
     await settle(fixture, 6);
-    expect(all(fixture, 'imt-echart')).toHaveLength(0);
+    expect(all(fixture, 'debrief-echart')).toHaveLength(0);
     expect(text(fixture)).toContain('No values.');
     select(fixture, '');
     expect(targets.field()).toBeNull();

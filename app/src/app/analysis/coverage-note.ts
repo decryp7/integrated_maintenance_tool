@@ -8,7 +8,7 @@ import { formatCount } from '../core/format';
  * analysed or there is no result yet.
  */
 @Component({
-  selector: 'imt-coverage-note',
+  selector: 'debrief-coverage-note',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (partial(); as c) {

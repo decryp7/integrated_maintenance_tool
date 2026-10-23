@@ -1,5 +1,5 @@
-// Generated from the Rust wire types by `cargo test -p imt-app --lib generated_types` (ts-rs; ADR 0016).
-// Do not edit: change the Rust type and run the test with IMT_WRITE_TYPES=1.
+// Generated from the Rust wire types by `cargo test -p debrief-app --lib generated_types` (ts-rs; ADR 0016).
+// Do not edit: change the Rust type and run the test with DEBRIEF_WRITE_TYPES=1.
 
 export type StoreActivity = "ready" | "importing" | "indexing";
 
@@ -189,7 +189,7 @@ total: number,
  */
 truncated: boolean, 
 /**
- * The rows carry event ids: a column `id` of an integer type (from `imt.events`).
+ * The rows carry event ids: a column `id` of an integer type (from `debrief.events`).
  */
 eventIds: boolean, 
 /**
@@ -213,7 +213,7 @@ export type SqlViewColumn = { name: string, type: string, description: string, }
 
 export type SqlView = { 
 /**
- * Its name in the `imt` schema (also reachable unqualified).
+ * Its name in the `debrief` schema (also reachable unqualified).
  */
 name: string, description: string, columns: Array<SqlViewColumn>, };
 

@@ -17,7 +17,7 @@ import { HeapTypes } from './heap-types';
 
 /** Heap snapshots: types, snapshot diff, growth, dominator tree, instances and paths to GC roots. */
 @Component({
-  selector: 'imt-heap-view',
+  selector: 'debrief-heap-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NoCapture, CaptureNotes, HeapFindings, HeapTypes, HeapDiff, HeapGrowth, HeapDominators, HeapInstances],
   providers: [HeapSelection],
@@ -32,7 +32,7 @@ import { HeapTypes } from './heap-types';
         </label>
         <span class="muted">{{ summary(h) }}</span>
       </div>
-      <imt-capture-notes [notes]="h.notes" [name]="h.name" />
+      <debrief-capture-notes [notes]="h.notes" [name]="h.name" />
       <div class="tabs" role="tablist" aria-label="Memory views" i18n-aria-label="@@profiling.heap.tabsLabel" (keydown)="onTabKey($event)">
         @for (t of tabs; track t.id) {
           <button type="button" role="tab" [id]="'heap-tab-' + t.id" [attr.aria-selected]="sel.tab() === t.id" [attr.aria-controls]="'heap-panel'" [attr.tabindex]="sel.tab() === t.id ? 0 : -1" [disabled]="needsGraph(t.id) && !h.hasGraph" (click)="sel.tab.set(t.id)">{{ t.label }}</button>
@@ -40,16 +40,16 @@ import { HeapTypes } from './heap-types';
       </div>
       <div class="panel" role="tabpanel" id="heap-panel" [attr.aria-labelledby]="'heap-tab-' + sel.tab()">
         @switch (sel.tab()) {
-          @case ('findings') { <imt-heap-findings [snapshotId]="h.id" /> }
-          @case ('types') { <imt-heap-types [snapshotId]="h.id" /> }
-          @case ('diff') { <imt-heap-diff /> }
-          @case ('growth') { <imt-heap-growth /> }
-          @case ('dominators') { <imt-heap-dominators [snapshotId]="h.id" /> }
-          @case ('instances') { <imt-heap-instances [snapshotId]="h.id" /> }
+          @case ('findings') { <debrief-heap-findings [snapshotId]="h.id" /> }
+          @case ('types') { <debrief-heap-types [snapshotId]="h.id" /> }
+          @case ('diff') { <debrief-heap-diff /> }
+          @case ('growth') { <debrief-heap-growth /> }
+          @case ('dominators') { <debrief-heap-dominators [snapshotId]="h.id" /> }
+          @case ('instances') { <debrief-heap-instances [snapshotId]="h.id" /> }
         }
       </div>
     } @else {
-      <imt-no-capture text="Open a heap snapshot (.heapsnapshot) to analyse memory." i18n-text="@@profiling.heap.noCapture" />
+      <debrief-no-capture text="Open a heap snapshot (.heapsnapshot) to analyse memory." i18n-text="@@profiling.heap.noCapture" />
     }
   `,
   styles: [

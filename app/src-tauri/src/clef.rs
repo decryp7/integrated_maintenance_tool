@@ -1,5 +1,5 @@
-//! IMT's own logs in Serilog's compact JSON format (CLEF), one event per
-//! line, so they can be opened in IMT itself or in Seq and other Serilog tools.
+//! Debrief's own logs in Serilog's compact JSON format (CLEF), one event per
+//! line, so they can be opened in Debrief itself or in Seq and other Serilog tools.
 
 use chrono::{DateTime, SecondsFormat, Utc};
 use log::kv::{Key, Value as KvValue, VisitSource};
@@ -19,7 +19,7 @@ pub struct Enrichment {
 impl Enrichment {
     pub fn current() -> Enrichment {
         Enrichment {
-            application: "IMT",
+            application: "Debrief",
             version: env!("CARGO_PKG_VERSION"),
             process_id: std::process::id(),
             commit: crate::activity::build_commit(),
@@ -130,7 +130,7 @@ mod tests {
 
     fn enrich() -> Enrichment {
         Enrichment {
-            application: "IMT",
+            application: "Debrief",
             version: "1.2.3",
             process_id: 42,
             commit: "abc1234",
@@ -148,17 +148,17 @@ mod tests {
         let t = Utc.with_ymd_and_hms(2026, 10, 17, 8, 30, 0).unwrap();
         let info = log::Record::builder()
             .level(log::Level::Info)
-            .target("imt_app")
+            .target("debrief_app")
             .args(format_args!("x"))
             .build();
-        let e = parse(&format(t, &info, "Application starting — IMT 1.2.3", &enrich()));
+        let e = parse(&format(t, &info, "Application starting — Debrief 1.2.3", &enrich()));
         assert_eq!(e["@t"], "2026-10-17T08:30:00.000000Z");
         assert!(!e.contains_key("@l"));
-        assert_eq!(e["@m"], "Application starting — IMT 1.2.3");
-        assert_eq!(e["SourceContext"], "imt_app");
+        assert_eq!(e["@m"], "Application starting — Debrief 1.2.3");
+        assert_eq!(e["SourceContext"], "debrief_app");
         assert_eq!(
             (e["Application"].clone(), e["Version"].clone(), e["ProcessId"].clone()),
-            ("IMT".into(), "1.2.3".into(), 42.into())
+            ("Debrief".into(), "1.2.3".into(), 42.into())
         );
 
         for (level, want) in [
@@ -233,6 +233,6 @@ mod tests {
             .build();
         let e = parse(&format(t, &r, "m", &enrich()));
         assert_eq!((e["@l"].clone(), e["Severity"].clone()), ("Warning".into(), "Minor".into()));
-        assert_eq!(Enrichment::current().application, "IMT");
+        assert_eq!(Enrichment::current().application, "Debrief");
     }
 }

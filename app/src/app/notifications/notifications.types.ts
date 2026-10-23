@@ -1,12 +1,12 @@
-// Wire contract of the notification centre (`notifications_*` commands, `imt://notifications` and
-// `imt://notifications-open` events; camelCase JSON), mirrored by
+// Wire contract of the notification centre (`notifications_*` commands, `debrief://notifications` and
+// `debrief://notifications-open` events; camelCase JSON), mirrored by
 // app/src-tauri/src/notification_centre/{centre,persist,mod}.rs. Change both sides together.
 
 export type NoticeSource = 'job' | 'liveAlert' | 'import' | 'plugin' | 'ai' | 'update' | 'session' | 'performance' | 'workspace';
 
 export const NOTICE_SOURCES: readonly NoticeSource[] = ['job', 'liveAlert', 'import', 'plugin', 'ai', 'update', 'session', 'performance', 'workspace'];
 
-/** One of IMT's capped processes (Settings ▸ Performance, `performance.types.ts`). */
+/** One of Debrief's capped processes (Settings ▸ Performance, `performance.types.ts`). */
 export type NoticeProcess = { kind: 'storeWorker' } | { kind: 'ai' } | { kind: 'plugin'; pluginId: string };
 
 export type NoticeSeverity = 'info' | 'success' | 'warning' | 'error';
@@ -69,7 +69,7 @@ export interface NoticesSnapshot {
   unread: number;
 }
 
-/** `imt://notifications`: the list, and the message just posted (previewed as a toast). */
+/** `debrief://notifications`: the list, and the message just posted (previewed as a toast). */
 export interface NoticesEvent extends NoticesSnapshot {
   posted: Notice | null;
 }

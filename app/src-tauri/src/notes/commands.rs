@@ -1,15 +1,15 @@
 //! The notes commands (ADR 0021): list (with which anchors still resolve), add, change and remove notes, the
 //! project record saved with projects and sessions, and the images notes mark. Thin: drafts and changes are checked
-//! by `imt_notes`; event anchors are filled from the store and image anchors from the images this window opened, so
+//! by `debrief_notes`; event anchors are filled from the store and image anchors from the images this window opened, so
 //! the webview never decides what a note points at. Nothing here logs note text.
 
 use super::images::{self, NoteImage};
 use super::{author, now_ms};
 use crate::error::{CmdError, CmdResult};
 use crate::windows::{CurrentWindow, WindowState};
-use imt_core::batch::EventId;
-use imt_core::ports::EventsRequest;
-use imt_notes::{Anchor, Note, NoteChange, NoteDraft, NoteRecord, MAX_NOTES, MAX_REGIONS, MAX_TAGS, MAX_TEXT_BYTES};
+use debrief_core::batch::EventId;
+use debrief_core::ports::EventsRequest;
+use debrief_notes::{Anchor, Note, NoteChange, NoteDraft, NoteRecord, MAX_NOTES, MAX_REGIONS, MAX_TAGS, MAX_TEXT_BYTES};
 use serde::Serialize;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -218,7 +218,7 @@ pub async fn notes_restore(win: CurrentWindow, record: Option<Value>) -> CmdResu
 #[tauri::command]
 pub async fn notes_image_open(win: CurrentWindow, grants: crate::paths::WindowGrants, path: String) -> CmdResult<NoteImage> {
     let w = win.arc().clone();
-    let granted = grants.read_or_listed(&path, imt_ai::vision::SourceFormat::EXTENSIONS, |raw| {
+    let granted = grants.read_or_listed(&path, debrief_ai::vision::SourceFormat::EXTENSIONS, |raw| {
         listed_paths(&w).contains(raw)
     })?;
     let file = granted.path().to_path_buf();

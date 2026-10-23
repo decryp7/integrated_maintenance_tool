@@ -5,7 +5,7 @@ import { PaletteEntry, plainEntry, rankCommands, TitlePart, titleParts } from '.
 import { COMMON_COMMANDS, PaletteRecent } from './palette-recent';
 import { ViewRegistry } from '../extensions/view-registry';
 import { formatKeybinding } from '../extensions/keybinding';
-import { ImtCommand, VIEW_OPEN_PREFIX } from '../extensions/tokens';
+import { DebriefCommand, VIEW_OPEN_PREFIX } from '../extensions/tokens';
 import { PaletteService } from './palette.service';
 import { didYouMean } from './did-you-mean';
 import { ActiveDescendantNavigation } from '../shared/list-navigation';
@@ -14,11 +14,11 @@ let nextId = 0;
 
 /** Keyboard-driven command picker (⌘K / Ctrl+K, or the title bar search box). */
 @Component({
-  selector: 'imt-command-palette',
+  selector: 'debrief-command-palette',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (palette.isOpen()) {
-      <div class="backdrop" data-imt-overlay (mousedown)="close()"></div>
+      <div class="backdrop" data-debrief-overlay (mousedown)="close()"></div>
       <div class="box" role="dialog" aria-modal="true" [attr.aria-label]="dialogLabel()">
         <input
           #input
@@ -83,11 +83,11 @@ export class CommandPalette {
   private readonly injector = inject(Injector);
   private readonly input = viewChild<ElementRef<HTMLInputElement>>('input');
 
-  protected readonly listId = `imt-palette-list-${nextId++}`;
+  protected readonly listId = `debrief-palette-list-${nextId++}`;
   protected readonly query = signal('');
   /** Listing only the views (View ▸ Other windows…), each shown as an entry that opens it. */
   protected readonly views = computed(() => this.palette.mode() === 'views');
-  private readonly viewEntries = computed<ImtCommand[]>(() =>
+  private readonly viewEntries = computed<DebriefCommand[]>(() =>
     this.viewRegistry.available().map((v) => ({ id: `view:${v.id}`, title: v.title, category: v.category === 'core' ? $localize`:@@palette.category.view:View` : (v.category ?? $localize`:@@palette.category.plugins:Plugins`), run: () => this.injector.get(DockService).show(v.id) })),
   );
   /**
@@ -156,7 +156,7 @@ export class CommandPalette {
     return `${this.listId}-${i}`;
   }
 
-  protected hint(c: ImtCommand): string {
+  protected hint(c: DebriefCommand): string {
     return formatKeybinding(c.keybinding ?? '');
   }
 
@@ -194,7 +194,7 @@ export class CommandPalette {
     this.returnFocus = null;
   }
 
-  protected run(c: ImtCommand): void {
+  protected run(c: DebriefCommand): void {
     this.palette.close();
     this.returnFocus = null;
     if (this.views()) this.injector.get(DockService).show(c.id.slice('view:'.length));

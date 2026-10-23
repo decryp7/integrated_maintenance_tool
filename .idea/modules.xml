@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/integrated_maintenance_tool.iml" filepath="$PROJECT_DIR$/.idea/integrated_maintenance_tool.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/debrief.iml" filepath="$PROJECT_DIR$/.idea/debrief.iml" />
     </modules>
   </component>
 </project>

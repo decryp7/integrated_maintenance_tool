@@ -92,7 +92,7 @@ describe('activity privacy', () => {
     expect(isUserError({ code: 'cancelled', message: 'stopped' })).toBe(true);
     expect(isUserError({ code: 'internal', message: 'invalid state' })).toBe(false);
     expect(isUserError({ code: 'engine', message: 'not found' })).toBe(false);
-    // A research page that failed in the browser is the web's doing, not an IMT bug (regression: reported as
+    // A research page that failed in the browser is the web's doing, not a Debrief bug (regression: reported as
     // "the model engine failed: the browser: ...").
     expect(isUserError({ code: 'browser', message: 'The browser could not finish: the page did not answer in time' })).toBe(true);
     expect(isUserError(new Error('index out of bounds'))).toBe(false);
@@ -114,7 +114,7 @@ describe('ActivityRuntime', () => {
     expect(level).toBe('info');
     expect(message).toBe('User export.csv via menu');
     expect(props).toMatchObject({
-      SourceContext: 'IMT.Activity',
+      SourceContext: 'Debrief.Activity',
       MessageTemplate: 'User {Operation} via {Trigger}',
       Operation: 'export.csv',
       Trigger: 'menu',
@@ -237,8 +237,8 @@ describe('TriggerTracker', () => {
 
   it('classifies targets', () => {
     expect(classifyTarget(null)).toBe('unknown');
-    expect(classifyTarget(el('<imt-command-palette><div id="x"></div></imt-command-palette>', '#x'))).toBe('palette');
-    expect(classifyTarget(el('<imt-title-bar><div role="menu"><button role="menuitem" id="x">Open</button></div></imt-title-bar>', '#x'))).toBe('menu');
+    expect(classifyTarget(el('<debrief-command-palette><div id="x"></div></debrief-command-palette>', '#x'))).toBe('palette');
+    expect(classifyTarget(el('<debrief-title-bar><div role="menu"><button role="menuitem" id="x">Open</button></div></debrief-title-bar>', '#x'))).toBe('menu');
     expect(classifyTarget(el('<div role="menu"><button role="menuitem" id="x">Copy</button></div>', '#x'))).toBe('context-menu');
     expect(classifyTarget(el('<div role="menu" data-menu="File"><button role="menuitem" id="x">Open</button></div>', '#x'))).toBe('menu');
     expect(classifyTarget(el('<div role="dialog"><button id="x">OK</button></div>', '#x'))).toBe('dialog');
@@ -250,7 +250,7 @@ describe('TriggerTracker', () => {
     const key = (k: string, target: Element | null, mods: Partial<KeyboardEvent> = {}) => classifyKey({ key: k, ctrlKey: false, metaKey: false, altKey: false, target, ...mods });
     expect(key('p', null, { metaKey: true })).toBe('shortcut');
     expect(key('F5', null)).toBe('shortcut');
-    expect(key('Enter', el('<imt-command-palette><input id="x"></imt-command-palette>', '#x'))).toBe('palette');
+    expect(key('Enter', el('<debrief-command-palette><input id="x"></debrief-command-palette>', '#x'))).toBe('palette');
     expect(key('Enter', el('<div role="dialog"><input id="x"></div>', '#x'))).toBe('dialog');
     expect(key('a', el('<input id="x">', '#x'))).toBe('keyboard');
     expect(key('Escape', el('<div id="x"></div>', '#x'))).toBe('shortcut');
@@ -301,7 +301,7 @@ describe('TriggerTracker', () => {
 describe('ActivityLog', () => {
   beforeEach(() => activity.reset());
 
-  it('sends entries to the logger under IMT.Activity', async () => {
+  it('sends entries to the logger under Debrief.Activity', async () => {
     TestBed.configureTestingModule({ providers: [{ provide: Logger, useFactory: () => new MemoryLogger() }] });
     const log = TestBed.inject(ActivityLog);
     log.setDetail('detailed');
@@ -312,9 +312,9 @@ describe('ActivityLog', () => {
     activity.flushCoalesced();
     const entries = (TestBed.inject(Logger) as MemoryLogger).entries;
     expect(entries.map((e) => [e.category, e.message])).toEqual([
-      ['IMT.Activity', 'User help.demo via button'],
-      ['IMT.Activity', 'User dock.popout via button'],
-      ['IMT.Activity', 'User selection.change via pointer'],
+      ['Debrief.Activity', 'User help.demo via button'],
+      ['Debrief.Activity', 'User dock.popout via button'],
+      ['Debrief.Activity', 'User selection.change via pointer'],
     ]);
     expect(log.breadcrumbs(2).map((b) => b.operation)).toEqual(['dock.popout', 'selection.change']);
     expect(log.currentOperationId()).toBeTruthy();
@@ -323,16 +323,16 @@ describe('ActivityLog', () => {
 
 describe('IPC operation header', () => {
   it('adds the header without dropping others', () => {
-    expect(withOpHeader(undefined, 'op1')).toEqual({ headers: { 'imt-op-id': 'op1' } });
-    expect(withOpHeader({ headers: { a: 'b' } }, 'op1')).toEqual({ headers: { 'imt-op-id': 'op1', a: 'b' } });
-    expect(withOpHeader({ headers: { 'imt-op-id': 'mine' } }, 'op1').headers).toEqual({ 'imt-op-id': 'mine' });
+    expect(withOpHeader(undefined, 'op1')).toEqual({ headers: { 'debrief-op-id': 'op1' } });
+    expect(withOpHeader({ headers: { a: 'b' } }, 'op1')).toEqual({ headers: { 'debrief-op-id': 'op1', a: 'b' } });
+    expect(withOpHeader({ headers: { 'debrief-op-id': 'mine' } }, 'op1').headers).toEqual({ 'debrief-op-id': 'mine' });
     expect(withOpHeader({ headers: [['a', 'b']] }, 'op1').headers).toEqual([
       ['a', 'b'],
-      ['imt-op-id', 'op1'],
+      ['debrief-op-id', 'op1'],
     ]);
-    expect(withOpHeader({ headers: [['IMT-OP-ID', 'x']] }, 'op1').headers).toEqual([['IMT-OP-ID', 'x']]);
+    expect(withOpHeader({ headers: [['Debrief-OP-ID', 'x']] }, 'op1').headers).toEqual([['Debrief-OP-ID', 'x']]);
     const h = withOpHeader({ headers: new Headers({ a: 'b' }) }, 'op1').headers as Headers;
-    expect([h.get('a'), h.get('imt-op-id')]).toEqual(['b', 'op1']);
+    expect([h.get('a'), h.get('debrief-op-id')]).toEqual(['b', 'op1']);
   });
 });
 
@@ -383,7 +383,7 @@ describe('steps to reproduce (mock port)', () => {
       b('live.on', 'button'),
       b('edit.undo', 'shortcut'),
       b('file.open', 'native-menu'),
-      b('file.save', 'context-menu', { File: 'p.imtproj' }),
+      b('file.save', 'context-menu', { File: 'p.debriefproj' }),
       b('dock.layout', 'menu'),
       b('ai.ask', 'button'),
     ];
@@ -399,7 +399,7 @@ describe('steps to reproduce (mock port)', () => {
       '9. Turned live tail on with a button',
       '10. Undid the last change with a keyboard shortcut',
       '11. Opened files from the app menu',
-      '12. Saved p.imtproj from a context menu',
+      '12. Saved p.debriefproj from a context menu',
       '13. Applied a panel layout from the menu',
       '14. Asked the AI assistant with a button',
     ]);
@@ -425,8 +425,8 @@ describe('steps to reproduce (mock port)', () => {
 describe('fault injection (test hook)', () => {
   it('replaces the named views with a throwing component, in browser builds only', async () => {
     const { faultyViews, withInjectedFaults, InjectedFault } = await import('./fault-injection');
-    expect(faultyViews('?imtFault=view:timeline', false)).toBe('timeline');
-    expect(faultyViews('?imtFault=view:*', true)).toBeNull();
+    expect(faultyViews('?debriefFault=view:timeline', false)).toBe('timeline');
+    expect(faultyViews('?debriefFault=view:*', true)).toBeNull();
     expect(faultyViews('?other=1', false)).toBeNull();
     const views = [{ id: 'a', title: 'A', icon: 'x', component: async () => Object }, { id: 'b', title: 'B', icon: 'x', component: async () => Object }];
     expect(withInjectedFaults(views, null)).toBe(views);

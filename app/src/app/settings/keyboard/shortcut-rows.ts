@@ -1,6 +1,6 @@
 import { formatKeybinding } from '../../extensions/keybinding';
 import { normalizeBinding } from '../../extensions/keybinding-overrides';
-import { ImtCommand } from '../../extensions/tokens';
+import { DebriefCommand } from '../../extensions/tokens';
 
 /** One line of the shortcut editor. */
 export interface ShortcutRow {
@@ -24,7 +24,7 @@ export interface ShortcutRow {
  * The rows of the editor: every command (bound or not) with its effective and declared binding, filtered by `query`
  * (every word must occur in the category, title or keys), sorted by category then title.
  */
-export function shortcutRows(commands: readonly ImtCommand[], declared: (id: string) => string | undefined, query: string, uncategorised: string, mac?: boolean): ShortcutRow[] {
+export function shortcutRows(commands: readonly DebriefCommand[], declared: (id: string) => string | undefined, query: string, uncategorised: string, mac?: boolean): ShortcutRow[] {
   const words = query.toLowerCase().split(/\s+/).filter(Boolean);
   const canon = (b: string | null) => (b ? normalizeBinding(b) : null);
   return commands

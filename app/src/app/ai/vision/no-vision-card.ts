@@ -9,7 +9,7 @@ import { AiImageStore } from './ai-image.store';
  * asks) or another model marked "Text + images". Shared by the chat and the image view.
  */
 @Component({
-  selector: 'imt-ai-no-vision',
+  selector: 'debrief-ai-no-vision',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="card" role="note" data-testid="ai-no-vision">

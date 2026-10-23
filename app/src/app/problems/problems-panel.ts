@@ -31,7 +31,7 @@ export function severityLabel(s: Severity): string {
  * parser changes and its files are read again) or ask the AI for a parser to review.
  */
 @Component({
-  selector: 'imt-problems-panel',
+  selector: 'debrief-problems-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, KnownIssues, PanelEmpty],
   template: `
@@ -39,7 +39,7 @@ export function severityLabel(s: Severity): string {
       <span class="summary" data-testid="problems-summary">{{ summary() }}</span>
       <span class="spacer"></span>
       <button type="button" class="icon-btn" data-testid="problems-refresh" aria-label="Refresh problems" i18n-aria-label="@@problems.refresh" title="Refresh" i18n-title="@@problems.refreshTitle" [disabled]="store.loading()" (click)="store.load()">
-        <imt-icon name="refresh" [size]="13" />
+        <debrief-icon name="refresh" [size]="13" />
       </button>
     </div>
     @if (store.index(); as idx) {
@@ -56,15 +56,15 @@ export function severityLabel(s: Severity): string {
     @if (store.actionError(); as error) {
       <div class="error" role="alert" data-testid="problems-action-error">
         <span>{{ error }}</span>
-        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@problems.dismiss" (click)="store.dismiss()"><imt-icon name="close" [size]="12" /></button>
+        <button type="button" class="icon-btn" aria-label="Dismiss" i18n-aria-label="@@problems.dismiss" (click)="store.dismiss()"><debrief-icon name="close" [size]="12" /></button>
       </div>
     }
     @if (store.notice(); as notice) {
       <div class="notice" role="status">{{ notice }}</div>
     }
-    <imt-known-issues />
+    <debrief-known-issues />
     @if (store.loaded() && rows().length === 0 && !store.loadError()) {
-      <imt-panel-empty class="empty" data-testid="problems-empty" icon="check" title="No problems" i18n-title="@@problems.empty.title"><ng-container i18n="@@problems.empty">Every opened file was read completely.</ng-container></imt-panel-empty>
+      <debrief-panel-empty class="empty" data-testid="problems-empty" icon="check" title="No problems" i18n-title="@@problems.empty.title"><ng-container i18n="@@problems.empty">Every opened file was read completely.</ng-container></debrief-panel-empty>
     } @else {
       <div class="body">
         <div class="tree" role="tree" aria-label="Problems" i18n-aria-label="@@problems.tree" (keydown)="onKey($event)">
@@ -84,8 +84,8 @@ export function severityLabel(s: Severity): string {
                 [title]="r.group.path"
                 (click)="activate(r)"
               >
-                <imt-icon class="twisty" [name]="r.expanded ? 'chevronDown' : 'chevronRight'" [size]="12" />
-                <imt-icon [class]="'sev ' + r.group.severity" name="alert" [size]="13" />
+                <debrief-icon class="twisty" [name]="r.expanded ? 'chevronDown' : 'chevronRight'" [size]="12" />
+                <debrief-icon [class]="'sev ' + r.group.severity" name="alert" [size]="13" />
                 <span class="name ellipsis">{{ r.group.name }}</span>
                 <span class="count">{{ r.group.items.length }}</span>
               </div>
@@ -104,7 +104,7 @@ export function severityLabel(s: Severity): string {
                 [class.sel]="r.item.key === store.selectedKey()"
                 (click)="activate(r)"
               >
-                <imt-icon [class]="'sev ' + r.item.row.severity" name="alert" [size]="13" />
+                <debrief-icon [class]="'sev ' + r.item.row.severity" name="alert" [size]="13" />
                 <span class="sr-only">{{ severity(r.item.row.severity) }}:</span>
                 <span class="name ellipsis">{{ kind(r.item.row.kind) }}</span>
                 <span class="count">{{ count(r.item) }}</span>
@@ -118,7 +118,7 @@ export function severityLabel(s: Severity): string {
         <section class="details" aria-label="Problem details" i18n-aria-label="@@problems.details">
           @if (store.selected(); as sel) {
             <h3 class="title" data-testid="problem-title">
-              <imt-icon [class]="'sev ' + sel.row.severity" name="alert" [size]="14" />
+              <debrief-icon [class]="'sev ' + sel.row.severity" name="alert" [size]="14" />
               <span>{{ kind(sel.row.kind) }}</span>
               <span class="count">{{ count(sel) }}</span>
             </h3>
@@ -137,7 +137,7 @@ export function severityLabel(s: Severity): string {
             }
             @if (sel.row.fix; as fix) {
               <div class="fix" data-testid="quick-fix">
-                <div class="fix-title"><imt-icon name="check" [size]="12" /> <span i18n="@@problems.fix.title">Quick fix: {{ fix.title }}</span></div>
+                <div class="fix-title"><debrief-icon name="check" [size]="12" /> <span i18n="@@problems.fix.title">Quick fix: {{ fix.title }}</span></div>
                 <pre class="fragment mono" aria-label="Parser change" i18n-aria-label="@@problems.fix.fragment">{{ fix.parserOverride }}</pre>
                 @if (preview(sel.key); as p) {
                   @if (p.state === 'running') {
@@ -159,7 +159,7 @@ export function severityLabel(s: Severity): string {
             }
             @if (canAskAi(sel)) {
               <div class="actions">
-                <button type="button" class="btn" data-testid="ask-ai-fix" (click)="store.askAi(sel.key)"><imt-icon name="ai" [size]="12" /> <span i18n="@@problems.askAi">Ask the AI to fix…</span></button>
+                <button type="button" class="btn" data-testid="ask-ai-fix" (click)="store.askAi(sel.key)"><debrief-icon name="ai" [size]="12" /> <span i18n="@@problems.askAi">Ask the AI to fix…</span></button>
                 @if (sel.row.kind === 'unknownFormat') {
                   <button type="button" class="btn" (click)="setUpFormat(sel)" i18n="@@problems.setUpFormat">Set up format…</button>
                 }

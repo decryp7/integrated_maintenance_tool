@@ -34,8 +34,8 @@ Source: [c4-1-context.drawio](diagrams/c4-1-context.drawio)
 The runnable units and the processes they run in, in three diagrams. See ADR [0009](adr/0009-prebuilt-llama-server-runtimes.md), [0014](adr/0014-database-first-engine.md), [0017](adr/0017-one-ipc-out-of-process-plugins.md), [0027](adr/0027-plugin-sdk.md), [0043](adr/0043-chromium-renderer.md) and [0044](adr/0044-headless-command-line.md).
 
 1. **The workbench:** the Tauri app with its linked Rust libraries, the Angular UI in the OS webview, and the sandboxed plugin and store-worker processes.
-2. **AI, research and video:** `imt-ai` and its worker with `llama-server`, `chromium-driver` and the Chromium it drives, `imt-video` and FFmpeg, symbol servers.
-3. **Command line and collection:** the `imt` command line over the store worker, and the agent, collector and monitor tools.
+2. **AI, research and video:** `debrief-ai` and its worker with `llama-server`, `chromium-driver` and the Chromium it drives, `debrief-video` and FFmpeg, symbol servers.
+3. **Command line and collection:** the `debrief` command line over the store worker, and the agent, collector and monitor tools.
 
 ![C4 containers: the workbench](diagrams/svg/c4-2-containers.svg)
 
@@ -51,7 +51,7 @@ Source: [c4-2-containers-headless.drawio](diagrams/c4-2-containers-headless.draw
 
 ### Level 3 — engine components
 
-Inside `imt-core`, in four diagrams: ingest (importers, archives, the parser library, profiles, the pipeline, the Store ports and watched folders), query and aggregation (with lenses, Home, search everything and live), analysis and investigation (anomalies, patterns, exceptions, error outliers, known issues, the incident report, playbooks) and sharing, projects and settings.
+Inside `debrief-core`, in four diagrams: ingest (importers, archives, the parser library, profiles, the pipeline, the Store ports and watched folders), query and aggregation (with lenses, Home, search everything and live), analysis and investigation (anomalies, patterns, exceptions, error outliers, known issues, the incident report, playbooks) and sharing, projects and settings.
 
 ![Engine components: ingest](diagrams/svg/c4-3-engine-ingest.svg)
 
@@ -87,7 +87,7 @@ Source: [c4-3-ui-tools.drawio](diagrams/c4-3-ui-tools.drawio)
 
 ### Level 3 — research browser
 
-Research and Agent mode drive a real Chromium over DevTools through three ports in `imt-ai`, with the neutral `chromium-driver` crate underneath (ADR [0043](adr/0043-chromium-renderer.md)).
+Research and Agent mode drive a real Chromium over DevTools through three ports in `debrief-ai`, with the neutral `chromium-driver` crate underneath (ADR [0043](adr/0043-chromium-renderer.md)).
 
 ![Research browser components](diagrams/svg/c4-3-research-browser.svg)
 
@@ -153,7 +153,7 @@ Source: [uml-class-domain-query.drawio](diagrams/uml-class-domain-query.drawio)
 
 ### Plugin API
 
-What a plugin implements (`imt-plugin-api`), how the engine registers and guards contributions (registry, `Guarded*` adapters, quarantine), and how plugins run out of process (`RemotePlugin`, the supervisor, the sandboxed child). See ADR [0003](adr/0003-plugin-dependencies-services-events.md) (engine-internal since 0017) and [0017](adr/0017-one-ipc-out-of-process-plugins.md).
+What a plugin implements (`debrief-plugin-api`), how the engine registers and guards contributions (registry, `Guarded*` adapters, quarantine), and how plugins run out of process (`RemotePlugin`, the supervisor, the sandboxed child). See ADR [0003](adr/0003-plugin-dependencies-services-events.md) (engine-internal since 0017) and [0017](adr/0017-one-ipc-out-of-process-plugins.md).
 
 ![Plugin API: what a plugin implements](diagrams/svg/uml-class-plugin-api.svg)
 
@@ -235,7 +235,7 @@ Source: [uml-seq-watched-folder.drawio](diagrams/uml-seq-watched-folder.drawio)
 
 ### The command line
 
-`imt analyze outliers` end to end: the CLI starts the same store worker as the app, imports through the ports and runs the pure outlier analysis over the `Query` port (ADR [0044](adr/0044-headless-command-line.md), [0045](adr/0045-error-outliers.md)).
+`debrief analyze outliers` end to end: the CLI starts the same store worker as the app, imports through the ports and runs the pure outlier analysis over the `Query` port (ADR [0044](adr/0044-headless-command-line.md), [0045](adr/0045-error-outliers.md)).
 
 ![Command line sequence](diagrams/svg/uml-seq-cli-outliers.svg)
 

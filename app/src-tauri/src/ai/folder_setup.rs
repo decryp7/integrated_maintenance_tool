@@ -7,7 +7,7 @@
 use crate::jobs::{Controls, Done, JobKind, JobProgress, JobResult, JobSpec};
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
-use imt_core::survey::{self, ComposedProfile, Fragment, SurveyControl, SurveyError, SurveyProgress, SurveyRequest};
+use debrief_core::survey::{self, ComposedProfile, Fragment, SurveyControl, SurveyError, SurveyProgress, SurveyRequest};
 use serde_json::{json, Value};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::time::Duration;
@@ -25,7 +25,7 @@ struct Ticker(Option<mpsc::Sender<()>>);
 impl Ticker {
     fn start(control: SurveyControl, channel: Channel<SurveyProgress>) -> Ticker {
         let (stop, stopped) = mpsc::channel::<()>();
-        let spawned = std::thread::Builder::new().name("imt-survey-progress".into()).spawn(move || {
+        let spawned = std::thread::Builder::new().name("debrief-survey-progress".into()).spawn(move || {
             let mut last = None;
             while let Err(RecvTimeoutError::Timeout) = stopped.recv_timeout(PROGRESS_EVERY) {
                 let now = control.progress();
@@ -110,7 +110,7 @@ pub async fn folder_setup_compose(state: CurrentWindow, fragments: Vec<Fragment>
     }
     let base = state.profile_doc().toml;
     crate::engine::with_store(&state, move |store| {
-        survey::compose(store, &base, &fragments).map_err(|e| imt_core::ports::StoreError::Invalid(format!("{e:#}")))
+        survey::compose(store, &base, &fragments).map_err(|e| debrief_core::ports::StoreError::Invalid(format!("{e:#}")))
     })
     .await
 }

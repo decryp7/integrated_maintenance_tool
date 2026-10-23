@@ -7,7 +7,7 @@ use std::time::Duration;
 
 const TAG: &str = "b200";
 /// The file name of an autosaved session (`lifecycle`).
-const SESSION_FILE: &str = "last-session.imtproj";
+const SESSION_FILE: &str = "last-session.debriefproj";
 
 /// Sets a file's modification time.
 fn touch(path: &Path, t: SystemTime) {
@@ -77,11 +77,11 @@ impl AiPort for FakeAi {
 
 fn folders<'a>(d: &Path, ai: Option<&'a dyn AiPort>, start: Option<SystemTime>) -> Folders<'a> {
     Folders {
-        bundles: Some(d.join("tmp").join("imt-bundles")),
+        bundles: Some(d.join("tmp").join("debrief-bundles")),
         webview: Some(d.join("local")),
         data: Some(d.join("data")),
         log: Some(d.join("logs")),
-        active_log: Some(d.join("logs").join("imt.2026-10-18.log")),
+        active_log: Some(d.join("logs").join("debrief.2026-10-18.log")),
         runtime_tag: TAG.into(),
         session_start: start,
         main_instance: true,
@@ -111,7 +111,7 @@ fn every_category_resolves_from_the_app_folders() {
     let ids: Vec<_> = cats.iter().map(|c| c.id).collect();
     assert_eq!(ids, CategoryId::ALL[..8], "stores are listed only once their folder exists");
     let shown = |id| find(&cats, id).shown.clone().unwrap();
-    assert_eq!(shown(CategoryId::BundleExtracts), d.0.join("tmp").join("imt-bundles"));
+    assert_eq!(shown(CategoryId::BundleExtracts), d.0.join("tmp").join("debrief-bundles"));
     assert_eq!(shown(CategoryId::WebviewCache), d.0.join("local"));
     assert_eq!(shown(CategoryId::AiRuntimesOutdated), d.0.join("data").join("ai").join("runtimes"));
     assert_eq!(
@@ -161,10 +161,10 @@ fn unresolved_folders_are_listed_but_not_clearable() {
 fn the_current_log_file_is_never_removed() {
     let d = TempDir::new("storage-plan-logs");
     let logs = d.0.join("logs");
-    write(&logs.join("imt.2026-10-18.log"), 10);
-    write(&logs.join("imt.2026-10-17.log"), 20);
-    write(&logs.join("imt.2026-10-16.log"), 30);
-    write(&logs.join("imt.log"), 5);
+    write(&logs.join("debrief.2026-10-18.log"), 10);
+    write(&logs.join("debrief.2026-10-17.log"), 20);
+    write(&logs.join("debrief.2026-10-16.log"), 30);
+    write(&logs.join("debrief.log"), 5);
     write(&logs.join("other.txt"), 7);
     write(&logs.join("snapshots").join("a.png"), 1);
     let f = folders(&d.0, None, None);
@@ -173,12 +173,12 @@ fn the_current_log_file_is_never_removed() {
     assert_eq!((row.bytes, row.files, row.clearable_bytes), (65, 4, 50));
     let r = clear_one(&f, CategoryId::Logs);
     assert_eq!(r.freed_bytes, 50);
-    assert!(logs.join("imt.2026-10-18.log").is_file(), "today's log stays");
-    assert!(logs.join("imt.log").is_file());
-    assert!(logs.join("other.txt").is_file(), "only IMT's logs are listed");
-    assert!(!logs.join("imt.2026-10-17.log").exists());
+    assert!(logs.join("debrief.2026-10-18.log").is_file(), "today's log stays");
+    assert!(logs.join("debrief.log").is_file());
+    assert!(logs.join("other.txt").is_file(), "only Debrief's logs are listed");
+    assert!(!logs.join("debrief.2026-10-17.log").exists());
     assert_eq!(r.skipped_count, 2);
-    assert_eq!(r.skipped[0].reason, "IMT is writing to it");
+    assert_eq!(r.skipped[0].reason, "Debrief is writing to it");
 }
 
 #[test]
@@ -248,9 +248,9 @@ fn sessions_are_kept_when_the_run_start_is_unknown_or_another_instance_owns_them
 fn bundles_opened_in_this_run_are_kept() {
     let d = TempDir::new("storage-plan-bundles");
     let t = clock();
-    let root = d.0.join("tmp").join("imt-bundles");
-    file_at(&root.join("old-1").join("project.imtproj"), 50, t.old);
-    file_at(&root.join("open-now").join("project.imtproj"), 70, t.new);
+    let root = d.0.join("tmp").join("debrief-bundles");
+    file_at(&root.join("old-1").join("project.debriefproj"), 50, t.old);
+    file_at(&root.join("open-now").join("project.debriefproj"), 70, t.new);
     let f = folders(&d.0, None, Some(t.start));
     let cats = categories(&f);
     let row = usage(find(&cats, CategoryId::BundleExtracts), &mut Budget::standard());
@@ -258,7 +258,7 @@ fn bundles_opened_in_this_run_are_kept() {
     let r = clear_one(&f, CategoryId::BundleExtracts);
     assert_eq!(r.freed_bytes, 50);
     assert!(!root.join("old-1").exists());
-    assert!(root.join("open-now").join("project.imtproj").is_file());
+    assert!(root.join("open-now").join("project.debriefproj").is_file());
     assert_eq!(r.skipped[0].reason, "opened in this session");
 }
 
@@ -434,7 +434,7 @@ fn a_link_inside_a_category_is_removed_without_touching_its_target() {
     let t = clock();
     let outside = d.0.join("precious");
     write(&outside.join("keep.bin"), 9);
-    let root = d.0.join("tmp").join("imt-bundles");
+    let root = d.0.join("tmp").join("debrief-bundles");
     std::fs::create_dir_all(&root).unwrap();
     if !link_dir(&outside, &root.join("evil")) {
         return;
@@ -455,8 +455,8 @@ fn a_missing_folder_has_nothing_to_clear_and_progress_steps_per_item() {
     let r = clear_one(&f, CategoryId::Logs);
     assert_eq!((r.freed_bytes, r.skipped_count, r.error.clone()), (0, 0, None));
 
-    write(&d.0.join("logs").join("imt.2026-01-01.log"), 1);
-    write(&d.0.join("logs").join("imt.2026-01-02.log"), 1);
+    write(&d.0.join("logs").join("debrief.2026-01-01.log"), 1);
+    write(&d.0.join("logs").join("debrief.2026-01-02.log"), 1);
     let cats = categories(&f);
     let mut steps = 0;
     clear(find(&cats, CategoryId::Logs), None, &AtomicBool::new(false), &mut || steps += 1);
@@ -467,7 +467,7 @@ fn a_missing_folder_has_nothing_to_clear_and_progress_steps_per_item() {
 fn usage_is_capped_by_the_budget() {
     let d = TempDir::new("storage-plan-capped");
     for i in 0..10 {
-        write(&d.0.join("logs").join(format!("imt.2026-01-{i:02}.log")), 1);
+        write(&d.0.join("logs").join(format!("debrief.2026-01-{i:02}.log")), 1);
     }
     let cats = categories(&folders(&d.0, None, None));
     let row = usage(find(&cats, CategoryId::Logs), &mut Budget::new(3, Duration::from_secs(60)));

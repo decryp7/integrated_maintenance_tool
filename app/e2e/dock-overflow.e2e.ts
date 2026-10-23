@@ -11,7 +11,7 @@ const list = (page: Page) => page.locator('.dv-tabs-overflow-container');
 async function narrowDock(page: Page): Promise<void> {
   await openApp(page);
   await openView(page, 'metrics');
-  await page.locator('.imt-dock-mount').evaluate((el: HTMLElement) => (el.style.flex = '0 0 260px'));
+  await page.locator('.debrief-dock-mount').evaluate((el: HTMLElement) => (el.style.flex = '0 0 260px'));
   await expect(chip(page)).toBeVisible();
 }
 

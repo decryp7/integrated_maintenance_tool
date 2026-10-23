@@ -4,13 +4,13 @@ import { copyText } from '../tools/clipboard';
 import { ContextMenuService } from '../ui/context-menu.service';
 
 /**
- * Makes IMT's windows feel like a desktop app rather than a web page (ADR 0028): the browser's own context menu, reload,
+ * Makes Debrief's windows feel like a desktop app rather than a web page (ADR 0028): the browser's own context menu, reload,
  * back/forward, page zoom, find, print, save page, view source, middle-click autoscroll and (in release builds) devtools
  * are switched off, images and links cannot be dragged out, and files dropped where nothing takes them do not navigate.
- * Right-clicking selected text opens IMT's own menu with Copy. The Tauri shell turns off what WebView2 lets it (`native_feel.rs`);
+ * Right-clicking selected text opens Debrief's own menu with Copy. The Tauri shell turns off what WebView2 lets it (`native_feel.rs`);
  * this guard covers the rest and makes the browser build behave the same.
  *
- * Only the browser's default is prevented: events still reach IMT's own handlers (shortcuts, timeline Ctrl+wheel
+ * Only the browser's default is prevented: events still reach Debrief's own handlers (shortcuts, timeline Ctrl+wheel
  * zoom, context menus, drag-and-drop), which run first because the guard listens on the window in the bubble phase.
  */
 
@@ -79,13 +79,13 @@ export function shouldBlockMouseButton(button: number, editable = false): boolea
   return button === 3 || button === 4 || (button === 1 && !editable);
 }
 
-/** Ctrl+wheel (and a trackpad pinch, reported as one) zooms the page: IMT's own handlers still see the event. */
+/** Ctrl+wheel (and a trackpad pinch, reported as one) zooms the page: Debrief's own handlers still see the event. */
 export function shouldBlockWheel(e: Pick<WheelEvent, 'ctrlKey'>): boolean {
   return e.ctrlKey;
 }
 
 export interface ContextMenuTarget {
-  /** IMT opened its own menu (or a handler took the event). */
+  /** Debrief opened its own menu (or a handler took the event). */
   handled: boolean;
   /** A text field or editable content: its native menu (cut, copy, paste, spelling) stays. */
   editable: boolean;
@@ -96,8 +96,8 @@ export interface ContextMenuTarget {
 }
 
 /**
- * What a right-click does: `leave` it to the menu IMT opened, keep the `native` edit menu (text fields, developers),
- * open IMT's `copy` menu on selected text, or `block` the browser menu (it offers nothing but web-page actions).
+ * What a right-click does: `leave` it to the menu Debrief opened, keep the `native` edit menu (text fields, developers),
+ * open Debrief's `copy` menu on selected text, or `block` the browser menu (it offers nothing but web-page actions).
  */
 export type ContextMenuAction = 'leave' | 'native' | 'copy' | 'block';
 
@@ -108,7 +108,7 @@ export function contextMenuAction(t: ContextMenuTarget): ContextMenuAction {
   return t.onSelection ? 'copy' : 'block';
 }
 
-/** A file dragged over or dropped on the window that no IMT drop target took would navigate the window to it. */
+/** A file dragged over or dropped on the window that no Debrief drop target took would navigate the window to it. */
 export function shouldBlockFileDrop(t: { files: boolean; handled: boolean }): boolean {
   return t.files && !t.handled;
 }
@@ -118,7 +118,7 @@ export interface DragTarget {
   tag: string | null;
   /** Inside a link. */
   inLink: boolean;
-  /** The element opted in with `draggable="true"` (IMT's own drag sources). */
+  /** The element opted in with `draggable="true"` (Debrief's own drag sources). */
   draggable: boolean;
 }
 
@@ -173,7 +173,7 @@ function selectedTextAt(el: Element | null, selection: Selection | null, x: numb
 
 /** What the guard asks of the app. */
 export interface FeelHooks {
-  /** Opens IMT's menu with Copy for `text` at the pointer. Without it, the native menu stays on selected text. */
+  /** Opens Debrief's menu with Copy for `text` at the pointer. Without it, the native menu stays on selected text. */
   copyMenu?: (x: number, y: number, text: string) => void;
 }
 

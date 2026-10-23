@@ -10,7 +10,7 @@ import { chooseMenu } from './menu-support';
 export async function openProfiles(page: Page, search = ''): Promise<void> {
   await page.goto(`/${search}`);
   await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible({ timeout: APP_LOAD_TIMEOUT });
-  await expect(page.locator('imt-status-bar')).toContainText('events');
+  await expect(page.locator('debrief-status-bar')).toContainText('events');
   await chooseMenu(page, 'File', 'Open performance capture…');
   await expect(hotspots(page).locator('tbody tr[aria-rowindex]').first()).toBeVisible();
 }
@@ -20,7 +20,7 @@ export async function runCommand(page: Page, title: string): Promise<void> {
   await page.keyboard.press('ControlOrMeta+k');
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await input.fill(title);
-  await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText(title);
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText(title);
   await page.keyboard.press('Enter');
   await expect(input).toHaveCount(0);
 }
@@ -30,19 +30,19 @@ export async function runCommand(page: Page, title: string): Promise<void> {
  * (and the other profiling views) tab into the same group as the Captures list, so it is behind them.
  */
 export async function showCaptures(page: Page) {
-  const view = page.locator('imt-captures-view');
+  const view = page.locator('debrief-captures-view');
   if (!(await view.isVisible())) await page.getByRole('tab', { name: 'Captures', exact: true }).click();
   await expect(view).toBeVisible();
   return view;
 }
 
-export const hotspots = (page: Page) => page.locator('imt-hotspots-view');
-export const callTree = (page: Page) => page.locator('imt-call-tree-view');
-export const flame = (page: Page) => page.locator('imt-flame-view');
-export const compare = (page: Page) => page.locator('imt-compare-view');
-export const threads = (page: Page) => page.locator('imt-thread-timeline-view');
-export const findings = (page: Page) => page.locator('imt-findings-view');
-export const heap = (page: Page) => page.locator('imt-heap-view');
+export const hotspots = (page: Page) => page.locator('debrief-hotspots-view');
+export const callTree = (page: Page) => page.locator('debrief-call-tree-view');
+export const flame = (page: Page) => page.locator('debrief-flame-view');
+export const compare = (page: Page) => page.locator('debrief-compare-view');
+export const threads = (page: Page) => page.locator('debrief-thread-timeline-view');
+export const findings = (page: Page) => page.locator('debrief-findings-view');
+export const heap = (page: Page) => page.locator('debrief-heap-view');
 
 /** Names in the hotspots table, top to bottom (rows in the DOM). */
 export async function hotspotNames(page: Page): Promise<string[]> {

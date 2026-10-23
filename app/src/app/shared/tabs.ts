@@ -10,13 +10,13 @@ export interface TabItem {
 }
 
 /**
- * The one tab strip of IMT (Plugins, Store, Jobs, and the same underline the dock's tabs wear): text tabs with an accent
+ * The one tab strip of Debrief (Plugins, Store, Jobs, and the same underline the dock's tabs wear): text tabs with an accent
  * underline under the selected one, 32 px high, one tab stop with arrow/Home/End keys. `kind="tabs"` is the ARIA tab
  * pattern (the host owns the panel and points its `aria-controls` at it through `panelId`); `kind="filter"` is a group of
  * toggle buttons (`aria-pressed`) for a list filter that has no panel of its own.
  */
 @Component({
-  selector: 'imt-tabs',
+  selector: 'debrief-tabs',
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { '[attr.role]': 'kind() === "tabs" ? "tablist" : "group"', '[attr.aria-label]': 'label()' },
   template: `

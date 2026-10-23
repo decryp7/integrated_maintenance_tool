@@ -18,7 +18,7 @@ import { at } from '../../testing/must';
 
 const SAP = 'com.contoso.sap-logs';
 
-function setup(packages: Partial<MockPluginPackagesOptions> = {}, pick: string | null = '/p/web.imtplugin') {
+function setup(packages: Partial<MockPluginPackagesOptions> = {}, pick: string | null = '/p/web.debriefplugin') {
   const pickOpenPath = vi.fn(async () => pick);
   const showView = vi.fn();
   TestBed.configureTestingModule({
@@ -69,8 +69,8 @@ describe('package labels', () => {
     expect(refusalLiftedByTrust('unsigned')).toBe(true);
     expect(refusalLiftedByTrust('unknownKey')).toBe(true);
     expect(refusalLiftedByTrust('wrongTarget')).toBe(false);
-    expect(isPackagePath('/a/b.IMTPLUGIN')).toBe(true);
-    expect(isPackagePath('/a/b.imtplugin.log')).toBe(false);
+    expect(isPackagePath('/a/b.DEBRIEFPLUGIN')).toBe(true);
+    expect(isPackagePath('/a/b.debriefplugin.log')).toBe(false);
   });
 });
 
@@ -102,12 +102,12 @@ describe('PluginPackagesStore', () => {
     expect(store.error()).toBeNull();
   });
 
-  it('picks a package in the dialog filtered to .imtplugin and reviews it with every permission approved', async () => {
+  it('picks a package in the dialog filtered to .debriefplugin and reviews it with every permission approved', async () => {
     const { store, pickOpenPath, backend } = setup();
     await store.pickAndReview();
-    expect(pickOpenPath).toHaveBeenCalledWith('Install a plugin', [{ name: 'IMT plugin package', extensions: ['imtplugin'] }]);
-    expect(backend.calls).toContain('inspect:/p/web.imtplugin');
-    expect(store.review()?.path).toBe('/p/web.imtplugin');
+    expect(pickOpenPath).toHaveBeenCalledWith('Install a plugin', [{ name: 'Debrief plugin package', extensions: ['debriefplugin'] }]);
+    expect(backend.calls).toContain('inspect:/p/web.debriefplugin');
+    expect(store.review()?.path).toBe('/p/web.debriefplugin');
     expect(store.review()?.approved).toEqual(['runPrograms', 'network']);
     expect(store.canInstall()).toBe(true);
   });
@@ -127,7 +127,7 @@ describe('PluginPackagesStore', () => {
     const { store } = setup();
     store.toggleApproved('network');
     expect(store.review()).toBeNull();
-    await store.reviewPackage('/p/web.imtplugin');
+    await store.reviewPackage('/p/web.debriefplugin');
     store.toggleApproved('network');
     expect(store.review()?.approved).toEqual(['runPrograms']);
     store.toggleApproved('network');
@@ -137,11 +137,11 @@ describe('PluginPackagesStore', () => {
   it('installs with the reviewed digest and approved permissions, closes the review and needs a restart', async () => {
     const { store, backend } = setup();
     await store.load();
-    await store.reviewPackage('/p/web.imtplugin');
+    await store.reviewPackage('/p/web.debriefplugin');
     const digest = store.review()?.pkg.digest;
     store.toggleApproved('runPrograms');
     await store.install();
-    expect(backend.calls).toContain(`install:/p/web.imtplugin:${digest}:network`);
+    expect(backend.calls).toContain(`install:/p/web.debriefplugin:${digest}:network`);
     expect(store.review()).toBeNull();
     expect(store.restartNeeded()).toBe(true);
     expect(store.showRestart()).toBe(true);
@@ -154,12 +154,12 @@ describe('PluginPackagesStore', () => {
     const { store, backend } = setup();
     await store.install();
     expect(backend.calls).toEqual([]);
-    await store.reviewPackage('/p/unsigned.imtplugin');
+    await store.reviewPackage('/p/unsigned.debriefplugin');
     expect(store.review()?.approved).toEqual([]);
     expect(store.canInstall()).toBe(false);
     await store.install();
     expect(backend.calls.some((c) => c.startsWith('install:'))).toBe(false);
-    await store.reviewPackage('/p/web.imtplugin');
+    await store.reviewPackage('/p/web.debriefplugin');
     vi.spyOn(backend, 'installPackage').mockRejectedValueOnce(new CmdError({ code: 'diskFull', message: 'The disk is full.', retryable: true }));
     await store.install();
     expect(store.review()).not.toBeNull();
@@ -172,7 +172,7 @@ describe('PluginPackagesStore', () => {
 
   it('reports a tampered package without opening a review', async () => {
     const { store } = setup();
-    await store.reviewPackage('/p/tampered.imtplugin');
+    await store.reviewPackage('/p/tampered.debriefplugin');
     expect(store.review()).toBeNull();
     expect(store.error()).toBe('The package was changed after it was signed. Get the package again from its publisher.');
     store.dismissError();
@@ -247,14 +247,14 @@ describe('PluginPackagesStore', () => {
 });
 
 describe('dropped plugin packages', () => {
-  it('claims .imtplugin files, shows the Plugins panel and reviews the first', async () => {
+  it('claims .debriefplugin files, shows the Plugins panel and reviews the first', async () => {
     const { store, showView } = setup();
     const [drop] = TestBed.inject(DROPPED_FILES_HANDLERS);
     expect(await drop!(['/l/app.log'])).toEqual([]);
     expect(showView).not.toHaveBeenCalled();
-    expect(await drop!(['/l/app.log', '/p/web.imtplugin', '/p/update.IMTPLUGIN'])).toEqual(['/p/web.imtplugin', '/p/update.IMTPLUGIN']);
+    expect(await drop!(['/l/app.log', '/p/web.debriefplugin', '/p/update.DEBRIEFPLUGIN'])).toEqual(['/p/web.debriefplugin', '/p/update.DEBRIEFPLUGIN']);
     expect(showView).toHaveBeenCalledWith('plugins');
-    expect(store.review()?.path).toBe('/p/web.imtplugin');
+    expect(store.review()?.path).toBe('/p/web.debriefplugin');
     // The review dialog opened (its effect runs on the next tick).
     await settle();
     expect(TestBed.inject(DialogService).stack().map((d) => d.component)).toEqual([PackageReviewDialog]);
@@ -272,7 +272,7 @@ describe('PackageReviewDialog', () => {
     const { store, backend, dialogs } = setup();
     TestBed.inject(PackageReviewOpener);
     const host = await hostFixture();
-    await store.reviewPackage('/p/web.imtplugin');
+    await store.reviewPackage('/p/web.debriefplugin');
     await settle(host);
     expect(dialogs.stack().length).toBe(1);
     expect(el(host, '[role=dialog] h2').textContent).toBe('Install plugin');
@@ -300,14 +300,14 @@ describe('PackageReviewDialog', () => {
     const { store, dialogs } = setup();
     TestBed.inject(PackageReviewOpener);
     const host = await hostFixture();
-    await store.reviewPackage('/p/web.imtplugin');
+    await store.reviewPackage('/p/web.debriefplugin');
     await settle(host);
     buttonByText(host, 'Cancel').click();
     await settle(host);
     expect(dialogs.stack()).toEqual([]);
     expect(store.review()).toBeNull();
     // A new review opens a new dialog.
-    await store.reviewPackage('/p/web.imtplugin');
+    await store.reviewPackage('/p/web.debriefplugin');
     await settle(host);
     expect(dialogs.stack().length).toBe(1);
     dialogs.dismissTop();
@@ -319,7 +319,7 @@ describe('PackageReviewDialog', () => {
     const { store } = setup();
     TestBed.inject(PackageReviewOpener);
     const host = await hostFixture();
-    await store.reviewPackage('/p/unsigned.imtplugin');
+    await store.reviewPackage('/p/unsigned.debriefplugin');
     await settle(host);
     expect(el(host, '[data-testid=package-signature]').classList).toContain('unsigned');
     expect(el(host, '[data-testid=package-refusal]').textContent).toContain('not signed');
@@ -332,9 +332,9 @@ describe('PackageReviewDialog', () => {
     const { store, backend } = setup();
     TestBed.inject(PackageReviewOpener);
     const host = await hostFixture();
-    const real = await backend.readPackage('/p/web.imtplugin');
+    const real = await backend.readPackage('/p/web.debriefplugin');
     vi.spyOn(backend, 'readPackage').mockResolvedValueOnce({ ...real, permissions: [], refusal: { reason: 'wrongTarget', message: 'Built for macOS only.' } });
-    await store.reviewPackage('/p/web.imtplugin');
+    await store.reviewPackage('/p/web.debriefplugin');
     await settle(host);
     expect(el(host, '[data-testid=package-refusal]').textContent).toContain('Built for macOS only.');
     expect(text(host)).not.toContain('Plugin trust');
@@ -345,13 +345,13 @@ describe('PackageReviewDialog', () => {
     const { store } = setup({ developerMode: true });
     TestBed.inject(PackageReviewOpener);
     const host = await hostFixture();
-    await store.reviewPackage('/p/unsigned.imtplugin');
+    await store.reviewPackage('/p/unsigned.debriefplugin');
     await settle(host);
     expect(el(host, '[data-testid=package-warning]').textContent).toContain('Developer mode');
     expect(buttonByText(host, 'Install').disabled).toBe(false);
     store.cancelReview();
     await settle(host);
-    await store.reviewPackage('/p/update.imtplugin');
+    await store.reviewPackage('/p/update.debriefplugin');
     await settle(host);
     const update = el(host, '[data-testid=package-update]').textContent ?? '';
     expect(update).toContain('Replaces version 1.2.0.');
@@ -363,7 +363,7 @@ describe('PackageReviewDialog', () => {
     await settle(host);
     const { backend } = { backend: mockPackages() };
     vi.spyOn(backend, 'readPackage').mockResolvedValueOnce({ ...real.pkg, update: { fromVersion: '1.0', added: [], removed: ['network'] } });
-    await store.reviewPackage('/p/update.imtplugin');
+    await store.reviewPackage('/p/update.debriefplugin');
     await settle(host);
     expect(el(host, '[data-testid=package-update]').textContent).toContain('No longer requested: Network access');
   });
@@ -372,7 +372,7 @@ describe('PackageReviewDialog', () => {
     const { store, backend } = setup();
     TestBed.inject(PackageReviewOpener);
     const host = await hostFixture();
-    await store.reviewPackage('/p/web.imtplugin');
+    await store.reviewPackage('/p/web.debriefplugin');
     await settle(host);
     vi.spyOn(backend, 'installPackage').mockRejectedValueOnce(new Error('The package changed since you reviewed it.'));
     buttonByText(host, 'Install').click();
@@ -536,8 +536,8 @@ describe('InstalledPackages', () => {
 
   it('flags an unsigned package in its Source cell and shows the developer-mode warning', async () => {
     const ctx = setup({ developerMode: true });
-    const r = await ctx.backend.readPackage('/p/unsigned.imtplugin');
-    await ctx.backend.installPackage('/p/unsigned.imtplugin', r.digest, []);
+    const r = await ctx.backend.readPackage('/p/unsigned.debriefplugin');
+    await ctx.backend.installPackage('/p/unsigned.debriefplugin', r.digest, []);
     await ctx.backend.removePackage(SAP);
     const fixture = TestBed.createComponent(PluginsInstalled);
     await settle(fixture);

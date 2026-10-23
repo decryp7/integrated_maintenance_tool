@@ -7,26 +7,26 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
 
 /** Renders the dialog stack: backdrop, titled `role=dialog`, focus trap, Escape to close, focus restore. */
 @Component({
-  selector: 'imt-dialog-host',
+  selector: 'debrief-dialog-host',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgComponentOutlet, Icon],
   // Some browsers (Safari) do not focus a clicked button, so Escape must also work from the document.
   host: { '(document:keydown.escape)': 'onEscape($event)' },
   template: `
     @for (d of dialogs.stack(); track d.id) {
-      <div class="backdrop" data-imt-overlay (mousedown)="d.ref.close()"></div>
+      <div class="backdrop" data-debrief-overlay (mousedown)="d.ref.close()"></div>
       <div
         #box
         class="dialog"
         role="dialog"
         aria-modal="true"
-        [attr.aria-labelledby]="'imt-dialog-title-' + d.id"
+        [attr.aria-labelledby]="'debrief-dialog-title-' + d.id"
         [style.width.px]="d.options.width ?? 560"
         (keydown)="onKey($event, box)"
       >
         <div class="head">
-          <h2 [id]="'imt-dialog-title-' + d.id">{{ d.options.title }}</h2>
-          <button class="icon-btn" type="button" aria-label="Close dialog" i18n-aria-label="@@ui.dialog.closeAria" title="Close" i18n-title="@@ui.dialog.close" (click)="d.ref.close()"><imt-icon name="close" [size]="14" /></button>
+          <h2 [id]="'debrief-dialog-title-' + d.id">{{ d.options.title }}</h2>
+          <button class="icon-btn" type="button" aria-label="Close dialog" i18n-aria-label="@@ui.dialog.closeAria" title="Close" i18n-title="@@ui.dialog.close" (click)="d.ref.close()"><debrief-icon name="close" [size]="14" /></button>
         </div>
         <div class="body">
           <ng-container *ngComponentOutlet="d.component; inputs: d.options.inputs ?? {}; injector: injectorFor(d)" />

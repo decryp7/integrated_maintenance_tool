@@ -88,13 +88,13 @@ export const SnapshotsStore = signalStore(
           fail(e);
         }
       },
-      /** Asks where to save, then zips the selected snapshots (or all when none is ticked) with the recent IMT log. */
+      /** Asks where to save, then zips the selected snapshots (or all when none is ticked) with the recent Debrief log. */
       async exportSelected() {
         const ids = store.selected().length ? store.selected() : store.items().map((i) => i.id);
         if (!ids.length) return;
         patchState(store, { busy: true, error: null, info: null });
         try {
-          const path = await target.pickZip('imt-diagnostics.zip');
+          const path = await target.pickZip('debrief-diagnostics.zip');
           if (path) {
             const job = await overwrite.write(path, (replace) => backend.exportDiagnostics(path, ids, replace));
             if (job !== null) {

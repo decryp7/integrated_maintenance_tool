@@ -63,11 +63,11 @@ export function groupMenu(items: readonly MenuEntry[]): MenuEntry[] {
  * the entries for the record and the user's target).
  */
 export type RecordMenuContribution = (record: RecordView, target: ActionTarget) => MenuEntry[];
-export const IMT_RECORD_MENU_ITEMS = new InjectionToken<readonly RecordMenuContribution[]>('IMT_RECORD_MENU_ITEMS');
+export const DEBRIEF_RECORD_MENU_ITEMS = new InjectionToken<readonly RecordMenuContribution[]>('DEBRIEF_RECORD_MENU_ITEMS');
 
 /**
- * The actions offered on a record or one of its values: filter, the "teach IMT from this event"
- * dialogs (drop, mask, extract, mark), and opening its file outside IMT. Builds menu entries; the grid and inspector only open the menu.
+ * The actions offered on a record or one of its values: filter, the "teach Debrief from this event"
+ * dialogs (drop, mask, extract, mark), and opening its file outside Debrief. Builds menu entries; the grid and inspector only open the menu.
  */
 @Injectable({ providedIn: 'root' })
 export class RecordActions {
@@ -76,10 +76,10 @@ export class RecordActions {
   private readonly menu = inject(ContextMenuService);
   private readonly gridSelection = inject(GridSelection);
   private readonly files = inject(SourceFileActions);
-  private readonly contributions = inject(IMT_RECORD_MENU_ITEMS, { optional: true }) ?? [];
+  private readonly contributions = inject(DEBRIEF_RECORD_MENU_ITEMS, { optional: true }) ?? [];
 
   /**
-   * The menu in groups (separated in the menu): Copy first, then filter, mark and note, open the file, the "teach IMT"
+   * The menu in groups (separated in the menu): Copy first, then filter, mark and note, open the file, the "teach Debrief"
    * rules, then each contribution's own group (AI, web, report) in registration order.
    */
   itemsFor(record: RecordView, target: ActionTarget = {}): MenuEntry[] {

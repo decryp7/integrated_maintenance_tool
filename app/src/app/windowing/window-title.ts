@@ -3,17 +3,17 @@ import { Logger } from '../core/logger';
 import { ProjectService } from '../projects/project.service';
 import { WindowingBackend } from './windowing-backend';
 
-export const DEFAULT_WINDOW_TITLE = 'IMT — Integrated Maintenance Tool';
+export const DEFAULT_WINDOW_TITLE = 'Debrief';
 /** Title changes within this time are sent once (typing a project name, opening several things). */
 export const TITLE_DEBOUNCE_MS = 150;
 
 /**
- * The OS window title: "<project> — IMT" ("● " in front while unsaved, as the project service
+ * The OS window title: "<project> — Debrief" ("● " in front while unsaved, as the project service
  * shows it), or the app's name when no project is open and nothing has changed.
  */
 export function windowTitleFor(projectPath: string | null, projectName: string, dirty = false): string {
   if (!projectPath && !dirty) return DEFAULT_WINDOW_TITLE;
-  return `${dirty ? '● ' : ''}${projectName} — IMT`;
+  return `${dirty ? '● ' : ''}${projectName} — Debrief`;
 }
 
 /** Keeps the OS window title in step with the current project (debounced, sent only when it changes). */

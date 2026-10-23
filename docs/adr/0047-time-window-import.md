@@ -11,7 +11,7 @@ time in the pipeline, the Parquet segments and the full-text index.
 
 ## Decision
 
-- `ImportWindow { from, to }` (epoch ms, inclusive, either end open) lives in `imt-core::ingest`. It is **parsed once**
+- `ImportWindow { from, to }` (epoch ms, inclusive, either end open) lives in `debrief-core::ingest`. It is **parsed once**
   by `ImportWindow::new`, which refuses an end before the start.
 - It is a **store setting**, `Ingest::set_import_window`, not an argument of `open`: `open`, `reload` and `refresh`
   keep their shape and every caller (CLI, app) sets the window first. It is one new row in the port table (the wire

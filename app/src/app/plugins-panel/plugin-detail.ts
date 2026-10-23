@@ -10,7 +10,7 @@ import { provideGroups, statusLabel } from './plugin-model';
 
 /** The side panel of a plugin: everything it provides (identifiers), its memory cap and its permissions. */
 @Component({
-  selector: 'imt-plugin-detail',
+  selector: 'debrief-plugin-detail',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, PluginMemory],
   host: { '(keydown.escape)': 'closed.emit()' },
@@ -20,7 +20,7 @@ import { provideGroups, statusLabel } from './plugin-model';
         <h3 class="name">{{ plugin().name }}</h3>
         <span class="muted sub"><span class="ver">{{ plugin().version }}</span> · {{ status() }}</span>
       </div>
-      <button type="button" class="icon-btn" aria-label="Close details" i18n-aria-label="@@pluginsPanel.detail.close" title="Close" i18n-title="@@pluginsPanel.detail.closeTitle" (click)="closed.emit()" data-testid="plugin-detail-close"><imt-icon name="close" [size]="14" /></button>
+      <button type="button" class="icon-btn" aria-label="Close details" i18n-aria-label="@@pluginsPanel.detail.close" title="Close" i18n-title="@@pluginsPanel.detail.closeTitle" (click)="closed.emit()" data-testid="plugin-detail-close"><debrief-icon name="close" [size]="14" /></button>
     </header>
     <div class="body">
       <section>
@@ -49,7 +49,7 @@ import { provideGroups, statusLabel } from './plugin-model';
         <ul class="caps" aria-label="Capabilities" i18n-aria-label="@@pluginsPanel.detail.caps" data-testid="plugin-caps">
           @for (g of groups(); track g.kind) {
             @for (c of g.items; track c) {
-              <li class="mono"><imt-icon [name]="g.icon" [size]="12" />{{ c }}</li>
+              <li class="mono"><debrief-icon [name]="g.icon" [size]="12" />{{ c }}</li>
             }
           } @empty {
             <li class="muted" i18n="@@pluginsPanel.detail.noCaps">Nothing yet.</li>
@@ -58,7 +58,7 @@ import { provideGroups, statusLabel } from './plugin-model';
       </section>
       <section>
         <h4 i18n="@@pluginsPanel.detail.memory">Memory</h4>
-        <imt-plugin-memory [pluginId]="plugin().id" [pluginName]="plugin().name" />
+        <debrief-plugin-memory [pluginId]="plugin().id" [pluginName]="plugin().name" />
       </section>
       <section data-testid="plugin-permissions">
         <h4 i18n="@@pluginsPanel.detail.permissions">Permissions</h4>

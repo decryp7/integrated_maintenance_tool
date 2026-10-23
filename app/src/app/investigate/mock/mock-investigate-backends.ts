@@ -1,5 +1,5 @@
 import type { IncidentRequest, IssueMatch, IssueReport, Playbook, PlaybookLibrary, PlaybookRestore, PlaybookRun, PlaybookStep, PlaybookStepResult, Report } from '../../core/api.types';
-import type { ImtBackend } from '../../core/backend';
+import type { DebriefBackend } from '../../core/backend';
 import { EMPTY_QUERY } from '../../core/workspace/query.store';
 import { CmdError } from '../../core/cmd-error';
 import type { Narrative } from '../../ai/ai.types';
@@ -7,8 +7,8 @@ import { AiError } from '../../ai/ai-backend';
 import type { IncidentBackend, KnownIssuesBackend, PlaybookBackend } from '../investigate-backend';
 
 /** Events of the mock workspace that contain `text` (a stand-in for a pattern or a query). */
-async function matching(imt: ImtBackend, text: string): Promise<{ count: number; ids: number[] }> {
-  const page = await imt.queryPage({ query: { ...EMPTY_QUERY, text, regex: false }, offset: 0, limit: 5, descending: false });
+async function matching(debrief: DebriefBackend, text: string): Promise<{ count: number; ids: number[] }> {
+  const page = await debrief.queryPage({ query: { ...EMPTY_QUERY, text, regex: false }, offset: 0, limit: 5, descending: false });
   return { count: page.total, ids: page.rows.map((r) => r.id) };
 }
 
@@ -19,12 +19,12 @@ async function matching(imt: ImtBackend, text: string): Promise<{ count: number;
 export class MockKnownIssuesBackend implements KnownIssuesBackend {
   /** `hasModel` is the AI status (`?mockAi=setup` and the no-model e2e path agree because both read it). */
   constructor(
-    private readonly imt: ImtBackend,
+    private readonly debrief: DebriefBackend,
     private readonly hasModel: () => boolean = () => true,
   ) {}
 
   async match(): Promise<IssueReport> {
-    const m = await matching(this.imt, 'timed out');
+    const m = await matching(this.debrief, 'timed out');
     const matches: IssueMatch[] =
       m.count > 0
         ? [
@@ -42,7 +42,7 @@ export class MockKnownIssuesBackend implements KnownIssuesBackend {
 
   async suggest(): Promise<IssueMatch[]> {
     if (!this.hasModel()) throw new AiError('noModel', 'No AI model is installed. Set one up in Settings > AI.');
-    const m = await matching(this.imt, 'rolled back');
+    const m = await matching(this.debrief, 'rolled back');
     return m.count
       ? [
           {
@@ -60,13 +60,13 @@ export class MockKnownIssuesBackend implements KnownIssuesBackend {
 /** Browser stand-in for the incident summary: a small report from the mock workspace's summary. */
 export class MockIncidentBackend implements IncidentBackend {
   constructor(
-    private readonly imt: ImtBackend,
+    private readonly debrief: DebriefBackend,
     private readonly hasModel: () => boolean = () => true,
   ) {}
 
   async build(request: IncidentRequest): Promise<Report> {
-    const s = await this.imt.workspaceSummary();
-    const errors = await matching(this.imt, 'error');
+    const s = await this.debrief.workspaceSummary();
+    const errors = await matching(this.debrief, 'error');
     const now = Date.now();
     return {
       version: 1,
@@ -122,7 +122,7 @@ const TEMPLATES: Playbook[] = [
 /** Browser stand-in for playbooks: an in-memory library, steps counted by a text search of the mock workspace. */
 export class MockPlaybookBackend implements PlaybookBackend {
   private readonly saved = new Map<string, Playbook>();
-  constructor(private readonly imt: ImtBackend) {}
+  constructor(private readonly debrief: DebriefBackend) {}
 
   async library(): Promise<PlaybookLibrary> {
     return { playbooks: [...this.saved.values()], templates: TEMPLATES, warnings: [] };
@@ -146,7 +146,7 @@ export class MockPlaybookBackend implements PlaybookBackend {
     if (a.type === 'manual') return plain('info', 'Do this by hand, then mark it done.');
     if (a.type === 'openView') return plain('info', `Open the ${a.view} view.`);
     const word = /level\s*=\s*fatal/.test(a.ql) ? 'fatal' : /error/.test(a.ql) ? 'error' : 'timed out';
-    const m = await matching(this.imt, word);
+    const m = await matching(this.debrief, word);
     const base = { count: m.count, sampleIds: m.ids, columns: [], rows: [] };
     if (a.type === 'check') {
       const ok = a.expect.kind === 'noMatch' ? m.count === 0 : a.expect.kind === 'anyMatch' ? m.count > 0 : a.expect.kind === 'atLeast' ? m.count >= a.expect.n : m.count <= a.expect.n;

@@ -2,7 +2,7 @@
  * The scripted AI mock's side of the AI's browser window (browser build and UI tests): pages the user added are
  * cited, read-along reads the pretend page, suggested links become cards, and agent mode takes two steps
  * that wait for approval (the second carries a name from the logs, which the leak guard highlights).
- * It mimics the engine (`crates/imt-ai/src/browser`) only.
+ * It mimics the engine (`crates/debrief-ai/src/browser`) only.
  */
 import { ChatEvent, Citation } from '../../ai/ai.types';
 import { mockSearchUrl, MockWeb } from '../../browser/mock-browser-backend';

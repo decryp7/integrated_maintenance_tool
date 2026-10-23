@@ -14,7 +14,7 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
 
 /** Thumbnail grid of the saved error snapshots, with a large view of one and its context. */
 @Component({
-  selector: 'imt-error-snapshots-view',
+  selector: 'debrief-error-snapshots-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="wrap">
@@ -56,15 +56,15 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
               <div class="meta">
                 <span class="when">{{ when(s) }}</span>
                 <span class="reason">{{ s.reason }}</span>
-                <span class="text imt-selectable" [title]="s.message">{{ s.message }}</span>
+                <span class="text debrief-selectable" [title]="s.message">{{ s.message }}</span>
               </div>
             </li>
           } @empty {
-            <li class="empty">@if (store.loading()) {<ng-container i18n="@@diagnostics.snapshotsView.loading">Loading…</ng-container>} @else {<ng-container i18n="@@diagnostics.snapshotsView.emptyKey">No error snapshots yet. IMT saves one on this machine when something goes wrong; press {{ captureKey }} or Capture now to take one yourself.</ng-container>}</li>
+            <li class="empty">@if (store.loading()) {<ng-container i18n="@@diagnostics.snapshotsView.loading">Loading…</ng-container>} @else {<ng-container i18n="@@diagnostics.snapshotsView.emptyKey">No error snapshots yet. Debrief saves one on this machine when something goes wrong; press {{ captureKey }} or Capture now to take one yourself.</ng-container>}</li>
           }
         </ul>
         @if (store.current(); as c) {
-          <section class="detail imt-selectable" aria-label="Snapshot details" i18n-aria-label="@@diagnostics.snapshotsView.details">
+          <section class="detail debrief-selectable" aria-label="Snapshot details" i18n-aria-label="@@diagnostics.snapshotsView.details">
             <div class="dhead">
               <strong>{{ when(c) }}</strong>
               <span class="grow"></span>
@@ -79,7 +79,7 @@ export const SETTINGS_COMMAND = SETTINGS_DIAGNOSTICS_COMMAND;
               <dt i18n="@@diagnostics.snapshotsView.message">Message</dt><dd class="mono">{{ c.message }}</dd>
               @if (c.stack) { <dt i18n="@@diagnostics.snapshotsView.stack">Stack</dt><dd class="mono pre">{{ c.stack }}</dd> }
               @if (c.view) { <dt i18n="@@diagnostics.snapshotsView.activeView">Active view</dt><dd>{{ c.view }}</dd> }
-              <dt i18n="@@diagnostics.snapshotsView.app">App</dt><dd i18n="@@diagnostics.snapshotsView.appValue">IMT {{ c.appVersion }} on {{ c.os }}</dd>
+              <dt i18n="@@diagnostics.snapshotsView.app">App</dt><dd i18n="@@diagnostics.snapshotsView.appValue">Debrief {{ c.appVersion }} on {{ c.os }}</dd>
               <dt i18n="@@diagnostics.snapshotsView.id">Id</dt><dd class="mono">{{ c.id }}</dd>
             </dl>
             @if (c.steps.length) {

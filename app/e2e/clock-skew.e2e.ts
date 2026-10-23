@@ -4,16 +4,16 @@ import { openAppWith, runCommand } from './tools-support';
 
 /** The sidebar row of a source, by the end of its path (the row's tooltip starts with the path; rows show only the name under a folder heading). */
 function sourceRow(page: Page, path: string) {
-  return page.locator(`imt-sidebar .src[title*="${path}"]`);
+  return page.locator(`debrief-sidebar .src[title*="${path}"]`);
 }
 
 /** Searches the messages and selects the first matching event. */
 async function selectFirst(page: Page, text: string): Promise<void> {
   await page.getByTestId('query-field').fill(text);
-  const first = page.locator('imt-events-grid [role=row].row').first();
+  const first = page.locator('debrief-events-grid [role=row].row').first();
   await expect(first).toContainText(text);
   await first.click();
-  await expect(page.locator('imt-inspector .message')).toContainText(text);
+  await expect(page.locator('debrief-inspector .message')).toContainText(text);
 }
 
 test.describe('clock-skew correction', () => {
@@ -31,7 +31,7 @@ test.describe('clock-skew correction', () => {
     await expect(dialog.getByRole('button', { name: 'Apply', exact: true })).toBeDisabled();
     await input.fill('+5');
     await expect(dialog.getByText('Will shift by +5 s')).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'clock-dialog', 'imt-clock-dialog');
+    await expectNoSeriousViolations(page, testInfo, 'clock-dialog', 'debrief-clock-dialog');
     await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
     await expect(dialog).toHaveCount(0);
     await expect(row.getByTestId('skew-badge')).toHaveText('+5 s');
@@ -39,7 +39,7 @@ test.describe('clock-skew correction', () => {
     // An event of the shifted source says by how much and when it was logged originally.
     await selectFirst(page, 'Proxying');
     await expect(page.getByTestId('skew-note')).toContainText('Shifted by +5 s · original');
-    await expectNoSeriousViolations(page, testInfo, 'skew-inspector', 'imt-inspector');
+    await expectNoSeriousViolations(page, testInfo, 'skew-inspector', 'debrief-inspector');
 
     // Reset from the keyboard-reachable button on the row.
     await row.hover();
@@ -51,10 +51,10 @@ test.describe('clock-skew correction', () => {
   test('aligns a source on a reference event of another source', async ({ page }) => {
     await openAppWith(page, '');
     await selectFirst(page, 'Proxying');
-    await page.locator('imt-inspector').getByRole('button', { name: 'Use as clock reference' }).click();
+    await page.locator('debrief-inspector').getByRole('button', { name: 'Use as clock reference' }).click();
     await expect(page.getByTestId('is-reference')).toBeVisible();
     await selectFirst(page, 'placed by customer');
-    const align = page.locator('imt-inspector').getByRole('button', { name: /^Align .* on reference…$/ });
+    const align = page.locator('debrief-inspector').getByRole('button', { name: /^Align .* on reference…$/ });
     await align.click();
     const dialog = page.getByRole('dialog', { name: /Adjust clock/ });
     await expect(dialog.getByText('Same moment in this source')).toBeVisible();
@@ -80,12 +80,12 @@ test.describe('clock-skew correction', () => {
     // is always this explanation, never a suggestion (the old `if (isVisible)` branch never ran).
     await expect(dialog.getByText(/Too few events share a CorrelationId/)).toBeVisible();
     await expect(dialog.getByTestId('suggestion')).toHaveCount(0);
-    await expectNoSeriousViolations(page, testInfo, 'clock-suggestion', 'imt-clock-dialog');
+    await expectNoSeriousViolations(page, testInfo, 'clock-suggestion', 'debrief-clock-dialog');
   });
 
   test('palette commands work on the selected event', async ({ page }) => {
     await openAppWith(page, '');
-    await page.locator('imt-events-grid [role=row].row').nth(3).click();
+    await page.locator('debrief-events-grid [role=row].row').nth(3).click();
     await runCommand(page, 'Use selected event as clock reference');
     await expect(page.getByTestId('is-reference')).toBeVisible();
     await runCommand(page, "Adjust clock of the selected event's source");

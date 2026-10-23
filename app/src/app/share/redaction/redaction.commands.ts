@@ -1,5 +1,5 @@
 import { inject, Injectable, Injector } from '@angular/core';
-import { ImtCommand } from '../../extensions/tokens';
+import { DebriefCommand } from '../../extensions/tokens';
 import { RedactionService } from './redaction.service';
 
 /** Toggles the redacted view (listed in the keyboard cheat sheet). */
@@ -11,7 +11,7 @@ export class RedactionCommands {
   private readonly injector = inject(Injector);
   private redaction = () => this.injector.get(RedactionService);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     {
       id: 'share.redactedView.toggle',
       title: $localize`:@@share.redactionCommands.toggle:Toggle redacted view`,

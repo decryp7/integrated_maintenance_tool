@@ -6,9 +6,9 @@ use super::folder_of;
 use crate::error::{CmdError, CmdResult};
 use crate::jobs::JobCtx;
 use crate::windows::WindowState;
-use imt_core::batch::SourceId;
-use imt_core::ports::Store;
-use imt_video::record::VideoRecord;
+use debrief_core::batch::SourceId;
+use debrief_core::ports::Store;
+use debrief_video::record::VideoRecord;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
 

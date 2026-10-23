@@ -1,11 +1,11 @@
 //! The knowledge commands (ADR 0029): list, read, create, import, change, remove and export knowledge files of either
 //! scope, and the project record saved with projects and sessions. Thin: arguments are checked here and by the
-//! `imt_ai::knowledge` types; files are read and written off the UI thread. Nothing here logs knowledge text.
+//! `debrief_ai::knowledge` types; files are read and written off the UI thread. Nothing here logs knowledge text.
 
 use super::super::commands::{core, markdown_target};
 use super::super::error::{AiCmdError, AiErrorCode, AiResult};
 use crate::windows::CurrentWindow;
-use imt_ai::knowledge::{KnowledgeChange, KnowledgeInfo, KnowledgeRecord, KnowledgeScope, MAX_FILES, MAX_FILE_BYTES, MAX_NAME_CHARS};
+use debrief_ai::knowledge::{KnowledgeChange, KnowledgeInfo, KnowledgeRecord, KnowledgeScope, MAX_FILES, MAX_FILE_BYTES, MAX_NAME_CHARS};
 use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Runtime};
@@ -20,7 +20,7 @@ pub struct KnowledgeList {
     pub global: Vec<KnowledgeInfo>,
     /// Problems reading the global files (damaged index, unreadable files).
     pub warnings: Vec<String>,
-    /// The global files were saved by a newer IMT: they cannot be changed here.
+    /// The global files were saved by a newer Debrief: they cannot be changed here.
     pub global_read_only: bool,
     pub max_file_bytes: usize,
     pub max_files: usize,

@@ -40,7 +40,7 @@ export function layoutMarkers(markers: readonly DumpMarker[], view: { from: numb
  * time). The label opens the document. Renders nothing without the dumps backend.
  */
 @Component({
-  selector: 'imt-dump-marker-track',
+  selector: 'debrief-dump-marker-track',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @for (m of items(); track m.marker.id) {

@@ -1,5 +1,5 @@
 //! Elevation (run as administrator) and reading the start of a workspace file.
-//! Whether IMT runs elevated is answered by the tools plugin's `elevation`
+//! Whether Debrief runs elevated is answered by the tools plugin's `elevation`
 //! tool; restarting elevated is the shell's (it owns the process).
 
 use crate::windows::CurrentWindow;
@@ -10,7 +10,7 @@ use std::path::Path;
 /// Largest preview returned by `read_file_head`.
 const MAX_HEAD_BYTES: usize = 256 * 1024;
 
-/// The operating system IMT runs on, so the UI can offer platform-specific tools.
+/// The operating system Debrief runs on, so the UI can offer platform-specific tools.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Platform {
@@ -43,7 +43,7 @@ pub struct ElevationInfo {
 
 /// Asks the `elevation` tool; without it (safe mode, plugin disabled or
 /// quarantined) the shell checks its own process token, so "Restart as
-/// administrator" is not offered to an elevated IMT.
+/// administrator" is not offered to an elevated Debrief.
 #[tauri::command]
 pub async fn elevation<R: tauri::Runtime>(
     app: tauri::AppHandle<R>,
@@ -113,7 +113,7 @@ pub(crate) fn process_elevated() -> bool {
         .is_some_and(|uid| Some(uid) == root.as_ref())
 }
 
-/// Relaunches IMT as administrator (Windows UAC prompt), reopening the calling window's autosaved session
+/// Relaunches Debrief as administrator (Windows UAC prompt), reopening the calling window's autosaved session
 /// when `reopen_session`, and exits this instance. Elsewhere: an error. The command line is built in Rust
 /// ([`crate::lifecycle::relaunch_args`]): nothing the webview sends reaches the elevated process.
 #[tauri::command]
@@ -163,7 +163,7 @@ pub async fn read_file_head(state: CurrentWindow, path: String, max_bytes: Optio
         let mut bytes = Vec::with_capacity(limit);
         use std::io::Read;
         std::fs::File::open(Path::new(&path))?.take(limit as u64).read_to_end(&mut bytes)?;
-        imt_core::importers::decode(&bytes).ok_or_else(|| anyhow::anyhow!("this file is binary"))
+        debrief_core::importers::decode(&bytes).ok_or_else(|| anyhow::anyhow!("this file is binary"))
     })
     .await
 }
@@ -226,15 +226,15 @@ mod tests {
 
     #[test]
     fn elevated_parameters_quote_each_argument() {
-        let args: Vec<std::ffi::OsString> = vec!["--".into(), r#"C:\a b\"x".imtproj"#.into()];
-        assert_eq!(quoted(&args), r#""--" "C:\a b\x.imtproj""#);
+        let args: Vec<std::ffi::OsString> = vec!["--".into(), r#"C:\a b\"x".debriefproj"#.into()];
+        assert_eq!(quoted(&args), r#""--" "C:\a b\x.debriefproj""#);
         assert_eq!(quoted(&[]), "");
     }
 
     #[cfg(not(windows))]
     #[test]
     fn the_process_check_matches_the_effective_user() {
-        let out = imt_core::process::quiet_command("id").arg("-u").output().unwrap();
+        let out = debrief_core::process::quiet_command("id").arg("-u").output().unwrap();
         let root = String::from_utf8_lossy(&out.stdout).trim() == "0";
         assert_eq!(process_elevated(), root);
     }

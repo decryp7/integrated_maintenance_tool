@@ -8,7 +8,7 @@
 //! (numbers as numbers). Lines that do not start with a time are counted as skipped.
 
 use anyhow::Result;
-use imt_plugin_api::prelude::*;
+use debrief_plugin_api::prelude::*;
 
 /// The importer: one record per line.
 pub struct KvLines;
@@ -60,7 +60,7 @@ impl TextImporter for KvLines {
                 ctx.timestamps.parse(time).is_some() && rest.contains('=')
             })
             .count();
-        // Sure when most lines are ours (a few lines of something else are skipped): higher than IMT's generic
+        // Sure when most lines are ours (a few lines of something else are skipped): higher than Debrief's generic
         // text importer, which reads anything with a timestamp.
         match (good, lines.len()) {
             (0, _) => 0,
@@ -72,7 +72,7 @@ impl TextImporter for KvLines {
     fn import(&self, ctx: &ImportCtx, content: &str) -> Result<Imported> {
         let mut out = Imported::default();
         for (i, line) in content.lines().enumerate() {
-            // A long import looks now and then whether IMT gave up on it.
+            // A long import looks now and then whether Debrief gave up on it.
             if i % 4096 == 0 && ctx.cancelled() {
                 anyhow::bail!("cancelled");
             }

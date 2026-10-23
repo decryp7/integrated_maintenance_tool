@@ -28,7 +28,7 @@ test.describe('filters', () => {
   test('the status bar and the grid agree on the match count, also when nothing matches', async ({ page }) => {
     const total = gridTotal(page);
     const all = await initialTotal(page);
-    const status = page.locator('imt-status-bar span', { hasText: 'matching' });
+    const status = page.locator('debrief-status-bar span', { hasText: 'matching' });
     await expect(status).toHaveText(`${all} matching`);
     await page.getByTestId('query-field').fill('zzqx-nothing-says-this');
     await expect(total).toHaveText('0');
@@ -48,8 +48,8 @@ test.describe('filters', () => {
       const n = parseCount(await total.innerText());
       return n > 0 && n < parseCount(all);
     }).toBe(true);
-    await expect(page.locator('imt-status-bar')).toContainText('matching');
-    await expect(page.locator('imt-events-grid [role=row].row').first()).toContainText(/time/i);
+    await expect(page.locator('debrief-status-bar')).toContainText('matching');
+    await expect(page.locator('debrief-events-grid [role=row].row').first()).toContainText(/time/i);
 
     await search.fill('');
     await expect(total).toHaveText(all);
@@ -67,7 +67,7 @@ test.describe('filters', () => {
     await expect(note).toBeVisible();
     await expect(note).toHaveAttribute('title', /more partial match(es)? added/);
     await expect.poll(async () => parseCount(await gridTotal(page).innerText())).toBeGreaterThan(0);
-    await expect(page.locator('imt-events-grid [role=row].row').first().getByTestId('partial-match')).toBeVisible();
+    await expect(page.locator('debrief-events-grid [role=row].row').first().getByTestId('partial-match')).toBeVisible();
     // A cleared search clears the note.
     await search.fill('');
     await expect(note).toBeHidden();

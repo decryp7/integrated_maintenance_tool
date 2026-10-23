@@ -6,8 +6,8 @@
 //! ```
 //!
 //! The updater plugin reads the same file; this module parses it again into typed, bounded values for
-//! what IMT shows (notes, size) and refuses anything malformed before a download starts. `size` is
-//! IMT's addition (the plugin ignores it). Parsing never panics, whatever the input.
+//! what Debrief shows (notes, size) and refuses anything malformed before a download starts. `size` is
+//! Debrief's addition (the plugin ignores it). Parsing never panics, whatever the input.
 
 use base64::Engine;
 use serde_json::{Map, Value};

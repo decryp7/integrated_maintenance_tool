@@ -1,6 +1,6 @@
 import { EventLogBackfill, EventLogChannel, EventLogLevel, EventLogQuery, EventLogStartArgs } from '../../core/tools.types';
 
-/** Limits the engine enforces (imt-plugin-windows `eventlog::query`); checked early here for a quick message. */
+/** Limits the engine enforces (debrief-plugin-windows `eventlog::query`); checked early here for a quick message. */
 export const MAX_EVENT_CHANNELS = 32;
 export const MAX_EVENT_XPATH = 2048;
 
@@ -13,7 +13,7 @@ export interface EventLogDraft {
   backfill: EventLogBackfill;
   /** Continue from the saved positions instead of starting afresh. */
   resume: boolean;
-  /** Output folder; empty for IMT's data folder. */
+  /** Output folder; empty for Debrief's data folder. */
   dir: string;
 }
 

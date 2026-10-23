@@ -16,7 +16,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
  * message's action, Dismiss and Mark all read. The engine keeps the list (dedupe with counts, caps, read state).
  */
 @Component({
-  selector: 'imt-notifications-panel',
+  selector: 'debrief-notifications-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [KindFilter, Icon, PanelEmpty],
   template: `
@@ -25,7 +25,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
         <button type="button" class="btn small" [attr.aria-pressed]="store.read() === 'all'" (click)="store.setRead('all')" data-testid="notices-view-all" i18n="@@notifications.panel.view.all">All</button>
         <button type="button" class="btn small" [attr.aria-pressed]="store.read() === 'unread'" (click)="store.setRead('unread')" data-testid="notices-unread-only" i18n="@@notifications.panel.view.unread">Unread</button>
       </div>
-      <imt-kind-filter label="Source" i18n-label="@@notifications.panel.source" [options]="sourceOptions()" [selected]="store.sources()" (toggled)="store.toggleSource($any($event))" (cleared)="clearSources()" />
+      <debrief-kind-filter label="Source" i18n-label="@@notifications.panel.source" [options]="sourceOptions()" [selected]="store.sources()" (toggled)="store.toggleSource($any($event))" (cleared)="clearSources()" />
       <span class="spacer"></span>
       <button type="button" class="btn ghost small" [disabled]="!store.unread()" (click)="store.markAllRead()" data-testid="notices-mark-all" i18n="@@notifications.panel.markAll">Mark all read</button>
     </div>
@@ -40,7 +40,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
     }
     <p class="sr-only" aria-live="polite" data-testid="notices-live">{{ announcement() }}</p>
     @if (!store.notices().length) {
-      <imt-panel-empty class="empty" data-testid="notices-empty" icon="bell" title="Nothing needs your attention" i18n-title="@@notifications.panel.empty.title"><ng-container i18n="@@notifications.panel.empty">Finished jobs, alerts and problems with your files show up here.</ng-container></imt-panel-empty>
+      <debrief-panel-empty class="empty" data-testid="notices-empty" icon="bell" title="Nothing needs your attention" i18n-title="@@notifications.panel.empty.title"><ng-container i18n="@@notifications.panel.empty">Finished jobs, alerts and problems with your files show up here.</ng-container></debrief-panel-empty>
     }
     @for (g of store.groups(); track g.source) {
       <h3 [id]="'notices-h-' + g.source">{{ sourceLabel(g.source) }}</h3>
@@ -53,13 +53,13 @@ import { sourceLabel, titleWithCount } from './notifications-text';
               <span class="muted small time">{{ time(n.at) }}</span>
               <span class="row-actions">
                 @if (!n.read) {
-                  <button type="button" class="icon-btn" (click)="store.markRead(n.id)" [attr.aria-label]="markReadLabel(n)" [title]="markReadLabel(n)" [attr.data-testid]="'notice-read-' + n.id"><imt-icon name="check" [size]="14" /></button>
+                  <button type="button" class="icon-btn" (click)="store.markRead(n.id)" [attr.aria-label]="markReadLabel(n)" [title]="markReadLabel(n)" [attr.data-testid]="'notice-read-' + n.id"><debrief-icon name="check" [size]="14" /></button>
                 }
-                <button type="button" class="icon-btn" (click)="store.dismiss(n.id)" [attr.aria-label]="dismissLabel(n)" [title]="dismissLabel(n)" [attr.data-testid]="'notice-dismiss-' + n.id"><imt-icon name="close" [size]="14" /></button>
+                <button type="button" class="icon-btn" (click)="store.dismiss(n.id)" [attr.aria-label]="dismissLabel(n)" [title]="dismissLabel(n)" [attr.data-testid]="'notice-dismiss-' + n.id"><debrief-icon name="close" [size]="14" /></button>
               </span>
             </div>
             @if (n.body) {
-              <p class="body imt-selectable">{{ n.body }}</p>
+              <p class="body debrief-selectable">{{ n.body }}</p>
             }
             @if (cleared(n)) {
               <p class="muted small cleared" [attr.data-testid]="'notice-cleared-' + n.id">{{ clearedNote }}</p>

@@ -1,33 +1,33 @@
 //! Inference runtimes in the app (ADR 0009): which llama-server builds are installed and work here, and
-//! installing, choosing and deleting them. Plain Rust over `imt_ai::runtimes`, no Tauri: the commands in
+//! installing, choosing and deleting them. Plain Rust over `debrief_ai::runtimes`, no Tauri: the commands in
 //! `runtime_commands.rs` validate the IPC arguments and stream the progress.
 
 use super::core::load_request;
 use super::core::AiCore;
 use super::error::{AiCmdError, AiErrorCode, AiResult};
-use imt_ai::hardware::{HardwareProbe, SystemProbe};
-use imt_ai::models::source::{ModelSource, Progress};
-use imt_ai::models::DownloadOptions;
-use imt_ai::runtime::ModelRuntime;
-use imt_ai::runtimes::builds::{is_build_id, label};
-use imt_ai::runtimes::selftest::self_test;
-use imt_ai::runtimes::store::{server_file_name, RuntimeCheck};
-use imt_ai::runtimes::{
+use debrief_ai::hardware::{HardwareProbe, SystemProbe};
+use debrief_ai::models::source::{ModelSource, Progress};
+use debrief_ai::models::DownloadOptions;
+use debrief_ai::runtime::ModelRuntime;
+use debrief_ai::runtimes::builds::{is_build_id, label};
+use debrief_ai::runtimes::selftest::self_test;
+use debrief_ai::runtimes::store::{server_file_name, RuntimeCheck};
+use debrief_ai::runtimes::{
     current_platform, list_builds, overview, suggest, usable_tag, BuildChoice, BuildsReport, GithubReleases, InstalledRuntime,
     OverviewInput, ReleaseConfig, RuntimeCatalog, RuntimeOverview, RuntimeStage, RuntimeStore,
 };
-use imt_ai::settings::AiSettings;
-use imt_ai::worker::{fixed_env, FramesLauncher, WorkerConfig, WorkerEnv, WorkerRuntime};
-use imt_ai::AiError;
+use debrief_ai::settings::AiSettings;
+use debrief_ai::worker::{fixed_env, FramesLauncher, WorkerConfig, WorkerEnv, WorkerRuntime};
+use debrief_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 /// Builds the runtime download source from the current settings (proxy) and the pinned catalog.
-pub type RuntimeSourceFactory = Arc<dyn Fn(&AiSettings, &RuntimeCatalog) -> imt_ai::Result<Box<dyn ModelSource>> + Send + Sync>;
-/// Asks the worker which installed builds work here (`imt-ai-worker --list-builds`), with the worker's environment.
-pub type BuildsReporter = Arc<dyn Fn(&[(String, String)]) -> imt_ai::Result<BuildsReport> + Send + Sync>;
+pub type RuntimeSourceFactory = Arc<dyn Fn(&AiSettings, &RuntimeCatalog) -> debrief_ai::Result<Box<dyn ModelSource>> + Send + Sync>;
+/// Asks the worker which installed builds work here (`debrief-ai-worker --list-builds`), with the worker's environment.
+pub type BuildsReporter = Arc<dyn Fn(&[(String, String)]) -> debrief_ai::Result<BuildsReport> + Send + Sync>;
 /// A model runtime that runs exactly the llama-server at the given path (the self-test of a new build).
 pub type BuildRuntime = Arc<dyn Fn(&Path) -> Arc<dyn ModelRuntime> + Send + Sync>;
 
@@ -70,9 +70,9 @@ impl RuntimeDeps {
                 let cfg = WorkerConfig::new(Arc::new(FramesLauncher {
                     exe: worker.clone(),
                     args: vec![],
-                    env: fixed_env(vec![("IMT_LLAMA_SERVER".into(), server.to_string_lossy().into_owned())]),
+                    env: fixed_env(vec![("DEBRIEF_LLAMA_SERVER".into(), server.to_string_lossy().into_owned())]),
                 }));
-                let probe = SystemProbe::new(imt_collect::SystemRunner);
+                let probe = SystemProbe::new(debrief_collect::SystemRunner);
                 Arc::new(WorkerRuntime::new(cfg, Box::new(move || probe.probe()))) as Arc<dyn ModelRuntime>
             }),
         }
@@ -109,7 +109,7 @@ fn builds_dir(store: &RuntimeStore, pinned: &str) -> PathBuf {
     store.builds_dir(&usable_tag(&store.list(pinned), pinned))
 }
 
-/// Progress of an install, streamed as `imt://ai-runtime`; `ready`, `failed` and `cancelled` end it.
+/// Progress of an install, streamed as `debrief://ai-runtime`; `ready`, `failed` and `cancelled` end it.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "stage", rename_all = "camelCase", rename_all_fields = "camelCase")]
 pub enum RuntimeEvent {
@@ -174,7 +174,7 @@ impl RuntimeEvent {
             total: s.total,
             bytes_per_sec: s.bytes_per_sec,
             eta_secs: s.eta_secs,
-            verifying: s.phase == imt_ai::models::source::Phase::Verifying,
+            verifying: s.phase == debrief_ai::models::source::Phase::Verifying,
         }
     }
 
@@ -354,7 +354,7 @@ impl AiCore {
     /// The self-test of build `id` unpacked in `staging`, with the active model, in a worker of its own. The active
     /// engine is stopped first (the model must fit twice otherwise, and Windows keeps a running build's files locked);
     /// the next use starts it again. A model file that cannot be read is not the build's fault: the test is skipped.
-    fn self_test_build(&self, id: &str, staging: &Path, s: &AiSettings, progress: &Progress) -> imt_ai::Result<()> {
+    fn self_test_build(&self, id: &str, staging: &Path, s: &AiSettings, progress: &Progress) -> debrief_ai::Result<()> {
         let Some(file) = s.active_model.as_deref() else {
             return Ok(());
         };

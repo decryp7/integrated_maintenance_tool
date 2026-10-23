@@ -135,7 +135,7 @@ interface MockChat {
 }
 
 /** The AI folder of the demo machine (Windows, like the mock hardware). */
-const MOCK_AI_DIR = 'C:\\Users\\demo\\AppData\\Roaming\\IMT\\ai';
+const MOCK_AI_DIR = 'C:\\Users\\demo\\AppData\\Roaming\\Debrief\\ai';
 
 export class MockAiBackend extends AiBackend {
   private readonly mode: 'ready' | 'setup' | 'off';
@@ -190,7 +190,7 @@ export class MockAiBackend extends AiBackend {
 
   private check(op?: AiFailable): void {
     if (this.mode === 'off')
-      throw new AiError('unavailable', 'The AI engine is not installed in this build of IMT.');
+      throw new AiError('unavailable', 'The AI engine is not installed in this build of Debrief.');
     if (op && this.fails.has(op))
       throw new AiError('engine', `The model engine failed: simulated ${op} failure.`);
   }
@@ -233,7 +233,7 @@ export class MockAiBackend extends AiBackend {
       return {
         available: false,
         state: 'unavailable',
-        reason: 'The AI engine is not installed in this build of IMT.',
+        reason: 'The AI engine is not installed in this build of Debrief.',
         model: null,
         backend: null,
         rssBytes: 0,
@@ -518,7 +518,7 @@ export class MockAiBackend extends AiBackend {
     return this.later(() => {
       this.check('image');
       const format = mockFormatOfPath(path);
-      if (!format) throw new AiError('invalid', 'IMT reads PNG, JPEG, BMP, GIF and WebP images');
+      if (!format) throw new AiError('invalid', 'Debrief reads PNG, JPEG, BMP, GIF and WebP images');
       return this.addImage(path.split(/[\\/]/).pop() || 'image', path, format);
     });
   }
@@ -1150,7 +1150,7 @@ export class MockAiBackend extends AiBackend {
       if (r.version > 1)
         return {
           sessions: [],
-          warning: 'The saved chats were written by a newer IMT and were not loaded.',
+          warning: 'The saved chats were written by a newer Debrief and were not loaded.',
         };
       for (const s of r.sessions) {
         this.chats.set(s.id, {

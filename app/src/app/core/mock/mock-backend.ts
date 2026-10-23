@@ -35,7 +35,7 @@ import {
   TimelineRequest,
   WorkspaceSummary,
 } from '../api.types';
-import type { ImtBackend } from '../backend';
+import type { DebriefBackend } from '../backend';
 import { ProfileModel } from '../profile.model';
 import { DEMO_START, generateDemo, generateExtraSource, MockDataset, MockRecord } from './mock-data';
 import { mockAnnotations } from './mock-annotations';
@@ -92,7 +92,7 @@ export interface MockBackendOptions {
   liveRotateMs?: number;
   /** With `liveRate`: raise a live alert every this many ms (default 10000; 0 = never). */
   liveAlertMs?: number;
-  /** Publish the `setLive` calls as `globalThis.__imtMockLiveCalls` (end-to-end tests spy on them). */
+  /** Publish the `setLive` calls as `globalThis.__debriefMockLiveCalls` (end-to-end tests spy on them). */
   exposeLiveCalls?: boolean;
   /** Marker kinds contributed by (mock) plugins (default: the Windows plugin's; `[]` = none, like safe mode). */
   pluginMarkerKinds?: readonly MockPluginKind[];
@@ -109,7 +109,7 @@ export interface MockLiveCall {
 }
 
 /** In-browser stand-in for the Rust backend (used by `ng serve`). */
-export class MockBackend implements ImtBackend {
+export class MockBackend implements DebriefBackend {
   private dataset: MockDataset;
   private profileToml = MOCK_PROFILE_TOML;
   private profile: ProfileModel;
@@ -157,7 +157,7 @@ export class MockBackend implements ImtBackend {
     this.profile = parse(this.profileToml) as ProfileModel;
     this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
     this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock) : null;
-    if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__imtMockLiveCalls'] = this.liveCalls;
+    if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__debriefMockLiveCalls'] = this.liveCalls;
     this.apply();
   }
 
@@ -947,8 +947,8 @@ const MOCK_PLUGINS: PluginInfo[] = [
 ];
 /** Event-bus counters the demo reports (delivered grows with live tail). */
 const MOCK_EVENT_METRICS: SubscriberMetrics[] = [
-  { id: 1, plugin: MOCK_WINDOWS_PLUGIN, event: 'imt_core::events::RecordsAppended', delivered: 3, dropped: 0, failures: 0, skipped: 0, queued: 0 },
-  { id: 2, plugin: 'net.decryptology.web', event: 'imt_core::events::ProfileChanged', delivered: 1, dropped: 0, failures: 1, skipped: 0, queued: 0 },
+  { id: 1, plugin: MOCK_WINDOWS_PLUGIN, event: 'debrief_core::events::RecordsAppended', delivered: 3, dropped: 0, failures: 0, skipped: 0, queued: 0 },
+  { id: 2, plugin: 'net.decryptology.web', event: 'debrief_core::events::ProfileChanged', delivered: 1, dropped: 0, failures: 1, skipped: 0, queued: 0 },
 ];
 /** What `readFileHead` returns for any file in the browser demo. */
 const SAMPLE_HEAD = [

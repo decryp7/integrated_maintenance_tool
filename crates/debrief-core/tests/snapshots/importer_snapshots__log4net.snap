@@ -1,0 +1,55 @@
+---
+source: crates/debrief-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: log4net/legacy-billing/billing.log.2026-10-14
+importer: text
+records: 1788
+skipped: 0
+levels:
+  1-Debug: 148
+  2-Information: 1388
+  3-Warning: 228
+  4-Error: 24
+with_timestamp: 1788
+first_timestamp: "2026-10-14T09:00:00.000Z"
+last_timestamp: "2026-10-14T12:00:00.000Z"
+fields:
+  - Logger
+  - Thread
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:00:00.000Z"
+    level: Information
+    message: "Billing service starting (v2.8.1, CLR 4.0.30319)"
+    fields:
+      Logger: Billing.Service
+      Thread: 1
+  - line: 2
+    timestamp: "2026-10-14T09:00:05.249Z"
+    level: Information
+    message: Invoice INV-236778 written
+    fields:
+      Logger: Billing.Invoices.InvoiceWriter
+      Thread: 15
+  - line: 3
+    timestamp: "2026-10-14T09:00:06.945Z"
+    level: Information
+    message: Invoice INV-741653 written
+    fields:
+      Logger: Billing.Invoices.InvoiceWriter
+      Thread: 6
+  - line: 4
+    timestamp: "2026-10-14T09:00:22.765Z"
+    level: Information
+    message: Invoice INV-755059 written
+    fields:
+      Logger: Billing.Invoices.InvoiceWriter
+      Thread: 6
+  - line: 5
+    timestamp: "2026-10-14T09:00:32.125Z"
+    level: Information
+    message: Invoice INV-577127 written
+    fields:
+      Logger: Billing.Invoices.InvoiceWriter
+      Thread: 19

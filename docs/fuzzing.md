@@ -1,6 +1,6 @@
 # Fuzzing and property-based tests
 
-IMT reads untrusted files, so every parser must survive any input: no panic, no hang, no
+Debrief reads untrusted files, so every parser must survive any input: no panic, no hang, no
 unbounded memory. Two layers check this.
 
 ## Property-based tests (proptest)
@@ -8,11 +8,11 @@ unbounded memory. Two layers check this.
 Run with the normal test suite; they are fast (a few seconds) and deterministic per seed.
 
 ```sh
-cargo test -p imt-core --test properties
-cargo test -p imt-plugin-registry -p imt-plugin-windows -p imt-plugin-web -p imt-plugin-otel -p imt-plugin-syslog --test properties
-cargo test -p imt-core --test properties_files      # parser TOML, .imtproj, project.toml, .imtz
-cargo test -p imt-ipc -p imt-notes --test properties # IPC frames, notes records
-cargo test -p imt-ai --test properties_knowledge     # knowledge records and the prompt block
+cargo test -p debrief-core --test properties
+cargo test -p debrief-plugin-registry -p debrief-plugin-windows -p debrief-plugin-web -p debrief-plugin-otel -p debrief-plugin-syslog --test properties
+cargo test -p debrief-core --test properties_files      # parser TOML, .debriefproj, project.toml, .debriefz
+cargo test -p debrief-ipc -p debrief-notes --test properties # IPC frames, notes records
+cargo test -p debrief-ai --test properties_knowledge     # knowledge records and the prompt block
 ```
 
 * Default is 256 cases per property. Run harder with `PROPTEST_CASES=10000 cargo test --release ...`.
@@ -21,7 +21,7 @@ cargo test -p imt-ai --test properties_knowledge     # knowledge records and the
 * Inputs are arbitrary bytes/strings, plus mutations (bit flips, inserts, deletes, truncation,
   splices) of `/samples` prefixes, crate fixtures and valid seeds (queries, stack traces,
   timestamps, templates, profile fragments, gzip/zip archives).
-* `imt-core/tests/properties.rs` also checks invariants: paging partitions the matching ids with
+* `debrief-core/tests/properties.rs` also checks invariants: paging partitions the matching ids with
   no duplicates, the timeline histogram total equals the matching records with timestamps,
   CLEF export read back by the JSON importer preserves ts/level/message/fields, and RFC 3339
   timestamps parse back to the same millisecond.
@@ -61,24 +61,24 @@ inputs only to the first directory, so `fuzz/corpus/` stays small (seeds copied 
 | `fuzz_otel` | OTLP/JSON importer |
 | `fuzz_syslog` | syslog and journald importers (first byte selects) |
 | `fuzz_perfmon_csv` | PerfMon CSV and `.nfo` importers, counter path parser |
-| `fuzz_procmon_csv`, `fuzz_minidump`, `fuzz_eventlog` | Process Monitor CSV and minidump summary importers and the Event Log follower's untrusted inputs (rendered event XML, the XPath filter, channel names, the bookmark file) in `imt-plugin-windows` |
-| `fuzz_log4j_xml`, `fuzz_sql_errorlog`, `fuzz_docker_json`, `fuzz_cri` | the `imt-plugin-formats` importers: log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file, Kubernetes CRI |
-| `fuzz_ipc_frame` | the frame decoder every IMT connection runs on untrusted bytes (`imt_ipc::frame`): length limit, postcard envelope, generic JSON; what decodes re-encodes to the same frame |
-| `fuzz_plugin_reply`, `fuzz_plugin_request` | what the host decodes from a plugin process (manifests, event items, tool failures, profiles) and what a plugin process decodes from the host (`imt-plugin-api` protocol) |
+| `fuzz_procmon_csv`, `fuzz_minidump`, `fuzz_eventlog` | Process Monitor CSV and minidump summary importers and the Event Log follower's untrusted inputs (rendered event XML, the XPath filter, channel names, the bookmark file) in `debrief-plugin-windows` |
+| `fuzz_log4j_xml`, `fuzz_sql_errorlog`, `fuzz_docker_json`, `fuzz_cri` | the `debrief-plugin-formats` importers: log4j/log4net/NLog XML, SQL Server ERRORLOG, Docker json-file, Kubernetes CRI |
+| `fuzz_ipc_frame` | the frame decoder every Debrief connection runs on untrusted bytes (`debrief_ipc::frame`): length limit, postcard envelope, generic JSON; what decodes re-encodes to the same frame |
+| `fuzz_plugin_reply`, `fuzz_plugin_request` | what the host decodes from a plugin process (manifests, event items, tool failures, profiles) and what a plugin process decodes from the host (`debrief-plugin-api` protocol) |
 | `fuzz_ai_request`, `fuzz_worker_http` | the AI worker protocol (`WorkerRequest` frames) and the worker's HTTP/1.1 response parser for `llama-server` |
-| `fuzz_prof_speedscope`, `fuzz_prof_folded`, `fuzz_prof_cpuprofile`, `fuzz_prof_chrome_trace`, `fuzz_prof_pprof`, `fuzz_prof_perf_script`, `fuzz_prof_nettrace`, `fuzz_prof_nettrace_heap`, `fuzz_prof_heapsnapshot` | profiling importers (`imt-plugin-profiling`, built without the plugin feature), then every view over what they produced (`imt_profile::fuzz_views`) |
-| `fuzz_dotnet_ipc` | .NET diagnostics IPC replies (`imt-plugin-dotnet`, without the plugin feature); its ETW events are `imt-etw`'s and fuzzed by `fuzz_native_etw` |
-| `fuzz_native_etw` | ETW events of a native capture (kernel, stack walks, context switches, images, heap provider, CLR) through `imt-etw`'s converter and `.etl` scanner, symbols for the collected addresses, then the nettrace importer (ADR 0022) |
-| `fuzz_native_pe` | PE headers and the CodeView PDB identity (`imt_symbols::pe`), and the symbol-cache path a PDB name becomes |
+| `fuzz_prof_speedscope`, `fuzz_prof_folded`, `fuzz_prof_cpuprofile`, `fuzz_prof_chrome_trace`, `fuzz_prof_pprof`, `fuzz_prof_perf_script`, `fuzz_prof_nettrace`, `fuzz_prof_nettrace_heap`, `fuzz_prof_heapsnapshot` | profiling importers (`debrief-plugin-profiling`, built without the plugin feature), then every view over what they produced (`debrief_profile::fuzz_views`) |
+| `fuzz_dotnet_ipc` | .NET diagnostics IPC replies (`debrief-plugin-dotnet`, without the plugin feature); its ETW events are `debrief-etw`'s and fuzzed by `fuzz_native_etw` |
+| `fuzz_native_etw` | ETW events of a native capture (kernel, stack walks, context switches, images, heap provider, CLR) through `debrief-etw`'s converter and `.etl` scanner, symbols for the collected addresses, then the nettrace importer (ADR 0022) |
+| `fuzz_native_pe` | PE headers and the CodeView PDB identity (`debrief_symbols::pe`), and the symbol-cache path a PDB name becomes |
 | `fuzz_image` | The AI's image sanitiser (ADR 0025): any bytes through signature sniffing, the claimed-size guard, the decoders (PNG, JPEG, BMP, GIF, WebP) and the re-encoding, within small limits |
 | `fuzz_vision_facts` | What a model writes about a screenshot (strict JSON, bounded) and the EXIF capture-time reader |
-| `fuzz_dump_minidump` | the dumps plugin's minidump reader (`imt-plugin-dumps` without the plugin feature: ranges, full-dump compaction, stack walks), then the dump engine's findings, views and wire round trip |
+| `fuzz_dump_minidump` | the dumps plugin's minidump reader (`debrief-plugin-dumps` without the plugin feature: ranges, full-dump compaction, stack walks), then the dump engine's findings, views and wire round trip |
 | `fuzz_dump_umdh` | the UMDH snapshot/diff reader, then growth, grouping, tree and leak findings |
-| `fuzz_dump_wire` | `imt_dump::wire::decode_result`: what IMT accepts from the dumps plugin's process |
-| `fuzz_plugin_package` | `.imtplugin` packages (`imt-plugin-package`, ADR 0027): the bounded zip reader, layout and signature checks, `manifest.toml` and public-key parsing |
+| `fuzz_dump_wire` | `debrief_dump::wire::decode_result`: what Debrief accepts from the dumps plugin's process |
+| `fuzz_plugin_package` | `.debriefplugin` packages (`debrief-plugin-package`, ADR 0027): the bounded zip reader, layout and signature checks, `manifest.toml` and public-key parsing |
 | `fuzz_parser_toml` | parser library files (ADR 0026): `Parser::from_toml`, an override fragment over a built-in (first byte selects which), the library's import check; accepted parsers round-trip through their canonical TOML |
-| `fuzz_project` | `.imtproj` workspace files, `project.toml` manifests and `.imtz` archives opened into a scratch folder (first byte selects); an extracted project stays inside its destination |
-| `fuzz_notes_knowledge` | the notes and knowledge-file records of projects and sessions (`imt-notes`, `imt-ai::knowledge`; first byte selects), written back and re-read without a warning, and the AI blocks built from them |
+| `fuzz_project` | `.debriefproj` workspace files, `project.toml` manifests and `.debriefz` archives opened into a scratch folder (first byte selects); an extracted project stays inside its destination |
+| `fuzz_notes_knowledge` | the notes and knowledge-file records of projects and sessions (`debrief-notes`, `debrief-ai::knowledge`; first byte selects), written back and re-read without a warning, and the AI blocks built from them |
 
 CI (`.gitea/workflows/fuzz.yml`) runs every target for 5 minutes each night (and on demand
 through `workflow_dispatch`, with a configurable duration) and uploads crash inputs as the

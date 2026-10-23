@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { buttonByText, provideTinyBackend, query, settle, text } from '../../testing/helpers';
 import { AnalysisState } from '../analysis/analysis-state';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_COMMANDS } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { emptyCause, isFiltered, NextSteps } from './next-steps';
 
 describe('next steps for empty and failed views', () => {
@@ -21,7 +21,7 @@ describe('next steps for empty and failed views', () => {
   async function setup(demo = true) {
     const run = vi.fn();
     TestBed.configureTestingModule({
-      providers: [...provideTinyBackend(), { provide: IMT_COMMANDS, multi: true, useValue: demo ? [{ id: 'help.demo', title: 'Try the demo', run }] : [] }],
+      providers: [...provideTinyBackend(), { provide: DEBRIEF_COMMANDS, multi: true, useValue: demo ? [{ id: 'help.demo', title: 'Try the demo', run }] : [] }],
     });
     const fixture = TestBed.createComponent(NextSteps);
     const store = TestBed.inject(WorkspaceStore);
@@ -69,7 +69,7 @@ describe('next steps for empty and failed views', () => {
 
 @Component({
   imports: [AnalysisState],
-  template: `<imt-analysis-state [error]="error()" [empty]="empty()" emptyText="Nothing here." emptyHint="Pick a field." [suggest]="suggest()" (retry)="retried = retried + 1">content</imt-analysis-state>`,
+  template: `<debrief-analysis-state [error]="error()" [empty]="empty()" emptyText="Nothing here." emptyHint="Pick a field." [suggest]="suggest()" (retry)="retried = retried + 1">content</debrief-analysis-state>`,
 })
 class Host {
   readonly error = signal<string | null>(null);

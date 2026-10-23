@@ -1,5 +1,5 @@
 //! Profiling commands (per window): open CPU/allocation profiles and heap
-//! snapshots and query their views. The engine is `imt_profile`; each window
+//! snapshots and query their views. The engine is `debrief_profile`; each window
 //! has its own [`ProfilingSlot`] holding a `dyn ProfileStore`. Importers come
 //! from the `profiling.importers` extension point of the window's plugin
 //! registry and are called through their guarded service handles, so a
@@ -13,11 +13,11 @@
 
 use crate::paths::WindowGrants;
 use crate::windows::CurrentWindow;
-use imt_core::plugin::services::Service;
-use imt_profile::api::*;
-use imt_profile::error::ErrorCode;
-use imt_profile::import::SNIFF_BYTES;
-use imt_profile::{Capture, CaptureImporter, Captures, Limits, ProfileError, ProfileStore};
+use debrief_core::plugin::services::Service;
+use debrief_profile::api::*;
+use debrief_profile::error::ErrorCode;
+use debrief_profile::import::SNIFF_BYTES;
+use debrief_profile::{Capture, CaptureImporter, Captures, Limits, ProfileError, ProfileStore};
 use std::io::Read;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
@@ -53,9 +53,9 @@ impl ProfilingSlot {
     }
 
     /// A store using the importers plugins contributed to `profiling.importers`.
-    pub(crate) fn from_registry(registry: &imt_core::PluginRegistry) -> ProfilingSlot {
+    pub(crate) fn from_registry(registry: &debrief_core::PluginRegistry) -> ProfilingSlot {
         let importers = registry
-            .contributions::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT)
+            .contributions::<dyn CaptureImporter>(debrief_profile::IMPORTERS_POINT)
             .into_iter()
             .filter_map(GuardedImporter::new)
             .map(|g| Arc::new(g) as Arc<dyn CaptureImporter>)
@@ -106,7 +106,7 @@ impl CaptureImporter for GuardedImporter {
 
     /// Runs on a helper thread under the import budget (not the short
     /// service budget): the bytes are handed over as an owned copy.
-    fn import(&self, file_name: &str, bytes: &[u8], limits: &Limits) -> imt_profile::Result<Capture> {
+    fn import(&self, file_name: &str, bytes: &[u8], limits: &Limits) -> debrief_profile::Result<Capture> {
         let (name, data, limits) = (file_name.to_string(), bytes.to_vec(), *limits);
         match self
             .service
@@ -132,7 +132,7 @@ fn join_error(e: impl std::fmt::Display) -> ProfilingErrorDto {
 
 async fn read<T: Send + 'static>(
     win: &CurrentWindow,
-    f: impl FnOnce(&dyn ProfileStore) -> imt_profile::Result<T> + Send + 'static,
+    f: impl FnOnce(&dyn ProfileStore) -> debrief_profile::Result<T> + Send + 'static,
 ) -> ProfResult<T> {
     let store = win.profiling.store.clone();
     crate::error::lift_dto(
@@ -144,7 +144,7 @@ async fn read<T: Send + 'static>(
 
 async fn write<T: Send + 'static>(
     win: &CurrentWindow,
-    f: impl FnOnce(&mut dyn ProfileStore) -> imt_profile::Result<T> + Send + 'static,
+    f: impl FnOnce(&mut dyn ProfileStore) -> debrief_profile::Result<T> + Send + 'static,
 ) -> ProfResult<T> {
     let store = win.profiling.store.clone();
     crate::error::lift_dto(
@@ -188,8 +188,8 @@ fn read_capture(path: &str) -> ProfResult<(String, String, Vec<u8>)> {
             format!(
                 "{} is {}; captures up to {} can be opened",
                 canonical.display(),
-                imt_plugin_api::units::bytes(meta.len()),
-                imt_plugin_api::units::bytes(max)
+                debrief_plugin_api::units::bytes(meta.len()),
+                debrief_plugin_api::units::bytes(max)
             ),
         )));
     }
@@ -686,13 +686,13 @@ mod tests {
             fn sniff(&self, _: &str, _: &[u8]) -> u8 {
                 100
             }
-            fn import(&self, f: &str, b: &[u8], l: &Limits) -> imt_profile::Result<Capture> {
+            fn import(&self, f: &str, b: &[u8], l: &Limits) -> debrief_profile::Result<Capture> {
                 std::thread::sleep(Duration::from_millis(300));
-                imt_plugin_profiling::folded::FoldedImporter.import(f, b, l)
+                debrief_plugin_profiling::folded::FoldedImporter.import(f, b, l)
             }
         }
         struct SlowPlugin;
-        impl imt_core::Plugin for SlowPlugin {
+        impl debrief_core::Plugin for SlowPlugin {
             fn id(&self) -> &'static str {
                 "test.slow"
             }
@@ -702,9 +702,9 @@ mod tests {
             fn version(&self) -> &'static str {
                 "1.0.0"
             }
-            fn register(&self, r: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
-                r.declare_extension_point::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT)?;
-                r.contribute::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT, Arc::new(Slow));
+            fn register(&self, r: &mut debrief_core::PluginRegistry) -> anyhow::Result<()> {
+                r.declare_extension_point::<dyn CaptureImporter>(debrief_profile::IMPORTERS_POINT)?;
+                r.contribute::<dyn CaptureImporter>(debrief_profile::IMPORTERS_POINT, Arc::new(Slow));
                 Ok(())
             }
         }
@@ -712,11 +712,11 @@ mod tests {
             IMPORT_BUDGET >= Duration::from_secs(300),
             "imports get minutes, not the service budget"
         );
-        let mut registry = imt_core::PluginRegistry::new();
+        let mut registry = debrief_core::PluginRegistry::new();
         registry.install(&SlowPlugin).unwrap();
         registry.resolve();
         let service = registry
-            .contributions::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT)
+            .contributions::<dyn CaptureImporter>(debrief_profile::IMPORTERS_POINT)
             .pop()
             .unwrap();
         let folded = std::fs::read(sample("orders.folded")).unwrap();
@@ -729,7 +729,7 @@ mod tests {
         assert_eq!(e.code(), ErrorCode::Invalid);
     }
 
-    /// A crashing importer contributed by a plugin is contained: the open fails with its id, IMT goes on.
+    /// A crashing importer contributed by a plugin is contained: the open fails with its id, Debrief goes on.
     #[test]
     fn crashing_importers_are_contained() {
         struct Boom;
@@ -747,12 +747,12 @@ mod tests {
                     0
                 }
             }
-            fn import(&self, _: &str, _: &[u8], _: &Limits) -> imt_profile::Result<Capture> {
+            fn import(&self, _: &str, _: &[u8], _: &Limits) -> debrief_profile::Result<Capture> {
                 panic!("importer bug")
             }
         }
         struct BoomPlugin;
-        impl imt_core::Plugin for BoomPlugin {
+        impl debrief_core::Plugin for BoomPlugin {
             fn id(&self) -> &'static str {
                 "test.boom"
             }
@@ -762,14 +762,14 @@ mod tests {
             fn version(&self) -> &'static str {
                 "1.0.0"
             }
-            fn register(&self, r: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
-                r.contribute::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT, Arc::new(Boom));
+            fn register(&self, r: &mut debrief_core::PluginRegistry) -> anyhow::Result<()> {
+                r.contribute::<dyn CaptureImporter>(debrief_profile::IMPORTERS_POINT, Arc::new(Boom));
                 Ok(())
             }
         }
-        /// The built-in importers contributed in process (in IMT they come from the profiling plugin's process).
+        /// The built-in importers contributed in process (in Debrief they come from the profiling plugin's process).
         struct Builtin;
-        impl imt_core::Plugin for Builtin {
+        impl debrief_core::Plugin for Builtin {
             fn id(&self) -> &str {
                 "test.profiling"
             }
@@ -779,15 +779,15 @@ mod tests {
             fn version(&self) -> &str {
                 "1.0.0"
             }
-            fn register(&self, r: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
-                r.declare_extension_point::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT)?;
-                for i in imt_plugin_profiling::builtin_importers() {
-                    r.contribute::<dyn CaptureImporter>(imt_profile::IMPORTERS_POINT, i);
+            fn register(&self, r: &mut debrief_core::PluginRegistry) -> anyhow::Result<()> {
+                r.declare_extension_point::<dyn CaptureImporter>(debrief_profile::IMPORTERS_POINT)?;
+                for i in debrief_plugin_profiling::builtin_importers() {
+                    r.contribute::<dyn CaptureImporter>(debrief_profile::IMPORTERS_POINT, i);
                 }
                 Ok(())
             }
         }
-        let mut registry = imt_core::PluginRegistry::new();
+        let mut registry = debrief_core::PluginRegistry::new();
         registry.install(&Builtin).unwrap();
         registry.install(&BoomPlugin).unwrap();
         registry.resolve();

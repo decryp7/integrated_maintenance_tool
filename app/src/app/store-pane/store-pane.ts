@@ -25,15 +25,15 @@ const TAB_LABELS: Record<StoreTab, string> = {
  * and the read-only SQL console.
  */
 @Component({
-  selector: 'imt-store-pane',
+  selector: 'debrief-store-pane',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [NgTemplateOutlet, SqlConsole, Icon, Tabs],
   template: `
     <div class="tabs">
-      <imt-tabs label="Store" i18n-label="@@store.tabs" idPrefix="store-tab-" [items]="tabItems" [selected]="pane.tab()" [panelId]="panelOf" (selectedChange)="pane.show($any($event))" />
+      <debrief-tabs label="Store" i18n-label="@@store.tabs" idPrefix="store-tab-" [items]="tabItems" [selected]="pane.tab()" [panelId]="panelOf" (selectedChange)="pane.show($any($event))" />
       <span class="grow"></span>
       @if (pane.tab() !== 'sql') {
-        <button type="button" class="icon-btn" data-testid="store-refresh" aria-label="Refresh" i18n-aria-label="@@store.refresh" title="Refresh" i18n-title="@@store.refresh.title" (click)="pane.refresh()"><imt-icon name="refresh" [size]="14" /></button>
+        <button type="button" class="icon-btn" data-testid="store-refresh" aria-label="Refresh" i18n-aria-label="@@store.refresh" title="Refresh" i18n-title="@@store.refresh.title" (click)="pane.refresh()"><debrief-icon name="refresh" [size]="14" /></button>
       }
     </div>
     <div class="panel" id="store-panel" role="tabpanel" [attr.aria-labelledby]="'store-tab-' + pane.tab()" tabindex="0">
@@ -209,7 +209,7 @@ const TAB_LABELS: Record<StoreTab, string> = {
           }
         }
         @case ('sql') {
-          <imt-sql-console />
+          <debrief-sql-console />
         }
       }
     </div>

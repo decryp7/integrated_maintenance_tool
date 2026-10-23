@@ -10,10 +10,10 @@ test.describe('query bar', () => {
     const input = await openQuery(page);
     await input.click();
     await input.pressSequentially('level >= warning | stats count() by lev');
-    const options = page.locator('imt-query-field').getByRole('option');
+    const options = page.locator('debrief-query-field').getByRole('option');
     await expect(options.first()).toContainText('level');
     await expect(input).toHaveAttribute('aria-expanded', 'true');
-    await expectNoSeriousViolations(page, testInfo, 'query-completions', 'imt-query-field');
+    await expectNoSeriousViolations(page, testInfo, 'query-completions', 'debrief-query-field');
     await page.keyboard.press('Tab');
     await expect(input).toHaveValue('level >= warning | stats count() by level');
     await expect(options).toHaveCount(0);
@@ -23,7 +23,7 @@ test.describe('query bar', () => {
     const input = await openQuery(page);
     await input.click();
     await input.pressSequentially('level >= warning | frob');
-    const underline = page.locator('imt-query-field .mirror .err');
+    const underline = page.locator('debrief-query-field .mirror .err');
     await expect(underline).toHaveText('frob');
     await expect(input).toHaveAttribute('aria-invalid', 'true');
     await expect(page.locator('#ql-error')).toContainText("Unknown stage 'frob' at column 20");
@@ -50,7 +50,7 @@ test.describe('query bar', () => {
     await input.click();
     await input.fill('| stats count() by level');
     await input.press('ControlOrMeta+Enter');
-    const results = page.locator('imt-query-results-view');
+    const results = page.locator('debrief-query-results-view');
     await expect(results).toBeVisible();
     await expect(results.getByRole('columnheader', { name: 'level' })).toBeVisible();
     await expect(results.getByRole('columnheader', { name: 'count()' })).toBeVisible();
@@ -65,7 +65,7 @@ test.describe('query bar', () => {
     const download = page.waitForEvent('download');
     await results.getByRole('button', { name: 'Export CSV' }).click();
     expect((await download).suggestedFilename()).toBe('query-result.csv');
-    await expectNoSeriousViolations(page, testInfo, 'query-results', 'imt-query-results-view');
+    await expectNoSeriousViolations(page, testInfo, 'query-results', 'debrief-query-results-view');
   });
 
   test('history lists successful queries', async ({ page }) => {
@@ -91,7 +91,7 @@ test.describe('query bar', () => {
       const input = await openQuery(page);
       await input.click();
       await input.pressSequentially('level >= warning | stats count() by source');
-      await expectNoSeriousViolations(page, testInfo, `query-${scheme}`, 'imt-query-field');
+      await expectNoSeriousViolations(page, testInfo, `query-${scheme}`, 'debrief-query-field');
     });
   }
 });

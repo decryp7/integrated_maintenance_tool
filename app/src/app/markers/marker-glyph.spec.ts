@@ -20,7 +20,7 @@ describe('MarkerGlyph', () => {
     expect((f.nativeElement as HTMLElement).dataset['glyph']).toBe('shape');
     expect(f.nativeElement.getAttribute('aria-hidden')).toBe('true');
     expect(f.nativeElement.getAttribute('role')).toBeNull();
-    expect(f.nativeElement.querySelector('imt-marker-icon')).not.toBeNull();
+    expect(f.nativeElement.querySelector('debrief-marker-icon')).not.toBeNull();
   });
 
   it('draws badges in each shape with contrast-aware text and exposes a label when asked', async () => {

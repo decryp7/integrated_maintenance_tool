@@ -71,7 +71,7 @@ describe('parser generation (ADR 0032)', () => {
     expect(t).toContain('not decided: please check');
     expect(t).not.toContain('and a level');
     expect(best.querySelector('details')!.hasAttribute('open')).toBe(true);
-    expect(render({ ...base, status: 'builtin', rounds: [] }).textContent).toContain("read by IMT's parsers");
+    expect(render({ ...base, status: 'builtin', rounds: [] }).textContent).toContain("read by Debrief's parsers");
     expect(render({ ...base, verdict: null }).querySelector('[data-testid=parser-verdict]')).toBeNull();
   });
 

@@ -8,7 +8,7 @@ import { PlaybookStore } from './playbook.store';
 
 /** The steps of one run: each with its status, what to do, the buttons to do it and a note. */
 @Component({
-  selector: 'imt-playbook-run',
+  selector: 'debrief-playbook-run',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
@@ -32,7 +32,7 @@ import { PlaybookStore } from './playbook.store';
         <li class="step" [attr.data-testid]="'pb-run-step-' + step.id" [attr.data-state]="state">
           <div class="step-head">
             <span class="status" [attr.data-status]="state" [attr.data-testid]="'pb-status-' + step.id">
-              <imt-icon [name]="icon(state)" [size]="13" />
+              <debrief-icon [name]="icon(state)" [size]="13" />
               <span>{{ statusText(state) }}</span>
             </span>
             <strong class="title">{{ i + 1 }}. {{ step.title }}</strong>

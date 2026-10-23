@@ -7,14 +7,14 @@ import { PasteBackend } from './paste-backend';
 import { PasteDialog } from './paste-dialog';
 
 async function setup(clipboard: string | Error = 'clip text') {
-  const imt = tinyBackend();
-  const backend = new MockPasteBackend(imt);
+  const debrief = tinyBackend();
+  const backend = new MockPasteBackend(debrief);
   const ref = { close: vi.fn(), closed: Promise.resolve(undefined) };
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
     value: { readText: () => (clipboard instanceof Error ? Promise.reject(clipboard) : Promise.resolve(clipboard)) },
   });
-  TestBed.configureTestingModule({ providers: [provideTinyBackend(imt), { provide: PasteBackend, useValue: backend }, { provide: DIALOG_REF, useValue: ref }] });
+  TestBed.configureTestingModule({ providers: [provideTinyBackend(debrief), { provide: PasteBackend, useValue: backend }, { provide: DIALOG_REF, useValue: ref }] });
   const workspace = TestBed.inject(WorkspaceStore);
   await workspace.init();
   return { backend, ref, workspace };

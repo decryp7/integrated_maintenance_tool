@@ -1,5 +1,5 @@
-// Writes invented log events through the real .NET logging libraries so IMT's parsers are tested against what
-// the libraries actually produce (samples/real-libraries/). A developer tool: not part of IMT, not built by the
+// Writes invented log events through the real .NET logging libraries so Debrief's parsers are tested against what
+// the libraries actually produce (samples/real-libraries/). A developer tool: not part of Debrief, not built by the
 // app or CI. See README.md.
 //
 //   dotnet run --project tools/dotnet-sample-gen -- samples/real-libraries
@@ -145,7 +145,7 @@ static class Log4NetOutput
 {
     public static void Write(string dir, List<Ev> events)
     {
-        var repo = (Hierarchy)log4net.LogManager.CreateRepository("imt-samples");
+        var repo = (Hierarchy)log4net.LogManager.CreateRepository("debrief-samples");
         Add(repo, Path.Combine(dir, "log4net-pattern.log"), new PatternLayout("%date [%thread] %-5level %logger - %message%newline%exception"));
         // A CSV-like layout without a header: date, time with offset, level, event code, process, pid, message.
         Add(repo, Path.Combine(dir, "log4net-csv.log"),

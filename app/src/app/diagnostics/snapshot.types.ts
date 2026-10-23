@@ -25,7 +25,7 @@ export const noScreenshotNote = (reason: string) => $localize`:@@diagnostics.sna
 export const CAPTURING_ATTRIBUTE = 'data-snapshot-capturing';
 
 /** The first-save notice. */
-export const SNAPSHOT_NOTICE = $localize`:@@diagnostics.snapshot.notice:IMT saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.`;
+export const SNAPSHOT_NOTICE = $localize`:@@diagnostics.snapshot.notice:Debrief saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.`;
 
 /** Help ▸ Report a problem… */
 export const REPORT_PROBLEM_COMMAND = 'help.reportProblem';

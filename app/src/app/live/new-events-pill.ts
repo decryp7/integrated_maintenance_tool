@@ -4,7 +4,7 @@ import { LiveFeed } from './live-feed';
 
 /** "N new events" over the grid while live tail runs but the grid is not following; click to show them. */
 @Component({
-  selector: 'imt-new-events-pill',
+  selector: 'debrief-new-events-pill',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (feed.newEvents() > 0) {

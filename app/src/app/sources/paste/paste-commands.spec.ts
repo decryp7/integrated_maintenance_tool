@@ -30,8 +30,8 @@ describe('dropped text', () => {
     expect(droppedText(data(0, ['text/plain'], 'a b'))).toBe('a b');
     expect(droppedText(data(1, ['text/plain'], 'a b'))).toBeNull();
     // An event dragged out of the grid carries its text, but is not text to paste.
-    expect(droppedText(data(0, ['text/plain', 'application/x-imt-event'], 'a b'))).toBeNull();
-    expect(dragsText({ files: { length: 0 }, types: ['text/plain', 'application/x-imt-event'] })).toBe(false);
+    expect(droppedText(data(0, ['text/plain', 'application/x-debrief-event'], 'a b'))).toBeNull();
+    expect(dragsText({ files: { length: 0 }, types: ['text/plain', 'application/x-debrief-event'] })).toBe(false);
     expect(droppedText(data(0, ['text/plain'], '  \n'))).toBeNull();
     expect(droppedText(null)).toBeNull();
     expect(dragsText(data(0, ['text/plain'], ''))).toBe(true);

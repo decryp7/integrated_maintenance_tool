@@ -31,7 +31,7 @@
 <text x="88" y="292" class="t">and journald, IIS and web</text>
 <text x="88" y="308" class="t">servers, HAR, OpenTelemetry,</text>
 <text x="88" y="324" class="t">Docker and Kubernetes, <tspan class="c">.zip</tspan>, <tspan class="c">.gz</tspan></text>
-<text x="88" y="340" class="t">and <tspan class="c">.imtz</tspan> bundles.</text>
+<text x="88" y="340" class="t">and <tspan class="c">.debriefz</tspan> bundles.</text>
 <rect x="72" y="388" width="240" height="124" rx="6" class="n ext"/>
 <text x="88" y="418" class="h">Windows diagnostics</text>
 <text x="88" y="440" class="t">Event logs, Performance</text>
@@ -46,20 +46,20 @@
 <text x="88" y="636" class="t">recordings.</text>
 <rect x="72" y="684" width="240" height="124" rx="6" class="n acc"/>
 <text x="88" y="714" class="h">Collection and automation</text>
-<text x="88" y="736" class="t"><tspan class="c">imt-agent</tspan>, <tspan class="c">imt-collect</tspan>,</text>
-<text x="88" y="752" class="t"><tspan class="c">imt-monitor</tspan>, the <tspan class="c">imt</tspan> command</text>
+<text x="88" y="736" class="t"><tspan class="c">debrief-agent</tspan>, <tspan class="c">debrief-collect</tspan>,</text>
+<text x="88" y="752" class="t"><tspan class="c">debrief-monitor</tspan>, the <tspan class="c">debrief</tspan> command</text>
 <text x="88" y="768" class="t">line for scripts and CI, and</text>
 <text x="88" y="784" class="t">watched folders.</text>
 <rect x="472" y="208" width="336" height="108" rx="6" class="n plg"/>
 <text x="488" y="238" class="h">Plugins: importers, tools, transforms</text>
 <text x="488" y="260" class="t">Each in its own sandboxed process over one IPC</text>
-<text x="488" y="276" class="t">(<tspan class="c">imt-ipc</tspan>): built in, or signed <tspan class="c">.imtplugin</tspan> packages</text>
+<text x="488" y="276" class="t">(<tspan class="c">debrief-ipc</tspan>): built in, or signed <tspan class="c">.debriefplugin</tspan> packages</text>
 <text x="488" y="292" class="t">written in Rust.</text>
 <rect x="472" y="340" width="336" height="124" rx="6" class="n acc"/>
 <text x="488" y="370" class="h">Store worker</text>
 <text x="488" y="392" class="t">DuckDB and Tantivy in a supervised process:</text>
 <text x="488" y="408" class="t">Parquet segments, a full-text index, time-range</text>
-<text x="488" y="424" class="t">import and <tspan class="c">.imtz</tspan> projects. The app never holds</text>
+<text x="488" y="424" class="t">import and <tspan class="c">.debriefz</tspan> projects. The app never holds</text>
 <text x="488" y="440" class="t">the records.</text>
 <rect x="472" y="488" width="336" height="108" rx="6" class="n acc"/>
 <text x="488" y="518" class="h">Queries and analysis</text>
@@ -101,8 +101,8 @@
 <path d="M336 724 L448 724" class="e" marker-end="url(#a)"/>
 <text x="344" y="714" class="m">writes bundles</text>
 <rect x="48" y="872" width="1184" height="112" rx="6" class="n core"/>
-<text x="64" y="902" class="h">imt-core: pure Rust, no windows, no network</text>
-<text x="64" y="926" class="t">Store ports, parsers and profiles, the pipeline, the query language, analysis, reports and redaction: the single source of truth for data and behaviour. The app, the store worker and <tspan class="c">imt</tspan></text>
+<text x="64" y="902" class="h">debrief-core: pure Rust, no windows, no network</text>
+<text x="64" y="926" class="t">Store ports, parsers and profiles, the pipeline, the query language, analysis, reports and redaction: the single source of truth for data and behaviour. The app, the store worker and <tspan class="c">debrief</tspan></text>
 <text x="64" y="942" class="t">all use it.</text>
 <text x="64" y="958" class="t">Files are untrusted: parsed once at the edge, bounded by line, regex and archive limits, fuzzed, and never allowed to panic. Nothing leaves your machine unless you start an update, a</text>
 <text x="64" y="974" class="t">download or research.</text>

@@ -6,7 +6,7 @@ use super::*;
 use crate::test_support::Now as _;
 use crate::test_support::TempDir;
 use base64::Engine;
-use imt_core::settings::{sanitize, validate, Configurable};
+use debrief_core::settings::{sanitize, validate, Configurable};
 use serde_json::{json, Value};
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -22,7 +22,7 @@ fn public_key() -> String {
 }
 
 fn signature() -> String {
-    b64("untrusted comment: signature from tauri secret key\nRUQ=\ntrusted comment: timestamp:1\tfile:IMT.exe\tversion:1.2.0\nAAAA\n")
+    b64("untrusted comment: signature from tauri secret key\nRUQ=\ntrusted comment: timestamp:1\tfile:Debrief.exe\tversion:1.2.0\nAAAA\n")
 }
 
 fn manifest_json() -> Value {
@@ -31,8 +31,8 @@ fn manifest_json() -> Value {
         "notes": "## Fixes\n- faster <b>grid</b>\u{0007}",
         "pub_date": "2026-10-17T12:00:00Z",
         "platforms": {
-            "windows-x86_64-nsis": { "url": "https://example.net/r/IMT_1.2.0_x64-setup.exe", "signature": signature(), "size": 41_000_000 },
-            "darwin-aarch64": { "url": "https://example.net/r/IMT.app.tar.gz", "signature": signature() }
+            "windows-x86_64-nsis": { "url": "https://example.net/r/DEBRIEF_1.2.0_x64-setup.exe", "signature": signature(), "size": 41_000_000 },
+            "darwin-aarch64": { "url": "https://example.net/r/Debrief.app.tar.gz", "signature": signature() }
         }
     })
 }
@@ -57,9 +57,9 @@ fn manifest_parses_and_sanitizes() {
     assert_eq!(m.notes, "## Fixes\n- faster <b>grid</b>");
     assert_eq!(m.pub_date.as_deref(), Some("2026-10-17T12:00:00Z"));
     assert_eq!(m.platforms.len(), 2);
-    let p = m.platform_by_url("https://example.net/r/IMT_1.2.0_x64-setup.exe").unwrap();
+    let p = m.platform_by_url("https://example.net/r/DEBRIEF_1.2.0_x64-setup.exe").unwrap();
     assert_eq!(p.size, Some(41_000_000));
-    assert_eq!(m.platform_by_url("https://example.net/r/IMT.app.tar.gz").unwrap().size, None);
+    assert_eq!(m.platform_by_url("https://example.net/r/Debrief.app.tar.gz").unwrap().size, None);
     assert!(m.platform_by_url("https://elsewhere").is_none());
 
     // A "v" prefix, missing notes and date are fine.
@@ -106,7 +106,10 @@ fn manifest_rejects_invalid_release_information() {
             "platform name",
         ),
         (with(&|v| v["platforms"][win] = json!("https://x")), "object"),
-        (with(&|v| v["platforms"][win]["url"] = json!("http://example.net/IMT.exe")), "https"),
+        (
+            with(&|v| v["platforms"][win]["url"] = json!("http://example.net/Debrief.exe")),
+            "https",
+        ),
         (with(&|v| v["platforms"][win]["url"] = json!("not a url")), "URL"),
         (
             with(&|v| v["platforms"][win]["url"] = json!(format!("https://x/{}", "a".repeat(3000)))),
@@ -683,7 +686,7 @@ fn restart_installs_and_relaunches() {
     wait_for(&r.updates, "ready", |p| matches!(p, UpdatePhase::Ready { .. }));
     let s = r.updates.prepare_restart().unwrap();
     assert!(matches!(s.phase, UpdatePhase::Installing { .. }));
-    // Windows' installer starts IMT itself; elsewhere IMT relaunches.
+    // Windows' installer starts Debrief itself; elsewhere Debrief relaunches.
     assert_eq!(r.updates.install_at_exit(), !cfg!(windows));
     assert_eq!(*r.fake.installs.lock().unwrap(), vec![true]);
 }
@@ -713,7 +716,7 @@ fn a_failed_install_at_exit_is_shown_at_the_next_start() {
     assert!(record::load(Some(&dir)).failed_install.is_none());
 
     let other = record::FailedInstall::of("1.2.0", &UpdateError::InstallFailed { detail: "denied".into() });
-    assert_eq!(other.error().detail().unwrap(), "IMT 1.2.0: denied");
+    assert_eq!(other.error().detail().unwrap(), "Debrief 1.2.0: denied");
 }
 
 #[test]
@@ -803,7 +806,7 @@ fn corrupt_or_newer_records_are_ignored() {
     assert_eq!(record::load(Some(&dir.0)), record::Record::default());
     assert_eq!(record::load(None), record::Record::default());
     record::save(None, &record::Record::default());
-    let r = rig_in(dir, std::env::temp_dir().join("imt-updater-missing").join("x"), true);
+    let r = rig_in(dir, std::env::temp_dir().join("debrief-updater-missing").join("x"), true);
     assert_eq!(r.updates.status().phase, UpdatePhase::Idle);
 }
 

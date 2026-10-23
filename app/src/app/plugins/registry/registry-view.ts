@@ -1,10 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, effect, ElementRef, inject, Injector, linkedSignal, signal, untracked, viewChildren } from '@angular/core';
 import { RovingFocusNavigation } from '../../shared/list-navigation';
 import { RecordView, SourceInfo } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { formatCount } from '../../core/format';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
-import { ImtEvents } from '../../extensions/events';
+import { DebriefEvents } from '../../extensions/events';
 import { Icon } from '../../shared/icon';
 import { loadRegistryRows } from './registry-loader';
 import { buildRegistryTree, expandableIds, flattenTree, FlatNode, REGISTRY_ROW_CAP, RegistryNode } from './registry-tree';
@@ -15,7 +15,7 @@ const AUTO_EXPAND_LIMIT = 400;
 
 /** Windows registry exports as an expandable tree: Hive → Key → values (with type badge and data). */
 @Component({
-  selector: 'imt-registry-view',
+  selector: 'debrief-registry-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, NextSteps],
   template: `
@@ -23,7 +23,7 @@ const AUTO_EXPAND_LIMIT = 400;
       <input class="input filter" type="search" placeholder="Filter keys, values, data" i18n-placeholder="@@plugins.registry.filter.placeholder" aria-label="Filter registry" i18n-aria-label="@@plugins.registry.filter.aria" [value]="filter()" (input)="filter.set($any($event.target).value)" />
       <span class="spacer"></span>
       <button class="btn ghost" [disabled]="!selectedNode()" (click)="copyPath()" title="Copy the path of the selected key or value" i18n-title="@@plugins.registry.copyPath.title">
-        <imt-icon name="copy" [size]="14" /> {{ copyLabel() }}
+        <debrief-icon name="copy" [size]="14" /> {{ copyLabel() }}
       </button>
     </div>
     @if (truncated()) {
@@ -35,7 +35,7 @@ const AUTO_EXPAND_LIMIT = 400;
       <div class="empty-state">
         <div i18n="@@plugins.registry.empty.title">No registry data in the workspace.</div>
         <div class="faint" i18n="@@plugins.registry.empty.hint">Open a Windows registry export (.reg) to browse its keys and values here.</div>
-        <imt-next-steps />
+        <debrief-next-steps />
       </div>
     } @else {
       <div class="tree" role="tree" aria-label="Registry" i18n-aria-label="@@plugins.registry.tree" (keydown)="onKey($event)">
@@ -56,9 +56,9 @@ const AUTO_EXPAND_LIMIT = 400;
             (click)="activate(item)"
           >
             <span class="twisty" aria-hidden="true">
-              @if (item.expandable) { <imt-icon [name]="item.expanded ? 'chevronDown' : 'chevronRight'" [size]="12" /> }
+              @if (item.expandable) { <debrief-icon [name]="item.expanded ? 'chevronDown' : 'chevronRight'" [size]="12" /> }
             </span>
-            <imt-icon class="kind" [name]="item.node.kind === 'value' ? 'file' : 'folder'" [size]="13" />
+            <debrief-icon class="kind" [name]="item.node.kind === 'value' ? 'file' : 'folder'" [size]="13" />
             <span class="label ellipsis" [title]="item.node.label">{{ item.node.label }}</span>
             @if (item.node.deleted) {
               <span class="deleted" i18n="@@plugins.registry.deletedKey">Deleted key</span>
@@ -93,8 +93,8 @@ const AUTO_EXPAND_LIMIT = 400;
   `,
 })
 export class RegistryView {
-  private readonly backend = inject(ImtBackend);
-  private readonly events = inject(ImtEvents);
+  private readonly backend = inject(DebriefBackend);
+  private readonly events = inject(DebriefEvents);
   private readonly ctx = inject(COMMAND_CONTEXT);
   private readonly rowEls = viewChildren<ElementRef<HTMLElement>>('row');
 

@@ -18,7 +18,7 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
 
 /** Everything that happened in a time window: levels, instances, metrics, users, activity and anomalies. */
 @Component({
-  selector: 'imt-moment-view',
+  selector: 'debrief-moment-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AnalysisState, ProfileMomentSection, AiButton, CoverageNote],
   template: `
@@ -26,10 +26,10 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
       <span class="mono">{{ time.range(range()) }}</span>
       <span class="spacer"></span>
       <button class="btn" type="button" [disabled]="!range()" (click)="zoom()" i18n="@@analysis.moment.zoom">Zoom to this range</button>
-      <imt-ai-button label="Summarize" i18n-label="@@analysis.moment.summarize" hint="The local model summarizes what happened in this range" i18n-hint="@@analysis.moment.summarizeHint" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
+      <debrief-ai-button label="Summarize" i18n-label="@@analysis.moment.summarize" hint="The local model summarizes what happened in this range" i18n-hint="@@analysis.moment.summarizeHint" testId="ai-summarize" [disabled]="!range()" (pressed)="summarize()" />
     </div>
-    <imt-coverage-note [coverage]="res.coverage()" />
-    <imt-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
+    <debrief-coverage-note [coverage]="res.coverage()" />
+    <debrief-analysis-state [loading]="res.loading()" [error]="res.error()" [retryable]="res.retryable()" [hasData]="!!res.result()" [empty]="!range()" emptyText="Select a time range (or load a workspace) to analyse a moment." i18n-emptyText="@@analysis.moment.emptyText" (retry)="res.retry()">
       @if (res.result(); as m) {
         <div class="body" tabindex="0" role="region" aria-label="Moment details" i18n-aria-label="@@analysis.moment.region">
           <div class="summary">
@@ -131,10 +131,10 @@ import { ProfileMomentSection } from '../profiling/integration/profile-moment';
             <p class="muted" i18n="@@analysis.moment.none">None.</p>
           }
 
-          <imt-profile-moment [range]="range()" />
+          <debrief-profile-moment [range]="range()" />
         </div>
       }
-    </imt-analysis-state>
+    </debrief-analysis-state>
   `,
   styles: [
     ANALYSIS_STYLES,

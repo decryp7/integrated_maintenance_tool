@@ -1,0 +1,3 @@
+security.evtx: sample "new-user-security.evtx" from https://github.com/omerbenamram/evtx (samples/), MIT OR Apache-2.0. 68 KB, unmodified.
+All other fixtures were written for Debrief.
+eventlog/*.xml and *.message.txt: events rendered by EvtRender (Get-WinEvent ToXml) and their EvtFormatMessage text, recorded on a test machine with the computer name replaced by WIN-FIXTURE; userdata-104.xml and classic-multi.xml were written by hand in the same format.

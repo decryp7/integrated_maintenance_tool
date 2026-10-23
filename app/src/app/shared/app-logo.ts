@@ -3,12 +3,12 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 let nextId = 0;
 
 /**
- * IMT's app icon, inline (the CSP allows no remote images). The geometry is the small-size master
- * `src-tauri/icons-src/imt-icon-small.svg`, which reads best at title-bar and dialog sizes; keep them in step.
+ * Debrief's app icon, inline (the CSP allows no remote images). The geometry is the small-size master
+ * `src-tauri/icons-src/debrief-icon-small.svg`, which reads best at title-bar and dialog sizes; keep them in step.
  * Decorative (hidden from assistive tech) unless `label` is set.
  */
 @Component({
-  selector: 'imt-app-logo',
+  selector: 'debrief-app-logo',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<svg
     viewBox="0 0 1024 1024"
@@ -44,5 +44,5 @@ export class AppLogo {
   /** Accessible name; when empty the logo is decorative. */
   readonly label = input('');
   /** Unique per instance, so several logos on one page don't share (or lose) a gradient. */
-  protected readonly gradientId = `imt-logo-${nextId++}`;
+  protected readonly gradientId = `debrief-logo-${nextId++}`;
 }

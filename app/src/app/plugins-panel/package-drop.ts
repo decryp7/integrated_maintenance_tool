@@ -8,7 +8,7 @@ import { isPackagePath, PluginPackagesStore } from './plugin-packages.store';
 const PLUGINS_VIEW = 'plugins';
 
 /**
- * The drag-and-drop claim of plugin packages: `.imtplugin` files are never opened as logs. The first one is reviewed
+ * The drag-and-drop claim of plugin packages: `.debriefplugin` files are never opened as logs. The first one is reviewed
  * (the review dialog opens over the Plugins panel); the shell granted the dropped paths already.
  */
 export function pluginPackageDropHandler(): DroppedFilesHandler {

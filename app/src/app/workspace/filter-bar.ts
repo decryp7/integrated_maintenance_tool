@@ -29,13 +29,13 @@ const OP_LABELS: Record<FilterOp, string> = {
 };
 
 @Component({
-  selector: 'imt-filter-bar',
+  selector: 'debrief-filter-bar',
   host: { '[class.compact]': 'compact()' },
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, ClickOutside, Switch, QueryField, QueryStatus, LensBar],
   template: `
     <div class="row">
-      <imt-query-field #qf />
+      <debrief-query-field #qf />
 
       <!-- One tab stop: the arrow keys move between the chips (roving tabindex). -->
       <div class="levels" role="toolbar" aria-label="Levels" i18n-aria-label="@@workspace.filterBar.levels" (keydown)="onLevelsKey($event)">
@@ -52,18 +52,18 @@ const OP_LABELS: Record<FilterOp, string> = {
         <span class="ends"><span class="end">{{ rangeShort()[0] }}</span>@if (rangeShort()[1]) {<span> – </span><span class="end">{{ rangeShort()[1] }}</span>}</span>
         @if (store.hasRange()) {
           <span class="faint">({{ rangeSpan() }})</span>
-          <imt-icon name="zoomOut" [size]="13" />
+          <debrief-icon name="zoomOut" [size]="13" />
         }
       </button>
       <button class="tz" [class.fold]="compact()" (click)="store.setTimezone(store.timezone() === 'utc' ? 'local' : 'utc')" title="Toggle UTC / local time" i18n-title="@@workspace.filterBar.toggleTz">{{ tz() }}</button>
-      <div class="anchor" (imtClickOutside)="addOpen.set(false)">
+      <div class="anchor" (debriefClickOutside)="addOpen.set(false)">
         <button class="btn dashed pill" (click)="addOpen.set(!addOpen())" [attr.aria-expanded]="addOpen()" i18n="@@workspace.filterBar.addFilter">+ Add filter</button>
         @if (addOpen()) {
           <form class="popover add-pop" (submit)="$event.preventDefault(); addFilter()">
             <label class="lbl"><ng-container i18n="@@workspace.filterBar.field">Field</ng-container>
-              <input class="input mono" list="imt-field-names" [value]="newField()" (input)="newField.set($any($event.target).value)" placeholder="SourceContext" required />
+              <input class="input mono" list="debrief-field-names" [value]="newField()" (input)="newField.set($any($event.target).value)" placeholder="SourceContext" required />
             </label>
-            <datalist id="imt-field-names">
+            <datalist id="debrief-field-names">
               @for (f of allFields(); track f) { <option [value]="f"></option> }
             </datalist>
             <label class="lbl"><ng-container i18n="@@workspace.filterBar.operator">Operator</ng-container>
@@ -89,12 +89,12 @@ const OP_LABELS: Record<FilterOp, string> = {
       }
       <!-- The lens and view options stay together: when the bar wraps they move to the next line as one right-aligned group. -->
       <div class="tools">
-      <imt-lens-bar />
+      <debrief-lens-bar />
       @if (compact()) {
         <!-- Narrow window (H1): what does not fit folds into this menu; the search and the levels always stay. -->
-        <div class="anchor" (imtClickOutside)="moreOpen.set(false)" (keydown.escape)="moreOpen.set(false)">
+        <div class="anchor" (debriefClickOutside)="moreOpen.set(false)" (keydown.escape)="moreOpen.set(false)">
           <button class="btn tall" data-testid="filter-more" aria-haspopup="menu" [attr.aria-expanded]="moreOpen()" aria-label="More filter controls" i18n-aria-label="@@workspace.filterBar.more" title="More filter controls" i18n-title="@@workspace.filterBar.moreTitle" (click)="moreOpen.set(!moreOpen())">
-            <imt-icon name="more" [size]="14" />
+            <debrief-icon name="more" [size]="14" />
           </button>
           @if (moreOpen()) {
             <div class="popover more-pop" role="menu" aria-label="More filter controls" i18n-aria-label="@@workspace.filterBar.more">
@@ -107,14 +107,14 @@ const OP_LABELS: Record<FilterOp, string> = {
           }
         </div>
       }
-      <div class="anchor" (imtClickOutside)="optionsOpen.set(false)" (keydown.escape)="optionsOpen.set(false)">
-        <button class="btn tall" data-testid="view-options" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="imt-view-options" (click)="optionsOpen.set(!optionsOpen())">
-          <imt-icon name="group" [size]="14" />
+      <div class="anchor" (debriefClickOutside)="optionsOpen.set(false)" (keydown.escape)="optionsOpen.set(false)">
+        <button class="btn tall" data-testid="view-options" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria" aria-haspopup="dialog" [attr.aria-expanded]="optionsOpen()" aria-controls="debrief-view-options" (click)="optionsOpen.set(!optionsOpen())">
+          <debrief-icon name="group" [size]="14" />
           <span class="fold" i18n="@@workspace.filterBar.viewOptions">View options</span>
-          <imt-icon name="chevronDown" [size]="12" />
+          <debrief-icon name="chevronDown" [size]="12" />
         </button>
         @if (optionsOpen()) {
-          <div class="popover options-pop" id="imt-view-options" role="dialog" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria">
+          <div class="popover options-pop" id="debrief-view-options" role="dialog" aria-label="View options" i18n-aria-label="@@workspace.filterBar.viewOptionsAria">
             <div class="opt-section">
               <div class="opt-head"><span class="muted" i18n="@@workspace.filterBar.groupLanesBy">Group events into timeline lanes by</span> <span class="mono">{{ store.effectiveGroupBy().join(' · ') || '—' }}</span></div>
               <div class="faint small" i18n="@@workspace.filterBar.groupLanesHelp">Events with equal values in these fields form one lane.</div>
@@ -134,15 +134,15 @@ const OP_LABELS: Record<FilterOp, string> = {
               </div>
             </div>
             <div class="opt-section switches">
-              <imt-switch class="sw" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)" i18n="@@workspace.filterBar.markedOnly">Marked only</imt-switch>
-              <imt-switch class="sw" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)" i18n="@@workspace.filterBar.alwaysLifecycle">Always show start / stop</imt-switch>
+              <debrief-switch class="sw" size="small" [checked]="store.markedOnly()" (checkedChange)="store.setMarkedOnly($event)" i18n="@@workspace.filterBar.markedOnly">Marked only</debrief-switch>
+              <debrief-switch class="sw" size="small" [checked]="store.alwaysShowLifecycle()" (checkedChange)="store.setAlwaysShowLifecycle($event)" i18n="@@workspace.filterBar.alwaysLifecycle">Always show start / stop</debrief-switch>
             </div>
           </div>
         }
       </div>
       </div>
     </div>
-    <imt-query-status (pick)="qf.useSuggestion($event)" />
+    <debrief-query-status (pick)="qf.useSuggestion($event)" />
 
     @if (q().filters.length || q().groups.length || field.hiddenText()) {
     <div class="row" role="group" aria-label="Filters" i18n-aria-label="@@workspace.filterBar.filters">
@@ -177,7 +177,7 @@ const OP_LABELS: Record<FilterOp, string> = {
     .row { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
     /* A narrow bar (H1) wraps: the search field gets a line of its own and the rest follows below. */
     :host(.compact) .row:first-child { flex-wrap: wrap; }
-    :host(.compact) imt-query-field { flex: 1 1 100%; }
+    :host(.compact) debrief-query-field { flex: 1 1 100%; }
     .levels { flex: none; display: flex; height: 30px; border: 1px solid var(--border-2); border-radius: 6px; overflow: hidden; }
     .lvl { height: 30px; display: flex; align-items: center; gap: 6px; padding: 0 7px; border: 0; border-right: 1px solid var(--border-2); background: var(--bg-2); color: var(--faint); font-size: var(--fs-sm); cursor: pointer; }
     .lvl:last-child { border-right: 0; }

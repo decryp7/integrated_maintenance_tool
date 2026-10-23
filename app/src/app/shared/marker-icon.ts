@@ -4,7 +4,7 @@ const BUILT_IN = new Set(['start', 'stop', 'fatal', 'exception', 'error', 'warni
 
 /** Shape + colour for a marker kind. Built-in kinds have distinct shapes so colour is never the only cue. */
 @Component({
-  selector: 'imt-marker-icon',
+  selector: 'debrief-marker-icon',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<span class="mk" [class]="cls()" [style.background]="customColor()" [attr.aria-label]="label() || kind()" role="img"></span>`,
   styles: `

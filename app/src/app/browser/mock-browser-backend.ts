@@ -2,7 +2,7 @@ import { mockJobs } from '../jobs/mock-jobs';
 /**
  * The AI's browser for the browser build (dev and UI tests): a pretend page open in the AI's browser window, pages
  * handed to chats, who drives, and the per-chat read-along and agent switches the scripted AI mock plays with. It
- * mimics the contract of `app/src-tauri/src/browser` only; the engine (`crates/imt-ai/src/browser`) is the reference.
+ * mimics the contract of `app/src-tauri/src/browser` only; the engine (`crates/debrief-ai/src/browser`) is the reference.
  */
 import { Unlisten } from '../windowing/window-events';
 import { BrowserBackend, ChatBrowserBackend } from './browser-backend';
@@ -84,7 +84,7 @@ export class MockWeb {
   report(activity: BrowserActivityKind, host: string, text?: string): void {
     if (text) this.emit({ type: 'status', text });
     const label = activity === 'reading' ? 'Reading' : activity === 'searching' ? 'Searching' : 'Waiting for you';
-    this.emit({ type: 'activity', activity, host, title: `IMT AI — ${label}: ${host}` });
+    this.emit({ type: 'activity', activity, host, title: `Debrief AI — ${label}: ${host}` });
   }
 
   status(sessionId: string): ChatBrowserStatus {

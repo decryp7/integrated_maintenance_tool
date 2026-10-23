@@ -41,8 +41,8 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
 
 ### 1. One store: DuckDB in a store worker, behind small ports
 
-- `imt-store-worker` (new binary, the ADR 0002 worker pattern) hosts DuckDB and Tantivy for **all windows**; one
-  worker per app instance, one database per project/window. The app talks to it through `imt-ipc` with the same
+- `debrief-store-worker` (new binary, the ADR 0002 worker pattern) hosts DuckDB and Tantivy for **all windows**; one
+  worker per app instance, one database per project/window. The app talks to it through `debrief-ipc` with the same
   supervisor, restart and timeout rules as the AI worker. A crashed worker is restarted and the project reopened
   (the database is durable); in-flight requests fail with a retryable error.
 - The in-memory `Workspace` is removed. Tests that need a store use the real DuckDB adapter on a temp folder
@@ -100,7 +100,7 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
 
 ### 3. One batch format end to end
 
-- `imt_core::batch::RecordBatch` wraps an Arrow `RecordBatch` with IMT's fixed columns: `id u64`, `ts i64?`
+- `debrief_core::batch::RecordBatch` wraps an Arrow `RecordBatch` with Debrief's fixed columns: `id u64`, `ts i64?`
   (UTC ms), `ts_state u8` (parsed, inherited from the event above, untimed), `level u8`, `source u32`,
   `line u32`, `message string`, `template string?`, `exception string?`, `markers u64`, `raw string` (the original
   event text), plus dynamic fields.
@@ -136,7 +136,7 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
 
 ### 6. Projects are self-contained and shareable
 
-- A project is a folder `<name>.imt/` (and, for sharing, the same folder zipped as `<name>.imtz`):
+- A project is a folder `<name>.debrief/` (and, for sharing, the same folder zipped as `<name>.debriefz`):
   - `project.toml`: format version, name, profile overrides, clock offsets, layout, opened roots (for refresh);
   - `data.duckdb`: records (including `raw`), sources, diagnostics, annotations, cached analysis;
   - `snapshots/`;
@@ -144,9 +144,9 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
 - Because records keep their `raw` text, a profile change re-derives fields **from the database** in parallel,
   without re-reading files, and a shared project opens with no access to the original files. "Open file / Open at
   line / Show in folder" (batch 5) degrade with a message when the original path is missing.
-- **Export project** writes the `.imtz` (zip, no index; optional redaction through the existing redactor);
-  **Open project** accepts both forms; a newer format version is refused with a message saying which IMT is
-  needed. IMT is pre-v1, so there is no migration from the old `ProjectFile` (it is removed).
+- **Export project** writes the `.debriefz` (zip, no index; optional redaction through the existing redactor);
+  **Open project** accepts both forms; a newer format version is refused with a message saying which Debrief is
+  needed. Debrief is pre-v1, so there is no migration from the old `ProjectFile` (it is removed).
 
 ## Consequences
 
@@ -155,7 +155,7 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
   main thread.
 - Executable grows by the DuckDB library (~37 MB on Windows, measured in the spike); Tantivy is already a dependency
   of the spike. Both are MIT; `deny.toml` is checked.
-- A large refactor of `imt-core`: importers, the store, analysis, project and tests. The UI contract
+- A large refactor of `debrief-core`: importers, the store, analysis, project and tests. The UI contract
   (`api.types.ts`) changes little: paging, buckets and jobs already fit; new are `tsState` on rows, the
   diagnostics list, and project export/open. The mock backend follows.
 - The IPC hop adds latency per request (sub-millisecond on a local pipe); requests stay coarse (a page, a bucket
@@ -167,11 +167,11 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
 ## Implementation plan
 
 1. **Batch 6a, foundations** (one agent): `RecordBatch` and schema; `ChunkSource`/`BatchSink`; the text and JSON
-   importers streaming; the split ports; `imt-store-duck` adapter in-process for tests; `ingest → page/timeline`
+   importers streaming; the split ports; `debrief-store-duck` adapter in-process for tests; `ingest → page/timeline`
    working on the samples; differential tests against the current `Workspace`.
 2. **Batch 6b, in parallel once 6a's ports are merged** (two agents): (i) the parallel pipeline, Arrow appender,
    Tantivy index, store worker and supervisor, caps, benchmark; (ii) analysis and query language on SQL and batch
-   scans, untimed lines, diagnostics table, project folder/`.imtz` export and open.
+   scans, untimed lines, diagnostics table, project folder/`.debriefz` export and open.
 3. **Batch 6c**: switch the app to the new ports, remove `Workspace`, the window lock and the old `ProjectFile`;
    all commands async with the guard test; the remaining importers and binary importers.
 4. **Batch 6d**: the Problems pane with quick fixes and the AI fix (UI on top of the diagnostics port).
@@ -182,7 +182,7 @@ Phase R2a ("foundations") adds the new engine next to `Workspace`; the app keeps
 
 ### What exists
 
-- **`crates/imt-batch`** (Arrow 58, no `imt-core` dependency; re-exported as `imt_core::batch`): `EventId(u64)`,
+- **`crates/debrief-batch`** (Arrow 58, no `debrief-core` dependency; re-exported as `debrief_core::batch`): `EventId(u64)`,
   `SourceId(u32)`, `TsState {Parsed, Inherited, Untimed}` and `EventTime` (a timestamp and its state cannot
   disagree), `LevelCode`, `EventSchema`, `EventBatchBuilder` → `PendingBatch` (no ids) → `assign_ids` →
   `EventBatch` (validated: at most 8,192 rows, required columns non-null, level and state codes valid, `ts` null
@@ -192,16 +192,16 @@ Phase R2a ("foundations") adds the new engine next to `Workspace`; the app keeps
   (`f_<name>`: `string` → VARCHAR, `integer` → BIGINT, `number`/`bytes`/`duration` → DOUBLE, `bool` → BOOLEAN;
   case-insensitive duplicates and more than 64 go to `extra`), then `extra MAP(VARCHAR, VARCHAR)`. A value that
   does not fit its declared column's type is kept in `extra` as text. `byte_offset` is new (for source context).
-- **`imt_core::row`**: `RowRef` with interned keys (`FieldKeys`/`FieldKey`; `BatchSlots` resolves a key to its
+- **`debrief_core::row`**: `RowRef` with interned keys (`FieldKeys`/`FieldKey`; `BatchSlots` resolves a key to its
   column or `extra` once per batch) for `RecordRow` and `ArrowRow`; `to_record(&BatchRow) -> Record`.
-- **`imt_core::ingest`**: `ReaderChunks` (8 MiB reads, whole lines, exact byte offsets for UTF-8 and UTF-16, lines
+- **`debrief_core::ingest`**: `ReaderChunks` (8 MiB reads, whole lines, exact byte offsets for UTF-8 and UTF-16, lines
   over `MAX_LINE_LEN` skipped without being buffered), `LineReader` (look-ahead that can be given back),
   `FilePlan` (1 MiB sniff: encoding, importer, text format, day order, time-only, JSON shape, splittable) and
   `scan_chunk_starts`, streaming text and JSON importers, a `legacy` adapter (CSV, plugin text and binary
   importers), `RecordBatcher`, `BatchSink`, per-source `Problems` (line too long, event too large, line not parsed,
   timestamp unparsed: counts and at most 20 sample lines), `MAX_EVENT_BYTES` = 8 MiB, and
   `import_path`/`import_files`/`files_to_read`. Text before a file's first event is one untimed event.
-- **`imt_core::ports`** (every method `&self`, `Send + Sync`, owned DTOs, `StoreError {Unsupported {operation,
+- **`debrief_core::ports`** (every method `&self`, `Send + Sync`, owned DTOs, `StoreError {Unsupported {operation,
   phase}, Invalid, NotFound, Busy, Cancelled, Io, Engine}`):
   - `Ingest`: `open(&[PathBuf]) -> ImportSession`, `reload`, `refresh(&[PathBuf])`, `remove_source(SourceId)`,
     `clear`, `restore(&WorkspaceState)`, `append_tail(&[PathBuf]) -> usize`. `ImportSession`: `progress()`,
@@ -216,7 +216,7 @@ Phase R2a ("foundations") adds the new engine next to `Workspace`; the app keeps
     `preview_extractor`.
   - `Diagnostics`: `problems() -> Vec<DiagnosticRow>`, `evaluate_fix(&QuickFix) -> FixEvaluation`.
   - `Search`: `search(&SearchRequest) -> SearchReply` (ids), `index_status()`.
-- **`crates/imt-store-duck`** (not a workspace member: its own `[workspace]` and `Cargo.lock`; the prebuilt
+- **`crates/debrief-store-duck`** (not a workspace member: its own `[workspace]` and `Cargo.lock`; the prebuilt
   libduckdb 1.5.6 comes from `scripts/fetch-libduckdb.sh` with pinned SHA-256s): tables `meta` (format version
   1, declared columns, next ids, so ids are never reused), `sources`, `diagnostics`, `marker_kinds` (bits per
   generation) and `events`; one writer per import with the Arrow appender; `memory_limit` 256 MB with a `tmp`
@@ -232,7 +232,7 @@ Phase R2a ("foundations") adds the new engine next to `Workspace`; the app keeps
 - **Tests**: differential tests against `Workspace` on `/samples` with the default and the sample profile (page
   totals and rows in both directions and at deep offsets, anchors, the source filter, timelines at 10 and 400
   buckets, facets including `@group`, the field list, the instance key, unrecognised files); a peak-RSS test of
-  importing the samples (`IMT_BENCH_COPIES=n` for larger runs); unit tests for chunking, plans, batching,
+  importing the samples (`DEBRIEF_BENCH_COPIES=n` for larger runs); unit tests for chunking, plans, batching,
   validation and the writer.
 
 ### Deviations from the decision (keep or revisit)
@@ -271,14 +271,14 @@ Phase R2a ("foundations") adds the new engine next to `Workspace`; the app keeps
 ### Next
 
 - **R2b**: the parallel parse pipeline (rayon, bounded queues of 4 batches, chunk starts moved to event starts),
-  the store worker over `imt-ipc` with supervisor and caps, the Tantivy index fed from the batches, `refresh`, the
+  the store worker over `debrief-ipc` with supervisor and caps, the Tantivy index fed from the batches, `refresh`, the
   `pos` column, and a faster writer (transactions large enough for DuckDB to write row groups directly instead of
   the WAL, checkpoints in the background, `raw` stored only when it differs from `message`) to reach the 3× target;
-  the 10M-event benchmark and RSS test in CI (needs libduckdb in CI; then `imt-store-duck` becomes a member).
+  the 10M-event benchmark and RSS test in CI (needs libduckdb in CI; then `debrief-store-duck` becomes a member).
 - **R2c**: analysis, charts, field stats and the query language on SQL and batch scans (port `Condition`, extractors,
   transforms and analyses to `RowRef`), classified profile changes re-derived from `raw`, diagnostics with
   quick-fix evaluation and `timestamp_issue`, untimed events in the UI (`tsState` in `api.types.ts`), projects as
-  `.imt` folders and `.imtz` archives (one archive module; the database streamed under its own limits), clock
+  `.debrief` folders and `.debriefz` archives (one archive module; the database streamed under its own limits), clock
   offsets, and source context by `byte_offset`.
 
 ## Implementation notes (R2b, 2026-10-20)
@@ -312,7 +312,7 @@ compression of it is the native writer's bottleneck; zstd Parquet is 8.7× small
 
 ### What exists
 
-- **Parallel import** (`imt_core::ingest::import_files_parallel`, `ParallelOptions`, `SharedSink`): files on a rayon
+- **Parallel import** (`debrief_core::ingest::import_files_parallel`, `ParallelOptions`, `SharedSink`): files on a rayon
   pool of `min(cores − 1, 8)` threads (configurable; the cap keeps the worker in its memory budget), largest first.
   Large uncompressed text and JSON-lines files are split at `FilePlan` chunk starts (one newline scan), each start
   moved forward to the next line that begins an event (the text format's regex; `{` in the first column for JSON),
@@ -320,7 +320,7 @@ compression of it is the native writer's bottleneck; zstd Parquet is 8.7× small
   stack traces, BOMs, UTF-16 offsets). Time-only formats, JSON arrays/single objects, other importers and archives
   stay one chunk. A chunk's failure or crash fails its source only. Source ids are reserved per file before reading
   (zip archives reserve one per entry), so they follow file order whatever thread starts first.
-- **Segments** (`imt_store_duck::segments`): one open segment per parse thread, ~131k rows (16 batches), row groups
+- **Segments** (`debrief_store_duck::segments`): one open segment per parse thread, ~131k rows (16 batches), row groups
   of 65,536, zstd level 1, written as `.tmp` and renamed when complete. Each segment reserves a contiguous **id
   block** when it opens (the next free id is kept in `meta`), so ids are unique, never reused, dense per segment and a
   lookup by id prunes to one file. A segment is registered (manifest row + catalog rows + view refresh, one
@@ -335,7 +335,7 @@ compression of it is the native writer's bottleneck; zstd Parquet is 8.7× small
   `p_<key>` columns. Both are recreated on every manifest change and on open (they name files by absolute path, so a
   moved or unpacked project works). **`events` is read-only**: changing events means writing new segments and
   swapping them in the manifest (a new generation).
-- **Promoted fields** (`imt_store_duck::promote`): an `extra` key present in ≥ 50 % of a segment's first batch gets
+- **Promoted fields** (`debrief_store_duck::promote`): an `extra` key present in ≥ 50 % of a segment's first batch gets
   a typed column `p_<key>` in that segment (BIGINT/BOOLEAN only when the text round-trips exactly, else VARCHAR;
   profile-declared fields keep their `f_` columns; at most 32, case-insensitively unique). The column is a **copy**:
   `extra` stays complete. (Moving the values out and rebuilding `extra` in the view with `map_concat` made every
@@ -360,10 +360,10 @@ compression of it is the native writer's bottleneck; zstd Parquet is 8.7× small
   never duplicates; removed sources are deleted by term; an index of another epoch or layout is rebuilt.
 - **`refresh(changed)`**: drops the sources of changed or deleted files (and their archive members), forgets them
   as unrecognised, and imports the opened roots again, which reads the changed and the new files.
-- **Store worker** (`crates/imt-store-worker`): a binary hosting all stores of the app (handles per process) behind
-  one gRPC call `Call(method, store, JSON body)` (replaced in R3, ADR 0017: `StoreRequest` frames over `imt_ipc`,
+- **Store worker** (`crates/debrief-store-worker`): a binary hosting all stores of the app (handles per process) behind
+  one gRPC call `Call(method, store, JSON body)` (replaced in R3, ADR 0017: `StoreRequest` frames over `debrief_ipc`,
   `Call { store, op: StoreOp, body }` with the body still JSON until 6c);
-  `StoreWorker` supervises it with `imt_ipc::Supervisor` (lazy start, backoff, quarantine, killed with IMT) and a
+  `StoreWorker` supervises it with `debrief_ipc::Supervisor` (lazy start, backoff, quarantine, killed with Debrief) and a
   2 GiB hard cap (`DEFAULT_MEMORY_CAP`; since R3 the launcher's `SandboxSpec::memory_limit`, watched by the host from the
   worker's resident memory on every platform, no rlimit);
   `RemoteStore` implements Ingest, Query (summary, page, timeline, facet), Positions, Profiles (active, validate),
@@ -393,7 +393,7 @@ compression of it is the native writer's bottleneck; zstd Parquet is 8.7× small
   finishing segments 0.35 s; positions 0.12–0.3 s. `/samples` alone: 1.0 s (27k/s; fixed costs dominate).
 - **Worker budgets** (20 copies, through the real worker): importing 318 MB, indexing 177 MB, idle 132 MB, querying
   206 MB; the app process grew 11 → 13 MB.
-- **10M events** (3.7 GB of CLEF, `IMT_BENCH_EVENTS=10000000`): import 81 s = **123k events/s**, peak RSS 415 MB;
+- **10M events** (3.7 GB of CLEF, `DEBRIEF_BENCH_EVENTS=10000000`): import 81 s = **123k events/s**, peak RSS 415 MB;
   background indexing 38–118k docs/s (runs differ with the VM's load), peak 407–455 MB; store 787 MB (segments
   409 MB, index 339 MB). Reopen 0.1 s, 78 MB idle. Cold/warm ms, peak RSS of the process ≤ 228 MB unless noted:
   - write-side paths (what R2c switches to): page first/middle/last by position incl. rows 249/234/71; field list
@@ -420,7 +420,7 @@ compression of it is the native writer's bottleneck; zstd Parquet is 8.7× small
 - Memory: DuckDB's 192 MB limit, Parquet metadata and Tantivy's mapped files leave little room under 300 MB while
   querying 10M events; queries that sort whole rows (R2a's `ORDER BY … OFFSET`) exceed it and must go.
 - Not yet: Linux/macOS memory caps (R3's sandbox), a `StoreWorker` child-log kind (6c adds
-  `ChildKind::StoreWorker`), live tail and restore over the worker (6c), an `.imtz` writer (R2c).
+  `ChildKind::StoreWorker`), live tail and restore over the worker (6c), an `.debriefz` writer (R2c).
 
 ### CI (to do by the integrator; `.gitea` untouched)
 
@@ -432,20 +432,20 @@ builds the workspace fetches it (a skipped test still has to link). Steps:
    - name: libduckdb (prebuilt, pinned SHA-256)
      shell: bash
      run: |
-       eval "$(crates/imt-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/imt-libduckdb")"
+       eval "$(crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
        echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
        echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
        echo "LD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${LD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"   # Linux
        # Windows: echo "$DUCKDB_LIB_DIR" >> "$GITHUB_PATH" (duckdb.dll next to the test binaries)
    ```
-   with an `actions/cache` (v3-compatible) of `~/.cache/imt-libduckdb` keyed on the script's hash.
-2. Workspace `Cargo.toml`: add `crates/imt-store-duck` and `crates/imt-store-worker` to `members`, remove them from
+   with an `actions/cache` (v3-compatible) of `~/.cache/debrief-libduckdb` keyed on the script's hash.
+2. Workspace `Cargo.toml`: add `crates/debrief-store-duck` and `crates/debrief-store-worker` to `members`, remove them from
    `exclude`; delete their `[workspace]` tables and their own `Cargo.lock` files; use `x.workspace = true` for deps in
    `[workspace.dependencies]` (add `duckdb = "=1.10506.1"`, `parquet = "58"`, `tantivy = "0.27"` there).
-3. Bench job: `IMT_BENCH_EVENTS=10000000 cargo test --release -p imt-store-duck --test bench -- --nocapture` (about
-   4 minutes of import and indexing plus the corpus, generated once into a cached folder via `IMT_BENCH_DIR`) and
-   `IMT_BENCH_COPIES=20 cargo test --release -p imt-store-worker --test worker -- --nocapture` (budgets asserted).
-4. Bundling (6c): ship `duckdb.dll` / `libduckdb.so` / `libduckdb.dylib` and `imt-store-worker` with the app.
+3. Bench job: `DEBRIEF_BENCH_EVENTS=10000000 cargo test --release -p debrief-store-duck --test bench -- --nocapture` (about
+   4 minutes of import and indexing plus the corpus, generated once into a cached folder via `DEBRIEF_BENCH_DIR`) and
+   `DEBRIEF_BENCH_COPIES=20 cargo test --release -p debrief-store-worker --test worker -- --nocapture` (budgets asserted).
+4. Bundling (6c): ship `duckdb.dll` / `libduckdb.so` / `libduckdb.dylib` and `debrief-store-worker` with the app.
 
 ## Implementation notes (R2c, 2026-10-20)
 
@@ -462,7 +462,7 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
   the condition semantics exactly: `TextEq` (level names ignore ASCII case), `TextIn`, `NumCmp` (strictly
   numeric), `Search`, `Levels`, `Markers`, `Sources`, `Time`, `Group`, `Const`. One intended change: `ne` is the
   negation of `eq`, so `@level ne Warning` now also ignores case.
-- **SQL compiler** (`imt-store-duck/src/sql.rs`): `expr_sql` compiles each conjunct to a never-NULL predicate or
+- **SQL compiler** (`debrief-store-duck/src/sql.rs`): `expr_sql` compiles each conjunct to a never-NULL predicate or
   `None` (regex, NUL text); the compiled conjuncts prefilter, the evaluator decides the rest on the scan (so the
   prefilter is never approximate). Numbers follow `value_number` (`TRY_CAST(trim(..))`, finite only), QL `Cmp`
   compares by severity, numerically when both sides are numbers, else as text; contains folds with `lower()`.
@@ -506,12 +506,12 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
   override, then re-reads up to 10,000 stored untimed events of the affected sources with the candidate
   profile's importer ("fixes N of M"); an event that cannot be read alone (a CSV line without its header) counts
   when the candidate's timestamp formats read a timestamp in it that the active ones do not (said in `notes`).
-- **Projects** (`imt_core::package`): `<name>.imt/` with `project.toml` (`format = "imt-project"`, version 1,
+- **Projects** (`debrief_core::package`): `<name>.debrief/` with `project.toml` (`format = "debrief-project"`, version 1,
   name, profile overrides, clock offsets, layout, roots; missing keys default, a newer version is refused), the
-  database, `snapshots/`, and the caches `index/` and `tmp/`. `ProjectDir::export_with` writes the `.imtz` without
+  database, `snapshots/`, and the caches `index/` and `tmp/`. `ProjectDir::export_with` writes the `.debriefz` without
   caches or WAL (Parquet stored, the rest deflated, zip64); the store exports a `COPY FROM DATABASE` copy of its
   open database (Windows does not let another handle read it). `open_package` is the one archive entry point: a
-  root `project.toml` of format `imt-project` is a project (extracted under `MAX_PROJECT_ENTRY` 256 GiB per file
+  root `project.toml` of format `debrief-project` is a project (extracted under `MAX_PROJECT_ENTRY` 256 GiB per file
   and 1 TiB in all, streamed to disk), a share manifest a share bundle, anything else a collector bundle
   (finding 14). `DuckStore::{create_project, open_project, save_project, export_project}`; a project opens
   without its log files.
@@ -565,8 +565,8 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
   `timeline_sql` for buckets of a minute or more without content filters other than levels (the GROUP BY stays
   for the rest); the Search port answers plain text (`Expr::Search` with a literal, `Expr::Text`) with ids,
   `ILIKE` only verifying phrases.
-- **Benchmark**: `tests/bench_reads.rs` (`IMT_BENCH_READS=<copies>` or `IMT_BENCH_STORE=<folder>`,
-  `IMT_BENCH_STRICT=1` to enforce) times every `Query` and `Analysis` method and the RSS per operation. On this
+- **Benchmark**: `tests/bench_reads.rs` (`DEBRIEF_BENCH_READS=<copies>` or `DEBRIEF_BENCH_STORE=<folder>`,
+  `DEBRIEF_BENCH_STRICT=1` to enforce) times every `Query` and `Analysis` method and the RSS per operation. On this
   machine (release, R2a's native-table store, 563,220 events = 20 copies of the samples, a fresh process): summary
   6 ms, pages 85–145 ms (text 240 ms), timeline 200 ms, facets 7–40 ms, chart 60 ms, correlate 63 ms, field stats
   540 ms, QL stats 810 ms, Moment 1.1 s, patterns 1.0 s, anomalies 2.3 s, compare 2.0 s, traces 1.2 s, runs 1.0 s
@@ -607,7 +607,7 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
   on each segment's first batch), so the facet reads `extra` (0.8–1.3 s instead of 0.12–0.25 s from the column).
   Sticky promotion (a key promoted once stays promoted in later segments, or compaction re-promotes) would let
   every read use the column.
-- **Measured** (release, 10M events, `IMT_BENCH_STORE`, cached analyses dropped first; the machine was shared
+- **Measured** (release, 10M events, `DEBRIEF_BENCH_STORE`, cached analyses dropped first; the machine was shared
   with other builds, so times vary by up to 2x between runs): pages 50–360 ms (were 0.5–2.5 s), field stats
   2.3 s (15 s), QL stats 0.3 s (refused before), Moment 0.5 s (1.0 s), exception groups 3 s, requests 5.6 s
   (30 s); patterns, anomalies, traces and runs now finish (they failed before: refused or out of memory); peak
@@ -618,7 +618,7 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
 ### Span rule inference (R2c)
 
 - `Profiles::propose_span_rule(SpanRuleRequest { examples: [{ start, end }], hints: { name?, keyField? } })`
-  reads the example events and returns `SpanProposal { candidates, notes }`; `imt_core::spans::infer::propose` is
+  reads the example events and returns `SpanProposal { candidates, notes }`; `debrief_core::spans::infer::propose` is
   pure. What tells starts from ends: the words only every start line (or only every end line) has, wherever they
   are ("open X" / "close X", "X started" / "X ended", "View X loaded" / "View X closed"), else a field whose value
   differs (`Phase = begin` / `end`). The key: a token both lines of each pair share, captured by a bounded regex
@@ -644,20 +644,20 @@ Phase R2c ("read side") gives the DuckDB store the rest of the read ports; the a
 - `DiagnosticRow`: `source` nullable, new `path`, `detail?`, `fix?: { title, profileOverride, timestamp? }`; new
   kinds; `FixEvaluation`: `{ fixed, checked, unchecked, notes? }`.
 - `SourceContext.note?`; `StoreError::Query` carries the `QlError` (message, offset, len, suggestions).
-- Project open/export use `ProjectManifest` (`project.toml`) and `.imtz`.
+- Project open/export use `ProjectManifest` (`project.toml`) and `.debriefz`.
 - Span rule inference: `SpanRuleRequest`, `SpanProposal { candidates: [{ description, key, exampleKeys, start, stop,
   kind, profileOverride, evaluation }], notes }`, `SpanRuleCheck`, `SpanEvaluation`.
 
 ## Implementation notes (6c, 2026-10-21)
 
 Batch 6c switches the app to the new engine: every window runs on the DuckDB store in the store worker; the
-in-memory `Workspace` stays in `imt-core` only as the test oracle (differential tests) and for what is listed under
+in-memory `Workspace` stays in `debrief-core` only as the test oracle (differential tests) and for what is listed under
 "Not on the store yet".
 
 ### What switched
 
 - **One store per window, out of process.** A window's engine slot holds a `RemoteStore` (crate
-  `imt-store-client`, no DuckDB link) on a supervised `imt-store-worker` child (`ChildKind::StoreWorker`, its own
+  `debrief-store-client`, no DuckDB link) on a supervised `debrief-store-worker` child (`ChildKind::StoreWorker`, its own
   child log, a 2 GB memory cap, restart and reopen of its stores after a crash). The store folder of a window is a
   scratch folder (`<data>/stores/<label>-<pid>-<n>`, swept at start unless its process is alive) until the user
   saves it as a project. Tests use the same store in process (`LocalHost`), so command tests run without the
@@ -672,18 +672,18 @@ in-memory `Workspace` stays in `imt-core` only as the test oracle (differential 
   `Profiles::preview_spans`, `Profiles::{parsers, classify_parser, assign_parser}` (ADR 0026, below),
   `Search::partial_matches`, `Diagnostics` reached from new commands (`import_problems`, `evaluate_fix`,
   `index_status`). `StoreError` gained `Damaged` (a segment missing or unreadable: not retryable, the hint says to
-  open the logs or the `.imtz` again) and `Locked` (the catalog is open in another process: retryable after
+  open the logs or the `.debriefz` again) and `Locked` (the catalog is open in another process: retryable after
   closing it there).
-- **Projects.** A saved project is the store folder: `.imtz` (zip of `project.toml`, catalog and segments, no
+- **Projects.** A saved project is the store folder: `.debriefz` (zip of `project.toml`, catalog and segments, no
   index; the index is rebuilt in the background) and opens without the original logs; the UI layout goes in
-  `ui.json` beside it. `.imt`/`.imtproj` files of the old format still open (their logs are imported again).
+  `ui.json` beside it. `.debrief`/`.debriefproj` files of the old format still open (their logs are imported again).
 - **Live tail** is append ingest: the watcher's changed files are read from their last offset into new segments
   (`append_tail`; truncation reads the file again, new files under an opened folder are added) and the index
   refreshes. Live windows (`window: { kind: "live" }`) resolve into `from` in the store ("now" = the newest event,
   or the wall clock with `[live] clock = "wall"`), shared with the oracle (`query::resolve_live_window`).
 - **Import progress** comes from the import job (`JobProgress` with the current file and bytes); opening returns
   the job id and the UI follows the job instead of polling `import_progress`.
-- **Smart search.** The full-text index tokenizes with `imt_core::words` (one pure tokenizer for the index and the
+- **Smart search.** The full-text index tokenizes with `debrief_core::words` (one pure tokenizer for the index and the
   oracle): runs of letters and digits, lower-cased, plus their `camelCase`/`HTTPServer`/digit parts; a search asks
   for every word, the last one as a prefix (unless the text ends in a space or quote); phrases are checked as
   written. The search box (`Query.textMode: "words"`) filters by the index's hits (handed to SQL as a small
@@ -693,10 +693,10 @@ in-memory `Workspace` stays in `imt-core` only as the test oracle (differential 
   there are some the UI switches to `textMode: "wordsOrSubstring"` and shows "+N" ("N more partial matches
   added"), and pages mark each row `searchMatch: "words" | "partial"`. The query language's `contains` keeps its
   substring meaning.
-- **Bundling and CI.** `imt-store-duck`, `imt-store-client` and `imt-store-worker` are workspace members (their own
+- **Bundling and CI.** `debrief-store-duck`, `debrief-store-client` and `debrief-store-worker` are workspace members (their own
   `[workspace]` and lock files are gone; duckdb, parquet, arrow and tantivy are workspace dependencies). Every Rust
   CI job fetches the pinned libduckdb (by SHA-256, cached) and puts it on the library path; installers ship
-  `imt-store-worker` as a sidecar and libduckdb under `lib/` (`build-sidecars.mjs`). A missing or unloadable
+  `debrief-store-worker` as a sidecar and libduckdb under `lib/` (`build-sidecars.mjs`). A missing or unloadable
   libduckdb is a clear message naming the file and where it was looked for. The nightly `bench` workflow runs the
   10M-event store benchmark.
 
@@ -704,7 +704,7 @@ in-memory `Workspace` stays in `imt-core` only as the test oracle (differential 
 
 The `sources` table records each source's parser (`parser_id`, `parser_version`, `parser_hash`, the hash being
 the SHA-256 of the parser's canonical TOML) and the `parsers` table keeps a copy of every parser's TOML, so a
-project names and carries what read it (`project.toml` lists the parser refs; the `.imtz` embeds the TOML through
+project names and carries what read it (`project.toml` lists the parser refs; the `.debriefz` embeds the TOML through
 the catalog). Until ADR 0026 lands, the workspace's profile is the one parser of every source (id `profile`).
 Changing the profile re-reads only the sources whose parser hash changed (and re-derives the rest by the
 profile-change classes). The port API already has the shape the parser library needs: `parsers()` (which parser
@@ -719,10 +719,10 @@ gained `set_parsers` (the library from the app) and `reread_parsers` (the stale 
 
 - Redacted views and the redaction summary, clock skew correction, live alerts and per-file tail status, plugin
   annotators over the store, starting a tail at the end, run-query progress over the worker.
-- Share bundles of the log files (replaced by projects: `.imtz`).
-- `imt-agent` (the headless agent) still runs `Workspace` in process.
+- Share bundles of the log files (replaced by projects: `.debriefz`).
+- `debrief-agent` (the headless agent) still runs `Workspace` in process.
 - The old `ProjectFile` remains for session files (autosave/restore), the activity report sample and opening old
-  `.imt` files; projects themselves are `project.toml` + store.
+  `.debrief` files; projects themselves are `project.toml` + store.
 - Golden JSON fixtures and ts-rs generation of the engine DTOs (the TS mirror is kept by hand and checked by the
   parity and command tests).
 
@@ -771,9 +771,9 @@ below is from interleaved A/B runs, at least two each).
   segment file (quadratic in segments) under the catalog lock; it was 53% of the import's on-CPU samples.
   10M import: 72-43k events/s before, 105k events/s after (same period).
 - **Allocator** (user decision 2026-10-21: mimalloc v3): the store worker, the app, the plugins process and
-  the benches that stand for them use mimalloc v3 as the global allocator through `imt-alloc`, which sets
+  the benches that stand for them use mimalloc v3 as the global allocator through `debrief-alloc`, which sets
   its purge timing at start-up (`mi_option_set`; the workers clear their environment): v3's default keeps
-  freed memory for 1 s, `imt_alloc::tune` sets v2's 10 ms (arenas 10x).
+  freed memory for 1 s, `debrief_alloc::tune` sets v2's 10 ms (arenas 10x).
 
   | | worker, 20 copies (asserts 600 MB importing) | 10M import, in process | 10M reads, peak |
   |---|---|---|---|
@@ -812,7 +812,7 @@ below is from interleaved A/B runs, at least two each).
     each rebinding the view over every segment and scanning every row group's `ts` (segments overlap in time,
     so pruning skips little): runs 26-80 s, compare 11-33 s, anomalies 8-40 s, patterns 5-25 s at 10M;
   - anomaly detection's peak (840-990 MB at 10M, `Slim` per event).
-- The worker benchmark (`IMT_BENCH_COPIES=20 … --test worker`) fails at `summary()` already at 2ba7e00 (DuckDB
+- The worker benchmark (`DEBRIEF_BENCH_COPIES=20 … --test worker`) fails at `summary()` already at 2ba7e00 (DuckDB
   out of memory at its 183 MB limit); it now prints the import line before the queries so the import is still
   measured.
 
@@ -831,7 +831,7 @@ Measured on the shared Windows VM, release builds, a store of 10,137,960 events 
 | worker query phase after the samples (Windows) | 197-199 MB | 142-148 MB |
 | worker import, 20 copies, low memory mode | (normal: 527-566 MB, 108-124k ev/s) | 189-211 MB, 69-78k ev/s |
 
-- **Anomaly detection in DuckDB** (`imt_core::analysis::anomaly::AnomalyInputs`, `imt-store-duck/src/anomalies.rs`):
+- **Anomaly detection in DuckDB** (`debrief_core::analysis::anomaly::AnomalyInputs`, `debrief-store-duck/src/anomalies.rs`):
   the detectors read per-instance counts per bucket, gap counts, endings, value ranks, outlier buckets, top-n
   sample ids and growth series one at a time; the in-memory engine answers from its events, the store with SQL.
   Only sorts and aggregates that spill: DuckDB's window operator does not spill large partitions (it ran out of
@@ -856,7 +856,7 @@ Measured on the shared Windows VM, release builds, a store of 10,137,960 events 
 
 The process idles after an import with free pages still resident: mimalloc returns pages on a timer that only runs while the
 process allocates, and jemalloc (DuckDB's allocator on Linux) decays dirty pages after 10 s. The store therefore calls
-`imt_alloc::release()` (collect and purge) when an import's maintenance ends, when the index writer goes idle (after its
+`debrief_alloc::release()` (collect and purge) when an import's maintenance ends, when the index writer goes idle (after its
 background merges are joined) and after each computed analysis, and the worker's jemalloc options add
 `dirty_decay_ms:200,muzzy_decay_ms:0`. Measured (amd64 container under Rosetta, 4 CPUs, 3 runs each): RSS before the
 analyses 220-237 MB -> 206-216 MB (release build), each analysis's start 265-280 MB instead of 290-310 MB, anomaly peak

@@ -1,4 +1,4 @@
-//! The running values of Settings ▸ Performance: loaded (or, on the first run, suggested and saved) when IMT starts,
+//! The running values of Settings ▸ Performance: loaded (or, on the first run, suggested and saved) when Debrief starts,
 //! handed to the store worker's supervisor, the plugin processes and the AI launcher, and updated when the section
 //! changes. Each process reads them at its next start (ADR 0031 §7).
 
@@ -7,8 +7,8 @@ use super::tuning;
 use super::watch::MemoryHub;
 use super::PerformanceSettings;
 use crate::sync::lock;
-use imt_plugin_host::{Builtins, PluginLimits};
-use imt_store_client::{StoreWorker, WorkerLaunch};
+use debrief_plugin_host::{Builtins, PluginLimits};
+use debrief_store_client::{StoreWorker, WorkerLaunch};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, RwLock};
@@ -63,7 +63,7 @@ impl Live {
         tuning::worker_launch(&self.settings(), self.cores)
     }
 
-    /// The limits of IMT's plugin processes, with the hub's listener.
+    /// The limits of Debrief's plugin processes, with the hub's listener.
     pub fn plugin_limits(&self) -> PluginLimits {
         tuning::plugin_limits(&self.settings(), Some(self.hub.listener()))
     }
@@ -78,7 +78,7 @@ impl Live {
         *lock(&self.worker) = Some(worker);
     }
 
-    /// IMT's plugin processes: they get the limits now, and the hub their names.
+    /// Debrief's plugin processes: they get the limits now, and the hub their names.
     pub fn attach_plugins(&self, plugins: Arc<Builtins>) {
         plugins.set_limits(&self.plugin_limits());
         let names: HashMap<String, String> = plugins
@@ -110,7 +110,7 @@ impl Live {
     }
 
     /// Sets (or with `None` removes) the memory cap of plugin `id`, saved and applied from its next start. Refused for
-    /// a plugin IMT does not have or a size outside the bounds every plugin gets.
+    /// a plugin Debrief does not have or a size outside the bounds every plugin gets.
     pub fn set_plugin_cap(&self, id: &str, mb: Option<u32>) -> Result<(), String> {
         let known = lock(&self.plugins).as_ref().is_some_and(|p| p.process(id).is_some());
         if !known {
@@ -142,14 +142,14 @@ impl Live {
 mod tests {
     use super::*;
     use crate::performance::tests::temp;
-    use imt_plugin_api::manifest::Manifest;
+    use debrief_plugin_api::manifest::Manifest;
 
     fn builtins(ids: &[&str]) -> Arc<Builtins> {
         let manifests: Vec<Manifest> = ids
             .iter()
             .map(|id| {
                 serde_json::from_value(serde_json::json!({
-                    "id": id, "name": format!("Name of {id}"), "version": "1.0.0", "protocol": imt_plugin_api::PROTOCOL,
+                    "id": id, "name": format!("Name of {id}"), "version": "1.0.0", "protocol": debrief_plugin_api::PROTOCOL,
                     "permissions": [], "importers": [], "configParsers": [], "markerKinds": [], "annotators": [],
                     "transforms": [], "tools": [], "profileImporters": [], "documentImporters": []
                 }))
@@ -191,7 +191,7 @@ mod tests {
         assert_eq!(live.worker_launch().memory_cap, Some(2 << 30));
         live.hub.hear(
             "plugin \"p.one\"",
-            imt_ipc::memory_watch::MemoryEvent::Ended(imt_ipc::memory_watch::MemoryUse {
+            debrief_ipc::memory_watch::MemoryEvent::Ended(debrief_ipc::memory_watch::MemoryUse {
                 used: 1,
                 peak: 1,
                 limit: 2,

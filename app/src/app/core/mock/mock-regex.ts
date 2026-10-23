@@ -2,7 +2,7 @@ import { ExplainNode, GroupKind, InferredGroup, InferredRegex } from '../api.typ
 import { toJsRegex } from '../profile.model';
 
 /*
- * Canned stand-ins for the engine's `infer_regex` / `explain_regex` (crates/imt-core/src/regex_assist.rs),
+ * Canned stand-ins for the engine's `infer_regex` / `explain_regex` (crates/debrief-core/src/regex_assist.rs),
  * for browser development and UI tests only. They return plausible output of the right shape; they are
  * NOT the reference behaviour (the engine names groups after neighbouring words, recognises more value
  * kinds and explains the full regex syntax tree).

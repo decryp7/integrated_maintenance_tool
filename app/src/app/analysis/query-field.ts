@@ -44,13 +44,13 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
  * several lines while focused (Shift+Enter for a new line). History, Ask AI and Save sit inside it.
  */
 @Component({
-  selector: 'imt-query-field',
+  selector: 'debrief-query-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ClickOutside, Icon],
   host: { '[class.focused]': 'focused()', '[class.query]': "field.kind() === 'query'" },
   template: `
-    <div class="box" [class.invalid]="invalid()" [class.expanded]="expanded()" (imtClickOutside)="closePopups()">
-      <imt-icon [name]="field.kind() === 'query' ? 'analysis' : 'search'" [size]="14" class="faint lead" />
+    <div class="box" [class.invalid]="invalid()" [class.expanded]="expanded()" (debriefClickOutside)="closePopups()">
+      <debrief-icon [name]="field.kind() === 'query' ? 'analysis' : 'search'" [size]="14" class="faint lead" />
       <div class="editor">
         @if (field.kind() === 'query') {
           <div class="mirror mono" aria-hidden="true" [class.wrap]="expanded()"><div class="shift" [style.transform]="shift()">@for (s of segments(); track $index) {<span [class]="s.cls" [class.err]="s.err">{{ s.text }}</span>}@if (caretError()) {<span class="err-caret"></span>}</div></div>
@@ -99,10 +99,10 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
         <button type="button" class="toggle mono" [class.on]="q().regex" (click)="store.setRegex(!q().regex)" title="Regular expression" i18n-title="@@workspace.filterBar.regex" [attr.aria-pressed]="q().regex">.*</button>
         <button type="button" class="toggle mono" [class.on]="q().caseSensitive" (click)="store.setCaseSensitive(!q().caseSensitive)" title="Match case" i18n-title="@@workspace.filterBar.matchCase" [attr.aria-pressed]="q().caseSensitive">Aa</button>
       }
-      <div class="anchor" (imtClickOutside)="historyOpen.set(false)">
+      <div class="anchor" (debriefClickOutside)="historyOpen.set(false)">
         <button type="button" class="ib" data-testid="query-history" aria-label="Query history" i18n-aria-label="@@analysis.queryField.history" title="Query history (Alt+↑ / Alt+↓)" i18n-title="@@analysis.queryField.historyTitle"
                 (click)="historyOpen.set(!historyOpen())" [attr.aria-expanded]="historyOpen()" aria-haspopup="true" [disabled]="!session.history.entries().length">
-          <imt-icon name="refresh" [size]="13" />
+          <debrief-icon name="refresh" [size]="13" />
         </button>
         @if (historyOpen()) {
           <ul class="popup history" aria-label="Query history" i18n-aria-label="@@analysis.queryView.historyLabel">
@@ -119,12 +119,12 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
         </button>
       }
       <button type="button" class="ib" data-testid="query-save" aria-label="Save as a saved query" i18n-aria-label="@@analysis.queryField.save" title="Save the current search and filters as a saved query" i18n-title="@@analysis.queryField.saveTitle" [disabled]="!field.text().trim()" (click)="save()">
-        <imt-icon name="note" [size]="13" />
+        <debrief-icon name="note" [size]="13" />
       </button>
       @if (field.kind() === 'query') {
         @if (session.running()) {
           <button type="button" class="ib" data-testid="query-cancel" aria-label="Cancel the running query" i18n-aria-label="@@analysis.queryField.cancel" title="Cancel the running query (Esc)" i18n-title="@@analysis.queryView.cancelTitle" [disabled]="session.cancelling()" (click)="session.cancel()">
-            <imt-icon name="stop" [size]="13" />
+            <debrief-icon name="stop" [size]="13" />
           </button>
         } @else {
           <button type="button" class="run" data-testid="query-run" [class.pending]="field.unrun()" [title]="runTitle" (click)="submit()" i18n="Run a query|Button@@analysis.queryView.run">Run</button>
@@ -416,7 +416,7 @@ export class QueryField {
  * run in flight, a cancelled or failed run, or what the applied query matched. Renders nothing otherwise.
  */
 @Component({
-  selector: 'imt-query-status',
+  selector: 'debrief-query-status',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [QlSuggestions],
   host: { '[class.empty]': '!shown()' },
@@ -431,7 +431,7 @@ export class QueryField {
           </span>
         } @else if (errorText(); as msg) {
           <span id="ql-error" class="err" role="alert"><span aria-hidden="true">⚠ </span>{{ msg }}</span>
-          <imt-ql-suggestions [error]="session.error()" (pick)="pick.emit($event)" />
+          <debrief-ql-suggestions [error]="session.error()" (pick)="pick.emit($event)" />
         } @else if (session.runError(); as r) {
           <span id="ql-error" class="err">⚠ {{ r }}</span>
         } @else if (session.cancelled()) {

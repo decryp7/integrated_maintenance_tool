@@ -3,9 +3,9 @@ import { Condition, ConditionOp, ProfileModel } from '../core/profile.model';
 import { MarkerRuleX, PendingIcon, RuleRow } from './markers.types';
 
 /** Profile key holding disabled rules (the engine ignores unknown keys). */
-export const DISABLED_KEY = 'imt_disabled_markers';
+export const DISABLED_KEY = 'debrief_disabled_markers';
 /** Position a disabled rule had in the priority order, so enabling puts it back. */
-const INDEX_KEY = 'imt_index';
+const INDEX_KEY = 'debrief_index';
 
 const clone = <T>(v: T): T => structuredClone(v);
 
@@ -21,7 +21,7 @@ export function readRows(model: ProfileModel): RuleRow[] {
   return rows;
 }
 
-/** Writes rows back: active rules become `[[marker]]`, disabled ones go to `imt_disabled_markers`. */
+/** Writes rows back: active rules become `[[marker]]`, disabled ones go to `debrief_disabled_markers`. */
 export function writeRows(model: ProfileModel, rows: readonly RuleRow[]): void {
   model.marker = rows.filter((r) => r.enabled).map((r) => clone(r.rule));
   const disabled = rows.flatMap((r, i) => (r.enabled ? [] : [{ ...clone(r.rule), [INDEX_KEY]: i }]));

@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, expect, it } from 'vitest';
 import { all, buttonByText, el, settle, text, tinyBackend, MemoryLogger } from '../../../testing/helpers';
 import { ProfileSpan } from '../../core/api.types';
-import { ImtBackend } from '../../core/backend';
+import { DebriefBackend } from '../../core/backend';
 import { Logger } from '../../core/logger';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { FakeContext } from '../../analysis/test-setup';
@@ -137,7 +137,7 @@ describe('ProfileSpanTrack', () => {
   it('renders nothing without the profiling backend', async () => {
     TestBed.configureTestingModule({
       providers: [
-        { provide: ImtBackend, useFactory: () => tinyBackend() },
+        { provide: DebriefBackend, useFactory: () => tinyBackend() },
         { provide: Logger, useFactory: () => new MemoryLogger() },
         { provide: COMMAND_CONTEXT, useValue: new FakeContext() },
       ],
@@ -208,7 +208,7 @@ describe('ProfileMomentSection', () => {
   it('is hidden without the profiling backend', async () => {
     TestBed.configureTestingModule({
       providers: [
-        { provide: ImtBackend, useFactory: () => tinyBackend() },
+        { provide: DebriefBackend, useFactory: () => tinyBackend() },
         { provide: Logger, useFactory: () => new MemoryLogger() },
         { provide: COMMAND_CONTEXT, useValue: new FakeContext() },
       ],

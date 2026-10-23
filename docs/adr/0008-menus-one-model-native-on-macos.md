@@ -7,7 +7,7 @@
 
 The View menu had grown into one flat list of every registered view (about 40 entries, running
 off the screen), every view with a `when` rule opened itself, and on macOS the app showed both
-Tauri's default native menu bar (File Edit View Window Help) and IMT's own menu bar.
+Tauri's default native menu bar (File Edit View Window Help) and Debrief's own menu bar.
 
 ## Decision
 
@@ -20,15 +20,15 @@ Tauri's default native menu bar (File Edit View Window Help) and IMT's own menu 
   every view from View ▸ Other windows… (the palette, filtered to views). Commands that are not
   registered are left out, so features appear in the menus when they land.
 - **In-app bar** (Windows, Linux, browser): `@angular/cdk/menu` (ARIA menubar, keyboard,
-  type-ahead, submenus, overlay placement), styled with IMT's tokens.
+  type-ahead, submenus, overlay placement), styled with Debrief's tokens.
 - **macOS native bar**: the UI sends the model (`set_app_menu`), Rust validates it (sizes, ids,
   labels; key bindings become accelerators), adds the standard macOS items (app menu, Edit with
   the webview's Undo..Select All, Window with Minimize/Zoom) and applies it, updating check marks in
-  place when only states changed. Clicks go to the focused window as `imt://menu`. The in-app bar
+  place when only states changed. Clicks go to the focused window as `debrief://menu`. The in-app bar
   is hidden. The page sees shortcuts first; an echo of the same command from the menu bar within
   400 ms is ignored. Quit is the model's `app.quit` (last in the app menu, ⌘Q), not the system's, so it
   asks about unsaved work like *File ▸ Exit* elsewhere (amended 2026-10-20).
-- **Auto-open is opt-in** (`ImtView.autoOpen`): `when` only decides whether a view is offered.
+- **Auto-open is opt-in** (`DebriefView.autoOpen`): `when` only decides whether a view is offered.
   The default layout is the core views; profiling views open with a profile, Tail status and
   Alerts when live tail starts unless the user closed them before.
 

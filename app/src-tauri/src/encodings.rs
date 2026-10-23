@@ -1,12 +1,12 @@
 //! Text encodings of source files: the choices the UI offers and "Encoding…", which reads one source again as the
 //! chosen encoding (an import job of the calling window). Detection and decoding are the engine's
-//! (`imt_core::ingest`); the shell only validates the request and starts the job.
+//! (`debrief_core::ingest`); the shell only validates the request and starts the job.
 
 use crate::jobs::{JobKind, JobSpec};
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult};
-use imt_core::batch::SourceId;
-use imt_core::ingest::{encoding_options, EncodingChoice, EncodingOption};
+use debrief_core::batch::SourceId;
+use debrief_core::ingest::{encoding_options, EncodingChoice, EncodingOption};
 use tauri::{AppHandle, Runtime};
 
 /// The encodings the source menu and Settings offer (any other label the engine knows is accepted too).

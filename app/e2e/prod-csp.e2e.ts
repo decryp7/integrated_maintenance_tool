@@ -23,11 +23,11 @@ test('production build loads under the Tauri CSP without violations', async ({ p
 
   // Smoke: shell, timeline lanes, styles applied (fonts and theme tokens resolved).
   await expect(page.getByRole('button', { name: 'Explorer' })).toBeVisible();
-  await expect(page.locator('imt-timeline-panel .lane-label')).toHaveCount(7);
+  await expect(page.locator('debrief-timeline-panel .lane-label')).toHaveCount(7);
   const bg = await page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   expect(bg).not.toBe('rgba(0, 0, 0, 0)');
   await openView(page, 'metrics');
-  await expect(page.locator('imt-chart-card canvas').first()).toBeVisible();
+  await expect(page.locator('debrief-chart-card canvas').first()).toBeVisible();
   await page.getByRole('button', { name: 'Profile editor' }).click();
   await expect(page.getByRole('button', { name: 'Save & apply' })).toBeVisible();
 
@@ -50,11 +50,11 @@ test('the drag ghost page renders its content under the Tauri CSP without violat
   });
   const response = await page.goto('/drag-ghost.html');
   expect(response?.headers()['content-security-policy']).toContain("default-src 'self'");
-  await page.waitForFunction(() => typeof (window as unknown as { imtGhost?: unknown }).imtGhost === 'function');
+  await page.waitForFunction(() => typeof (window as unknown as { debriefGhost?: unknown }).debriefGhost === 'function');
   // A 1×1 PNG.
   const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
   await page.evaluate(
-    (snapshot) => (window as unknown as { imtGhost: (c: unknown) => void }).imtGhost({ title: '<b>Inspector</b>', icon: 'M6 9l6 6l6-6', snapshot, dark: true }),
+    (snapshot) => (window as unknown as { debriefGhost: (c: unknown) => void }).debriefGhost({ title: '<b>Inspector</b>', icon: 'M6 9l6 6l6-6', snapshot, dark: true }),
     png,
   );
   await expect(page.locator('.title')).toHaveText('<b>Inspector</b>');

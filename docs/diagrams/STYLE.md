@@ -13,7 +13,7 @@ Applied with `node diagrams/tools/apply-accent.mjs debrief <template>` from a Pa
 | Role | Colours | Use here |
 |---|---|---|
 | Own container (accent) | #1D5FD1 on #E8EFFA / #5B9BFF on #202C3F | Debrief's executables and libraries with I/O: the shell, the store client and worker, the CLI tools, ports and adapters, states, use cases, classes |
-| Pure core | #007A5E on #E6F2EF / #2EC4A0 on #193330 | `imt-core` and its components, enumerations, pure functions |
+| Pure core | #007A5E on #E6F2EF / #2EC4A0 on #193330 | `debrief-core` and its components, enumerations, pure functions |
 | UI | #C24E00 on #F9EDE6 / #F07D3A on #382720 | the Angular UI and its folders |
 | Plugin | #B0508A on #F7EEF3 / #D98BC0 on #342A35 | built-in and third-party plugins and their processes |
 | Process / OS / data | #565E6B on #F0F2F5 / #A0A7B2 on #1B1E23 | helper and child processes, the data folder, notes, people |

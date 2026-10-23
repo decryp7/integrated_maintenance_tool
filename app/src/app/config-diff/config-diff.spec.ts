@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, MemoryLogger, settle, text, typeInto } from '../../testing/helpers';
 import { Logger } from '../core/logger';
 import { CHANGE_KINDS, DiffOptions, SnapshotFile } from '../core/config-diff.types';
-import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { ConfigDiffBackend, provideConfigDiffBackend, TauriConfigDiffBackend } from './config-diff-backend';
 import { ConfigDiffPicker, Side } from './config-diff-picker';
 import { ConfigDiffView, valueText } from './config-diff-view';
@@ -449,9 +449,9 @@ describe('ConfigDiffView', () => {
 describe('provideConfigDiff', () => {
   it('registers the view, the command and a browser backend', async () => {
     TestBed.configureTestingModule({ providers: [provideConfigDiff(), { provide: Logger, useFactory: () => new MemoryLogger() }] });
-    const views = TestBed.inject(IMT_VIEWS).flat() as ImtView[];
+    const views = TestBed.inject(DEBRIEF_VIEWS).flat() as DebriefView[];
     expect(views.map((v) => v.id)).toContain('config-diff');
-    const commands = TestBed.inject(IMT_COMMANDS).flat() as ImtCommand[];
+    const commands = TestBed.inject(DEBRIEF_COMMANDS).flat() as DebriefCommand[];
     const cmd = commands.find((c) => c.id === 'tools.configDiff.show')!;
     const showView = vi.fn();
     await cmd.run({ showView } as never);

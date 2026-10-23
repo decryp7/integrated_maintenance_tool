@@ -1,7 +1,7 @@
 import { EnvironmentProviders, inject, Injectable, makeEnvironmentProviders } from '@angular/core';
 import { RecordActions } from '../context/record-actions';
-import { IMT_COMMANDS, ImtCommand } from '../extensions/tokens';
-import { provideImtPlugin } from '../extensions/provide';
+import { DEBRIEF_COMMANDS, DebriefCommand } from '../extensions/tokens';
+import { provideDebriefPlugin } from '../extensions/provide';
 import { WorkspaceStore } from '../core/workspace.store';
 
 /** Palette commands of the markers feature. */
@@ -10,7 +10,7 @@ export class MarkersCommands {
   private readonly store = inject(WorkspaceStore);
   private readonly actions = inject(RecordActions);
 
-  readonly commands: ImtCommand[] = [
+  readonly commands: DebriefCommand[] = [
     { id: 'markers.manage', title: $localize`:@@markers.cmd.manage.title:Manage markers`, category: $localize`:Command palette category|@@markers.cmd.category:Markers`, run: (ctx) => ctx.showView('markers') },
     {
       id: 'markers.highlight',
@@ -37,9 +37,9 @@ export class MarkersCommands {
 /** Registers the Markers view and its commands. One line in app.config.ts: `provideMarkers()`. */
 export function provideMarkers(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    provideImtPlugin({
+    provideDebriefPlugin({
       views: [{ id: 'markers', category: 'Analysis', title: $localize`:View title|@@markers.view.title:Markers`, icon: 'alert', defaultPosition: 'center', area: 'analysis', component: () => import('./markers-manager').then((m) => m.MarkersManager) }],
     }),
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(MarkersCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(MarkersCommands).commands },
   ]);
 }

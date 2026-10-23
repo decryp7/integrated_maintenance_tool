@@ -59,7 +59,7 @@ describe('TauriToolsBackend', () => {
     }
     const handler = () => undefined;
     await b.onOpenRequested(handler);
-    expect(listen.mock.calls.map((c) => c[0])).toEqual(['imt://open']);
+    expect(listen.mock.calls.map((c) => c[0])).toEqual(['debrief://open']);
     expect('setLive' in b || 'onWorkspaceChanged' in b).toBe(false);
   });
 });
@@ -69,8 +69,8 @@ describe('TauriPluginPackagesBackend', () => {
     const b = new TauriPluginPackagesBackend(invoke as never);
     const calls: [() => Promise<unknown>, string, unknown?][] = [
       [() => b.listPackages(), 'plugin_packages_list'],
-      [() => b.readPackage('/p/a.imtplugin'), 'plugin_package_inspect', { path: '/p/a.imtplugin' }],
-      [() => b.installPackage('/p/a.imtplugin', 'ab', ['network']), 'plugin_package_install', { path: '/p/a.imtplugin', digest: 'ab', approved: ['network'] }],
+      [() => b.readPackage('/p/a.debriefplugin'), 'plugin_package_inspect', { path: '/p/a.debriefplugin' }],
+      [() => b.installPackage('/p/a.debriefplugin', 'ab', ['network']), 'plugin_package_install', { path: '/p/a.debriefplugin', digest: 'ab', approved: ['network'] }],
       [() => b.removePackage('x'), 'plugin_package_remove', { id: 'x' }],
       [() => b.setPackageEnabled('x', true), 'plugin_package_set_enabled', { id: 'x', enabled: true }],
       [() => b.setPackagePermissions('x', []), 'plugin_package_set_permissions', { id: 'x', granted: [] }],
@@ -102,8 +102,8 @@ describe('provideToolsBackend', () => {
     expect(TestBed.inject(ProjectBackend)).toBe(full);
     expect(TestBed.inject(ToolCatalogBackend)).toBe(full);
     // The mock gets the workspace summary of the app's backend for open_project.
-    await full.saveProject('/demo/p.imtz', 'P', {});
-    expect((await full.openProject('/demo/p.imtz')).summary.sources.length).toBeGreaterThan(0);
+    await full.saveProject('/demo/p.debriefz', 'P', {});
+    expect((await full.openProject('/demo/p.debriefz')).summary.sources.length).toBeGreaterThan(0);
     expect(full).toBeDefined();
     expect(new MockToolsBackend()).toBeInstanceOf(MockToolsBackend);
     // Plugin packages: the mock in a browser.
@@ -115,7 +115,7 @@ describe('provideToolsBackend', () => {
     const backendFailed = vi.fn();
     TestBed.configureTestingModule({ providers: [provideTinyBackend(), provideToolsBackend(), { provide: FailureReporter, useValue: { backendFailed, panelFailed: vi.fn() } }] });
     const tools = TestBed.inject(ToolsBackend);
-    await expect(tools.openProject('/nowhere.imtproj')).rejects.toBeDefined();
+    await expect(tools.openProject('/nowhere.debriefproj')).rejects.toBeDefined();
     expect(backendFailed).toHaveBeenCalledWith('openProject', expect.anything());
   });
 

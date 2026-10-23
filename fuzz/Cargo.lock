@@ -1079,7 +1079,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-ai"
+name = "debrief-ai"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1087,9 +1087,9 @@ dependencies = [
  "flate2",
  "getrandom 0.4.3",
  "image",
- "imt-collect",
- "imt-core",
- "imt-ipc",
+ "debrief-collect",
+ "debrief-core",
+ "debrief-ipc",
  "log",
  "percent-encoding",
  "regex",
@@ -1109,12 +1109,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-ai-worker"
+name = "debrief-ai-worker"
 version = "0.1.0"
 dependencies = [
  "getrandom 0.4.3",
- "imt-ai",
- "imt-core",
+ "debrief-ai",
+ "debrief-core",
  "libc",
  "serde",
  "serde_json",
@@ -1123,7 +1123,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-batch"
+name = "debrief-batch"
 version = "0.1.0"
 dependencies = [
  "arrow-array",
@@ -1134,13 +1134,13 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-collect"
+name = "debrief-collect"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
  "globset",
- "imt-core",
+ "debrief-core",
  "regex",
  "serde",
  "serde_json",
@@ -1152,7 +1152,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-core"
+name = "debrief-core"
 version = "0.1.0"
 dependencies = [
  "anyhow",
@@ -1162,8 +1162,8 @@ dependencies = [
  "flate2",
  "getrandom 0.4.3",
  "globset",
- "imt-batch",
- "imt-plugin-api",
+ "debrief-batch",
+ "debrief-plugin-api",
  "log",
  "quick-xml",
  "rayon",
@@ -1181,7 +1181,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-dump"
+name = "debrief-dump"
 version = "0.1.0"
 dependencies = [
  "postcard",
@@ -1190,47 +1190,47 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-etw"
+name = "debrief-etw"
 version = "0.1.0"
 dependencies = [
- "imt-plugin-profiling",
- "imt-profile",
+ "debrief-plugin-profiling",
+ "debrief-profile",
  "serde",
  "thiserror 2.0.21",
  "windows",
 ]
 
 [[package]]
-name = "imt-fuzz"
+name = "debrief-fuzz"
 version = "0.0.0"
 dependencies = [
  "chrono",
- "imt-ai",
- "imt-ai-worker",
- "imt-core",
- "imt-dump",
- "imt-etw",
- "imt-ipc",
- "imt-notes",
- "imt-plugin-api",
- "imt-plugin-dotnet",
- "imt-plugin-dumps",
- "imt-plugin-formats",
- "imt-plugin-otel",
- "imt-plugin-package",
- "imt-plugin-profiling",
- "imt-plugin-registry",
- "imt-plugin-syslog",
- "imt-plugin-web",
- "imt-plugin-windows",
- "imt-profile",
- "imt-symbols",
+ "debrief-ai",
+ "debrief-ai-worker",
+ "debrief-core",
+ "debrief-dump",
+ "debrief-etw",
+ "debrief-ipc",
+ "debrief-notes",
+ "debrief-plugin-api",
+ "debrief-plugin-dotnet",
+ "debrief-plugin-dumps",
+ "debrief-plugin-formats",
+ "debrief-plugin-otel",
+ "debrief-plugin-package",
+ "debrief-plugin-profiling",
+ "debrief-plugin-registry",
+ "debrief-plugin-syslog",
+ "debrief-plugin-web",
+ "debrief-plugin-windows",
+ "debrief-profile",
+ "debrief-symbols",
  "libfuzzer-sys",
  "serde_json",
 ]
 
 [[package]]
-name = "imt-ipc"
+name = "debrief-ipc"
 version = "0.1.0"
 dependencies = [
  "getrandom 0.4.3",
@@ -1245,7 +1245,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-notes"
+name = "debrief-notes"
 version = "0.1.0"
 dependencies = [
  "chrono",
@@ -1256,12 +1256,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-plugin-api"
+name = "debrief-plugin-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "imt-ipc",
+ "debrief-ipc",
  "regex",
  "serde",
  "serde_json",
@@ -1269,22 +1269,22 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-plugin-dotnet"
+name = "debrief-plugin-dotnet"
 version = "0.1.0"
 dependencies = [
- "imt-etw",
- "imt-plugin-profiling",
- "imt-profile",
+ "debrief-etw",
+ "debrief-plugin-profiling",
+ "debrief-profile",
  "serde",
  "thiserror 2.0.21",
  "windows",
 ]
 
 [[package]]
-name = "imt-plugin-dumps"
+name = "debrief-plugin-dumps"
 version = "0.1.0"
 dependencies = [
- "imt-dump",
+ "debrief-dump",
  "minidump",
  "minidump-unwind",
  "pdb",
@@ -1293,33 +1293,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-plugin-formats"
+name = "debrief-plugin-formats"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "imt-plugin-api",
+ "debrief-plugin-api",
  "quick-xml",
  "regex",
  "serde_json",
 ]
 
 [[package]]
-name = "imt-plugin-otel"
+name = "debrief-plugin-otel"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "imt-plugin-api",
+ "debrief-plugin-api",
  "serde_json",
 ]
 
 [[package]]
-name = "imt-plugin-package"
+name = "debrief-plugin-package"
 version = "0.1.0"
 dependencies = [
  "ed25519-compact",
  "getrandom 0.4.3",
- "imt-plugin-api",
+ "debrief-plugin-api",
  "semver",
  "serde",
  "serde_json",
@@ -1330,11 +1330,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-plugin-profiling"
+name = "debrief-plugin-profiling"
 version = "0.1.0"
 dependencies = [
  "flate2",
- "imt-profile",
+ "debrief-profile",
  "prost",
  "regex",
  "serde",
@@ -1342,44 +1342,44 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-plugin-registry"
+name = "debrief-plugin-registry"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "imt-plugin-api",
+ "debrief-plugin-api",
  "serde_json",
 ]
 
 [[package]]
-name = "imt-plugin-syslog"
+name = "debrief-plugin-syslog"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "imt-plugin-api",
+ "debrief-plugin-api",
  "serde_json",
 ]
 
 [[package]]
-name = "imt-plugin-web"
+name = "debrief-plugin-web"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
- "imt-plugin-api",
+ "debrief-plugin-api",
  "regex",
  "serde_json",
 ]
 
 [[package]]
-name = "imt-plugin-windows"
+name = "debrief-plugin-windows"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "chrono",
  "csv",
  "evtx",
- "imt-plugin-api",
+ "debrief-plugin-api",
  "minidump",
  "quick-xml",
  "serde",
@@ -1388,7 +1388,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-profile"
+name = "debrief-profile"
 version = "0.1.0"
 dependencies = [
  "postcard",
@@ -1399,7 +1399,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "imt-symbols"
+name = "debrief-symbols"
 version = "0.1.0"
 dependencies = [
  "thiserror 2.0.21",

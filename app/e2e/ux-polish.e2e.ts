@@ -10,7 +10,7 @@ test.describe('Open recent and the welcome page (F5, J1)', () => {
   test('File > Open recent lists what was opened, and the welcome page lists it with Open project', async ({ page }, testInfo) => {
     await openApp(page);
     await page.getByRole('button', { name: 'Open folder' }).click();
-    await expect(page.locator('imt-sidebar')).toContainText('extra-folder', { timeout: 10_000 });
+    await expect(page.locator('debrief-sidebar')).toContainText('extra-folder', { timeout: 10_000 });
 
     const recent = await openMenuPath(page, 'File', 'Open recent');
     await expect(recent.getByRole('menuitem', { name: 'extra-folder' })).toBeVisible();
@@ -19,13 +19,13 @@ test.describe('Open recent and the welcome page (F5, J1)', () => {
     await page.keyboard.press('Escape');
 
     await chooseMenu(page, 'File', 'Close workspace');
-    const welcome = page.locator('imt-welcome');
+    const welcome = page.locator('debrief-welcome');
     await expect(welcome.getByTestId('welcome-recent')).toContainText('extra-folder');
     // J1: and when it was opened.
     await expect(welcome.getByTestId('recent-when').first()).not.toHaveText('');
     await expect(welcome.getByRole('button', { name: 'Open project…' })).toBeVisible();
     // The empty Explorer is not drawn next to the welcome page.
-    await expect(page.locator('imt-sidebar')).toHaveCount(0);
+    await expect(page.locator('debrief-sidebar')).toHaveCount(0);
     await expectNoSeriousViolations(page, testInfo, 'welcome-recent');
 
     await chooseMenu(page, 'File', 'Open recent', 'Clear recent');
@@ -36,14 +36,14 @@ test.describe('Open recent and the welcome page (F5, J1)', () => {
 test.describe('timeline legend (F7) and explorer (H2)', () => {
   test('the legend is one row until +N more, and the explorer rows keep their names under folder headings', async ({ page }) => {
     await openApp(page);
-    const row = page.locator('imt-timeline-panel .legend-row');
+    const row = page.locator('debrief-timeline-panel .legend-row');
     await expect(row).toBeVisible();
     const heights = await row.evaluate((el) => ({ row: el.getBoundingClientRect().height, line: el.querySelector('.lg')!.getBoundingClientRect().height }));
     // One line of 24 px hit areas, whatever the panel width: the full legend opens as a popover over the lanes.
     expect(heights.row).toBeLessThan(heights.line * 1.8);
-    const headings = page.locator('imt-sidebar [data-testid=folder-heading]');
+    const headings = page.locator('debrief-sidebar [data-testid=folder-heading]');
     await expect(headings.first()).toBeVisible();
-    await expect(page.locator('imt-sidebar .src:not(.dim)').first()).toHaveAttribute('title', /Format: /);
+    await expect(page.locator('debrief-sidebar .src:not(.dim)').first()).toHaveAttribute('title', /Format: /);
   });
 });
 
@@ -51,20 +51,20 @@ test.describe('inspector (K1), anomalies (K2)', () => {
   test('More actions holds Mask and Extract with a reason, and a property value can be copied', async ({ page, context }) => {
     await context.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => undefined);
     await openApp(page);
-    await page.locator('imt-events-grid [role=row].row').first().click();
+    await page.locator('debrief-events-grid [role=row].row').first().click();
     await expect(page.getByRole('button', { name: 'Mask…' })).toHaveCount(0);
     await page.getByRole('button', { name: 'More actions…' }).click();
     const mask = page.getByRole('menuitem', { name: 'Mask in message…' });
     await expect(mask).toBeDisabled();
     await expect(page.getByRole('menu')).toContainText('Select text in the message first');
     await page.keyboard.press('Escape');
-    await expect(page.locator('imt-inspector [data-testid=prop-copy]').first()).toBeAttached();
+    await expect(page.locator('debrief-inspector [data-testid=prop-copy]').first()).toBeAttached();
   });
 
   test('the Anomalies table has sortable headers', async ({ page }) => {
     await openAppWith(page);
     await openView(page, 'Anomalies');
-    const head = page.locator('imt-anomalies-view [data-testid=anomaly-head]');
+    const head = page.locator('debrief-anomalies-view [data-testid=anomaly-head]');
     await expect(head.getByRole('button', { name: 'Sort by score' })).toBeVisible();
     // The list is grouped by kind, so the headers sort inside each group.
     await head.getByRole('button', { name: 'Sort by score' }).click();
@@ -76,7 +76,7 @@ test.describe('Jobs filters (K5) and Plugins tabs (I4)', () => {
   test('Jobs offers All, Running and Failed and a Kind filter with counts', async ({ page }) => {
     await openAppWith(page);
     await openView(page, 'Jobs');
-    const jobs = page.locator('imt-jobs-panel');
+    const jobs = page.locator('debrief-jobs-panel');
     await expect(jobs.getByTestId('jobs-view')).toBeVisible();
     await expect(jobs.locator('.chip')).toHaveCount(0);
     await jobs.getByTestId('jobs-view-failed').click();
@@ -97,6 +97,6 @@ test.describe('Jobs filters (K5) and Plugins tabs (I4)', () => {
     await openView(page, 'Plugins');
     await expect(page.getByTestId('plugins-tab-installed')).toHaveAttribute('aria-selected', 'true');
     await page.getByTestId('plugins-tab-health').click();
-    await expect(page.locator('imt-plugin-health-view')).toBeVisible();
+    await expect(page.locator('debrief-plugin-health-view')).toBeVisible();
   });
 });

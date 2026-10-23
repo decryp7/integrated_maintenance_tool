@@ -17,7 +17,7 @@ import { VideoStore } from './video.store';
  * computed by the engine; this presents it. Each part shows its own failure with Retry.
  */
 @Component({
-  selector: 'imt-video-view',
+  selector: 'debrief-video-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AlignmentPanel, FrameDetail, FrameStrip, VideoError, VideoPlayer, VideoStorage],
   template: `
@@ -42,13 +42,13 @@ import { VideoStore } from './video.store';
     </div>
 
     @if (store.errors().list; as e) {
-      <imt-video-error [failure]="e" (retry)="store.retry('list')" (dismiss)="store.dismiss('list')" />
+      <debrief-video-error [failure]="e" (retry)="store.retry('list')" (dismiss)="store.dismiss('list')" />
     }
     @if (store.errors().open; as e) {
-      <imt-video-error [failure]="e" (retry)="store.retry('open')" (dismiss)="store.dismiss('open')" />
+      <debrief-video-error [failure]="e" (retry)="store.retry('open')" (dismiss)="store.dismiss('open')" />
     }
     @if (store.errors().runtime; as e) {
-      <imt-video-error [failure]="e" (retry)="store.retry('runtime')" (dismiss)="store.dismiss('runtime')" />
+      <debrief-video-error [failure]="e" (retry)="store.retry('runtime')" (dismiss)="store.dismiss('runtime')" />
     }
     @if (store.runtimeMissing()) {
       <div class="notice" role="alert" data-testid="video-runtime-problem">
@@ -69,20 +69,20 @@ import { VideoStore } from './video.store';
     @if (active(); as v) {
       <div class="body">
         <section class="main" aria-label="Video" i18n-aria-label="@@video.view.playerRegion">
-          <imt-video-player [video]="v" [seekMs]="seek()" (time)="playerMs.set($event)" (locate)="store.locate(v.record.key)" />
-          <imt-frame-strip [playerMs]="playerMs()" (chosen)="seekTo($event)" />
-          <imt-frame-detail />
+          <debrief-video-player [video]="v" [seekMs]="seek()" (time)="playerMs.set($event)" (locate)="store.locate(v.record.key)" />
+          <debrief-frame-strip [playerMs]="playerMs()" (chosen)="seekTo($event)" />
+          <debrief-frame-detail />
         </section>
         <aside class="side" aria-label="Alignment and storage" i18n-aria-label="@@video.view.sideRegion">
-          <imt-alignment-panel class="card" />
-          <imt-video-storage class="card" />
+          <debrief-alignment-panel class="card" />
+          <debrief-video-storage class="card" />
         </aside>
       </div>
     } @else if (!store.opening()) {
       <div class="empty" role="status" data-testid="video-empty">
         <p i18n="@@video.view.none">Open a video to see the moments that matter on the logs' clock.</p>
         <button class="btn primary" type="button" (click)="store.pickAndOpen()" i18n="@@video.view.openFirst">Open a video…</button>
-        <p class="hint" i18n="@@video.view.ffmpegHint">IMT uses FFmpeg to read videos. Set it up once in Settings ▸ Video.</p>
+        <p class="hint" i18n="@@video.view.ffmpegHint">Debrief uses FFmpeg to read videos. Set it up once in Settings ▸ Video.</p>
         <button class="link" type="button" data-testid="video-empty-settings" (click)="openSettings()" i18n="@@video.view.settings">Open Settings ▸ Video</button>
       </div>
     }

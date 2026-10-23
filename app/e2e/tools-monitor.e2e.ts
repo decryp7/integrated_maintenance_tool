@@ -7,7 +7,7 @@ test.describe('Process monitor', () => {
     await openAppWith(page);
     const before = await sourceCount(page);
     await openView(page, 'Process Monitor');
-    const panel = page.locator('imt-monitor-view');
+    const panel = page.locator('debrief-monitor-view');
     const status = panel.getByTestId('monitor-status');
     await expect(status).toContainText('Stopped');
     await expect(panel.getByRole('button', { name: 'Start' })).toBeDisabled();

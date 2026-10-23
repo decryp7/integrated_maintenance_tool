@@ -5,7 +5,7 @@ import { TabDragOut } from './tab-drag-out';
 describe('TabDragOut', () => {
   function setup() {
     const root = document.createElement('div');
-    root.innerHTML = '<div role="tab"><div class="imt-tab" data-panel-id="metrics"><span id="label">Metrics</span></div></div><div id="body"></div>';
+    root.innerHTML = '<div role="tab"><div class="debrief-tab" data-panel-id="metrics"><span id="label">Metrics</span></div></div><div id="body"></div>';
     document.body.appendChild(root);
     const out: string[] = [];
     const cues: string[] = [];

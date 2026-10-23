@@ -23,7 +23,7 @@ import {
 
 /**
  * Everything the "explain and share" features ask the engine: the redacted view, redaction previews,
- * dashboard tiles, report and image exports, opening old `.imtz` share bundles (sharing is saving a project now). Injected as a class token (see
+ * dashboard tiles, report and image exports, opening old `.debriefz` share bundles (sharing is saving a project now). Injected as a class token (see
  * `provideShare()`); the Tauri implementation calls the shell, the mock serves browser development.
  */
 export abstract class ShareBackend {
@@ -40,7 +40,7 @@ export abstract class ShareBackend {
   abstract exportReport(request: ReportExportRequest): Promise<number>;
   /** Saves a chart or timeline image (PNG data URL or SVG markup) to a path chosen in the save dialog. */
   abstract saveVisual(request: VisualRequest): Promise<VisualSaved>;
-  /** Opens an old share bundle (`.imtz`) read-only (extracted to a temporary folder). */
+  /** Opens an old share bundle (`.debriefz`) read-only (extracted to a temporary folder). */
   abstract openBundle(path: string): Promise<BundleOpened>;
   /** The automatic health check over the events of a query, most severe first (report findings), with its coverage. */
   abstract overview(query: Query): Promise<Analyzed<Finding[]>>;
@@ -48,7 +48,7 @@ export abstract class ShareBackend {
   abstract redactedCopyChoices(): Promise<RedactedCopyChoices>;
   /** What the copy would change and leave out (rejects `invalid`, field "options", when nothing is picked). */
   abstract redactedCopyPreview(options: RedactedCopyOptions): Promise<RedactedCopyPreview>;
-  /** Writes the redacted copy as a project file (`.imtz`); never replaces a file unless `overwrite`. */
+  /** Writes the redacted copy as a project file (`.debriefz`); never replaces a file unless `overwrite`. */
   abstract exportRedactedCopy(request: RedactedCopyRequest): Promise<RedactedExport>;
 }
 

@@ -17,7 +17,7 @@ export function parseLimit(text: string): number | null {
  * engine validates (clamps) again; units are suffixes, not part of the label.
  */
 @Component({
-  selector: 'imt-live-tail-settings',
+  selector: 'debrief-live-tail-settings',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <form class="form" (submit)="$event.preventDefault()" aria-label="Live tail options" i18n-aria-label="@@live.settings.aria">

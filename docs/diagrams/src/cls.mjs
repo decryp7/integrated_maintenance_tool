@@ -8,12 +8,12 @@ const K = klass;
     desc: 'One `Store` per window. The shell codes against the ports; the DuckDB store, its remote client and the in-memory oracle implement them.' });
   const W = 352, G = 96, x = (i) => 48 + i * (W + G);
   const sw = 3 * W + 2 * G;
-  K(d, 'store', 48, Y0, sw, { name: 'Store', stereotype: 'interface · ports (imt_core::ports)', role: 'accent',
+  K(d, 'store', 48, Y0, sw, { name: 'Store', stereotype: 'interface · ports (debrief_core::ports)', role: 'accent',
     attrs: ['Ingest · Query · Positions · Analysis · Profiles', 'Diagnostics · Search · Projects · Inspect · Maintain', 'Console · Redaction · Skew · Tail  (fourteen traits)'] });
   const y1 = Y0 + d.rect.store[3] + 72;
   K(d, 'ws', x(0), y1, W, { name: 'WorkspaceStore', stereotype: 'adapter · test oracle', attrs: ['− Workspace: RwLock', '  records, sources, caches in memory'], ops: ['+ new(Workspace): WorkspaceStore', '+ read() · write(): lock guard'] });
-  K(d, 'duck', x(1), y1, W, { name: 'DuckStore', stereotype: 'adapter · imt-store-duck', attrs: ['− Parquet segments, DuckDB catalog', '− Tantivy full-text index', '− programs compiled to SQL'], ops: ['+ open(dir, Profile, PluginRegistry)'] });
-  K(d, 'rem', x(2), y1, W, { name: 'RemoteStore', stereotype: 'adapter · imt-store-client', attrs: ['− StoreWorker (supervised child)', '− request frame per port method'], ops: ['impl Port for RemoteStore', '  expanded from store_port_table!'] });
+  K(d, 'duck', x(1), y1, W, { name: 'DuckStore', stereotype: 'adapter · debrief-store-duck', attrs: ['− Parquet segments, DuckDB catalog', '− Tantivy full-text index', '− programs compiled to SQL'], ops: ['+ open(dir, Profile, PluginRegistry)'] });
+  K(d, 'rem', x(2), y1, W, { name: 'RemoteStore', stereotype: 'adapter · debrief-store-client', attrs: ['− StoreWorker (supervised child)', '− request frame per port method'], ops: ['impl Port for RemoteStore', '  expanded from store_port_table!'] });
   const y2 = Math.max(...['ws', 'duck', 'rem'].map((i) => bottom(d, i))) + 72;
   K(d, 'wst', x(0), y2, W, { name: 'WorkspaceState', attrs: ['+ roots, removed: Vec<String>', '+ offsets: ClockOffsets'] });
   K(d, 'clk', x(1), y2, W, { name: 'ClockOffsets', stereotype: 'newtype', attrs: ['BTreeMap<String, i64>', '  source path → offset (ms)'], ops: ['+ get(path): i64', '+ set(path, ms): Result'] });
@@ -34,7 +34,7 @@ const K = klass;
   const W = 304, G = 104, x = (i) => 48 + i * (W + G);
   K(d, 'rec', x(0), Y0, W, { name: 'Record', attrs: ['+ id: u32 · ts: Option<i64> (ms)', '+ level: Level', '+ message: String', '+ template, exception: Option', '+ fields: Fields (JSON map)', '+ source: u32 · line: u32', '+ markers: MarkerMask (u64)'], ops: ['+ field_text(name): Option<Cow>', '+ field_number(name): Option<f64>'] });
   K(d, 'lvl', x(0), Y0 + d.rect.rec[3] + 72, W, { name: 'Level', stereotype: 'enumeration', role: 'core', attrs: ['Verbose · Debug · Information', 'Warning · Error · Fatal'], ops: ['+ parse(&str) · as_str()'] });
-  K(d, 'bat', x(1), Y0, W, { name: 'EventBatch', stereotype: 'imt-batch · Arrow', attrs: ['− schema: Arc<EventSchema>', '− batch: RecordBatch', '  at most 8192 rows, ids assigned'], ops: ['+ try_new(…): Result', '+ row(i): BatchRow'] });
+  K(d, 'bat', x(1), Y0, W, { name: 'EventBatch', stereotype: 'debrief-batch · Arrow', attrs: ['− schema: Arc<EventSchema>', '− batch: RecordBatch', '  at most 8192 rows, ids assigned'], ops: ['+ try_new(…): Result', '+ row(i): BatchRow'] });
   K(d, 'sch', x(1), Y0 + d.rect.bat[3] + 72, W, { name: 'EventSchema', attrs: ['fixed columns (id, ts, level, …)', 'declared columns of a profile', 'other fields: the `extra` map'], ops: ['+ plain() · with_declared(…)'] });
   K(d, 'sum', x(2), Y0, W, { name: 'WorkspaceSummary', attrs: ['+ sources: Vec<SourceInfo>', '+ unrecognized: Vec', '+ total · untimed · from · to', '+ levels: Map<Level, usize>', '+ fields: Vec<FieldInfo>', '+ marker_kinds · charts', '+ pipeline: Vec<PipelineStepInfo>', '+ plugins · exporters · dashboards', '+ lenses: Vec<LensCfg>', '+ profile_name · load_ms'] });
   const cx = x(3);
@@ -109,10 +109,10 @@ const K = klass;
 // ---------- plugin API: the plugin side ----------
 {
   const d = P({ title: 'Plugin API — what a plugin implements', kind: 'UML · Class diagram (1 of 3)', w: 1472,
-    desc: 'A plugin depends on `imt-plugin-api` alone. Its `register` adds contributions; `serve` answers the host over `imt-ipc` in a sandboxed process (ADR 0017).' });
+    desc: 'A plugin depends on `debrief-plugin-api` alone. Its `register` adds contributions; `serve` answers the host over `debrief-ipc` in a sandboxed process (ADR 0017).' });
   const W = 328, G = 96, x = (i) => 48 + i * (W + G);
   K(d, 'srv', x(0), Y0, W, { name: 'serve', stereotype: 'function', attrs: ['connect to the host, lock down,', 'answer until the host closes'], ops: ['serve(Arc<dyn Plugin>): io::Result'] });
-  K(d, 'plg', x(0), bottom(d, 'srv') + 72, W, { name: 'Plugin', stereotype: 'interface · imt-plugin-api', attrs: ['+ id(), name(), version(): &str'], ops: ['+ register(&self, &mut Contributions)', '+ permissions(): Vec<PermissionRequest>', '+ memory_limit(): Option<u64>'] });
+  K(d, 'plg', x(0), bottom(d, 'srv') + 72, W, { name: 'Plugin', stereotype: 'interface · debrief-plugin-api', attrs: ['+ id(), name(), version(): &str'], ops: ['+ register(&self, &mut Contributions)', '+ permissions(): Vec<PermissionRequest>', '+ memory_limit(): Option<u64>'] });
   K(d, 'con', x(0), bottom(d, 'plg') + 72, W, { name: 'Contributions', attrs: ['− text: Vec<Arc<dyn TextImporter>>', '− binary · profile_importers', '− document_importers', '− config_parsers · annotators', '− transforms · tools', '− marker_kinds · settings'] });
   const gx = x(1) - 24, gw = 2 * W + G + 48;
   // contribution traits, two columns
@@ -130,7 +130,7 @@ const K = klass;
   T('cp', 0, r3, { name: 'ConfigParser', attrs: ['+ id(), name(), extensions()'], ops: ['+ sniff(file_name, head): u8', '+ parse(content, limits): ConfigTree'] });
   T('cf', 1, r3, { name: 'Configurable', attrs: ['+ settings_section(): SettingsSection'], ops: ['+ apply_settings(&ValidValues): Result'] });
   const gh = r3 + Math.max(d.rect.cp[3], d.rect.cf[3]) + 24 - Y0;
-  d.group('traits', gx, Y0, gw, gh, 'Contribution traits (imt_plugin_api)');
+  d.group('traits', gx, Y0, gw, gh, 'Contribution traits (debrief_plugin_api)');
   // move the group frame behind the class boxes
   const frame = d.cells.pop();
   d.cells.unshift(frame);
@@ -146,8 +146,8 @@ const K = klass;
   const d = P({ title: 'Plugin API — registry and guards in the engine', kind: 'UML · Class diagram (2 of 3)', w: 1472,
     desc: 'Every contribution reaches the engine wrapped in a `Guarded*` adapter: panics become errors attributed to the plugin and repeat offenders are quarantined.' });
   const W = 328, G = 112, x = (i) => 48 + i * (W + G);
-  K(d, 'plg', x(0), Y0, W, { name: 'Plugin', stereotype: 'interface · imt_core::plugin', attrs: ['+ id(), name(), version(): &str', '+ api_version(): u32 = API_VERSION'], ops: ['+ register(&self, &mut PluginRegistry)', '+ manifest(): Manifest', '+ activate(&ActivationCtx) · deactivate()'] });
-  K(d, 'con', x(2), Y0, W, { name: 'Contribution traits', stereotype: 'interface · imt_core', attrs: ['Importer · BinaryImporter', 'RecordTransform · Exporter', 'Collector · Annotator', 'WorkspaceHook'] });
+  K(d, 'plg', x(0), Y0, W, { name: 'Plugin', stereotype: 'interface · debrief_core::plugin', attrs: ['+ id(), name(), version(): &str', '+ api_version(): u32 = API_VERSION'], ops: ['+ register(&self, &mut PluginRegistry)', '+ manifest(): Manifest', '+ activate(&ActivationCtx) · deactivate()'] });
+  K(d, 'con', x(2), Y0, W, { name: 'Contribution traits', stereotype: 'interface · debrief_core', attrs: ['Importer · BinaryImporter', 'RecordTransform · Exporter', 'Collector · Annotator', 'WorkspaceHook'] });
   const y2 = bottom(d, 'plg') + 72;
   K(d, 'reg', x(0), y2, W, { name: 'PluginRegistry', attrs: ['− importers: Importers', '− transforms · hooks · exporters', '− collectors · annotators · tools', '− runtime: Health, EventBus, services', '− disabled: HashSet<String>'], ops: ['+ install_shared(Arc<dyn Plugin>)', '+ add_importer · add_transform · …', '+ disable(ids) · resolve() · shutdown()', '+ plugins(): Vec<PluginInfo>'] });
   K(d, 'grd', x(1), y2, W, { name: 'Guard', attrs: ['− owner: plugin id', '− health: Arc<Health>'], ops: ['+ call(kind: CallKind, what, f): Result', '+ call_detached(kind, what, f)', 'guard::catch(what, f): panic → Err'] });
@@ -177,8 +177,8 @@ const K = klass;
   K(d, 'rem', x(1), Y0, W, { name: 'RemotePlugin', attrs: ['− process: Arc<PluginProcess>'], ops: ['+ new(process) · process()', '+ register(registry): proxies'] });
   K(d, 'rx', x(1), bottom(d, 'rem') + 72, W, { name: 'Remote*', stereotype: 'adapter', attrs: ['RemoteImporter · RemoteBinaryImporter', 'RemoteTransform (batched)', 'RemoteAnnotator · RemoteTool', 'RemoteConfigParser · RemoteSettings', 'deadline: 0.9 × the call budget'] });
   K(d, 'prc', x(2), Y0, W, { name: 'PluginProcess', attrs: ['− spec: PluginSpec (exe, args, granted)', '− supervisor: Supervisor', '− limits: PluginLimits'], ops: ['+ call(…) · reset() · shutdown()', '+ warm_up() · granted(permission)'] });
-  K(d, 'sup', x(2), bottom(d, 'prc') + 72, W, { name: 'Supervisor', stereotype: 'imt-ipc', attrs: ['max_crashes in crash_window', 'backoff_base … backoff_max'], ops: ['+ lease(): restarts lazily', '+ status(): ChildStatus'] });
-  K(d, 'chd', x(2), bottom(d, 'sup') + 72, W, { name: 'imt-plugins --plugin <id>', stereotype: 'child process', role: 'process', attrs: ['imt_plugin_api::serve(plugin)', 'postcard frames, private local', 'stream; sandbox from manifest'] });
+  K(d, 'sup', x(2), bottom(d, 'prc') + 72, W, { name: 'Supervisor', stereotype: 'debrief-ipc', attrs: ['max_crashes in crash_window', 'backoff_base … backoff_max'], ops: ['+ lease(): restarts lazily', '+ status(): ChildStatus'] });
+  K(d, 'chd', x(2), bottom(d, 'sup') + 72, W, { name: 'debrief-plugins --plugin <id>', stereotype: 'child process', role: 'process', attrs: ['debrief_plugin_api::serve(plugin)', 'postcard frames, private local', 'stream; sandbox from manifest'] });
   link(d, 'bui', 'R', 'rem', 'L', { ...comp, label: '0..*' });
   link(d, 'rem', 'R', 'prc', 'L', { arrow: 'open', label: 'process' });
   link(d, 'rem', 'B', 'rx', 'T', { dash: true, arrow: 'open', label: 'registers' });

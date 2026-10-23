@@ -4,13 +4,13 @@ import { Icon } from '../shared/icon';
 
 /** "when" builder: every condition must hold (AND). */
 @Component({
-  selector: 'imt-conditions-editor',
+  selector: 'debrief-conditions-editor',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
     @for (c of conditions(); track $index; let i = $index) {
       <div class="cond">
-        <input class="input mono field" list="imt-profile-fields" [value]="c.field" placeholder="field" i18n-placeholder="@@profile.conditions.fieldPlaceholder" aria-label="Field" i18n-aria-label="@@profile.conditions.field" (input)="patch(i, { field: $any($event.target).value })" />
+        <input class="input mono field" list="debrief-profile-fields" [value]="c.field" placeholder="field" i18n-placeholder="@@profile.conditions.fieldPlaceholder" aria-label="Field" i18n-aria-label="@@profile.conditions.field" (input)="patch(i, { field: $any($event.target).value })" />
         <select class="select op" [value]="c.op" aria-label="Operator" i18n-aria-label="@@profile.conditions.operator" (change)="patch(i, { op: $any($event.target).value })">
           @for (op of ops; track op) { <option [value]="op" [selected]="op === c.op">{{ op }}</option> }
         </select>
@@ -19,7 +19,7 @@ import { Icon } from '../shared/icon';
         } @else {
           <span class="value"></span>
         }
-        <button class="icon-btn" aria-label="Remove condition" i18n-aria-label="@@profile.conditions.remove" (click)="remove(i)" title="Remove condition" i18n-title="@@profile.conditions.removeTitle"><imt-icon name="close" [size]="12" /></button>
+        <button class="icon-btn" aria-label="Remove condition" i18n-aria-label="@@profile.conditions.remove" (click)="remove(i)" title="Remove condition" i18n-title="@@profile.conditions.removeTitle"><debrief-icon name="close" [size]="12" /></button>
       </div>
     } @empty {
       <div class="faint none">{{ emptyText() }}</div>

@@ -1,11 +1,11 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
-import { IMT_COMMANDS, IMT_VIEWS, ImtCommand, ImtView } from '../../extensions/tokens';
+import { DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../../lifecycle/ui-state';
 import { PLAYBOOKS_VIEW } from './playbook-model';
 import { PlaybookPersistence } from './playbook-persistence';
 import { PlaybookStore } from './playbook.store';
 
-export function playbooksViews(): ImtView[] {
+export function playbooksViews(): DebriefView[] {
   return [
     {
       id: PLAYBOOKS_VIEW,
@@ -18,7 +18,7 @@ export function playbooksViews(): ImtView[] {
   ];
 }
 
-export function playbooksCommands(store: InstanceType<typeof PlaybookStore>): ImtCommand[] {
+export function playbooksCommands(store: InstanceType<typeof PlaybookStore>): DebriefCommand[] {
   const category = $localize`:Command palette category@@playbooks.category:View`;
   return [
     { id: 'playbooks.show', title: $localize`:@@playbooks.cmd.show:View: Playbooks`, category, view: PLAYBOOKS_VIEW, run: (ctx) => ctx.showView(PLAYBOOKS_VIEW) },
@@ -37,8 +37,8 @@ export function playbooksCommands(store: InstanceType<typeof PlaybookStore>): Im
 /** One line in `app.config.ts`: the Playbooks pane, its commands and the runs saved in the project (ADR 0039). */
 export function providePlaybooks(): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useFactory: playbooksViews },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => playbooksCommands(inject(PlaybookStore)) },
+    { provide: DEBRIEF_VIEWS, multi: true, useFactory: playbooksViews },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => playbooksCommands(inject(PlaybookStore)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => [inject(PlaybookPersistence).contribution] },
   ]);
 }

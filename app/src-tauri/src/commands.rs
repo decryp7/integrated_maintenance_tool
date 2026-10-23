@@ -24,7 +24,7 @@ pub enum Kind {
 
 /// The windows a command may be called from (a set of bits).
 pub type Windows = u8;
-/// `main` and the other IMT windows (`w-2`, ...).
+/// `main` and the other Debrief windows (`w-2`, ...).
 pub const MAIN: Windows = 1;
 /// Panels popped out of a window (`p-<host>-<n>`).
 pub const POPOUT: Windows = 2;
@@ -201,7 +201,7 @@ mod tests {
         assert_eq!(class_of("p-main-1"), Some(POPOUT));
         assert_eq!(class_of("bw-main"), None);
         assert!(check("query_page", "p-main-1", 10).is_ok());
-        // A pop-out panel cannot restart IMT or answer its host's prompts.
+        // A pop-out panel cannot restart Debrief or answer its host's prompts.
         let e = check("restart_app", "p-main-1", 10).unwrap_err();
         assert_eq!(e.code, ErrorCode::Denied);
         assert!(check("restart_app", "main", 10).is_ok());
@@ -258,11 +258,11 @@ mod tests {
         }
     }
 
-    /// Capabilities name IMT's webviews, never windows: a window pattern would grant every webview in the window (any
+    /// Capabilities name Debrief's webviews, never windows: a window pattern would grant every webview in the window (any
     /// future child view) that window's permissions. No capability allows remote origins. (The AI's browser is a
-    /// separate Chromium process, ADR 0043; IMT hosts no web page.)
+    /// separate Chromium process, ADR 0043; Debrief hosts no web page.)
     #[test]
-    fn capabilities_are_scoped_to_imt_webviews_and_never_reach_the_page() {
+    fn capabilities_are_scoped_to_debrief_webviews_and_never_reach_the_page() {
         // A capability label pattern: a literal, or a prefix ending in `*`.
         let matches = |pattern: &str, label: &str| match pattern.strip_suffix('*') {
             Some(prefix) => label.starts_with(prefix),
@@ -293,14 +293,14 @@ mod tests {
         }
         assert!(seen >= 2);
         let default: serde_json::Value = serde_json::from_str(include_str!("../capabilities/default.json")).unwrap();
-        for imt in ["main", "w-2", "p-main-1"] {
+        for debrief in ["main", "w-2", "p-main-1"] {
             assert!(
                 default["webviews"]
                     .as_array()
                     .unwrap()
                     .iter()
-                    .any(|p| matches(p.as_str().unwrap(), imt)),
-                "IMT's own webview {imt}"
+                    .any(|p| matches(p.as_str().unwrap(), debrief)),
+                "Debrief's own webview {debrief}"
             );
         }
     }
@@ -341,14 +341,14 @@ mod tests {
         out
     }
 
-    /// An IMT window that hosts the browser's page has two webviews, and Tauri then no longer counts it as a
+    /// A Debrief window that hosts the browser's page has two webviews, and Tauri then no longer counts it as a
     /// "webview window" (ADR 0024): `get_webview_window`, `webview_windows` and a `WebviewWindow` command argument
-    /// miss it. Production code looks IMT windows up with `get_window` / `windows()` (and their webview with
+    /// miss it. Production code looks Debrief windows up with `get_window` / `windows()` (and their webview with
     /// `get_webview`). Only `native_feel` may name `WebviewWindow`: it applies settings to a window it just built.
     /// `panel_windows` too: Tauri's `parent()` takes a `WebviewWindow` to own a pop-out by, and with the docked browser
-    /// page gone (ADR 0043: the page is its own Chromium window) every IMT window has exactly one webview again.
+    /// page gone (ADR 0043: the page is its own Chromium window) every Debrief window has exactly one webview again.
     #[test]
-    fn imt_windows_are_never_looked_up_as_webview_windows() {
+    fn debrief_windows_are_never_looked_up_as_webview_windows() {
         let mut found = Vec::new();
         for (path, text) in production_sources() {
             let name = path.file_name();
@@ -364,7 +364,7 @@ mod tests {
         }
         assert!(
             found.is_empty(),
-            "use get_window / windows() / get_webview for IMT windows:\n{}",
+            "use get_window / windows() / get_webview for Debrief windows:\n{}",
             found.join("\n")
         );
         // The scan sees through to test modules only where they start.

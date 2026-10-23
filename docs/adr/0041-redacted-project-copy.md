@@ -7,7 +7,7 @@
 
 ## Context
 
-Bundles of the log files were replaced by projects (`.imtz`, the store folder). A project holds the raw text of every
+Bundles of the log files were replaced by projects (`.debriefz`, the store folder). A project holds the raw text of every
 event in Parquet segments and the catalog (field statistics with top values, diagnostics samples, histograms), a
 full-text index, and the UI state (`ui.json`: notes, AI chats, saved queries, reports), note images and video frames.
 Redacting values in place would have to reach every one of those, and any missed place leaks.

@@ -13,8 +13,8 @@ import { clampToWorkAreas, dragGrab, placeAtPointer, placeNextToHost, sizeForPan
 import { DragGhostBackend, GhostRequest } from './drag-ghost-backend';
 import { GhostSession } from './drag-ghost-session';
 import { snapshotPanel, SNAPSHOT_TIMEOUT_MS } from './panel-snapshot';
-import { ICON_PATHS, isImtIcon } from '../shared/material/imt-icons';
-import { ImtView } from '../extensions/tokens';
+import { ICON_PATHS, isDebriefIcon } from '../shared/material/debrief-icons';
+import { DebriefView } from '../extensions/tokens';
 import { PopoutBackend, PopoutClosed, PopoutInfo } from './popout-backend';
 import { POPOUT_ROUTE } from './popout-route';
 import { PopoutState } from './popout-state';
@@ -23,7 +23,7 @@ import { SyncedValue, UiSync } from './ui-sync';
 
 /** More pop-outs per window are refused (each is a whole webview). Mirrors `MAX_POPOUTS` in Rust. */
 export const MAX_POPOUTS = 12;
-export const BOUNDS_KEY = 'imt.popout.bounds.v1';
+export const BOUNDS_KEY = 'debrief.popout.bounds.v1';
 /**
  * How often a drag over this window is re-evaluated (the release poll, or the settle rule where the release cannot be
  * observed), and when an idle drag whose release cannot be observed is given up.
@@ -207,13 +207,13 @@ export class PopoutService implements PanelWindows {
   }
 
   /** The ghost of a dragged panel: the size its window will get, its icon and name, and a snapshot taken now. */
-  private async ghostRequest(id: string, view: ImtView): Promise<GhostRequest> {
+  private async ghostRequest(id: string, view: DebriefView): Promise<GhostRequest> {
     const size = sizeForPanel(this.dock.panelRect(id));
     const grab = dragGrab(size);
     const snapshot = await snapshotPanel(this.dock.panelContent(id), size, undefined, SNAPSHOT_TIMEOUT_MS);
     return {
       title: view.title,
-      ...(isImtIcon(view.icon) && ICON_PATHS[view.icon] ? { icon: ICON_PATHS[view.icon] } : {}),
+      ...(isDebriefIcon(view.icon) && ICON_PATHS[view.icon] ? { icon: ICON_PATHS[view.icon] } : {}),
       ...(snapshot ? { snapshot } : {}),
       dark: typeof document !== 'undefined' && document.documentElement.getAttribute('data-scheme') === 'dark',
       width: size.width,

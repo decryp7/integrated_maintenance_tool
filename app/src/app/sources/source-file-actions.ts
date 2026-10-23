@@ -37,7 +37,7 @@ export class SourceFileActions {
     if (line !== undefined) {
       const noLines =
         kind === 'compressed'
-          ? $localize`:@@sources.files.reason.compressed:Compressed file: its lines are only in IMT`
+          ? $localize`:@@sources.files.reason.compressed:Compressed file: its lines are only in Debrief`
           : kind === 'binary'
             ? $localize`:@@sources.files.reason.binary:Not a text file: there is no line to jump to`
             : line < 1

@@ -62,14 +62,14 @@ const GAP = 24, y0 = top + 48;
 let y = y0;
 const col = (x, w, items) => { let cy = y0; const ys = []; for (const [role, name, body] of items) { const h = box(x, cy, w, role, name, body); ys.push([cy, h]); cy += h + GAP; } return { end: cy - GAP, ys }; };
 const o = col(OX + 24, OW - 48, [
-  ['external', 'Logs and archives', 'Serilog CLEF, JSON, text, log4net, NLog, log4j, CSV, syslog and journald, IIS and web servers, HAR, OpenTelemetry, Docker and Kubernetes, `.zip`, `.gz` and `.imtz` bundles.'],
+  ['external', 'Logs and archives', 'Serilog CLEF, JSON, text, log4net, NLog, log4j, CSV, syslog and journald, IIS and web servers, HAR, OpenTelemetry, Docker and Kubernetes, `.zip`, `.gz` and `.debriefz` bundles.'],
   ['external', 'Windows diagnostics', 'Event logs, Performance Monitor, Process Monitor, registry exports, msinfo, crash dumps and UMDH heap logs.'],
   ['external', 'Captures and recordings', 'Profiler captures (speedscope, pprof, perf, nettrace, Chrome), heap snapshots and screen recordings.'],
-  ['accent', 'Collection and automation', '`imt-agent`, `imt-collect`, `imt-monitor`, the `imt` command line for scripts and CI, and watched folders.'],
+  ['accent', 'Collection and automation', '`debrief-agent`, `debrief-collect`, `debrief-monitor`, the `debrief` command line for scripts and CI, and watched folders.'],
 ]);
 const e = col(EX + 24, EW - 48, [
-  ['plugin', 'Plugins: importers, tools, transforms', 'Each in its own sandboxed process over one IPC (`imt-ipc`): built in, or signed `.imtplugin` packages written in Rust.'],
-  ['accent', 'Store worker', 'DuckDB and Tantivy in a supervised process: Parquet segments, a full-text index, time-range import and `.imtz` projects. The app never holds the records.'],
+  ['plugin', 'Plugins: importers, tools, transforms', 'Each in its own sandboxed process over one IPC (`debrief-ipc`): built in, or signed `.debriefplugin` packages written in Rust.'],
+  ['accent', 'Store worker', 'DuckDB and Tantivy in a supervised process: Parquet segments, a full-text index, time-range import and `.debriefz` projects. The app never holds the records.'],
   ['accent', 'Queries and analysis', 'Query language, facets, paging and charts; anomalies, patterns, exceptions, error outliers, Moment, known issues and incident reports.'],
   ['accent', 'AI and research', 'A local `llama-server` worker with vision and knowledge files; research and Agent mode drive a real Chromium over DevTools.'],
 ]);
@@ -98,8 +98,8 @@ arrow(OX + OW, o.ys[3][0] + 40, EX, o.ys[3][0] + 40, 'writes bundles');
 const cy = bodyEnd + 40;
 const coreH = 112;
 out.push(`<rect x="48" y="${cy}" width="1184" height="112" rx="6" class="n core"/>`);
-out.push(`<text x="64" y="${cy + 30}" class="h">imt-core: pure Rust, no windows, no network</text>`);
-['Store ports, parsers and profiles, the pipeline, the query language, analysis, reports and redaction: the single source of truth for data and behaviour. The app, the store worker and `imt` all use it.', 'Files are untrusted: parsed once at the edge, bounded by line, regex and archive limits, fuzzed, and never allowed to panic. Nothing leaves your machine unless you start an update, a download or research.'].forEach((p, i) => wrapMarked(p, 1152).forEach((l, k) => runs(64, cy + 54 + (i * 2 + k) * 16 - (i ? 0 : 0), l, 't')));
+out.push(`<text x="64" y="${cy + 30}" class="h">debrief-core: pure Rust, no windows, no network</text>`);
+['Store ports, parsers and profiles, the pipeline, the query language, analysis, reports and redaction: the single source of truth for data and behaviour. The app, the store worker and `debrief` all use it.', 'Files are untrusted: parsed once at the edge, bounded by line, regex and archive limits, fuzzed, and never allowed to panic. Nothing leaves your machine unless you start an update, a download or research.'].forEach((p, i) => wrapMarked(p, 1152).forEach((l, k) => runs(64, cy + 54 + (i * 2 + k) * 16 - (i ? 0 : 0), l, 't')));
 // legend
 let lx = 64; const ly = cy + 112 + 56;
 const legW = [['Outside'], ['Plugin'], ['Debrief'], ['Workbench'], ['Pure core']].reduce((a, [l]) => a + 40 + tw(l, 12) + 36, 0) - 36 + 32;

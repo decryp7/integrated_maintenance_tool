@@ -9,15 +9,15 @@ import { APP_LOAD_TIMEOUT } from './app';
 export async function openAppWith(page: Page, search: string, options: { grid?: boolean } = {}): Promise<void> {
   await page.goto(`/${search}`);
   // The first load builds the demo workspace; under a full parallel run it can take longer than one assertion.
-  await expect(page.locator('imt-status-bar')).toContainText('events', { timeout: APP_LOAD_TIMEOUT });
-  if (options.grid ?? true) await expect(page.locator('imt-events-grid')).toBeVisible();
+  await expect(page.locator('debrief-status-bar')).toContainText('events', { timeout: APP_LOAD_TIMEOUT });
+  if (options.grid ?? true) await expect(page.locator('debrief-events-grid')).toBeVisible();
 }
 
 /** The events grid's scroll container. */
-export const viewport = (page: Page) => page.locator('imt-events-grid .viewport');
+export const viewport = (page: Page) => page.locator('debrief-events-grid .viewport');
 
 /** Rows currently in the DOM (never more than a screenful plus overscan, whatever the total). */
-export const gridRows = (page: Page) => page.locator('imt-events-grid .row:not(.placeholder)');
+export const gridRows = (page: Page) => page.locator('debrief-events-grid .row:not(.placeholder)');
 
 /** Parses the id out of "Synthetic event 123". */
 export function eventId(text: string | null): number {

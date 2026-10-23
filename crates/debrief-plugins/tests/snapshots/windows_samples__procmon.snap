@@ -1,0 +1,64 @@
+---
+source: crates/debrief-plugin-windows/tests/samples.rs
+expression: "snapshot_of(\"windows/WEB02/procmon-OrderService.csv\",\n&debrief_plugin_windows::ProcmonCsvImporter)"
+---
+sample: windows/WEB02/procmon-OrderService.csv
+importer: procmon-csv
+records: 1345
+skipped: 0
+first_ts: 1791974429070
+last_ts: 1791974538334
+fields:
+  - DateTime
+  - Detail
+  - Duration
+  - Operation
+  - Path
+  - ProcessId
+  - ProcessName
+  - Result
+  - ThreadId
+  - TimeOfDay
+first:
+  - ts: 1791974429070
+    level: Information
+    message: "OrderService.exe (4120) TCP Reconnect WEB02.contoso.local:50500 -> PAY01.contoso.local:https: SUCCESS"
+    fields:
+      TimeOfDay: "10:40:29.0704240 AM"
+      ProcessName: OrderService.exe
+      ProcessId: 4120
+      Operation: TCP Reconnect
+      Path: "WEB02.contoso.local:50500 -> PAY01.contoso.local:https"
+      Result: SUCCESS
+      Detail: "Length: 0, seqnum: 0, connid: 0"
+      DateTime: "10/14/2026 10:40:29 AM"
+      ThreadId: 7110
+      Duration: 0.0674466
+  - ts: 1791974429118
+    level: Information
+    message: "OrderService.exe (4120) TCP Receive WEB02.contoso.local:51818 -> SQL01.contoso.local:ms-sql-s: SUCCESS"
+    fields:
+      TimeOfDay: "10:40:29.1188960 AM"
+      ProcessName: OrderService.exe
+      ProcessId: 4120
+      Operation: TCP Receive
+      Path: "WEB02.contoso.local:51818 -> SQL01.contoso.local:ms-sql-s"
+      Result: SUCCESS
+      Detail: "Length: 326, seqnum: 0, connid: 0"
+      DateTime: "10/14/2026 10:40:29 AM"
+      ThreadId: 6412
+      Duration: 0.0491314
+  - ts: 1791974429152
+    level: Information
+    message: "OrderService.exe (4120) WriteFile C:\\logs\\OrderService\\orders-20261014.clef: SUCCESS"
+    fields:
+      TimeOfDay: "10:40:29.1524870 AM"
+      ProcessName: OrderService.exe
+      ProcessId: 4120
+      Operation: WriteFile
+      Path: "C:\\logs\\OrderService\\orders-20261014.clef"
+      Result: SUCCESS
+      Detail: "Offset: 12,875,244, Length: 790, Priority: Normal"
+      DateTime: "10/14/2026 10:40:29 AM"
+      ThreadId: 7110
+      Duration: 0.0523544

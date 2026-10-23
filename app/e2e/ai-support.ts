@@ -4,13 +4,13 @@ import { openAppWith } from './mock-url';
 /** Opens the app with the scripted AI mock (fast streaming) plus `extra` switches, and waits for the grid. */
 export async function openAiApp(page: Page, extra = ''): Promise<void> {
   await openAppWith(page, `?mockAiStepMs=5${extra ? `&${extra}` : ''}`);
-  await expect(page.locator('imt-events-grid [role=row].row').first()).toBeVisible();
+  await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible();
 }
 
 /** Opens the assistant chat from the palette and returns the panel. */
 export async function openChat(page: Page): Promise<Locator> {
   await runCommand(page, 'AI: Open the assistant chat');
-  const panel = page.locator('imt-ai-chat-panel');
+  const panel = page.locator('debrief-ai-chat-panel');
   await expect(panel.getByRole('textbox', { name: 'Ask about the logs' })).toBeEnabled();
   return panel;
 }
@@ -28,7 +28,7 @@ export async function waitAnswered(panel: Locator): Promise<void> {
 
 /** Right-clicks the first grid row and returns the context menu. */
 export async function rowMenu(page: Page): Promise<Locator> {
-  await page.locator('imt-events-grid [role=row].row').first().click({ button: 'right' });
+  await page.locator('debrief-events-grid [role=row].row').first().click({ button: 'right' });
   const menu = page.getByRole('menu', { name: 'Actions' });
   await expect(menu).toBeVisible();
   return menu;
@@ -40,7 +40,7 @@ export async function runCommand(page: Page, title: string): Promise<void> {
   const input = page.getByRole('combobox', { name: 'Type a command' });
   await expect(input).toBeFocused();
   await input.fill(title);
-  await expect(page.locator('imt-command-palette').getByRole('option').first()).toContainText(title);
+  await expect(page.locator('debrief-command-palette').getByRole('option').first()).toContainText(title);
   await page.keyboard.press('Enter');
   await expect(input).toHaveCount(0);
 }

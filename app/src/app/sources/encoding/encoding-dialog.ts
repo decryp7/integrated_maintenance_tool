@@ -11,7 +11,7 @@ import { AUTO_ENCODING, encodingText, initialEncodingChoice } from './encoding-f
  * the user chose before is selected at first, else "Automatic".
  */
 @Component({
-  selector: 'imt-encoding-dialog',
+  selector: 'debrief-encoding-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <p class="intro" i18n="@@sources.encoding.dialog.intro">The file is read again with the encoding you choose; its events are replaced.</p>
@@ -21,14 +21,14 @@ import { AUTO_ENCODING, encodingText, initialEncodingChoice } from './encoding-f
     <fieldset>
       <legend class="sr-only" i18n="@@sources.encoding.dialog.legend">Encoding for {{ source().name }}</legend>
       <label class="choice auto">
-        <input type="radio" name="imt-encoding" [value]="auto" [checked]="choice() === auto" (change)="pick(auto)" />
+        <input type="radio" name="debrief-encoding" [value]="auto" [checked]="choice() === auto" (change)="pick(auto)" />
         <span class="name" i18n="@@sources.encoding.dialog.automatic">Automatic (detect)</span>
-        <span class="hint" i18n="@@sources.encoding.dialog.automaticHint">IMT guesses it from the file's bytes</span>
+        <span class="hint" i18n="@@sources.encoding.dialog.automaticHint">Debrief guesses it from the file's bytes</span>
       </label>
       <div class="list" role="presentation">
         @for (o of options(); track o.label) {
           <label class="choice" [attr.data-encoding]="o.label">
-            <input type="radio" name="imt-encoding" [value]="o.label" [checked]="choice() === o.label" (change)="pick(o.label)" />
+            <input type="radio" name="debrief-encoding" [value]="o.label" [checked]="choice() === o.label" (change)="pick(o.label)" />
             <span class="name">{{ o.label }}</span>
             <span class="hint">{{ o.name }}</span>
           </label>

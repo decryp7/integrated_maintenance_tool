@@ -1,20 +1,20 @@
 //! Dump commands (per window, ADR 0023): open crash/memory dumps and UMDH heap logs as documents and query their
-//! views. The engine is `imt_dump`; each window has its own [`DumpsSlot`]. The readers are the dumps plugin's
-//! importers (`imt_dump::IMPORTERS_POINT` of the window's registry), called through their guarded services, so a
+//! views. The engine is `debrief_dump`; each window has its own [`DumpsSlot`]. The readers are the dumps plugin's
+//! importers (`debrief_dump::IMPORTERS_POINT` of the window's registry), called through their guarded services, so a
 //! crashing or hanging reader is contained and counted against its plugin. The file is lent by ranges: a full dump
 //! of many gigabytes is never read whole.
 //!
-//! Every command rejects with the one [`crate::CmdError`]. Wire contract: `imt_dump::api`, generated into
+//! Every command rejects with the one [`crate::CmdError`]. Wire contract: `debrief_dump::api`, generated into
 //! `app/src/app/core/generated/dumps.ts`.
 
 use crate::paths::WindowGrants;
 use crate::symbols::{Download, Opened};
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult, ErrorCode};
-use imt_core::plugin::services::Service;
-use imt_dump::api::*;
-use imt_dump::import::SNIFF_BYTES;
-use imt_dump::{DumpDocs, DumpError, DumpImporter, ImportOptions, Limits, ReadAt};
+use debrief_core::plugin::services::Service;
+use debrief_dump::api::*;
+use debrief_dump::import::SNIFF_BYTES;
+use debrief_dump::{DumpDocs, DumpError, DumpImporter, ImportOptions, Limits, ReadAt};
 use std::io::Read;
 use std::path::Path;
 use std::sync::{Arc, RwLock};
@@ -46,9 +46,9 @@ impl DumpsSlot {
     }
 
     /// A slot using the importers plugins contributed to `dumps.importers`.
-    pub(crate) fn from_registry(registry: &imt_core::PluginRegistry) -> DumpsSlot {
+    pub(crate) fn from_registry(registry: &debrief_core::PluginRegistry) -> DumpsSlot {
         let importers = registry
-            .contributions::<dyn DumpImporter>(imt_dump::IMPORTERS_POINT)
+            .contributions::<dyn DumpImporter>(debrief_dump::IMPORTERS_POINT)
             .into_iter()
             .filter_map(|s| GuardedImporter::within(s, IMPORT_BUDGET))
             .map(|g| Arc::new(g) as Arc<dyn DumpImporter>)
@@ -61,7 +61,7 @@ impl DumpsSlot {
 /// error, never a crash.
 struct GuardedImporter {
     id: String,
-    produces: imt_dump::Produces,
+    produces: debrief_dump::Produces,
     service: Service<dyn DumpImporter>,
     budget: Duration,
 }
@@ -83,7 +83,7 @@ impl DumpImporter for GuardedImporter {
         &self.id
     }
 
-    fn produces(&self) -> imt_dump::Produces {
+    fn produces(&self) -> debrief_dump::Produces {
         self.produces
     }
 
@@ -93,7 +93,7 @@ impl DumpImporter for GuardedImporter {
 
     /// Runs on a helper thread under the import budget: past it the import is abandoned and the plugin marked
     /// hung.
-    fn import(&self, file_name: &str, file: Arc<dyn ReadAt>, options: &ImportOptions) -> imt_dump::Result<imt_dump::Document> {
+    fn import(&self, file_name: &str, file: Arc<dyn ReadAt>, options: &ImportOptions) -> debrief_dump::Result<debrief_dump::Document> {
         let (name, options) = (file_name.to_string(), options.clone());
         match self
             .service
@@ -138,12 +138,12 @@ impl ReadAt for FileAt {
 /// An engine error as the command error.
 pub(crate) fn cmd_error(e: DumpError) -> CmdError {
     let code = match e.code {
-        imt_dump::ErrorCode::NotADump => ErrorCode::Unsupported,
-        imt_dump::ErrorCode::NotFound => ErrorCode::NotFound,
-        imt_dump::ErrorCode::Io => ErrorCode::Io,
-        imt_dump::ErrorCode::Limit => ErrorCode::Limit,
-        imt_dump::ErrorCode::Unsupported => ErrorCode::Unsupported,
-        imt_dump::ErrorCode::Invalid => ErrorCode::Invalid,
+        debrief_dump::ErrorCode::NotADump => ErrorCode::Unsupported,
+        debrief_dump::ErrorCode::NotFound => ErrorCode::NotFound,
+        debrief_dump::ErrorCode::Io => ErrorCode::Io,
+        debrief_dump::ErrorCode::Limit => ErrorCode::Limit,
+        debrief_dump::ErrorCode::Unsupported => ErrorCode::Unsupported,
+        debrief_dump::ErrorCode::Invalid => ErrorCode::Invalid,
     };
     CmdError::new(code, e.message)
 }
@@ -152,7 +152,10 @@ fn join_error(e: impl std::fmt::Display) -> CmdError {
     CmdError::new(ErrorCode::Internal, format!("the dump engine failed: {e}"))
 }
 
-async fn read<T: Send + 'static>(win: &CurrentWindow, f: impl FnOnce(&DumpDocs) -> imt_dump::Result<T> + Send + 'static) -> CmdResult<T> {
+async fn read<T: Send + 'static>(
+    win: &CurrentWindow,
+    f: impl FnOnce(&DumpDocs) -> debrief_dump::Result<T> + Send + 'static,
+) -> CmdResult<T> {
     let docs = win.dumps.docs.clone();
     tauri::async_runtime::spawn_blocking(move || f(&crate::sync::read(&docs)).map_err(cmd_error))
         .await
@@ -240,7 +243,7 @@ pub async fn dumps_open<R: tauri::Runtime>(
         let importer = importer.ok_or_else(|| {
             CmdError::new(
                 ErrorCode::Unsupported,
-                format!("{} is neither a dump nor a UMDH log IMT can read", canonical.display()),
+                format!("{} is neither a dump nor a UMDH log Debrief can read", canonical.display()),
             )
         })?;
         let options = ImportOptions {
@@ -250,7 +253,7 @@ pub async fn dumps_open<R: tauri::Runtime>(
                 .ok()
                 .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
                 .map(|d| d.as_millis() as i64),
-            // IMT's symbol cache: PDBs the user's symbol servers gave earlier are found by identity.
+            // Debrief's symbol cache: PDBs the user's symbol servers gave earlier are found by identity.
             symbol_folders: symbols
                 .cache_dir()
                 .map(|d| vec![d.to_string_lossy().into_owned()])
@@ -284,9 +287,9 @@ pub async fn dumps_open<R: tauri::Runtime>(
 }
 
 /// Event to the window when the symbols of one of its dumps changed (the PDBs arrived, or the download ended).
-pub(crate) const SYMBOLS_EVENT: &str = "imt://dump-symbols";
+pub(crate) const SYMBOLS_EVENT: &str = "debrief://dump-symbols";
 
-/// What `imt://dump-symbols` carries: the document, which the view reads again.
+/// What `debrief://dump-symbols` carries: the document, which the view reads again.
 #[derive(Debug, Clone, PartialEq, serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SymbolsChanged {
@@ -310,7 +313,7 @@ fn start_symbols_job<R: tauri::Runtime>(
     app: &tauri::AppHandle<R>,
     target: SymbolsTarget,
     download: Download,
-    reimport: impl FnOnce() -> imt_dump::Result<imt_dump::Document> + Send + 'static,
+    reimport: impl FnOnce() -> debrief_dump::Result<debrief_dump::Document> + Send + 'static,
 ) -> Option<crate::jobs::JobId> {
     use crate::jobs::{self, Controls, Done, JobCtx, JobKind, JobLink, JobProgress, JobSpec};
     let spec = JobSpec::new(JobKind::Download, format!("Symbols for {}", target.title))
@@ -429,14 +432,14 @@ pub async fn dumps_explain(state: CurrentWindow, request: DumpFindingsRequest) -
 mod tests {
     use super::*;
     use crate::test_support::samples;
-    use imt_dump::Produces;
+    use debrief_dump::Produces;
 
-    /// The plugin's readers in process (in IMT they run in the dumps plugin's process).
+    /// The plugin's readers in process (in Debrief they run in the dumps plugin's process).
     struct Local(Produces);
 
     struct Src(Arc<dyn ReadAt>);
 
-    impl imt_plugin_dumps::source::Source for Src {
+    impl debrief_plugin_dumps::source::Source for Src {
         fn len(&self) -> u64 {
             self.0.len()
         }
@@ -465,16 +468,15 @@ mod tests {
                         0
                     }
                 }
-                Produces::Umdh => imt_plugin_dumps::umdh_reader::sniff(head),
+                Produces::Umdh => debrief_plugin_dumps::umdh_reader::sniff(head),
             }
         }
-        fn import(&self, _: &str, file: Arc<dyn ReadAt>, options: &ImportOptions) -> imt_dump::Result<imt_dump::Document> {
+        fn import(&self, _: &str, file: Arc<dyn ReadAt>, options: &ImportOptions) -> debrief_dump::Result<debrief_dump::Document> {
             let src = Src(file);
             match self.0 {
-                Produces::Dump => imt_plugin_dumps::dump_reader::read_dump(&src, &options.limits).map(imt_dump::Document::Dump),
-                Produces::Umdh => {
-                    imt_plugin_dumps::umdh_reader::read_umdh(&src, &options.limits, options.file_time_ms).map(imt_dump::Document::Umdh)
-                }
+                Produces::Dump => debrief_plugin_dumps::dump_reader::read_dump(&src, &options.limits).map(debrief_dump::Document::Dump),
+                Produces::Umdh => debrief_plugin_dumps::umdh_reader::read_umdh(&src, &options.limits, options.file_time_ms)
+                    .map(debrief_dump::Document::Umdh),
             }
         }
     }
@@ -499,7 +501,7 @@ mod tests {
     }
 
     fn tempfile_dir() -> std::path::PathBuf {
-        let d = std::env::temp_dir().join(format!("imt-dumps-test-{}", std::process::id()));
+        let d = std::env::temp_dir().join(format!("debrief-dumps-test-{}", std::process::id()));
         std::fs::create_dir_all(&d).unwrap();
         d
     }
@@ -507,12 +509,12 @@ mod tests {
     #[test]
     fn engine_errors_keep_their_meaning() {
         let codes = [
-            (imt_dump::ErrorCode::NotADump, ErrorCode::Unsupported),
-            (imt_dump::ErrorCode::NotFound, ErrorCode::NotFound),
-            (imt_dump::ErrorCode::Io, ErrorCode::Io),
-            (imt_dump::ErrorCode::Limit, ErrorCode::Limit),
-            (imt_dump::ErrorCode::Unsupported, ErrorCode::Unsupported),
-            (imt_dump::ErrorCode::Invalid, ErrorCode::Invalid),
+            (debrief_dump::ErrorCode::NotADump, ErrorCode::Unsupported),
+            (debrief_dump::ErrorCode::NotFound, ErrorCode::NotFound),
+            (debrief_dump::ErrorCode::Io, ErrorCode::Io),
+            (debrief_dump::ErrorCode::Limit, ErrorCode::Limit),
+            (debrief_dump::ErrorCode::Unsupported, ErrorCode::Unsupported),
+            (debrief_dump::ErrorCode::Invalid, ErrorCode::Invalid),
         ];
         for (from, to) in codes {
             let e = cmd_error(DumpError::new(from, "m"));
@@ -527,7 +529,7 @@ mod tests {
     /// The in-process readers and one that panics, as plugins (so their calls are guarded).
     struct TestPlugin(bool);
 
-    impl imt_core::Plugin for TestPlugin {
+    impl debrief_core::Plugin for TestPlugin {
         fn id(&self) -> &str {
             if self.0 {
                 "test.boom"
@@ -541,13 +543,13 @@ mod tests {
         fn version(&self) -> &str {
             "1.0.0"
         }
-        fn register(&self, r: &mut imt_core::PluginRegistry) -> anyhow::Result<()> {
-            let _ = r.declare_extension_point::<dyn DumpImporter>(imt_dump::IMPORTERS_POINT);
+        fn register(&self, r: &mut debrief_core::PluginRegistry) -> anyhow::Result<()> {
+            let _ = r.declare_extension_point::<dyn DumpImporter>(debrief_dump::IMPORTERS_POINT);
             if self.0 {
-                r.contribute::<dyn DumpImporter>(imt_dump::IMPORTERS_POINT, Arc::new(Panics));
+                r.contribute::<dyn DumpImporter>(debrief_dump::IMPORTERS_POINT, Arc::new(Panics));
             } else {
                 for i in local() {
-                    r.contribute::<dyn DumpImporter>(imt_dump::IMPORTERS_POINT, i);
+                    r.contribute::<dyn DumpImporter>(debrief_dump::IMPORTERS_POINT, i);
                 }
             }
             Ok(())
@@ -570,7 +572,7 @@ mod tests {
                 0
             }
         }
-        fn import(&self, _: &str, _: Arc<dyn ReadAt>, _: &ImportOptions) -> imt_dump::Result<imt_dump::Document> {
+        fn import(&self, _: &str, _: Arc<dyn ReadAt>, _: &ImportOptions) -> debrief_dump::Result<debrief_dump::Document> {
             panic!("reader bug")
         }
     }
@@ -586,7 +588,7 @@ mod tests {
     /// A crashing reader contributed by a plugin is contained: the open fails with its id, the others work.
     #[test]
     fn crashing_readers_are_contained() {
-        let mut registry = imt_core::PluginRegistry::new();
+        let mut registry = debrief_core::PluginRegistry::new();
         registry.install(&TestPlugin(false)).unwrap();
         registry.install(&TestPlugin(true)).unwrap();
         registry.resolve();
@@ -605,14 +607,14 @@ mod tests {
     /// request waits until `release` is set (so a test can cancel while it is running).
     struct Scripted {
         ok: Vec<String>,
-        error: Option<imt_symbols::fetch::FetchError>,
+        error: Option<debrief_symbols::fetch::FetchError>,
         started: std::sync::atomic::AtomicBool,
         release: Arc<std::sync::atomic::AtomicBool>,
         wait: bool,
     }
 
-    impl imt_symbols::fetch::Fetcher for Scripted {
-        fn fetch(&self, key: &imt_symbols::id::PdbKey, cache: &Path) -> Result<std::path::PathBuf, imt_symbols::fetch::FetchError> {
+    impl debrief_symbols::fetch::Fetcher for Scripted {
+        fn fetch(&self, key: &debrief_symbols::id::PdbKey, cache: &Path) -> Result<std::path::PathBuf, debrief_symbols::fetch::FetchError> {
             use std::sync::atomic::Ordering;
             if self.wait && !self.started.swap(true, Ordering::SeqCst) {
                 let t = std::time::Instant::now();
@@ -626,11 +628,11 @@ mod tests {
             Err(self
                 .error
                 .clone()
-                .unwrap_or_else(|| imt_symbols::fetch::FetchError::NotFound(key.name().to_string())))
+                .unwrap_or_else(|| debrief_symbols::fetch::FetchError::NotFound(key.name().to_string())))
         }
     }
 
-    fn scripted(ok: &[String], error: Option<imt_symbols::fetch::FetchError>, wait: bool) -> Arc<Scripted> {
+    fn scripted(ok: &[String], error: Option<debrief_symbols::fetch::FetchError>, wait: bool) -> Arc<Scripted> {
         Arc::new(Scripted {
             ok: ok.to_vec(),
             error,
@@ -658,7 +660,7 @@ mod tests {
     #[test]
     fn symbol_downloads_are_jobs_that_update_the_open_dump() {
         use crate::test_support::{job_end, test_app};
-        use imt_dump::model::{Document, SymbolStatus};
+        use debrief_dump::model::{Document, SymbolStatus};
         use std::sync::atomic::Ordering;
         use std::sync::Mutex;
         use tauri::{Listener, Manager};
@@ -671,13 +673,13 @@ mod tests {
         });
         let cache = crate::test_support::TempDir::new("symbols-job");
         let missing = || {
-            let mut d = imt_dump::testing::sample_dump();
+            let mut d = debrief_dump::testing::sample_dump();
             for m in &mut d.modules {
                 m.symbols = SymbolStatus::Missing;
             }
             d
         };
-        let names: Vec<String> = imt_dump::symbols::missing(&missing(), 100)
+        let names: Vec<String> = debrief_dump::symbols::missing(&missing(), 100)
             .iter()
             .map(|k| k.name().to_string())
             .collect();
@@ -687,7 +689,7 @@ mod tests {
             let dump = missing();
             let download = Download::with_fetcher(&dump, &cache.0, fetcher);
             let mut marked = dump.clone();
-            imt_dump::symbols::mark_downloading(&mut marked, &imt_dump::symbols::missing(&dump, 100));
+            debrief_dump::symbols::mark_downloading(&mut marked, &debrief_dump::symbols::missing(&dump, 100));
             let docs = Arc::new(RwLock::new(DumpDocs::new(Vec::new(), Limits::default())));
             let id = crate::sync::write(&docs)
                 .insert("a.dmp", Some("/x/a.dmp"), Document::Dump(marked))
@@ -731,7 +733,7 @@ mod tests {
         );
 
         // Failure: no server could be reached, so the job fails with the reason and the modules say so.
-        let down = Some(imt_symbols::fetch::FetchError::Network("offline".into()));
+        let down = Some(debrief_symbols::fetch::FetchError::Network("offline".into()));
         let (docs, id, job) = begin(scripted(&[], down, false), None);
         let end = job_end(&app, job.0);
         assert_eq!(end.state, crate::jobs::JobState::Failed, "{end:?}");

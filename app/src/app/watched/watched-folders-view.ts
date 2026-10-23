@@ -8,7 +8,7 @@ import { WatchedFoldersStore } from './watched-folders.store';
 
 /** Folders the window watches for new files: add, pause and remove them (ADR 0048). */
 @Component({
-  selector: 'imt-watched-folders-view',
+  selector: 'debrief-watched-folders-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
@@ -26,7 +26,7 @@ import { WatchedFoldersStore } from './watched-folders.store';
             <input type="checkbox" [checked]="f.enabled" [attr.aria-label]="enableLabel(f)" (change)="store.setEnabled(f.path, checked($event))" />
             <span class="grow"><span class="mono ellipsis" [title]="f.path">{{ f.path }}</span>
               <span class="muted status">{{ status(f) }}</span></span>
-            <button type="button" class="icon-btn" [attr.aria-label]="removeLabel(f)" title="Stop watching" i18n-title="@@watched.remove" (click)="store.remove(f.path)"><imt-icon name="trash" [size]="13" /></button>
+            <button type="button" class="icon-btn" [attr.aria-label]="removeLabel(f)" title="Stop watching" i18n-title="@@watched.remove" (click)="store.remove(f.path)"><debrief-icon name="trash" [size]="13" /></button>
           </li>
         }
       </ul>

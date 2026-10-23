@@ -96,8 +96,7 @@ on the touched `.rs` files because longer names reflow lines.
    (rename the file where it is stored; the public key in `tauri.conf.json` is unchanged).
 7. Existing local installs keep their data under the old identifier; Debrief starts fresh (no migration by decision).
 8. Move the Claude memory/project folder key if the checkout folder is renamed (noted in memory).
-9. `cargo xtask gen-samples` stops at its `debrief-plugin-windows` step (`no test target named samples`): this is a
-   stale entry on main, not caused by the rename. The earlier steps ran and regenerated the samples.
+9. (done) the stale `debrief-plugin-windows` step was removed from `cargo xtask gen-samples`.
 
 ## Trial results (from a fresh `origin/main` at eba53424)
 

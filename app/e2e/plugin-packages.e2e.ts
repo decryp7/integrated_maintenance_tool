@@ -4,12 +4,12 @@ import { chooseMenu } from './menu-support';
 import { openAppWith } from './mock-url';
 
 // Third-party plugin packages in the Plugins panel, against the mock backend: in the browser build "Install from
-// file…" picks `/demo/shared.imtplugin`, a package signed by a trusted publisher; `?mock-plugin-package=unsigned`
-// makes every package unsigned, which IMT refuses outside developer mode.
+// file…" picks `/demo/shared.debriefplugin`, a package signed by a trusted publisher; `?mock-plugin-package=unsigned`
+// makes every package unsigned, which Debrief refuses outside developer mode.
 
 async function openPlugins(page: Page) {
   await chooseMenu(page, 'View', 'Plugins', 'Manage plugins');
-  const panel = page.locator('imt-plugins-view');
+  const panel = page.locator('debrief-plugins-view');
   await expect(panel).toBeVisible();
   return panel;
 }
@@ -59,7 +59,7 @@ test('refuses an unsigned package and installs nothing', async ({ page }) => {
   const review = page.getByRole('dialog', { name: 'Install plugin' });
   await expect(review.getByTestId('package-name')).toHaveText('Homebrew parser');
   await expect(review.getByTestId('package-signature')).toHaveText('Not signed');
-  await expect(review.getByTestId('package-refusal')).toContainText('The package is not signed, so IMT cannot tell who made it.');
+  await expect(review.getByTestId('package-refusal')).toContainText('The package is not signed, so Debrief cannot tell who made it.');
   await expect(review.getByTestId('package-refusal')).toContainText('Settings → Plugin trust');
   // Nothing can be granted or installed.
   await expect(review.getByRole('checkbox', { name: /Network access/ })).toBeDisabled();

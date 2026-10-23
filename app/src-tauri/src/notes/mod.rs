@@ -1,7 +1,7 @@
-//! Notes (ADR 0021): each window's notes ([`WindowNotes`], an `imt_notes::NoteSet` saved in the project's UI state
+//! Notes (ADR 0021): each window's notes ([`WindowNotes`], an `debrief_notes::NoteSet` saved in the project's UI state
 //! under `notes`, like the chats and the knowledge files), the images opened to mark them ([`images`]) and the
 //! commands ([`commands`]). The notes reach the AI as one more project knowledge file ([`ai_file`]). Note text never
-//! goes to IMT's log.
+//! goes to Debrief's log.
 
 pub(crate) mod commands;
 pub(crate) mod images;
@@ -10,8 +10,8 @@ mod tests;
 
 use crate::error::{CmdError, ErrorCode};
 use crate::sync::lock;
-use imt_notes::context::{render, Focus, MAX_CONTEXT_BYTES};
-use imt_notes::{NoteSet, NotesError};
+use debrief_notes::context::{render, Focus, MAX_CONTEXT_BYTES};
+use debrief_notes::{NoteSet, NotesError};
 use std::sync::{Arc, Mutex};
 
 impl From<NotesError> for CmdError {
@@ -39,7 +39,7 @@ impl WindowNotes {
     }
 
     /// Applies `f` to a copy and keeps it when `f` succeeds.
-    pub fn change<T>(&self, f: impl FnOnce(&mut NoteSet) -> imt_notes::Result<T>) -> imt_notes::Result<T> {
+    pub fn change<T>(&self, f: impl FnOnce(&mut NoteSet) -> debrief_notes::Result<T>) -> debrief_notes::Result<T> {
         let mut cur = lock(&self.set);
         let mut next = (**cur).clone();
         let out = f(&mut next)?;
@@ -70,7 +70,7 @@ pub const NOTES_KNOWLEDGE_ID: &str = "k0";
 
 /// The window's notes as one more project knowledge file for the AI (ADR 0021 §6): the ones about `focus` first,
 /// at most [`MAX_CONTEXT_BYTES`]. None without notes.
-pub fn ai_file(notes: &NoteSet, focus: &Focus) -> Option<imt_ai::knowledge::KnowledgeFile> {
+pub fn ai_file(notes: &NoteSet, focus: &Focus) -> Option<debrief_ai::knowledge::KnowledgeFile> {
     let text = render(notes.notes(), focus, MAX_CONTEXT_BYTES)?;
-    imt_ai::knowledge::KnowledgeFile::new(NOTES_KNOWLEDGE_ID, "Notes", true, &text).ok()
+    debrief_ai::knowledge::KnowledgeFile::new(NOTES_KNOWLEDGE_ID, "Notes", true, &text).ok()
 }

@@ -60,14 +60,14 @@ export class HealthHeadlineStore {
  * Review opens Home. Hidden when nothing is notable and while Home itself is open.
  */
 @Component({
-  selector: 'imt-health-headline',
+  selector: 'debrief-health-headline',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   host: { style: 'display: contents' },
   template: `
     @if (shown(); as h) {
       <div class="headline" role="toolbar" aria-label="Health check" i18n-aria-label="@@overview.headline.aria" data-testid="health-headline">
-        <imt-icon name="alert" [size]="13" class="warn" />
+        <debrief-icon name="alert" [size]="13" class="warn" />
         @if (h.crashes.length) {
           <button type="button" class="count bad" data-testid="headline-crashes" [title]="crashTitle" (click)="next('crash', h.crashes)">{{ crashesText(h.crashes.length) }}</button>
         }

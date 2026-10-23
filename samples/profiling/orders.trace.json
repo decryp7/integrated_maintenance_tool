@@ -23,4 +23,4 @@
 {"cat":"v8","dur":99,"name":"v8.compile","ph":"X","pid":4242,"tid":7,"ts":5122333},
 {"cat":"v8","dur":2400,"name":"MajorGC","ph":"X","pid":4242,"tid":1,"ts":5150000}
 ],
-"metadata":{"source":"imt sample generator"}}
+"metadata":{"source":"debrief sample generator"}}

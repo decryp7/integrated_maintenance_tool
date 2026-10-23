@@ -5,7 +5,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
  * backend's own message folded under "Technical details" (for a bug report, not for reading first).
  */
 @Component({
-  selector: 'imt-error-details',
+  selector: 'debrief-error-details',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <strong class="summary">{{ summary() }}</strong>
@@ -15,7 +15,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     @if (detail(); as d) {
       <details class="tech">
         <summary i18n="@@ui.errorDetails.technical">Technical details</summary>
-        <code class="mono imt-selectable">{{ d }}</code>
+        <code class="mono debrief-selectable">{{ d }}</code>
       </details>
     }
   `,

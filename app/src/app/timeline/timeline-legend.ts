@@ -25,7 +25,7 @@ let legendSeq = 0;
  * shows them), and the Evidence menu, the keyboard path to the annotations and runs in view.
  */
 @Component({
-  selector: 'imt-timeline-legend',
+  selector: 'debrief-timeline-legend',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [MarkerGlyph, SeverityBadge],
   host: { style: 'display: contents' },
@@ -43,7 +43,7 @@ let legendSeq = 0;
               [attr.aria-describedby]="k.descId"
               [title]="k.title"
               (click)="toggleKind(k.kind.kind, k.active)"
-            ><span class="pill"><imt-marker-glyph [kind]="k.kind.kind" [size]="16" />{{ k.kind.label }}</span></button>
+            ><span class="pill"><debrief-marker-glyph [kind]="k.kind.kind" [size]="16" />{{ k.kind.label }}</span></button>
             @if (k.descId; as id) { <span class="sr" [id]="id">{{ k.title }}</span> }
           }
         </div>
@@ -93,7 +93,7 @@ let legendSeq = 0;
                 [attr.data-kind]="k.kind"
                 [title]="annKindTitle(k)"
                 (click)="ann.toggle(k.kind)"
-              ><span class="pill"><imt-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</span></button>
+              ><span class="pill"><debrief-severity-badge [severity]="k.severity" [showLabel]="false" [size]="12" />{{ k.label }}</span></button>
             }
             @if (inView().length) {
               <!-- The keyboard path to every annotation, and the equivalent control (WCAG 2.5.8) for bands under markers. -->

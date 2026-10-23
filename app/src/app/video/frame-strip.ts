@@ -11,7 +11,7 @@ import { VideoStore } from './video.store';
  * at the player's position and describes the frames that have no description.
  */
 @Component({
-  selector: 'imt-frame-strip',
+  selector: 'debrief-frame-strip',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CdkListbox, CdkOption, FrameImage],
   template: `
@@ -31,7 +31,7 @@ import { VideoStore } from './video.store';
       <ul cdkListbox cdkListboxOrientation="horizontal" class="strip" data-testid="video-strip" aria-label="Frames of the video" i18n-aria-label="@@video.strip.label" [cdkListboxValue]="selected()" (cdkListboxValueChange)="choose($event.value[0])">
         @for (f of v.record.frames; track f.image + f.videoMs; let i = $index) {
           <li [cdkOption]="i" class="frame" [attr.data-testid]="'video-frame-' + i" [attr.aria-label]="optionLabel(i, f.videoMs, !!f.description, !!f.note)">
-            <imt-frame-image class="thumb" [videoKey]="v.record.key" [index]="i" [image]="f.image" alt="" />
+            <debrief-frame-image class="thumb" [videoKey]="v.record.key" [index]="i" [image]="f.image" alt="" />
             <span class="time mono">{{ time(f.videoMs) }}</span>
             <span class="marks">
               @if (f.description) { <span class="mark" title="Described" i18n-title="@@video.strip.described">D</span> }

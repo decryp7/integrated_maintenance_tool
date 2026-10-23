@@ -1,6 +1,6 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, Injector, input, signal, untracked, viewChild } from '@angular/core';
 import { RecordView, SourceContext } from '../core/api.types';
-import { ImtBackend } from '../core/backend';
+import { DebriefBackend } from '../core/backend';
 import { describeError } from '../core/logger';
 import { Debouncer } from '../shared/throttle';
 
@@ -15,7 +15,7 @@ export const CONTEXT_STEPS = [10, 50, 200, 500] as const;
 export const CONTEXT_SETTLE_MS = 120;
 
 @Component({
-  selector: 'imt-context-section',
+  selector: 'debrief-context-section',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="head">
@@ -69,7 +69,7 @@ export const CONTEXT_SETTLE_MS = 120;
   `,
 })
 export class ContextSection {
-  private readonly backend = inject(ImtBackend);
+  private readonly backend = inject(DebriefBackend);
   private readonly injector = inject(Injector);
 
   readonly record = input.required<RecordView>();

@@ -1,0 +1,96 @@
+---
+source: crates/debrief-core/tests/importer_snapshots.rs
+expression: snap
+---
+sample: serilog-json/gateway/gateway-20261014.json
+importer: json
+records: 2443
+skipped: 0
+levels:
+  2-Information: 2410
+  3-Warning: 32
+  4-Error: 1
+with_timestamp: 2443
+first_timestamp: "2026-10-14T09:00:00.000Z"
+last_timestamp: "2026-10-14T11:59:54.297Z"
+fields:
+  - Application
+  - Destination
+  - ElapsedMs
+  - EnvironmentName
+  - Failures
+  - MachineName
+  - Path
+  - ProcessId
+  - Reason
+  - SourceContext
+  - StatusCode
+  - Upstream
+first:
+  - line: 1
+    timestamp: "2026-10-14T09:00:00.000Z"
+    level: Information
+    message: "Application starting — \"Gateway\""
+    template: "Application starting — {Application}"
+    fields:
+      Application: Gateway
+      EnvironmentName: Production
+      MachineName: GATEWAY
+      ProcessId: 1880
+      SourceContext: Program
+  - line: 2
+    timestamp: "2026-10-14T09:00:01.080Z"
+    level: Information
+    message: "Proxying to \"web02:8080\" \"/api/orders\" completed in 216 ms"
+    template: "Proxying to {Upstream} {Path} completed in {ElapsedMs} ms"
+    fields:
+      Application: Gateway
+      ElapsedMs: 216
+      EnvironmentName: Production
+      MachineName: GATEWAY
+      Path: /api/orders
+      ProcessId: 1880
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web02:8080"
+  - line: 3
+    timestamp: "2026-10-14T09:00:01.426Z"
+    level: Information
+    message: "Proxying to \"web02:8080\" \"/api/orders\" completed in 40 ms"
+    template: "Proxying to {Upstream} {Path} completed in {ElapsedMs} ms"
+    fields:
+      Application: Gateway
+      ElapsedMs: 40
+      EnvironmentName: Production
+      MachineName: GATEWAY
+      Path: /api/orders
+      ProcessId: 1880
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web02:8080"
+  - line: 4
+    timestamp: "2026-10-14T09:00:07.285Z"
+    level: Information
+    message: "Proxying to \"web01:8080\" \"/api/orders\" completed in 213 ms"
+    template: "Proxying to {Upstream} {Path} completed in {ElapsedMs} ms"
+    fields:
+      Application: Gateway
+      ElapsedMs: 213
+      EnvironmentName: Production
+      MachineName: GATEWAY
+      Path: /api/orders
+      ProcessId: 1880
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web01:8080"
+  - line: 5
+    timestamp: "2026-10-14T09:00:07.797Z"
+    level: Information
+    message: "Proxying to \"web02:8080\" \"/api/orders\" completed in 94 ms"
+    template: "Proxying to {Upstream} {Path} completed in {ElapsedMs} ms"
+    fields:
+      Application: Gateway
+      ElapsedMs: 94
+      EnvironmentName: Production
+      MachineName: GATEWAY
+      Path: /api/orders
+      ProcessId: 1880
+      SourceContext: Yarp.ReverseProxy.Forwarder.HttpForwarder
+      Upstream: "web02:8080"

@@ -9,9 +9,9 @@ import { WindowingBackend } from './windowing-backend';
 describe('windowTitleFor', () => {
   it('names the project, marks unsaved changes, and falls back to the app name', () => {
     expect(windowTitleFor(null, 'Untitled')).toBe(DEFAULT_WINDOW_TITLE);
-    expect(windowTitleFor('/p/a.imtproj', 'A')).toBe('A — IMT');
-    expect(windowTitleFor('/p/a.imtproj', 'A', true)).toBe('● A — IMT');
-    expect(windowTitleFor(null, 'Untitled', true)).toBe('● Untitled — IMT');
+    expect(windowTitleFor('/p/a.debriefproj', 'A')).toBe('A — Debrief');
+    expect(windowTitleFor('/p/a.debriefproj', 'A', true)).toBe('● A — Debrief');
+    expect(windowTitleFor(null, 'Untitled', true)).toBe('● Untitled — Debrief');
   });
 });
 
@@ -35,13 +35,13 @@ describe('WindowTitleSync', () => {
     await vi.advanceTimersByTimeAsync(TITLE_DEBOUNCE_MS);
     expect(set.mock.calls).toEqual([[DEFAULT_WINDOW_TITLE]]);
 
-    projects.path.set('/p/a.imtproj');
+    projects.path.set('/p/a.debriefproj');
     projects.name.set('A');
     TestBed.tick();
     projects.name.set('Alpha');
     TestBed.tick();
     await vi.advanceTimersByTimeAsync(TITLE_DEBOUNCE_MS);
-    expect(set.mock.calls.slice(1)).toEqual([['Alpha — IMT']]);
+    expect(set.mock.calls.slice(1)).toEqual([['Alpha — Debrief']]);
 
     // Back to the title that was sent: nothing new is sent.
     projects.name.set('B');

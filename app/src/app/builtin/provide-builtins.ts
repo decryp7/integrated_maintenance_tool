@@ -1,6 +1,6 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
-import { IMT_ACTIVITY_ITEMS, IMT_COMMANDS, IMT_FIELD_FORMATTERS, IMT_VIEWS, ImtView } from '../extensions/tokens';
+import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DEBRIEF_FIELD_FORMATTERS, DEBRIEF_VIEWS, DebriefView } from '../extensions/tokens';
 import { EVENT_ID_FORMATTER } from '../extensions/field-formatters';
 import { builtinActivityItems } from './builtin-activity';
 import { BuiltinCommands } from './builtin-commands';
@@ -12,15 +12,15 @@ import { startTextDrops } from '../sources/paste/paste-drop';
 
 /** Registers the built-in views, commands and formatters through the same extension points plugins use. */
 /** `views` can be replaced in tests (e.g. to stub heavy panels). */
-export function provideImtBuiltins(views: readonly ImtView[] = BUILTIN_VIEWS): EnvironmentProviders {
+export function provideDebriefBuiltins(views: readonly DebriefView[] = BUILTIN_VIEWS): EnvironmentProviders {
   return makeEnvironmentProviders([
-    { provide: IMT_VIEWS, multi: true, useValue: views },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(BuiltinCommands).commands },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(RegionNavigator).commands },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(EditCommands).commands },
-    { provide: IMT_COMMANDS, multi: true, useFactory: () => inject(PasteCommands).commands },
+    { provide: DEBRIEF_VIEWS, multi: true, useValue: views },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(BuiltinCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(RegionNavigator).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(EditCommands).commands },
+    { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(PasteCommands).commands },
     provideAppInitializer(startTextDrops),
-    { provide: IMT_FIELD_FORMATTERS, multi: true, useValue: [EVENT_ID_FORMATTER] },
-    { provide: IMT_ACTIVITY_ITEMS, multi: true, useFactory: () => builtinActivityItems(inject(WorkspaceStore)) },
+    { provide: DEBRIEF_FIELD_FORMATTERS, multi: true, useValue: [EVENT_ID_FORMATTER] },
+    { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: () => builtinActivityItems(inject(WorkspaceStore)) },
   ]);
 }

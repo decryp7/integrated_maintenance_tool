@@ -6,12 +6,12 @@ import { BackgroundTask } from './windowing.types';
 
 /** Status-bar button listing the work that keeps running in the background, with Stop buttons. */
 @Component({
-  selector: 'imt-background-work',
+  selector: 'debrief-background-work',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ClickOutside],
   template: `
     @if (windowing.runningCount() > 0) {
-      <span class="wrap" (imtClickOutside)="open.set(false)">
+      <span class="wrap" (debriefClickOutside)="open.set(false)">
         <button
           type="button"
           class="trigger"

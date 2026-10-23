@@ -4,7 +4,7 @@ import { QuerySession } from './query-session';
 
 /** The table produced by a `stats` query: sortable columns and a client-side CSV export. */
 @Component({
-  selector: 'imt-query-results-view',
+  selector: 'debrief-query-results-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="bar">

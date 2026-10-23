@@ -89,7 +89,7 @@ export function cueHint(outcome: TabDropOutcome): string | null {
 }
 
 /** The class on `<body>` while a release would cancel the drag: dims dockview's dragged tab chip. */
-export const DRAG_CANCEL_CLASS = 'imt-drag-cancel';
+export const DRAG_CANCEL_CLASS = 'debrief-drag-cancel';
 
 /**
  * Draws the cue: a fixed layer over the whole window (no pointer events), plus a polite live region that announces
@@ -103,13 +103,13 @@ export class FloatCue {
 
   constructor(private readonly doc: Document = document) {
     this.ghost = doc.createElement('div');
-    this.ghost.className = 'imt-float-cue';
+    this.ghost.className = 'debrief-float-cue';
     this.ghost.setAttribute('aria-hidden', 'true');
     // Marked as an overlay while shown (pop-out snapshots leave overlays out).
-    this.ghost.setAttribute('data-imt-overlay', '');
+    this.ghost.setAttribute('data-debrief-overlay', '');
     this.ghost.hidden = true;
     this.hint = doc.createElement('div');
-    this.hint.className = 'imt-float-cue-hint';
+    this.hint.className = 'debrief-float-cue-hint';
     this.ghost.append(this.hint);
     this.live = doc.createElement('div');
     this.live.className = 'sr-only';

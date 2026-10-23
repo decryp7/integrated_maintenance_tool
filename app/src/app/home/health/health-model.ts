@@ -5,7 +5,7 @@ import { Finding, FindingAction, PluginInfo, Severity, SEVERITIES, UnrecognizedF
 export interface SeverityGroup {
   severity: Severity;
   label: string;
-  /** Name of an `<imt-icon>`; the label is always shown too (never colour alone). */
+  /** Name of an `<debrief-icon>`; the label is always shown too (never colour alone). */
   icon: string;
   findings: Finding[];
 }

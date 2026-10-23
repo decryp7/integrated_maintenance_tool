@@ -1,6 +1,6 @@
 /**
  * Plausible plugin annotations for the browser demo, shaped like the Windows plugin's annotators
- * (crates/imt-plugin-windows/src/annotators.rs): instance uptime spans, machine-wide downtime between
+ * (crates/debrief-plugin-windows/src/annotators.rs): instance uptime spans, machine-wide downtime between
  * an instance that stopped and the next one on the same machine, and crash points. Not the reference
  * for behaviour: the engine decides what is annotated.
  */

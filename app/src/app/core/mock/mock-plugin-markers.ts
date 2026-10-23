@@ -1,5 +1,5 @@
 /**
- * The effective marker set of the browser demo, mimicking crates/imt-core/src/plugin/markers.rs: the
+ * The effective marker set of the browser demo, mimicking crates/debrief-core/src/plugin/markers.rs: the
  * profile's own rules, then the marker kinds a (mock) plugin contributes, with `[[marker_override]]`
  * switching kinds off or restyling them. Not the reference for behaviour.
  */
@@ -22,7 +22,7 @@ export interface MockPluginKind {
 
 export const MOCK_WINDOWS_PLUGIN = 'net.decryptology.windows';
 
-/** Kinds of the mock Windows plugin (a subset of crates/imt-plugin-windows/src/markers). */
+/** Kinds of the mock Windows plugin (a subset of crates/debrief-plugin-windows/src/markers). */
 export const MOCK_PLUGIN_KINDS: readonly MockPluginKind[] = [
   {
     owner: MOCK_WINDOWS_PLUGIN,

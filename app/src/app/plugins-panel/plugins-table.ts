@@ -32,7 +32,7 @@ export function packageRow(k: InstalledPluginDto): PluginRow {
 
 /** The installed plugins as one table (name, version, what they provide, memory, status); a row opens its side panel. */
 @Component({
-  selector: 'imt-plugins-table',
+  selector: 'debrief-plugins-table',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon, CdkMenu, CdkMenuItem, CdkMenuTrigger, PluginDetail],
   template: `
@@ -68,7 +68,7 @@ export function packageRow(k: InstalledPluginDto): PluginRow {
               <td>
                 <span class="provides">
                   @for (g of groups(p); track g.kind) {
-                    <span class="grp" data-testid="plugin-group" [title]="g.items.join('\n')" [attr.aria-label]="groupLabel(g)"><imt-icon [name]="g.icon" [size]="13" /><span class="n">{{ g.items.length }}</span></span>
+                    <span class="grp" data-testid="plugin-group" [title]="g.items.join('\n')" [attr.aria-label]="groupLabel(g)"><debrief-icon [name]="g.icon" [size]="13" /><span class="n">{{ g.items.length }}</span></span>
                   } @empty {
                     <span class="muted">—</span>
                   }
@@ -92,7 +92,7 @@ export function packageRow(k: InstalledPluginDto): PluginRow {
                 </span>
               </td>
               <td class="act" (click)="$event.stopPropagation()" (keydown.enter)="$event.stopPropagation()">
-                <button type="button" class="icon-btn more" [cdkMenuTriggerFor]="rowMenu" [cdkMenuTriggerData]="{ $implicit: p }" [attr.aria-label]="moreLabel(p.name)" [title]="moreLabel(p.name)" data-testid="plugin-more"><imt-icon name="more" [size]="14" /></button>
+                <button type="button" class="icon-btn more" [cdkMenuTriggerFor]="rowMenu" [cdkMenuTriggerData]="{ $implicit: p }" [attr.aria-label]="moreLabel(p.name)" [title]="moreLabel(p.name)" data-testid="plugin-more"><debrief-icon name="more" [size]="14" /></button>
               </td>
             </tr>
           }
@@ -100,7 +100,7 @@ export function packageRow(k: InstalledPluginDto): PluginRow {
       </table>
     </div>
     @if (selected(); as s) {
-      <imt-plugin-detail [plugin]="s" (closed)="close()" data-testid="plugin-detail" />
+      <debrief-plugin-detail [plugin]="s" (closed)="close()" data-testid="plugin-detail" />
     }
 
     <ng-template #rowMenu let-p>
@@ -184,7 +184,7 @@ export class PluginsTable {
   protected memory(p: PluginRow) {
     return memoryView(this.memories.processes().find((m) => m.process.kind === 'plugin' && m.process.pluginId === p.id));
   }
-  /** Who ships a plugin: its package's publisher, or IMT. */
+  /** Who ships a plugin: its package's publisher, or Debrief. */
   protected publisher(p: PluginRow): string {
     return this.packages.plugins().find((x) => x.id === p.id)?.publisher ?? $localize`:@@pluginsPanel.publisher.builtIn:Built in`;
   }

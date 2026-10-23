@@ -39,7 +39,7 @@ export function valueText(v: ValueDto | null): string {
  * of the same machine compared file by file.
  */
 @Component({
-  selector: 'imt-config-diff-view',
+  selector: 'debrief-config-diff-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="wrap">

@@ -8,7 +8,7 @@ import { runCommand } from './analysis-support';
 
 const field = (page: Page) => page.getByTestId('query-field');
 const status = (page: Page) => page.getByTestId('query-status');
-const box = (page: Page) => page.locator('imt-query-field .box');
+const box = (page: Page) => page.locator('debrief-query-field .box');
 
 test.describe('search field', () => {
   test.beforeEach(async ({ page }) => {
@@ -31,7 +31,7 @@ test.describe('search field', () => {
     await expect.poll(async () => parseCount(await gridTotal(page).innerText())).toBeLessThan(parseCount(all));
     await expect(page.getByTestId('query-run')).toHaveCount(0);
     await expect(status(page)).toHaveCount(0);
-    await expect(page.locator('imt-query-field')).not.toHaveClass(/\bquery\b/);
+    await expect(page.locator('debrief-query-field')).not.toHaveClass(/\bquery\b/);
     await field(page).fill('');
     await expect(gridTotal(page)).toHaveText(all);
   });
@@ -42,13 +42,13 @@ test.describe('search field', () => {
     await field(page).fill('level >= error');
     const run = page.getByTestId('query-run');
     await expect(run).toBeVisible();
-    await expect(page.locator('imt-query-field')).toHaveClass(/\bquery\b/);
+    await expect(page.locator('debrief-query-field')).toHaveClass(/\bquery\b/);
     await expect(gridTotal(page)).toHaveText(all);
     await field(page).press('Enter');
     await expect(status(page)).toContainText('Filtering with');
     await expect(status(page)).toContainText('level >= error');
     await expect.poll(async () => parseCount(await gridTotal(page).innerText())).toBeLessThan(parseCount(all));
-    await expectNoSeriousViolations(page, testInfo, 'search-field-applied', 'imt-filter-bar');
+    await expectNoSeriousViolations(page, testInfo, 'search-field-applied', 'debrief-filter-bar');
     await status(page).getByRole('button', { name: 'Clear' }).click();
     await expect(field(page)).toHaveValue('');
     await expect(gridTotal(page)).toHaveText(all);
@@ -56,7 +56,7 @@ test.describe('search field', () => {
   });
 
   test('a pipe, exists() and a known field with an operator are queries; a quoted phrase and a bare word are not', async ({ page }) => {
-    const query = page.locator('imt-query-field.query');
+    const query = page.locator('debrief-query-field.query');
     await field(page).click();
     for (const text of ['| stats count() by level', 'exists(MachineName)', 'source = checkout']) {
       await field(page).fill(text);
@@ -72,8 +72,8 @@ test.describe('search field', () => {
     await field(page).click();
     await field(page).fill('| stats count() by level');
     await field(page).press('ControlOrMeta+Enter');
-    await expect(page.locator('imt-query-results-view')).toBeVisible();
-    await expect(page.locator('imt-query-results-view').getByRole('columnheader', { name: 'level' })).toBeVisible();
+    await expect(page.locator('debrief-query-results-view')).toBeVisible();
+    await expect(page.locator('debrief-query-results-view').getByRole('columnheader', { name: 'level' })).toBeVisible();
   });
 
   test('a syntax error shows in the status line with its column, and did-you-mean offers a fix', async ({ page }, testInfo) => {
@@ -83,7 +83,7 @@ test.describe('search field', () => {
     await expect(field(page)).toHaveAttribute('aria-invalid', 'true');
     await field(page).fill('MachinName = WEB01 | stats count()');
     await expect(page.getByTestId('did-you-mean').getByRole('button', { name: 'Replace with MachineName' })).toBeVisible();
-    await expectNoSeriousViolations(page, testInfo, 'search-field-error', 'imt-filter-bar');
+    await expectNoSeriousViolations(page, testInfo, 'search-field-error', 'debrief-filter-bar');
   });
 
   test('the field grows to several lines while focused (Shift+Enter) and shrinks when it loses focus', async ({ page }) => {
@@ -100,8 +100,8 @@ test.describe('search field', () => {
 
   test('with the Explorer closed the field is at least 300 px wide', async ({ page }) => {
     await page.keyboard.press('ControlOrMeta+b');
-    await expect(page.locator('imt-sidebar')).toHaveCount(0);
-    expect((await page.locator('imt-query-field').boundingBox())!.width).toBeGreaterThanOrEqual(300);
+    await expect(page.locator('debrief-sidebar')).toHaveCount(0);
+    expect((await page.locator('debrief-query-field').boundingBox())!.width).toBeGreaterThanOrEqual(300);
   });
 
   // Known gap: the level chips, range and buttons leave the field only ~200 px (its minimum) at 1440 px with the
@@ -132,7 +132,7 @@ test.describe('search field', () => {
     await expect(history).toBeEnabled();
     await field(page).fill('');
     await history.click();
-    await expectNoSeriousViolations(page, testInfo, 'search-field-history', 'imt-filter-bar');
+    await expectNoSeriousViolations(page, testInfo, 'search-field-history', 'debrief-filter-bar');
     await page.getByRole('button', { name: 'level = fatal', exact: true }).click();
     await expect(field(page)).toHaveValue('level = fatal');
 
@@ -150,7 +150,7 @@ test.describe('search field', () => {
       await page.emulateMedia({ colorScheme: scheme });
       await field(page).click();
       await field(page).pressSequentially('level >= warning | stats count() by source');
-      await expectNoSeriousViolations(page, testInfo, `search-field-${scheme}`, 'imt-filter-bar');
+      await expectNoSeriousViolations(page, testInfo, `search-field-${scheme}`, 'debrief-filter-bar');
     });
   }
 });

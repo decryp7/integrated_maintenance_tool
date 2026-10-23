@@ -3,4 +3,4 @@
 mod common;
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &[u8]| common::text_importer(&imt_core::importers::JsonImporter, data));
+fuzz_target!(|data: &[u8]| common::text_importer(&debrief_core::importers::JsonImporter, data));

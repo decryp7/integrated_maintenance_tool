@@ -1,4 +1,4 @@
-//! IMT's own windows (main windows and pop-out panels) should feel like a desktop app, not a web page: no browser
+//! Debrief's own windows (main windows and pop-out panels) should feel like a desktop app, not a web page: no browser
 //! zoom, no browser extensions and, in release builds, none of WebView2's browser accelerator keys (reload, find,
 //! print, devtools, back/forward). Debug builds keep the accelerators so developers can reload and inspect.
 //!
@@ -37,7 +37,7 @@ impl WebviewFeel {
 }
 
 /// Builds an app window: the [`crate::dev_overrides`] every webview must share, then [`WebviewFeel::current`].
-/// Use it for every IMT window (not the internal web browser, which shows external pages).
+/// Use it for every Debrief window (not the internal web browser, which shows external pages).
 pub fn build<'a, R: Runtime, M: Manager<R>>(builder: WebviewWindowBuilder<'a, R, M>) -> tauri::Result<WebviewWindow<R>> {
     let feel = WebviewFeel::current();
     let window = crate::dev_overrides::apply(builder)

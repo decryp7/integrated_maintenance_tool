@@ -21,7 +21,7 @@ fn the_library_is_listed_edited_and_persisted() {
     let app = test_app(Some(dir.0.join("profiles")));
     let (st, shared) = (|| main_window(&app), || app.state::<AppState>());
     let lib = parsers_list(shared(), st()).now().unwrap();
-    assert_eq!(lib.parsers.len(), imt_core::parser::builtin::FILES.len());
+    assert_eq!(lib.parsers.len(), debrief_core::parser::builtin::FILES.len());
     assert!(lib
         .parsers
         .iter()
@@ -75,7 +75,7 @@ fn the_library_is_listed_edited_and_persisted() {
     assert!(lib.parsers.iter().any(|p| p.id == "orders"));
     assert!(!lib.parsers.iter().find(|p| p.id == "generic").unwrap().enabled);
     let v = validate("schema = 2\n");
-    assert!(!v.ok && v.error.unwrap().message.contains("update IMT"));
+    assert!(!v.ok && v.error.unwrap().message.contains("update Debrief"));
     let v = parser_validate(MINE.into()).now().unwrap();
     assert_eq!((v.ok, v.id.as_deref(), v.version.as_deref()), (true, Some("orders"), Some("1.0.0")));
 }
@@ -96,7 +96,7 @@ fn parsers_are_shared_through_files_the_user_chose() {
     assert_eq!(check.toml, MINE);
     // A newer version of a parser in the library is an update; the existing text comes along for the diff.
     let newer = dir.0.join("nlog.toml");
-    let text = imt_core::parser::builtin::file("nlog")
+    let text = debrief_core::parser::builtin::file("nlog")
         .unwrap()
         .toml
         .replace("version = \"1.0.0\"", "version = \"1.1.0\"");
@@ -124,7 +124,7 @@ fn parsers_are_shared_through_files_the_user_chose() {
     export(None).unwrap();
     assert_eq!(
         std::fs::read_to_string(&out).unwrap(),
-        imt_core::parser::builtin::file("serilog-clef").unwrap().toml
+        debrief_core::parser::builtin::file("serilog-clef").unwrap().toml
     );
     let exists = export(None).unwrap_err();
     assert!(

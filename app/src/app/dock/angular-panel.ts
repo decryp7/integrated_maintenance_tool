@@ -51,9 +51,9 @@ export class AngularContentRenderer implements IContentRenderer {
     /** The panel id; taken from dockview's init parameters when not given (a pop-out window passes it). */
     private panelId: string | null = null,
   ) {
-    this.element.className = 'imt-panel';
+    this.element.className = 'debrief-panel';
     this.logger = injector.get(Logger, null);
-    // Panels are styled by their own width (`.imt-panel[data-narrow]`), not the window's: a docked panel is often narrow in a wide window.
+    // Panels are styled by their own width (`.debrief-panel[data-narrow]`), not the window's: a docked panel is often narrow in a wide window.
     if (typeof ResizeObserver === 'function') {
       this.resizeObserver = new ResizeObserver((entries) => {
         const flag = narrowFlag(entries[0]?.contentRect.width ?? 0);
@@ -155,7 +155,7 @@ export class AngularContentRenderer implements IContentRenderer {
   private showCard(message: string): void {
     this.card?.remove();
     const card = document.createElement('div');
-    card.className = 'imt-panel-error imt-panel-failed';
+    card.className = 'debrief-panel-error debrief-panel-failed';
     card.setAttribute('role', 'alert');
     card.style.cssText = 'display:flex;flex-direction:column;align-items:flex-start;gap:8px;color:var(--text-2);';
     const title = document.createElement('strong');
@@ -163,7 +163,7 @@ export class AngularContentRenderer implements IContentRenderer {
     const hint = document.createElement('span');
     hint.textContent = $localize`:@@dock.panel.stopped:The ${this.label}:label: panel stopped, the rest of the app is unaffected.`;
     const actions = document.createElement('div');
-    actions.className = 'imt-panel-actions';
+    actions.className = 'debrief-panel-actions';
     actions.style.cssText = 'display:flex;gap:8px;';
     const reload = this.button($localize`:@@dock.panel.reload:Reload panel`, () => this.reload());
     const copy = this.button($localize`:@@dock.panel.copyDetails:Copy details`, () => void this.copyDetails(copy));
@@ -229,7 +229,7 @@ export class AngularContentRenderer implements IContentRenderer {
  * change detection while the panel is hidden (effects of a component's constructor belong to its parent view).
  */
 @Component({
-  selector: 'imt-panel-outlet',
+  selector: 'debrief-panel-outlet',
   host: { style: 'display: contents' },
   template: '<ng-container #outlet />',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -247,7 +247,7 @@ function unwrapBoundaryError(e: unknown): unknown {
 export class MissingViewRenderer implements IContentRenderer {
   readonly element = document.createElement('div');
   constructor(id: string) {
-    this.element.className = 'imt-panel imt-panel-error';
+    this.element.className = 'debrief-panel debrief-panel-error';
     this.element.textContent = $localize`:@@dock.panel.missingView:The view "${id}:id:" is not available. Close this tab or reset the layout.`;
   }
   init(): void {}

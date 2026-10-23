@@ -6,7 +6,7 @@ let nextId = 0;
 
 /** One field of the agent config, rendered from its schema (label, kind, limits, help, issues). */
 @Component({
-  selector: 'imt-schema-field',
+  selector: 'debrief-schema-field',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @let f = field();
@@ -79,7 +79,7 @@ export class SchemaField {
   readonly issues = input<string[] | undefined>(undefined);
   readonly valueChange = output<unknown>();
 
-  protected readonly id = `imt-sf-${nextId++}`;
+  protected readonly id = `debrief-sf-${nextId++}`;
   /** A local problem (e.g. text that is not JSON yet); engine issues take precedence. */
   private readonly local = signal<string | null>(null);
   private readonly draftJson = signal<string | null>(null);

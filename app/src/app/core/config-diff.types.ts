@@ -1,6 +1,6 @@
 /**
- * Wire contract of the configuration diff (camelCase JSON). Mirrors `imt_core::config::dto`,
- * `imt_core::config::snapshot` and `app/src-tauri/src/config_diff.rs`; change both together.
+ * Wire contract of the configuration diff (camelCase JSON). Mirrors `debrief_core::config::dto`,
+ * `debrief_core::config::snapshot` and `app/src-tauri/src/config_diff.rs`; change both together.
  *
  * Commands:
  * - `config_diff_formats()` → {@link DiffFormats}

@@ -13,7 +13,7 @@
 use crate::background::{BackgroundTasks, TaskKind, TaskSpec};
 use crate::windows::CurrentWindow;
 use crate::{AppState, CmdResult, State};
-use imt_core::plugin::tools::{TaskSink, ToolCtx, ToolEntry, ToolError, ToolHost, ToolTask, MAX_ID_LEN};
+use debrief_core::plugin::tools::{TaskSink, ToolCtx, ToolEntry, ToolError, ToolHost, ToolTask, MAX_ID_LEN};
 use serde_json::Value;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -95,7 +95,7 @@ impl<R: Runtime> ShellTasks<R> {
             log::warn!(Tool = tool; "A second collection was stopped: one of each kind runs at a time");
             let (sink, tool, id) = (self.clone(), tool.to_string(), task.id.clone());
             // Off the caller's thread: stopping may run a system tool.
-            let _ = std::thread::Builder::new().name("imt-tool-stop".into()).spawn(move || {
+            let _ = std::thread::Builder::new().name("debrief-tool-stop".into()).spawn(move || {
                 if let Err(e) = sink.stop_task(&tool, &id) {
                     log::warn!(Tool = tool.as_str(); "could not stop the second collection: {e:#}");
                 }
@@ -115,7 +115,7 @@ impl<R: Runtime> ShellTasks<R> {
         });
         let rx = std::sync::Mutex::new(rx);
         match jobs.submit_work(spec, controls, move |_| {
-            // The tool says when it is done (or the sender goes with IMT).
+            // The tool says when it is done (or the sender goes with Debrief).
             let _ = crate::sync::lock(&rx).recv();
             crate::jobs::queue::JobEnd::Done(None)
         }) {
@@ -222,7 +222,7 @@ fn missing(error: ToolError, safe_mode: bool) -> crate::CmdError {
             CmdError::new(ErrorCode::NotGranted, e.to_string()).hint("Choose the file or folder with the dialog first.")
         }
         ToolError::Unsupported(m) => CmdError::new(ErrorCode::Unsupported, m),
-        ToolError::Denied(m) => CmdError::new(ErrorCode::Denied, m).hint("Restart IMT as administrator, then try again."),
+        ToolError::Denied(m) => CmdError::new(ErrorCode::Denied, m).hint("Restart Debrief as administrator, then try again."),
         ToolError::Missing(m) => CmdError::new(ErrorCode::Missing, m),
         ToolError::Failed(m) => CmdError::failed(m),
     }
@@ -518,7 +518,7 @@ pub(crate) mod tests {
             let e = ipc(
                 &main,
                 "tool_invoke",
-                json!({ "tool": "perfmon.sets", "op": "outputs", "args": { "name": "IMT" } }),
+                json!({ "tool": "perfmon.sets", "op": "outputs", "args": { "name": "Debrief" } }),
             )
             .unwrap_err();
             assert!(e["message"].as_str().unwrap().contains("only available on Windows"), "{e}");
@@ -646,7 +646,7 @@ pub(crate) mod tests {
         };
         grant(std::path::Path::new(&path), crate::paths::Access::Write);
         grant(&dir.0, crate::paths::Access::Read);
-        let template = json!({ "name": "IMT-test", "processes": ["OrderService"] });
+        let template = json!({ "name": "Debrief-test", "processes": ["OrderService"] });
         let gen = |args: Value| call(&main, "perfmon.templates", "generate", args);
         let out = gen(json!({ "template": template, "xmlPath": path })).unwrap();
         assert!(out["xml"].as_str().unwrap().contains("<DataCollectorSet>"));
@@ -658,7 +658,7 @@ pub(crate) mod tests {
             json!(format!(
                 "{}{}",
                 std::fs::canonicalize(&path).unwrap().to_string_lossy(),
-                imt_core::overwrite::FILE_EXISTS_SUFFIX
+                debrief_core::overwrite::FILE_EXISTS_SUFFIX
             ))
         );
         assert!(gen(json!({ "template": template, "xmlPath": path, "overwrite": true })).is_ok());
@@ -676,18 +676,18 @@ pub(crate) mod tests {
         let plan = json!({ "name": "tool", "eventLogs": [], "environment": false }).to_string();
         let first = call(&main, "diagnostics", "collect", json!({ "plan": plan, "outDir": out })).unwrap();
         let bundle = first["bundle"].as_str().unwrap().to_string();
-        let prefix = &bundle[..bundle.len() - "yyyyMMdd-HHmmss.imtz".len()];
+        let prefix = &bundle[..bundle.len() - "yyyyMMdd-HHmmss.debriefz".len()];
         let now = chrono::Local::now();
         for s in 0..10 {
             let at = now + chrono::Duration::seconds(s);
-            let _ = std::fs::write(format!("{prefix}{}.imtz", at.format("%Y%m%d-%H%M%S")), "mine");
+            let _ = std::fs::write(format!("{prefix}{}.debriefz", at.format("%Y%m%d-%H%M%S")), "mine");
         }
         let refused = call(&main, "diagnostics", "collect", json!({ "plan": plan, "outDir": out })).unwrap_err();
         assert!(
             refused["message"]
                 .as_str()
                 .unwrap()
-                .ends_with(imt_core::overwrite::FILE_EXISTS_SUFFIX),
+                .ends_with(debrief_core::overwrite::FILE_EXISTS_SUFFIX),
             "{refused}"
         );
         assert!(call(
@@ -700,8 +700,8 @@ pub(crate) mod tests {
         #[cfg(not(windows))]
         for (tool, op, args) in [
             ("perfmon.sets", "install", json!({ "template": template })),
-            ("perfmon.sets", "control", json!({ "name": "IMT-test", "action": "query" })),
-            ("perfmon.sets", "outputs", json!({ "name": "IMT-test" })),
+            ("perfmon.sets", "control", json!({ "name": "Debrief-test", "action": "query" })),
+            ("perfmon.sets", "outputs", json!({ "name": "Debrief-test" })),
         ] {
             let e = call(&main, tool, op, args).unwrap_err();
             assert!(e["message"].as_str().unwrap().contains("only available on Windows"), "{op}: {e}");

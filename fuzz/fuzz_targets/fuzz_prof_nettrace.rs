@@ -3,4 +3,4 @@
 mod common;
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &[u8]| common::capture_importer(&imt_plugin_profiling::nettrace::NettraceImporter, data));
+fuzz_target!(|data: &[u8]| common::capture_importer(&debrief_plugin_profiling::nettrace::NettraceImporter, data));

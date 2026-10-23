@@ -7,13 +7,13 @@ import { Perspectives } from './perspectives';
 
 /** "Save current as perspective…": asks for a name (an existing name is replaced). */
 @Component({
-  selector: 'imt-save-layout-dialog',
+  selector: 'debrief-save-layout-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AutoFocus],
   template: `
     <form (submit)="$event.preventDefault(); save()">
-      <label for="imt-layout-name" i18n="@@dock.layoutDialog.name">Perspective name</label>
-      <input id="imt-layout-name" class="input" type="text" [maxLength]="max" [value]="name()" (input)="name.set($any($event.target).value)" imtAutoFocus />
+      <label for="debrief-layout-name" i18n="@@dock.layoutDialog.name">Perspective name</label>
+      <input id="debrief-layout-name" class="input" type="text" [maxLength]="max" [value]="name()" (input)="name.set($any($event.target).value)" debriefAutoFocus />
       @if (error()) {
         <p class="error" role="alert">{{ error() }}</p>
       }
@@ -46,7 +46,7 @@ export class SaveLayoutDialog {
 
 /** "Manage perspectives…": switch, and rename, reorder (Ctrl+1…9 follow the order) and delete the saved ones. */
 @Component({
-  selector: 'imt-manage-layouts-dialog',
+  selector: 'debrief-manage-layouts-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AutoFocus],
   template: `
@@ -56,7 +56,7 @@ export class SaveLayoutDialog {
           <span class="key">{{ i < 9 ? keyLabel(i + 1) : '' }}</span>
           @if (renaming() === p.name && !p.builtIn) {
             <input class="input" type="text" [attr.aria-label]="newNameLabel(p.name)" [value]="p.name" [maxLength]="60"
-                   (keydown.enter)="rename(p.name, $any($event.target).value)" (keydown.escape)="$event.stopPropagation(); renaming.set(null)" imtAutoFocus />
+                   (keydown.enter)="rename(p.name, $any($event.target).value)" (keydown.escape)="$event.stopPropagation(); renaming.set(null)" debriefAutoFocus />
           } @else {
             <span class="name">{{ p.name }}@if (p.id === perspectives.active().id) { <span class="current" i18n="@@dock.layoutDialog.current">(current)</span> }</span>
             <span class="when">{{ p.builtIn ? p.description : '' }}</span>
