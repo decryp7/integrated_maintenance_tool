@@ -74,6 +74,15 @@ pub trait DumpImporter: Send + Sync {
     fn sniff(&self, file_name: &str, head: &[u8]) -> u8;
     /// Reads the file into a document. The file is shared so a guarded caller can hand it to a helper thread.
     fn import(&self, file_name: &str, file: Arc<dyn ReadAt>, options: &ImportOptions) -> Result<Document>;
+    /// Names the frames of an already read `doc` that still lack a name, from the symbols that are there now
+    /// (`options.symbol_folders`), without reading the file again. The result equals reading the file again with
+    /// those symbols. A format that cannot do this answers [`ErrorCode::Unsupported`](crate::ErrorCode) and the
+    /// caller reads the file again.
+    fn resymbolise(&self, _doc: Document, _options: &ImportOptions) -> Result<Document> {
+        Err(crate::DumpError::unsupported(
+            "this reader cannot name the frames of an open dump again",
+        ))
+    }
 }
 
 #[cfg(test)]

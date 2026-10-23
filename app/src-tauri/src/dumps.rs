@@ -103,6 +103,18 @@ impl DumpImporter for GuardedImporter {
             Err(e) => Err(DumpError::invalid(format!("the {} reader failed: {e:#}", self.id))),
         }
     }
+
+    /// Under the same guard and budget as an import.
+    fn resymbolise(&self, doc: debrief_dump::Document, options: &ImportOptions) -> debrief_dump::Result<debrief_dump::Document> {
+        let options = options.clone();
+        match self
+            .service
+            .call_detached_within(self.budget, move |i| i.resymbolise(doc, &options))
+        {
+            Ok(result) => result,
+            Err(e) => Err(DumpError::invalid(format!("the {} reader failed: {e:#}", self.id))),
+        }
+    }
 }
 
 /// A file read by ranges for the reader (positional reads; the file stays open for the import).
@@ -324,7 +336,15 @@ pub async fn dumps_open<R: tauri::Runtime>(
             let path = canonical.to_string_lossy().into_owned();
             let summary = crate::sync::write(&docs).insert(&name, Some(&path), doc).map_err(cmd_error)?;
             if let Some(download) = download {
-                let reimport = move || importer.import(&name, source, &options);
+                // The open dump is named again from the PDBs that arrived (only its unnamed frames); a reader that cannot
+                // do that reads the file again.
+                let (open_docs, open_id) = (docs.clone(), summary.id);
+                let reimport = move || {
+                    let open = crate::sync::read(&open_docs).snapshot(open_id);
+                    open.map(|doc| importer.resymbolise(doc, &options))
+                        .and_then(Result::ok)
+                        .map_or_else(|| importer.import(&name, source, &options), Ok)
+                };
                 let target = SymbolsTarget {
                     label,
                     docs,
