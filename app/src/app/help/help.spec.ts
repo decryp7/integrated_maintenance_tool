@@ -60,7 +60,7 @@ describe('cheat sheet and help commands', () => {
     expect(at(dialogs.stack(), 0).options.title).toBe('Keyboard shortcuts');
     await registry.run('help.shortcuts');
     expect(dialogs.stack().length).toBe(1);
-    const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockReturnValue(undefined);
+    const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockResolvedValue(undefined);
     // Manage parsers… opens the Parsers view, not the Settings dialog (I3).
     expect(await registry.run('parsers.manage')).toBe(true);
     expect(TestBed.inject(DockService)).toBeDefined();
@@ -136,7 +136,7 @@ describe('cheat sheet with user key bindings', () => {
     const rows = all(fixture, '.cs-row').map((r) => r.textContent);
     expect(rows.some((r) => r?.includes('Alt+J') && r.includes('Open files…'))).toBe(true);
     expect(rows.some((r) => r?.includes('Save things'))).toBe(false);
-    const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockReturnValue(undefined);
+    const open = vi.spyOn(TestBed.inject(SettingsDialogService), 'open').mockResolvedValue(undefined);
     (fixture.nativeElement.querySelector('[data-testid=cheat-sheet-edit]') as HTMLButtonElement).click();
     expect(open).toHaveBeenCalledWith('@keyboard');
   });

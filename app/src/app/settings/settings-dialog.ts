@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { EngineSettingsStore } from './engine-settings.store';
 import { DialogService } from '../ui/dialog.service';
-import { SettingsScreen } from './settings-screen';
 
 /** Section id of Debrief's own logs and error snapshots (Rust `settings::DIAGNOSTICS_SECTION`). */
 export const DIAGNOSTICS_SECTION = 'diagnostics';
@@ -16,8 +15,10 @@ export class SettingsDialogService {
   private readonly store = inject(EngineSettingsStore);
 
   /** Opens the screen (once), showing `section` when given (e.g. `'diagnostics'`). */
-  open(section?: string): void {
+  async open(section?: string): Promise<void> {
     if (section) this.store.select(section);
+    // The screen and its tabs are a lazy chunk: they load the first time Settings is opened (rule 35).
+    const { SettingsScreen } = await import('./settings-screen');
     if (this.dialogs.stack().some((d) => d.component === SettingsScreen)) return;
     this.dialogs.open(SettingsScreen, { title: $localize`:Dialog title@@settings.dialog.title:Settings`, width: 960, canClose: () => this.store.canClose() });
   }

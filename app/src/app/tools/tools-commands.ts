@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { TOOL_IDS } from '../core/tools.types';
 import { DebriefCommand, DebriefView } from '../extensions/tokens';
-import { CollectorDialogService } from './collector/collector-dialog';
+import { CollectorDialogService } from './collector/collector-dialog.service';
 import { PluginsTabs } from '../plugins-panel/plugins-tabs';
 import { ToolCatalog } from './tool-catalog.store';
 

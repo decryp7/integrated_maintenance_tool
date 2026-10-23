@@ -5,7 +5,8 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
 import { CollectBackend } from '../../core/tools-backend';
 import { provideToolsTesting } from '../mock/test-support';
-import { CollectorDialog, CollectorDialogService } from './collector-dialog';
+import { CollectorDialog } from './collector-dialog';
+import { CollectorDialogService } from './collector-dialog.service';
 import { at } from '../../../testing/must';
 
 async function setup(pick: string[] = ['/picked']) {
@@ -23,9 +24,9 @@ async function setup(pick: string[] = ['/picked']) {
 }
 
 describe('CollectorDialogService', () => {
-  it('opens the dialog', () => {
+  it('opens the dialog', async () => {
     TestBed.configureTestingModule({ providers: provideToolsTesting() });
-    TestBed.inject(CollectorDialogService).open();
+    await TestBed.inject(CollectorDialogService).open();
     expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Collect diagnostics bundle');
   });
 });

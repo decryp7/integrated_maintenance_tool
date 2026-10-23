@@ -1,10 +1,10 @@
-import { ChangeDetectionStrategy, Component, computed, inject, Injectable, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, OnInit, signal } from '@angular/core';
 import { Platform } from '../../core/platform';
 import { CollectBackend } from '../../core/tools-backend';
 import { CollectPlan, CollectResult, CustomPattern, LogSpec } from '../../core/tools.types';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { Icon } from '../../shared/icon';
-import { DIALOG_REF, DialogService } from '../../ui/dialog.service';
+import { DIALOG_REF } from '../../ui/dialog.service';
 import { HelpHint } from '../../ui/help-hint';
 import { OverwriteGuard } from '../../ui/overwrite-guard';
 import { ToolError } from '../elevation-hint';
@@ -14,15 +14,6 @@ import { ToolUnavailable } from '../tool-unavailable';
 import { errorMessage } from '../tool-errors';
 import { formatBytes, formatCount } from '../../shared/format/units';
 import { DEFAULT_PLAN, joinLines, ManifestSummary, newLogSpec, optionalNumber, parsePlan, splitLines, stringifyPlan, summarize } from './plan-model';
-
-/** Opens the diagnostics collector ("Collect diagnostics bundle…"). */
-@Injectable({ providedIn: 'root' })
-export class CollectorDialogService {
-  private readonly dialogs = inject(DialogService);
-  open(): void {
-    this.dialogs.open(CollectorDialog, { title: $localize`:@@tools.collector.title:Collect diagnostics bundle`, width: 760 });
-  }
-}
 
 type Phase = 'idle' | 'running' | 'done';
 
