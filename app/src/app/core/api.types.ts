@@ -2851,8 +2851,16 @@ export function fileExistsPath(error: unknown): string | null {
 }
 
 /** Progress of the running (or last) import. */
+/** What an import is doing. Before `importing` the totals are not known: `done` counts what was found or looked at so far. */
+export type ImportPhase = 'idle' | 'finding' | 'detecting' | 'importing';
+
 export interface ImportProgress {
   running: boolean;
+  /**
+   * `finding`: `done` files found so far (`total` 0 = unknown), `bytesTotal` their size, `current` the folder being
+   * listed. `detecting`: `done` of `total` files looked at. `importing`: files and bytes read.
+   */
+  phase: ImportPhase;
   /** Files read so far, of `total`. */
   done: number;
   total: number;

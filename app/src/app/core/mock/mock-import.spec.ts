@@ -1,4 +1,4 @@
-import { FILE_EXISTS_SUFFIX } from '../api.types';
+import { FILE_EXISTS_SUFFIX, ImportProgress } from '../api.types';
 import { tinyDataset } from '../../../testing/helpers';
 import { MockBackend } from './mock-backend';
 import { isMockDemoPath, MOCK_DEMO_PATHS, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, SLOW_FILE_BYTES, SLOW_FILES_PER_PATH, slowImportFiles } from './mock-import';
@@ -21,6 +21,32 @@ describe('mock import, files and profile history', () => {
     const result = await run;
     expect(result).toEqual({ read: ['/a/1', '/a/2'], skipped: ['/a/3', '/a/4'] });
     expect(sim.progress()).toMatchObject({ running: false, done: 2, cancelled: true, current: null, etaMs: null, bytesDone: 2 * SLOW_FILE_BYTES });
+  });
+
+  it('with slow discovery it finds files (a growing count), detects formats, then reads; Cancel ends any phase', async () => {
+    const sim = new MockImportSim(1, undefined, 1);
+    const phases: string[] = [];
+    const found: number[] = [];
+    const seen = (p: ImportProgress) => {
+      if (phases.at(-1) !== p.phase) phases.push(p.phase);
+      if (p.phase === 'finding') found.push(p.done);
+    };
+    await sim.run(['/a/1', '/a/2'], () => undefined, seen);
+    expect(phases).toEqual(['finding', 'detecting', 'importing']);
+    expect(found.length).toBeGreaterThan(3);
+    expect(found.every((n, i) => i === 0 || n > found[i - 1]!)).toBe(true);
+    // Cancelled while finding: nothing is read and everything is skipped.
+    const cancelled = new MockImportSim(1, undefined, 5);
+    const run = cancelled.run(['/a/1', '/a/2'], () => expect.unreachable('read after a cancel'));
+    cancelled.cancel();
+    expect(await run).toEqual({ read: [], skipped: ['/a/1', '/a/2'] });
+    expect(cancelled.progress()).toMatchObject({ running: false, cancelled: true, total: 2, done: 0 });
+  });
+
+  it('reads ?mockSlowDiscovery from the URL (capped)', () => {
+    expect(mockOptionsFromSearch('?mockSlowDiscovery=2000').slowDiscoveryMs).toBe(2000);
+    expect(mockOptionsFromSearch('?mockSlowDiscovery=999999').slowDiscoveryMs).toBe(120_000);
+    expect(mockOptionsFromSearch('').slowDiscoveryMs).toBeUndefined();
   });
 
   it('estimates the time left while it runs', async () => {

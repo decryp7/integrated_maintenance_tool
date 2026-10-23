@@ -4,7 +4,7 @@ import { ImportProgress, WorkspaceSummary } from '../core/api.types';
 import { DebriefBackend } from '../core/backend';
 import { WorkspaceStore } from '../core/workspace.store';
 import { UxBackend } from '../core/ux-backend';
-import { fileName, importStatusText, percent, progressLine } from './import-format';
+import { detailText, fileName, importStatusText, percent, progressLine } from './import-format';
 import { WelcomeService } from '../welcome/welcome';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { ImportProgressService, jobImportProgress, LONG_IMPORT_MS } from './import-progress.service';
@@ -13,8 +13,13 @@ import { JobInfo } from '../jobs/jobs.types';
 import { WorkspaceStatusStore } from '../core/workspace/status.store';
 import { ImportStatus, ImportToast, PartialImportBanner } from './import-ui';
 
+/** Sizes in the units the UI formats (1024-based). */
+const MB = (n: number) => Math.round(n * 1024 ** 2);
+const GB = (n: number) => Math.round(n * 1024 ** 3);
+
 const p = (patch: Partial<ImportProgress> = {}): ImportProgress => ({
   running: true,
+  phase: 'importing',
   done: 3,
   total: 12,
   cancelled: false,
@@ -38,7 +43,27 @@ describe('import formatting', () => {
     expect(progressLine(p({ total: 1, done: 0, bytesTotal: 0, etaMs: null }))).toBe('0 of 1 file');
     // Before the engine counted the files there is no "0 of 0 files" (E1).
     expect(importStatusText(p({ total: 0, done: 0 }))).toBe('Scanning for files…');
+    expect(percent(p({ phase: 'finding', done: 5, total: 0, bytesTotal: 10 }))).toBe(0);
     expect(importStatusText(p({ bytesTotal: 0, etaMs: null }))).toBe('Importing 3 of 12 files');
+  });
+
+  it('says what each phase is doing, with counts that grow', () => {
+    const finding = (done: number, bytesTotal: number, current: string | null = null) => p({ phase: 'finding', done, total: 0, bytesDone: 0, bytesTotal, current, etaMs: null });
+    expect(importStatusText(finding(0, 0))).toBe('Finding files… 0 found (0 bytes)');
+    expect(importStatusText(finding(12_345, GB(3.1)))).toBe('Finding files… 12,345 found (3.1 GB)');
+    expect(detailText(finding(1, 1, '/data/logs/2026'))).toBe('in 2026');
+    expect(detailText(finding(1, 1))).toBe('');
+    const detecting = p({ phase: 'detecting', done: 4000, total: 12_345, bytesDone: 0, bytesTotal: 5, etaMs: null });
+    expect(importStatusText(detecting)).toBe('Detecting formats… 4,000 of 12,345');
+    expect(percent(detecting)).toBe(32);
+    expect(percent(p({ phase: 'detecting', done: 0, total: 0 }))).toBe(0);
+    expect(detailText(p())).toBe('Reading app.log');
+    expect(importStatusText(p({ done: 1234, total: 12_345, bytesDone: GB(1.2), bytesTotal: GB(3.1), etaMs: 120_000 }))).toBe('Importing 1,234 of 12,345 files · 1.2 GB of 3.1 GB · about 2 min left');
+  });
+
+  it('reads the phase from the job, and defaults to importing for jobs that do not report one', () => {
+    expect(jobImportProgress(importJob(3, { phase: 'finding', done: 700, total: 0 })).phase).toBe('finding');
+    expect(jobImportProgress(importJob(4, { phase: undefined })).phase).toBe('importing');
   });
 
   it('recognises import work by the kind of the busy state, not its label', () => {
@@ -101,7 +126,7 @@ describe('jobImportProgress', () => {
   it('reads files, bytes and the current file from the job, with defaults for what it does not report', () => {
     expect(jobImportProgress(importJob(1))).toEqual(p());
     const bare = importJob(2, { done: null, total: null, etaMs: null, bytesDone: undefined, bytesTotal: undefined, current: undefined }, { elapsedMs: 10 });
-    expect(jobImportProgress(bare)).toEqual({ running: true, done: 0, total: 0, cancelled: false, bytesDone: 0, bytesTotal: 0, current: null, elapsedMs: 10, etaMs: 11_000 });
+    expect(jobImportProgress(bare)).toEqual({ running: true, phase: 'importing', done: 0, total: 0, cancelled: false, bytesDone: 0, bytesTotal: 0, current: null, elapsedMs: 10, etaMs: 11_000 });
   });
 });
 
@@ -119,6 +144,37 @@ describe('ImportProgressService and its widgets', () => {
 
   afterEach(() => vi.useRealTimers());
 
+  it('shows the found count growing in the status bar and the card while files are found, with an animated bar', async () => {
+    const { jobs } = setup();
+    await settle();
+    vi.useFakeTimers();
+    const status = TestBed.createComponent(ImportStatus);
+    const toast = TestBed.createComponent(ImportToast);
+    void TestBed.inject(WorkspaceStore).openPaths(['/big']);
+    TestBed.tick();
+    await vi.advanceTimersByTimeAsync(LONG_IMPORT_MS);
+    TestBed.inject(WelcomeService).show();
+    const seen: string[] = [];
+    for (const [done, bytes] of [[120, MB(2)], [4_800, MB(90)], [12_345, GB(3.1)]]) {
+      jobs.apply({ jobs: [importJob(9, { phase: 'finding', done, total: 0, bytesDone: 0, bytesTotal: bytes, fraction: null, etaMs: null, current: '/data/logs/2026' })], paused: [] });
+      status.detectChanges();
+      toast.detectChanges();
+      seen.push(text(status));
+    }
+    expect(seen[0]).toContain('Finding files… 120 found (2 MB)');
+    expect(seen[1]).toContain('Finding files… 4,800 found (90 MB)');
+    expect(seen[2]).toContain('Finding files… 12,345 found (3.1 GB)');
+    expect(new Set(seen).size).toBe(3);
+    expect(text(toast)).toContain('Finding files… 12,345 found (3.1 GB)');
+    expect(text(toast)).toContain('in 2026');
+    expect(toast.nativeElement.querySelector('.bar.indeterminate')).not.toBeNull();
+    expect(status.nativeElement.querySelector('[role=progressbar]').getAttribute('aria-valuenow')).toBeNull();
+    jobs.apply({ jobs: [importJob(9, { phase: 'detecting', done: 4000, total: 12_345, bytesDone: 0, bytesTotal: 0, current: undefined })], paused: [] });
+    toast.detectChanges();
+    expect(text(toast)).toContain('Detecting formats… 4,000 of 12,345');
+    expect(toast.nativeElement.querySelector('.bar.indeterminate')).toBeNull();
+  });
+
   it('follows the import job, shows the status and the toast for long imports, and cancels', async () => {
     const { svc, store, jobs } = setup();
     await settle();
@@ -131,7 +187,7 @@ describe('ImportProgressService and its widgets', () => {
     expect(svc.active()).toBe(true);
     expect(svc.progress()?.total).toBe(0);
     status.detectChanges();
-    expect(text(status)).toContain('Scanning for files…');
+    expect(text(status)).toContain('Finding files… 0 found');
     expect(text(status)).not.toContain('0 of 0');
     // The job's progress (debrief://jobs) drives the widgets: no import_progress polling while it runs.
     jobs.apply({ jobs: [importJob(5, { done: 1 }, { kind: 'export', title: 'Export' }), importJob(7)], paused: [] });

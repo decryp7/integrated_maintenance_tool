@@ -101,6 +101,8 @@ export interface MockBackendOptions {
   longNames?: boolean;
   /** Opening paths is slow and cancellable: each path stands for a folder of files read this many ms apart. */
   slowImportMs?: number;
+  /** With a slow import: finding the files and detecting formats take this many ms per step (five steps each). */
+  slowDiscoveryMs?: number;
   /** The clock of every simulated delay, live tick and import step (default: the page's timers). */
   clock?: MockClock;
 }
@@ -159,7 +161,7 @@ export class MockBackend implements DebriefBackend {
     this.dataset = this.makeDataset();
     this.profile = parse(this.profileToml) as ProfileModel;
     this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
-    this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock) : null;
+    this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock, options.slowDiscoveryMs ?? 0) : null;
     if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__debriefMockLiveCalls'] = this.liveCalls;
     this.apply();
   }
@@ -416,12 +418,13 @@ export class MockBackend implements DebriefBackend {
         (file) => this.addExtra(file),
         (p) =>
           ctx.progress({
-            fraction: p.bytesTotal ? p.bytesDone / p.bytesTotal : null,
+            fraction: p.phase === 'importing' && p.bytesTotal ? p.bytesDone / p.bytesTotal : null,
             done: p.done,
             total: p.total,
             etaMs: p.etaMs,
             bytesDone: p.bytesDone,
             bytesTotal: p.bytesTotal,
+            phase: p.phase,
             ...(p.current ? { current: p.current } : {}),
           }),
       );
