@@ -103,7 +103,8 @@ describe('ActivityBar', () => {
     expect(store.focusSearchNonce()).toBe(1);
     expect(store.sidebarOpen()).toBe(false);
     expect(button(fixture, 'Explorer').getAttribute('aria-pressed')).toBe('false');
-    expect(TestBed.inject(DialogService).stack().map((d) => d.options.title)).toEqual(['Settings']);
+    // The Settings screen is a lazy chunk: the window opens once it has loaded.
+    await vi.waitFor(() => expect(TestBed.inject(DialogService).stack().map((d) => d.options.title)).toEqual(['Settings']));
   });
 
   it('marks the open views and puts the shortcut in the tooltip', async () => {

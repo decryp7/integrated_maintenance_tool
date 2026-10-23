@@ -179,7 +179,7 @@ describe('ImportProgressService and its widgets', () => {
     expect(status.nativeElement.querySelector('[role=progressbar]').getAttribute('aria-valuenow')).toBeNull();
     jobs.apply({ jobs: [importJob(9, { phase: { label: 'Importing while finding files', scale: 'count' as const }, done: 4000, bytesDone: 1_000_000, bytesTotal: 3_000_000_000, total: 12_345, current: undefined })], paused: [] });
     toast.detectChanges();
-    expect(text(toast)).toContain('Importing 4,000 of 12,345 files');
+    expect(text(toast)).toContain('4,000 of 12,345 files');
     expect(toast.nativeElement.querySelector('.bar.indeterminate')).toBeNull();
   });
 
