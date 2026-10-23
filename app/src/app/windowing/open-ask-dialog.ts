@@ -27,6 +27,7 @@ export type OpenTarget = Exclude<OpenChoice, 'cancel'>;
       </ul>
     }
     <div class="foot">
+      <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@windowing.openAsk.cancel">Cancel</button>
       <button type="button" class="btn" (click)="choose('here')" i18n="@@windowing.openAsk.here">This window</button>
       <button type="button" class="btn primary" (click)="choose('newWindow')" i18n="@@windowing.openAsk.newWindow">New window</button>
     </div>
@@ -41,7 +42,7 @@ export type OpenTarget = Exclude<OpenChoice, 'cancel'>;
 export class OpenAskDialog {
   static readonly dialogId = 'open-ask';
   readonly ask = input.required<OpenAsk>();
-  private readonly ref = inject<DialogRef<OpenTarget>>(DIALOG_REF);
+  protected readonly ref = inject<DialogRef<OpenTarget>>(DIALOG_REF);
 
   protected choose(target: OpenTarget): void {
     this.ref.close(target);

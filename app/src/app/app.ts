@@ -66,7 +66,7 @@ import { RegionNavigator } from './shell/regions';
   `,
   styles: `
     .skip-link {
-      position: fixed; top: 6px; left: 6px; z-index: 300; padding: 6px 12px; border-radius: var(--radius, 6px);
+      position: fixed; top: 6px; left: 6px; z-index: 300; padding: 6px 12px; border-radius: 6px;
       border: 1px solid var(--accent); background: var(--bg-1); color: var(--text); font: inherit;
       transform: translateY(-200%);
     }

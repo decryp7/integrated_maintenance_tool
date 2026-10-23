@@ -26,7 +26,7 @@ import { errorMessage } from '../tools/tool-errors';
 import { DIALOG_REF, DialogRef } from '../ui/dialog.service';
 import { DialogComponent, DialogModality } from './dialog-def';
 import { DIALOG_CLOSE_REQUESTED_EVENT, DIALOG_IO } from './dialog-io';
-import { dialogKeyAction, findDefaultAction } from './dialog-keys';
+import { dialogKeyAction, findDefaultAction, hasCloseAction } from './dialog-keys';
 import { DIALOG_LOOKUP } from './dialog-registry';
 import { DIALOG_ROUTE } from './dialog-route';
 
@@ -34,9 +34,8 @@ import { DIALOG_ROUTE } from './dialog-route';
 const SYNC_START_TIMEOUT_MS = 5000;
 /** The shell body's padding (see the styles). */
 const BODY_PADDING_PX = 16;
-/** Re-fits after the content changed size wait this long, and happen at most this many times. */
+/** Re-fits after the content changed size wait this long. */
 const REFIT_DEBOUNCE_MS = 60;
-const MAX_REFITS = 12;
 
 /**
  * The small app a dialog window boots into (ADR 0050): the dialog's content under the OS title bar. It takes its input
@@ -65,6 +64,11 @@ const MAX_REFITS = 12;
         <p class="denied" role="alert" data-testid="dialog-denied">{{ d }}</p>
       }
       <ng-container #host />
+      @if (shellClose()) {
+        <div class="foot" data-testid="dialog-shell-foot">
+          <button type="button" class="btn" (click)="dismiss()" data-testid="dialog-shell-close" i18n="@@dialogWindow.close">Close</button>
+        </div>
+      }
     </main>
   `,
   styles: `
@@ -101,6 +105,11 @@ export class DialogShell {
   protected readonly component = signal<Type<unknown> | null>(null);
   protected readonly inputs = signal<Record<string, unknown>>({});
   protected readonly error = signal<string | null>(null);
+  /**
+   * A dialog window has no title-bar buttons, so every state of it needs a visible way out. When the content has no
+   * Close/Cancel button (still loading, an error, a state that only offers other actions) the shell adds a Close.
+   */
+  protected readonly shellClose = signal(false);
   /** A command this window may not call was refused (the dialog's own error handling must not be the only place it shows). */
   protected readonly denied = deniedCommand;
 
@@ -112,10 +121,11 @@ export class DialogShell {
     const destroy = this.destroyRef;
     void this.init();
     let off: (() => void) | null = null;
-    void this.io.listen(DIALOG_CLOSE_REQUESTED_EVENT, () => void this.close()).then((u) => (off = u), () => undefined);
+    void this.io.listen(DIALOG_CLOSE_REQUESTED_EVENT, () => void this.dismiss()).then((u) => (off = u), () => undefined);
     destroy.onDestroy(() => off?.());
     afterNextRender(() => this.body().nativeElement.focus());
     this.startSyncWhenLoaded(destroy);
+    this.watchForCloseAction(destroy);
     // The content is created here, not by an outlet, so a throw while it is constructed or first rendered becomes the error state instead of a blank window.
     effect(() => {
       const c = this.component();
@@ -142,6 +152,38 @@ export class DialogShell {
     this.error.set(errorMessage(e));
   }
 
+  private watchForCloseAction(destroy: DestroyRef): void {
+    const check = () => {
+      const required = this.lookup(this.route.id)?.requiredChoice === true;
+      const body = this.body().nativeElement;
+      // The shell's own button does not count: only the content's and the error state's.
+      const has = hasCloseAction(body, body.querySelector('[data-testid=dialog-shell-foot]'));
+      this.shellClose.set(!required && !has && !!this.component());
+    };
+    afterNextRender(
+      () => {
+        check();
+        if (typeof MutationObserver === 'undefined') return;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        const observer = new MutationObserver(() => {
+          clearTimeout(timer);
+          timer = setTimeout(check, 30);
+        });
+        observer.observe(this.body().nativeElement, { childList: true, subtree: true, characterData: true });
+        destroy.onDestroy(() => {
+          observer.disconnect();
+          clearTimeout(timer);
+        });
+      },
+      { injector: this.injector },
+    );
+    // A component that appears later is checked by the observer; the first check also runs when it mounts.
+    effect(() => {
+      this.component();
+      untracked(() => setTimeout(check, 0));
+    });
+  }
+
   /** Asks the opener's window to open "Report a problem…" (the diagnostics belong to the main window). */
   protected report(): void {
     if (!this.sync.runInHost('dialogRun', REPORT_PROBLEM_COMMAND)) this.logger.warn('ui.dialog', 'Could not reach the main window to report', { Dialog: this.route.id });
@@ -166,17 +208,16 @@ export class DialogShell {
   /**
    * The window opens at a default size; unless the dialog names a height in the registry, it is fitted to what its content
    * needs: after the first layout and once the fonts are ready, and again when the content changes size (bounded and
-   * debounced, never past `MAX_REFITS`). The measure is the content's natural bottom edge plus the body's padding, rounded
+   * debounced, grow-only: the engine stops at the screen's limit and the content scrolls inside). The measure is the content's natural bottom edge plus the body's padding, rounded
    * up, so there is neither a scrollbar nor a gap; the engine clamps it to the dialog's minimum and the screen.
    */
   private fitToContent(): void {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let last = 0;
-    let refits = 0;
     const fit = () => {
       const needed = this.neededHeight();
-      if (needed <= 0 || needed === last || refits >= MAX_REFITS) return;
-      refits++;
+      // Only grows: a window never shrinks under a user who is reading (a streamed answer, a list that loaded).
+      if (needed <= 0 || needed <= last) return;
       last = needed;
       void this.io.fitHeight(needed).catch(() => undefined);
     };
@@ -229,11 +270,19 @@ export class DialogShell {
     }
   }
 
+  /**
+   * Escape, Cmd/Ctrl+W and a window close request: the dialog's Cancel (it closes without an answer, unless the content
+   * refuses). A required-choice modal has no Cancel and ignores them.
+   */
+  protected dismiss(): Promise<void> {
+    return this.lookup(this.route.id)?.requiredChoice ? Promise.resolve() : this.close();
+  }
+
   protected onKey(e: KeyboardEvent): void {
     const action = dialogKeyAction(e);
     if (action === 'close') {
       e.preventDefault();
-      void this.close();
+      void this.dismiss();
     } else if (action === 'default') {
       const button = findDefaultAction(this.body().nativeElement);
       if (button) {

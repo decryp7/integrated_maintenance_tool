@@ -24,6 +24,11 @@ export interface DialogDef {
    * id with the same input focuses it, with another input opens another window. Without it, one window per id.
    */
   readonly instanced?: boolean;
+  /**
+   * A modal whose answer cannot be skipped because it has no Cancel (a choice between two ways forward): Escape, Cmd/Ctrl+W
+   * and a window close request leave it open. Every other modal treats them as its Cancel.
+   */
+  readonly requiredChoice?: boolean;
   /** Feature providers the dialog's window needs besides the small base set (see `dialog-bootstrap.ts`). */
   readonly features?: readonly DialogFeature[];
   /** The content component, loaded when the dialog window opens (the host never loads it). */

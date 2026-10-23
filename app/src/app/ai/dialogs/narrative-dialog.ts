@@ -24,8 +24,9 @@ import { AiRichText } from '../chat/rich-text';
     <div class="foot"><button type="button" class="btn primary" (click)="ref.close()" i18n="@@ai.narrative.close">Close</button></div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 10px; }
-    .answer { max-height: 55vh; overflow-y: auto; }
+    :host { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+    /* In a dialog window the answer takes the height the window leaves it; in the page it is capped. */
+    .answer { flex: 1 1 auto; min-height: 0; max-height: var(--dialog-window-max-height, 55vh); overflow-y: auto; }
     .answer.neutral { color: var(--muted); font-style: italic; }
     .note, .small { margin: 0; font-size: var(--fs-sm); }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }

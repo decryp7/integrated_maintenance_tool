@@ -42,7 +42,7 @@ import { ChangeDetectionStrategy, Component, computed, input, output, signal } f
     :host { display: block; }
     .qchip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-1); font-size: var(--fs-xs); }
     .text { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; font-family: var(--font-mono, monospace); }
-    .edit { flex: 1 1 12rem; min-width: 0; font: inherit; font-family: var(--font-mono, monospace); color: var(--fg-0); background: var(--bg-0); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
+    .edit { flex: 1 1 12rem; min-width: 0; font: inherit; font-family: var(--font-mono, monospace); color: var(--text); background: var(--bg-2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
     .edit:focus-visible, .act:focus-visible { outline: 2px solid var(--focus-ring); }
     .tag { font-weight: 600; color: var(--accent-text); }
     .act { all: unset; cursor: pointer; color: var(--accent-text); text-decoration: underline; }

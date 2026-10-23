@@ -110,6 +110,9 @@ pub struct DialogRequest {
     pub instance: Option<String>,
     pub title: String,
     pub modality: Modality,
+    /// A modal whose answer cannot be skipped (it has no Cancel): Escape and a close request leave it open.
+    #[serde(default)]
+    pub required_choice: bool,
     /// The typed input of the dialog, handed to its webview through `dialog_take_input`.
     #[serde(default)]
     pub input: Option<Value>,
@@ -171,6 +174,7 @@ struct Entry {
     instance: Option<String>,
     title: String,
     modality: Modality,
+    required_choice: bool,
     input: Option<Value>,
     bounds: Option<Bounds>,
     asked: Option<Instant>,
@@ -320,6 +324,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
         instance: request.instance.clone(),
         title: title.clone(),
         modality: request.modality,
+        required_choice: request.required_choice && request.modality == Modality::Modal,
         input: request.input.clone(),
         bounds: None,
         asked: None,
@@ -331,7 +336,8 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
     };
     let (w, h) = match request.bounds.and_then(Bounds::sanitized) {
         Some(b) => (b.width.max(min_w), b.height.max(min_h)),
-        None => (w, h),
+        // A default size is bounded by the parent's screen, so a tall dialog never opens larger than the display.
+        None => within_screen((w, h), (min_w, min_h), parent_monitor_size(&parent_window)),
     };
     let built = build_window(
         app,
@@ -359,6 +365,25 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
     })
 }
 
+/// The share of the screen a dialog opens at most (unless the user resized it before).
+const SCREEN_SHARE: f64 = 0.75;
+
+/// `size` limited to [`SCREEN_SHARE`] of `screen` (logical px), never below `min`; unchanged when the screen is unknown.
+pub fn within_screen(size: (f64, f64), min: (f64, f64), screen: Option<(f64, f64)>) -> (f64, f64) {
+    match screen {
+        Some((sw, sh)) if sw.is_finite() && sh.is_finite() => {
+            (size.0.min(sw * SCREEN_SHARE).max(min.0), size.1.min(sh * SCREEN_SHARE).max(min.1))
+        }
+        _ => size,
+    }
+}
+
+fn parent_monitor_size<R: Runtime>(w: &tauri::WebviewWindow<R>) -> Option<(f64, f64)> {
+    let m = w.current_monitor().ok().flatten()?;
+    let s = m.size().to_logical::<f64>(m.scale_factor());
+    Some((s.width, s.height))
+}
+
 /// The builder configuration of a dialog window, separate from the build so a test can check it without a window.
 #[derive(Debug, Clone, PartialEq)]
 pub struct WindowConfig {
@@ -369,10 +394,35 @@ pub struct WindowConfig {
     pub min_inner: (f64, f64),
     pub resizable: bool,
     pub owned: bool,
+    /// The native close button: none (see [`title_buttons`]).
+    pub closable: bool,
+    /// The native minimise button: none.
+    pub minimizable: bool,
+    /// The native zoom / maximise button: none.
+    pub maximizable: bool,
 }
 
-pub fn window_config(label: &str, host: &str, dialog_id: &str, title: &str, place: (f64, f64, f64, f64), min: (f64, f64)) -> WindowConfig {
+/// The title-bar buttons of a dialog window: (closable, minimizable, maximizable). None: every dialog, modal or
+/// modeless, closes from its content (a Close or Cancel button, Escape, Cmd/Ctrl+W), and a window-manager close
+/// request reaches the dialog as its own Close/Cancel ([`close_requested`]). Modeless windows stay resizable and movable.
+pub fn title_buttons(_modality: Modality) -> (bool, bool, bool) {
+    (false, false, false)
+}
+
+pub fn window_config(
+    label: &str,
+    host: &str,
+    dialog_id: &str,
+    title: &str,
+    place: (f64, f64, f64, f64),
+    min: (f64, f64),
+    modality: Modality,
+) -> WindowConfig {
+    let (closable, minimizable, maximizable) = title_buttons(modality);
     WindowConfig {
+        closable,
+        minimizable,
+        maximizable,
         url: dialog_url(dialog_id, host, label),
         title: title.to_string(),
         inner: (place.2, place.3),
@@ -395,7 +445,7 @@ fn build_window<R: Runtime>(
     parent: &tauri::WebviewWindow<R>,
     modality: Modality,
 ) -> anyhow::Result<()> {
-    let c = window_config(label, host, dialog_id, title, place, min);
+    let c = window_config(label, host, dialog_id, title, place, min, modality);
     // A native title bar with the dialog's title: dialogs are ordinary OS windows.
     let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(c.url.clone().into()))
         .title(c.title.clone())
@@ -403,7 +453,9 @@ fn build_window<R: Runtime>(
         .position(c.position.0, c.position.1)
         .min_inner_size(c.min_inner.0, c.min_inner.1)
         .resizable(c.resizable)
-        .minimizable(false)
+        .closable(c.closable)
+        .minimizable(c.minimizable)
+        .maximizable(c.maximizable)
         .focused(true);
     let builder = if Parenting::of(modality, std::env::consts::OS) == Parenting::Owned {
         owned_by(builder, parent)?
@@ -432,12 +484,17 @@ fn owned_by<'a, R: Runtime, M: Manager<R>>(
     Ok(b)
 }
 
-/// The user asked to close a dialog window. The dialog decides (unsaved edits); one that does not answer in time
-/// is closed anyway. Returns whether the close may go ahead now.
+/// The user (or the OS: Cmd/Ctrl+W, a window-manager close) asked to close a dialog window. The window itself has no
+/// close button when modal, so a request on a modal means Cancel: the dialog decides (unsaved edits), and one that does
+/// not answer in time is closed anyway. A required-choice modal ignores it. Returns whether the close may go ahead now.
 pub fn close_requested<R: Runtime>(app: &AppHandle<R>, label: &str) -> bool {
     let Some(dialogs) = app.try_state::<Dialogs>() else { return true };
     let mut map = dialogs.lock();
     let Some(entry) = map.get_mut(label) else { return true };
+    if entry.required_choice {
+        // No Cancel to map the request to: the dialog stays until it is answered.
+        return false;
+    }
     let now = Instant::now();
     if entry.asked.is_some_and(|t| now.duration_since(t) >= CLOSE_GRACE) {
         return true;
@@ -604,6 +661,7 @@ mod tests {
             instance: None,
             title: "Set up the AI assistant".into(),
             modality,
+            required_choice: false,
             input: Some(serde_json::json!({ "modelId": "m1" })),
             width: Some(760.0),
             height: None,
@@ -625,6 +683,17 @@ mod tests {
         let s = seen.clone();
         w.listen(event, move |e| s.lock().unwrap().push(e.payload().to_string()));
         seen
+    }
+
+    #[test]
+    fn a_default_size_is_bounded_by_three_quarters_of_the_screen() {
+        assert_eq!(within_screen((680.0, 900.0), (320.0, 200.0), Some((1440.0, 800.0))), (680.0, 600.0));
+        assert_eq!(
+            within_screen((1600.0, 560.0), (320.0, 200.0), Some((1440.0, 800.0))),
+            (1080.0, 560.0)
+        );
+        assert_eq!(within_screen((400.0, 300.0), (320.0, 200.0), Some((300.0, 200.0))), (320.0, 200.0));
+        assert_eq!(within_screen((680.0, 900.0), (320.0, 200.0), None), (680.0, 900.0));
     }
 
     #[test]
@@ -698,6 +767,16 @@ mod tests {
     }
 
     #[test]
+    fn no_dialog_window_has_title_bar_buttons_but_modeless_ones_stay_resizable() {
+        let place = (0.0, 0.0, 500.0, 400.0);
+        for (id, modality) in [("unsaved-changes", Modality::Modal), ("settings", Modality::Modeless)] {
+            let c = window_config("d-main-1", "main", id, "t", place, (320.0, 200.0), modality);
+            assert_eq!((c.closable, c.minimizable, c.maximizable), (false, false, false), "{id}");
+            assert!(c.resizable, "{id}");
+        }
+    }
+
+    #[test]
     fn centred_on_the_parent_and_the_window_config_is_an_owned_resizable_window() {
         let parent = Bounds {
             x: 100.0,
@@ -707,7 +786,15 @@ mod tests {
         };
         assert_eq!(centred(Some(parent), 600.0, 400.0), (300.0, 183.33333333333334));
         assert_eq!(centred(None, 600.0, 400.0), (100.0, 100.0));
-        let c = window_config("d-main-1", "main", "ai-setup", "Set up", (1.0, 2.0, 760.0, 520.0), (400.0, 300.0));
+        let c = window_config(
+            "d-main-1",
+            "main",
+            "ai-setup",
+            "Set up",
+            (1.0, 2.0, 760.0, 520.0),
+            (400.0, 300.0),
+            Modality::Modeless,
+        );
         assert_eq!(c.url, "index.html#/dialog?id=ai-setup&host=main&label=d-main-1");
         assert!(c.owned && c.resizable);
         assert_eq!((c.inner, c.position, c.min_inner), ((760.0, 520.0), (1.0, 2.0), (400.0, 300.0)));
@@ -801,6 +888,30 @@ mod tests {
         std::thread::sleep(CLOSE_GRACE + Duration::from_millis(50));
         assert!(close_requested(&h, "d-main-1"), "no answer: closed anyway");
         assert!(close_requested(&h, "d-main-9"), "unknown windows just close");
+    }
+
+    #[test]
+    fn a_required_choice_modal_ignores_close_requests_and_a_plain_modal_gets_them_as_cancel() {
+        let app = app();
+        let h = app.handle().clone();
+        let mut required = request("close-prompt", Modality::Modal);
+        required.required_choice = true;
+        open(&h, MAIN, required).unwrap();
+        let asked = recorder(&window(&app, "d-main-1"), CLOSE_REQUESTED_EVENT);
+        assert!(!close_requested(&h, "d-main-1"));
+        std::thread::sleep(CLOSE_GRACE + Duration::from_millis(50));
+        assert!(!close_requested(&h, "d-main-1"), "never closed behind the user's back");
+        assert!(
+            asked.lock().unwrap().is_empty(),
+            "nothing to cancel, so the dialog is not even asked"
+        );
+        // A required choice only means something for a modal.
+        let mut modeless = request("settings", Modality::Modeless);
+        modeless.required_choice = true;
+        open(&h, MAIN, modeless).unwrap();
+        let asked2 = recorder(&window(&app, "d-main-2"), CLOSE_REQUESTED_EVENT);
+        assert!(!close_requested(&h, "d-main-2"));
+        assert_eq!(asked2.lock().unwrap().len(), 1);
     }
 
     #[test]

@@ -31,7 +31,7 @@ export class InPageDialogBackend implements DialogPresenter {
     };
     const ref: DialogRef = { closed, close };
     const options = { title: request.title, inputs: request.inputs, width: request.width };
-    this.stack.update((s) => [...s, { id, component: request.component, options, ref, modality: request.def?.modality ?? 'modal' }]);
+    this.stack.update((s) => [...s, { id, component: request.component, options, ref, modality: request.def?.modality ?? 'modal', requiredChoice: request.def?.requiredChoice }]);
     return { closed, close, isOpen: () => this.stack().some((d) => d.id === id), focus: () => this.stack.update((s) => raise(s, id)) };
   }
 }

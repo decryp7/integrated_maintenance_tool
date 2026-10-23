@@ -52,6 +52,13 @@ describe('TauriDialogBackend', () => {
     expect(labels.labels()).toEqual([]);
   });
 
+  it('tells the engine which modal has no Cancel, so a close request cannot drop it', async () => {
+    const { io, backend } = setup();
+    backend.show(request('close-prompt'));
+    await tick();
+    expect(io.opened[0]).toMatchObject({ modality: 'modal', requiredChoice: true });
+  });
+
   it('resolves undefined when the window closed without a result, and ignores events of other windows and malformed ones', async () => {
     const { io, backend } = setup();
     const s = backend.show(request('ai-setup'));
@@ -62,7 +69,8 @@ describe('TauriDialogBackend', () => {
     io.closed('d-main-9', 'ai-setup');
     io.closed('d-main-1', 'ai-setup');
     expect(await s.closed).toBeUndefined();
-    expect(io.opened[0]!.modality).toBe('modeless');
+    expect(io.opened[0]!.modality).toBe('modal');
+    expect(io.opened[0]!.requiredChoice).toBeUndefined();
   });
 
   it('remembers where the window was and reopens there, kept on a visible monitor', async () => {

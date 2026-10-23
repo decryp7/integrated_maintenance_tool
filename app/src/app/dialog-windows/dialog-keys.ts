@@ -35,3 +35,11 @@ export function dialogKeyAction(e: DialogKeyEvent): DialogKeyAction {
 export function findDefaultAction(root: ParentNode): HTMLElement | null {
   return root.querySelector<HTMLElement>('button[data-default]:not([disabled])') ?? root.querySelector<HTMLElement>('button.primary:not([disabled]), button.btn.primary:not([disabled])');
 }
+
+/** The labels of a button that closes a dialog without an answer. */
+const CLOSE_ACTION = /^(close|cancel|not now|dismiss|done|later|got it)\b/i;
+
+/** Whether `root` has a visible button that closes the dialog (Close, Cancel, Not now, ...). */
+export function hasCloseAction(root: ParentNode, except?: Element | null): boolean {
+  return [...root.querySelectorAll('button')].some((b) => !except?.contains(b) && CLOSE_ACTION.test((b.textContent ?? '').trim()));
+}

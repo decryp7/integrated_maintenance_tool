@@ -16,7 +16,7 @@ const FOCUSABLE = 'button:not([disabled]), [href], input:not([disabled]), select
   template: `
     @for (d of dialogs.stack(); track d.id; let i = $index) {
       @if (d.modality === 'modal') {
-        <div class="backdrop" data-debrief-overlay data-testid="dialog-backdrop" [style.z-index]="210 + 2 * i" (mousedown)="d.ref.close()"></div>
+        <div class="backdrop" data-debrief-overlay data-testid="dialog-backdrop" [style.z-index]="210 + 2 * i" (mousedown)="dismiss(d)"></div>
       }
       <div
         #box
@@ -88,7 +88,12 @@ export class DialogHost {
     const top = all.filter((d) => d.modality === 'modal').at(-1) ?? (idle ? all.at(-1) : undefined);
     if (!top) return;
     e.preventDefault();
-    top.ref.close();
+    this.dismiss(top);
+  }
+
+  /** Escape and a click on the backdrop mean Cancel; a required choice has none and stays open. */
+  protected dismiss(d: OpenDialog): void {
+    if (!d.requiredChoice) d.ref.close();
   }
 
   protected injectorFor(d: OpenDialog): Injector {
@@ -109,7 +114,7 @@ export class DialogHost {
     if (e.key === 'Escape') {
       e.preventDefault();
       e.stopPropagation();
-      d.ref.close();
+      this.dismiss(d);
       return;
     }
     if (e.key !== 'Tab' || d.modality === 'modeless') return;

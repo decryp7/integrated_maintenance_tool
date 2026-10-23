@@ -71,6 +71,7 @@ export class TauriDialogBackend implements DialogPresenter {
         instance: request.instance,
         title: request.title,
         modality: def.modality,
+        requiredChoice: def.requiredChoice,
         input: request.inputs,
         width: request.width,
         height: def.height,

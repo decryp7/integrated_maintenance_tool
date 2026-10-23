@@ -12,6 +12,7 @@ export interface DialogOpenRequest {
   instance?: string;
   title: string;
   modality: 'modal' | 'modeless';
+  requiredChoice?: boolean;
   input?: unknown;
   width?: number;
   height?: number;

@@ -33,6 +33,8 @@ export interface OpenDialog {
   options: DialogOptions;
   ref: DialogRef;
   modality: DialogModality;
+  /** A modal without a Cancel: Escape and the backdrop leave it open (`DialogDef.requiredChoice`). */
+  requiredChoice?: boolean;
 }
 
 /** A component that is a plain yes/no question: windowed, it is the native message box (`ConfirmDialog`). */

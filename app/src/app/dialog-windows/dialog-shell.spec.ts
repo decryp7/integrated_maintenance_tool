@@ -110,6 +110,28 @@ describe('DialogShell', () => {
     expect(io.closedWith).toHaveLength(1);
   });
 
+  it('ignores Escape, Cmd+W and a close request in a required-choice modal, and closes with its answer', async () => {
+    const required: DialogDef = { ...def, requiredChoice: true };
+    const { fixture, io } = await setup({ lookup: (id) => (id === 'shell-test' ? required : undefined) });
+    key(el(fixture, '#in'), 'Escape');
+    key(el(fixture, '#in'), 'w', { metaKey: true });
+    io.emit(DIALOG_CLOSE_REQUESTED_EVENT, null);
+    await settle(fixture);
+    expect(io.closedWith).toEqual([]);
+    expect(fixture.nativeElement.querySelector('[data-testid=dialog-shell-close]')).toBeNull();
+  });
+
+  it('adds its own Close when the content has no way out, and removes it once the content has one', async () => {
+    const { fixture, io } = await setup();
+    await new Promise((r) => setTimeout(r, 80));
+    await settle(fixture);
+    const close = fixture.nativeElement.querySelector('[data-testid=dialog-shell-close]') as HTMLButtonElement | null;
+    expect(close, 'the test content has no Close or Cancel button').not.toBeNull();
+    close!.click();
+    await settle(fixture);
+    expect(io.closedWith).toEqual([undefined]);
+  });
+
   it('runs the default action on Enter, except in a text area', async () => {
     const { fixture, io } = await setup();
     key(el(fixture, '#ta'), 'Enter');

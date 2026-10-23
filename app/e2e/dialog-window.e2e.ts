@@ -86,3 +86,28 @@ for (const [id, title, input] of FIT) {
     expect(m.gap).toBeLessThanOrEqual(4);
   });
 }
+
+// A dialog that shows a streamed or loaded answer is not fitted to its first short state: it opens at a usable height
+// from the registry, the answer scrolls inside, and the footer stays visible. A small decision dialog still fits exactly.
+test('the ai-narrative window with a long answer is at least 480 px tall, scrolls inside and keeps its footer visible', async ({ page }) => {
+  const text = Array.from({ length: 60 }, (_, i) => `Paragraph ${i + 1}: the payment gateway timed out after retrying the upstream call [#1].`).join('\n\n');
+  const preset = { text, citations: [{ n: 1, id: 1 }], evidence: {}, usage: {} };
+  await page.setViewportSize({ width: 680, height: 560 });
+  await page.goto(`/#/dialog?id=ai-narrative&host=main&label=d-main-1&title=Explain%20event%201&dialogInput=${encodeURIComponent(JSON.stringify({ preset }))}`);
+  const shell = page.locator('debrief-dialog-shell');
+  await expect(shell.locator('[data-testid=dialog-loading]')).toHaveCount(0, { timeout: 15_000 });
+  const answer = shell.getByTestId('ai-narrative');
+  await expect(answer).toContainText('Paragraph 1');
+  // Not fitted to the content: the registry gives it a height, so no fit is ever requested.
+  expect(await page.evaluate(() => document.documentElement.dataset['fittedHeight'] ?? '')).toBe('');
+  const m = await answer.evaluate((el) => ({ client: el.clientHeight, scroll: el.scrollHeight, overflowX: el.scrollWidth - el.clientWidth }));
+  expect(m.client).toBeGreaterThanOrEqual(300);
+  expect(m.scroll).toBeGreaterThan(m.client);
+  expect(m.overflowX).toBeLessThanOrEqual(0);
+  const close = shell.getByRole('button', { name: 'Close' });
+  await expect(close).toBeVisible();
+  const box = (await close.boundingBox())!;
+  expect(box.y + box.height).toBeLessThanOrEqual(560);
+  const win = (await shell.boundingBox())!;
+  expect(win.height).toBeGreaterThanOrEqual(480);
+});

@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { WorkspaceStore } from '../core/workspace.store';
 import { settle } from '../../testing/helpers';
 import { dialogAppConfig } from './dialog-bootstrap';
+import { hasCloseAction } from './dialog-keys';
 import { DIALOG_IO } from './dialog-io';
 import { FakeDialogIo } from './dialog-io-fake';
 import { DIALOG_TEST_INPUTS } from './dialog-test-inputs';
@@ -49,6 +50,9 @@ describe('every dialog window', () => {
         for (let i = 0; i < 100 && wants && !store.summary(); i++) await settle(fixture, 1);
         // A dialog loads the workspace only when it names the `summary` or `workspace` feature.
         expect(store.summary() !== null).toBe(wants);
+        // No dialog window has title-bar buttons: each one has a visible way to close from its content or, failing that, the
+        // shell's own Close (a required-choice modal closes with its answer).
+        if (!def.requiredChoice) expect(hasCloseAction(root), `${def.id} has no Close/Cancel button`).toBe(true);
         fixture.destroy();
       } finally {
         spy.mockRestore();
