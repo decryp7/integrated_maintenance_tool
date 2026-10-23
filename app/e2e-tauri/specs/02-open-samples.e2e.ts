@@ -8,7 +8,7 @@ describe('real app: open the samples folder', () => {
     await waitForEvents();
 
     expect(await gridTotal()).toBeGreaterThan(0);
-    await expect($('debrief-status-bar')).toHaveText(/\d+ sources?/);
+    await expect($('debrief-status-bar')).toHaveText(/\d[\d,]* events/);
     // Both instances of the sample (web01, web02) have a lane.
     await expect($$('debrief-timeline-panel .lane')).toBeElementsArrayOfSize({ gte: 1 });
     // The Explorer rows: width and text of each file name.
