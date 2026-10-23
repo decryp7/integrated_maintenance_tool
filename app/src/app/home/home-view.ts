@@ -13,6 +13,8 @@ import { ChartTheme } from '../metrics/chart-theme';
 import { RECENT_PROJECTS } from '../projects/recent-projects';
 import { formatBytes } from '../shared/format/units';
 import { Icon } from '../shared/icon';
+import { PathText } from '../shared/path-text';
+import { measuredWidth } from '../profiling/flame/measured-width';
 import { HealthActions } from './health/health-actions';
 import { ActionButton, actionButtons, healthStats } from './health/health-model';
 import { bucketAt, bucketRange, feedItems, historyOption, sparklinePath, SPARK_H, SPARK_W } from './home-model';
@@ -21,6 +23,10 @@ import { HomeStore } from './home.store';
 
 /** Height of one finding row in the virtualised list (fixed, so only the visible rows are rendered). */
 const ROW_PX = 56;
+/** Height of one finding row when the pane is narrow: the actions wrap below the text. */
+const NARROW_ROW_PX = 116;
+/** Pane width (px) below which findings stack their actions below the text. */
+const NARROW_PANE_PX = 520;
 /** Findings shown before "Show all". */
 const FIRST_FINDINGS = 3;
 /** Rows visible before the list scrolls inside itself. */
@@ -36,7 +42,8 @@ const VISIBLE_ROWS = 6;
 @Component({
   selector: 'debrief-home-view',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [AnalysisState, Icon, AiButton, CoverageNote, EChart, CdkVirtualScrollViewport, CdkFixedSizeVirtualScroll, CdkVirtualForOf],
+  host: { '[class.narrow]': 'narrow()' },
+  imports: [AnalysisState, Icon, AiButton, CoverageNote, EChart, CdkVirtualScrollViewport, CdkFixedSizeVirtualScroll, CdkVirtualForOf, PathText],
   template: `
     <div class="bar">
       <p class="subtitle" data-testid="home-subtitle">@if (summary(); as s) { {{ span() }} } @else { <span i18n="@@home.view.subtitle">Everything you opened, at a glance</span> }</p>
@@ -99,13 +106,13 @@ const VISIBLE_ROWS = 6;
               @for (u of st.unrecognized; track u.path) {
                 <div class="callout">
                   <debrief-icon name="alert" [size]="16" class="warn" />
-                  <div class="body"><div class="t" [title]="u.path">{{ u.name }}</div><div class="d">{{ u.reason }}</div></div>
+                  <div class="body"><debrief-path-text class="t" [value]="u.name" [full]="u.path" [copy]="true" /><div class="d">{{ u.reason }}</div></div>
                 </div>
               }
               @for (p of st.plugins; track p.id) {
                 <div class="callout">
                   <debrief-icon name="alert" [size]="16" class="warn" />
-                  <div class="body"><div class="t">{{ p.name }}</div><div class="d">{{ p.problem }}</div></div>
+                  <div class="body"><div class="t wrap">{{ p.name }}</div><div class="d">{{ p.problem }}</div></div>
                 </div>
               }
             </section>
@@ -127,10 +134,10 @@ const VISIBLE_ROWS = 6;
                 </div>
               } @else {
                 <!-- Only the visible rows are rendered, however many findings the engine returns. -->
-                <cdk-virtual-scroll-viewport class="findings" data-testid="home-findings" [itemSize]="rowPx" [style.height.px]="listHeight()" role="list" aria-label="Findings" i18n-aria-label="@@home.view.findings">
-                  <div *cdkVirtualFor="let f of shown(); trackBy: trackFinding" class="finding" role="listitem" [attr.data-severity]="f.severity">
+                <cdk-virtual-scroll-viewport class="findings" data-testid="home-findings" [itemSize]="rowPx()" [style.height.px]="listHeight()" role="list" aria-label="Findings" i18n-aria-label="@@home.view.findings">
+                  <div *cdkVirtualFor="let f of shown(); trackBy: trackFinding" class="finding" role="listitem" [attr.data-severity]="f.severity" [style.height.px]="rowPx()">
                     <div class="text">
-                      <div class="title"><span class="tag">{{ severityText(f) }}</span> {{ f.title }}</div>
+                      <div class="title" [title]="f.title"><span class="tag">{{ severityText(f) }}</span> {{ f.title }}</div>
                       <p class="detail" [title]="f.detail">{{ f.detail }}</p>
                     </div>
                     <div class="acts">
@@ -172,12 +179,16 @@ const VISIBLE_ROWS = 6;
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-1); color: var(--text); }
-    .bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
+    :host { container: home / inline-size; display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; background: var(--bg-1); color: var(--text); }
+    .bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
     .spacer { flex: 1; }
-    .scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+    .subtitle { min-width: 0; overflow-wrap: anywhere; }
+    @container home (max-width: 479px) { .bar .subtitle { flex: 1 0 100%; order: -1; } .bar .spacer { display: none; } .bar { justify-content: flex-end; } }
+    .scroll { flex: 1; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
     .scroll > * { flex: none; }
-    .pair { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); gap: 10px 16px; align-items: start; }
+    .pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px 16px; align-items: start; }
+    .pair > * { min-width: 0; }
+    @container home (min-width: 640px) { .pair { grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr); } }
     .feed summary { cursor: pointer; font-size: var(--fs-md); font-weight: 600; }
     .feed ul { margin-top: 6px; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; }
@@ -185,7 +196,8 @@ const VISIBLE_ROWS = 6;
     .pad { margin: 4px 0; }
     .subtitle { margin: 0; font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
     .tiles { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
-    .tiles .hero { flex: 1 1 calc(25% - 8px); min-width: 160px; }
+    .tiles .hero { flex: 1 1 calc(25% - 8px); min-width: min(160px, 100%); }
+    @container home (max-width: 399px) { .tiles .hero { flex: 1 1 calc(50% - 8px); min-width: 0; } }
     .tiles > div { position: relative; }
     .tiles .hero { padding: 10px 12px; border: 1px solid var(--border-2); border-radius: var(--r-3); background: var(--bg-2); min-height: 60px; }
     .tiles .hero dt { font-size: var(--fs-sm); color: var(--muted); }
@@ -205,6 +217,9 @@ const VISIBLE_ROWS = 6;
     .attention { display: flex; flex-direction: column; gap: 6px; }
     .callout { display: flex; gap: 10px; align-items: flex-start; padding: 5px 12px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--warn-text); border-radius: var(--r-2); background: var(--bg-2); }
     .callout .warn { color: var(--warn-text); margin-top: 1px; }
+    .callout .body { flex: 1; min-width: 0; }
+    .callout .t { min-width: 0; }
+    .callout .t.wrap, .callout .d { overflow-wrap: anywhere; }
     .callout .t { font-size: var(--fs-md); font-weight: 600; }
     .callout .d { font-size: var(--fs-sm); color: var(--muted); }
     .count { font-weight: 400; font-variant-numeric: tabular-nums; }
@@ -223,12 +238,16 @@ const VISIBLE_ROWS = 6;
     .findings { border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); }
     .finding { box-sizing: border-box; /* width 0 + min-width 100%: the row follows the list's width instead of its longest title */ width: 0; min-width: 100%; height: 56px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-2); }
     .finding .text { flex: 1; min-width: 0; }
+    .detail, .title { overflow-wrap: anywhere; }
     .title { font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--border-3); color: var(--text-2); }
     [data-severity='critical'] .tag { border-color: var(--lvl-error); color: var(--danger-text); }
     [data-severity='warning'] .tag { border-color: var(--lvl-warn); color: var(--warn-text); }
     .detail { margin: 2px 0 0; font-size: var(--fs-sm); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .acts { flex: none; display: flex; gap: 6px; }
+    .acts { flex: none; display: flex; flex-wrap: wrap; gap: 6px; }
+    :host(.narrow) .finding { flex-direction: column; align-items: stretch; gap: 4px; }
+    :host(.narrow) .title, :host(.narrow) .detail { white-space: normal; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; }
+    :host(.narrow) .acts { flex: none; }
     .none { display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--border-2); border-radius: 8px; background: var(--bg-2); }
     .none debrief-icon { color: var(--ok); margin-top: 2px; }
     .none p { margin: 4px 0 0; font-size: var(--fs-sm); }
@@ -248,7 +267,10 @@ export class HomeView {
 
   protected readonly count = formatCount;
   protected readonly bytes = formatBytes;
-  protected readonly rowPx = ROW_PX;
+  private readonly paneWidth = measuredWidth(0);
+  /** The pane is too narrow for the actions beside the text. */
+  protected readonly narrow = computed(() => (this.paneWidth() ?? NARROW_PANE_PX) < NARROW_PANE_PX);
+  protected readonly rowPx = computed(() => (this.narrow() ? NARROW_ROW_PX : ROW_PX));
   protected readonly FIRST_FINDINGS = FIRST_FINDINGS;
   protected readonly showAll = signal(false);
   /** The findings on show: the first few, all on request. */
@@ -262,7 +284,7 @@ export class HomeView {
   protected readonly crashes = computed(() => (this.findings() ?? []).filter((f) => f.kind === 'crash').length);
   protected readonly errorSpark = computed(() => sparklinePath(this.summary()?.errorTrend ?? []));
   protected readonly warningSpark = computed(() => sparklinePath(this.summary()?.warningTrend ?? []));
-  protected readonly listHeight = computed(() => Math.min(this.shown().length, VISIBLE_ROWS) * ROW_PX);
+  protected readonly listHeight = computed(() => Math.min(this.shown().length, VISIBLE_ROWS) * this.rowPx());
   protected readonly stats = computed(() => {
     const summary = this.store.summary();
     return summary && this.hasData() ? healthStats(summary, this.store.instanceCount(), this.findings() ?? []) : null;
@@ -271,9 +293,11 @@ export class HomeView {
     const s = this.summary();
     if (!s || s.from === null || s.to === null) return $localize`:@@home.view.noTimestamps:No timestamps`;
     const tz = this.store.timezone();
-    const from = formatDateTime(s.from, tz);
-    const to = formatDateTime(s.to, tz);
-    const duration = formatDuration(s.to - s.from);
+    // Non-breaking spaces inside each value: the line can only break between the dates and the duration, never inside one.
+    const unbreakable = (v: string): string => v.replace(/ /g, '\u00a0');
+    const from = unbreakable(formatDateTime(s.from, tz));
+    const to = unbreakable(formatDateTime(s.to, tz));
+    const duration = unbreakable(formatDuration(s.to - s.from));
     return $localize`:@@home.view.span:${from}:from: → ${to}:to: (${duration}:duration:)`;
   });
   protected readonly option = computed(() => {

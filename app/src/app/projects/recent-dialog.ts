@@ -1,3 +1,4 @@
+import { PathText } from '../shared/path-text';
 import { ChangeDetectionStrategy, Component, inject, Injectable } from '@angular/core';
 import { DIALOG_REF, DialogService } from '../ui/dialog.service';
 import { formatOpenedAt } from '../core/recent/recent-date';
@@ -17,6 +18,7 @@ export class RecentProjectsDialogService {
 @Component({
   selector: 'debrief-recent-projects-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [PathText],
   template: `
     @if (projects.recent().length) {
       <ul class="list" aria-label="Recent projects" i18n-aria-label="@@projects.recent.list">
@@ -24,7 +26,7 @@ export class RecentProjectsDialogService {
           <li>
             <button type="button" class="item" (click)="open(p.path)">
               <strong>{{ p.name }}</strong>
-              <span class="faint ellipsis mono" [title]="p.path">{{ folder(p.path) }}</span>
+              <debrief-path-text class="faint mono" [value]="folder(p.path)" [full]="p.path" />
               <span class="faint when" data-testid="recent-when">{{ when(p.openedAt) }}</span>
             </button>
           </li>
