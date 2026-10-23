@@ -25,7 +25,7 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
     .tech { max-width: 100%; color: var(--muted); font-size: var(--fs-sm); }
     .tech summary { cursor: pointer; }
     .tech summary:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
-    .tech code { display: block; margin-top: 6px; color: var(--danger-text); white-space: pre-wrap; overflow-wrap: anywhere; text-align: start; font-size: var(--fs-xs); }
+    .tech code { display: block; margin-top: 6px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere; text-align: start; font-size: var(--fs-xs); }
   `,
 })
 export class ErrorDetails {

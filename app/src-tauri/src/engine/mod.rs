@@ -14,6 +14,7 @@
 
 pub(crate) mod annotate;
 pub(crate) mod import;
+pub(crate) mod store_failure;
 pub(crate) mod summary;
 
 use crate::error::{CmdError, CmdResult};
@@ -100,16 +101,30 @@ pub(crate) fn worker_binary() -> PathBuf {
         .unwrap_or_else(|| PathBuf::from(name))
 }
 
+impl WorkerHost {
+    /// Opening a store is the user's own request (Open, Try again): a worker that was stopped after repeated failures
+    /// gets another start, so "Try again" does what it says instead of repeating the quarantine message.
+    fn lift_quarantine(&self) {
+        if self.worker.status().state == debrief_ipc::supervisor::ChildState::Quarantined {
+            log::info!("The store worker was stopped after repeated failures; starting it again on the user's request");
+            self.worker.reset();
+        }
+    }
+}
+
 impl StoreHost for WorkerHost {
     fn create(&self, dir: &Path, profile: &Profile) -> StoreResult<SharedStore> {
+        self.lift_quarantine();
         Ok(Arc::new(self.worker.open_store(dir, profile.clone(), true, None)?))
     }
 
     fn open(&self, dir: &Path, profile: &Profile) -> StoreResult<SharedStore> {
+        self.lift_quarantine();
         Ok(Arc::new(self.worker.open_store(dir, profile.clone(), false, None)?))
     }
 
     fn open_project(&self, path: &Path, dest_root: &Path, profile: &Profile) -> StoreResult<(SharedStore, ProjectManifest)> {
+        self.lift_quarantine();
         let (store, manifest) = self.worker.open_project(path, dest_root, profile.clone(), None)?;
         Ok((Arc::new(store), manifest))
     }
@@ -359,8 +374,21 @@ pub(crate) fn scratch_pid(path: &Path) -> Option<u32> {
 fn unavailable(e: &StoreError) -> CmdError {
     let mut err = store_error(e.clone());
     if matches!(e, StoreError::Engine(_)) {
-        err = CmdError::new(ErrorCode::Unavailable, format!("the log store could not start: {e}"))
-            .hint("Reinstall Debrief: the store worker (debrief-store-worker) and its database library (duckdb) must be next to Debrief.");
+        // The raw chain is the technical detail; the message and the next step follow from the classified cause.
+        let raw = e.to_string();
+        let stderr = debrief_ipc::child_log::find("store-worker")
+            .map(|l| l.tail_text())
+            .unwrap_or_default();
+        let cause = store_failure::StoreFailure::classify(&raw, &stderr);
+        let detail = if stderr.trim().is_empty() {
+            raw
+        } else {
+            format!("{raw}\n\n{}", stderr.trim_end())
+        };
+        err = CmdError::new(ErrorCode::Unavailable, cause.message())
+            .hint(cause.hint())
+            .detail(Some(detail));
+        err.retryable = true;
     }
     err
 }
@@ -507,7 +535,9 @@ mod tests {
         assert_eq!((e.code, e.field.as_deref()), (ErrorCode::Invalid, Some("ql")));
         let e = unavailable(&StoreError::Engine("cannot load duckdb.dll".into()));
         assert_eq!(e.code, ErrorCode::Unavailable);
-        assert!(e.hint.unwrap().contains("duckdb"));
+        assert!(e.message.starts_with("Debrief's log store"), "{}", e.message);
+        assert!(e.retryable && e.hint.is_some());
+        assert!(e.detail.unwrap().contains("cannot load duckdb.dll"));
         assert_eq!(unavailable(&StoreError::Io("disk".into())).code, ErrorCode::Io);
     }
 
