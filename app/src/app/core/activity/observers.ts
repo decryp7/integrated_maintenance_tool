@@ -1,11 +1,20 @@
-import { effect, inject, Injectable, Injector, Signal, untracked } from '@angular/core';
-import { DockService } from '../../dock/dock.service';
+import { effect, inject, Injectable, InjectionToken, Injector, Signal, untracked } from '@angular/core';
 import { PANEL_WINDOWS } from '../../dock/panel-windows';
 import { Query } from '../api.types';
 import { WorkspaceStore } from '../workspace.store';
 import { ActivityLog } from './activity-log';
 import { safeText } from './privacy';
 import { ActivityParams } from './types';
+
+/**
+ * What the activity log watches of the dock (the port: the dock implements it, `provideDocking` provides it). A window
+ * without a dock (a dialog window) provides none and loads none of the dock's code.
+ */
+export interface ActivityDock {
+  readonly openIds: Signal<ReadonlySet<string>>;
+  readonly autoHide: Signal<{ readonly items: readonly { readonly id: string }[] }>;
+}
+export const ACTIVITY_DOCK = new InjectionToken<ActivityDock>('ACTIVITY_DOCK');
 
 /** Typing and dragging settle within this before one entry is logged. */
 export const QUERY_DEBOUNCE_MS = 800;
@@ -54,7 +63,7 @@ export class ActivityObservers {
         if (next) this.coalesce('selection', 'selection.change', { RecordId: next.id }, SELECTION_THROTTLE_MS);
       });
     }
-    const dock = this.injector.get(DockService, null);
+    const dock = this.injector.get(ACTIVITY_DOCK, null);
     if (dock) {
       this.watch(dock.openIds, (prev, next) => this.setDiff(prev, next, 'dock.open', 'dock.close'));
       this.watch(dock.autoHide, (prev, next) =>

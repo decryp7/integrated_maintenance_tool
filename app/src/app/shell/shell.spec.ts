@@ -354,7 +354,9 @@ describe('Sidebar', () => {
     const { fixture, store } = setup(Sidebar);
     await settle(fixture);
     // Two folders are open: each gets a heading and its files show their names only (H2); the path is the tooltip.
-    expect(all(fixture, '[data-testid=folder-heading]').map((n) => n.textContent?.trim())).toEqual(['logs/web01', 'logs/web02']);
+    expect(all(fixture, '[data-testid=folder-heading]').map((n) => n.textContent?.trim())).toEqual(['web01', 'web02']);
+    // The folder both share is said once, above the headings.
+    expect(all(fixture, '[data-testid=folder-root]').map((n) => n.textContent?.trim())).toEqual(['/logs']);
     expect(all(fixture, '.src:not(.dim) .name').map((n) => n.textContent)).toEqual(['app.clef', 'app.log']);
     expect(all(fixture, '.src:not(.dim)').map((n) => n.getAttribute('title'))).toEqual([expect.stringContaining('Format: '), expect.stringContaining('Format: ')]);
     expect(all(fixture, '[data-testid=format-badge]')).toHaveLength(0);

@@ -17,12 +17,15 @@ import { LifecycleBanners } from './lifecycle/lifecycle-banners';
 import { ImportToast, PartialImportBanner } from './import/import-ui';
 import { TourOverlay } from './onboarding/tour-overlay';
 import { NarrowWindow } from './shell/narrow-window';
+import { RegionNavigator } from './shell/regions';
 
 @Component({
   selector: 'debrief-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, ImportToast, PartialImportBanner, TourOverlay],
   template: `
+    <!-- The first Tab stop: jumps over the activity bar, side bar and filter bar to the events grid (visible on focus). -->
+    <button type="button" class="skip-link" (click)="regions.events()" i18n="@@app.skipToEvents">Skip to events</button>
     <debrief-title-bar />
     <debrief-lifecycle-banners />
     <debrief-partial-import-banner />
@@ -62,6 +65,12 @@ import { NarrowWindow } from './shell/narrow-window';
     }
   `,
   styles: `
+    .skip-link {
+      position: fixed; top: 6px; left: 6px; z-index: 300; padding: 6px 12px; border-radius: var(--radius, 6px);
+      border: 1px solid var(--accent); background: var(--bg-1); color: var(--text); font: inherit;
+      transform: translateY(-200%);
+    }
+    .skip-link:focus-visible { transform: none; }
     .modal-scrim { position: fixed; inset: 0; z-index: 205; background: var(--scrim); }
     :host { display: flex; flex-direction: column; height: 100vh; min-width: 600px; background: var(--bg-1); }
     .body { flex: 1; min-height: 0; display: flex; }
@@ -81,6 +90,7 @@ export class App {
   protected readonly store = inject(WorkspaceStore);
   protected readonly welcome = inject(WelcomeService);
   protected readonly modalGate = inject(ModalGate);
+  protected readonly regions = inject(RegionNavigator);
   protected readonly hasData = computed(() => (this.store.summary()?.sources.length ?? 0) > 0);
 
   constructor() {

@@ -2,7 +2,7 @@ import { inject } from '@angular/core';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { SavedQuery } from '../../core/tools.types';
 import { WorkspaceStore } from '../../core/workspace.store';
-import { sanitizeQuery } from '../../lifecycle/core-ui-state';
+import { sanitizeQuery } from '../../core/sanitize-query';
 import { newId } from './ids';
 import { UndoStack } from '../../undo/undo-stack';
 import { recordSnapshot } from '../../undo/snapshot-undo';

@@ -15,6 +15,7 @@
     "e2e:tauri": "wdio run e2e-tauri/wdio.conf.ts",
     "screenshots": "playwright test -c scripts/screenshots/playwright.config.ts",
     "whats-new": "node scripts/whats-new.mjs",
+    "check:dialog-weight": "ng build --stats-json && node scripts/dialog-window-weight.mjs about --max 480",
     "i18n": "ng extract-i18n && node scripts/i18n/build-locales.mjs"
   },
   "private": true,

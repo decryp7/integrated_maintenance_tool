@@ -14,7 +14,7 @@ import { PANEL_VISIBLE } from '../core/panel-visibility';
 import { DockHost } from './dock-host';
 import { DockService, keepGroupsUnscrolled, PANEL } from './dock.service';
 import { ANALYSIS_TAB_CAP } from './view-area';
-import { GroupActions } from './group-actions';
+import { GroupActions, rovingIndex } from './group-actions';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { EMPTY_EXTRAS, LAYOUT_KEY, LAYOUT_STORE, ENVELOPE_VERSION, LayoutStore, LocalStorageLayoutStore } from './layout-store';
 import { PanelTab, tabPanelId } from './panel-tab';
@@ -1084,5 +1084,32 @@ describe('labelTabOverflow', () => {
   it('names the chip for one and several hidden tabs', () => {
     expect(overflowLabel(1)).toBe('1 more tab');
     expect(overflowLabel(5)).toBe('5 more tabs');
+  });
+});
+
+describe('GroupActions: one Tab stop (roving tabindex)', () => {
+  it('maps arrows, Home and End to the next button, wrapping around', () => {
+    expect(rovingIndex('ArrowRight', 2, 3)).toBe(0);
+    expect(rovingIndex('ArrowLeft', 0, 3)).toBe(2);
+    expect(rovingIndex('ArrowRight', 0, 3)).toBe(1);
+    expect(rovingIndex('Home', 2, 3)).toBe(0);
+    expect(rovingIndex('End', 0, 3)).toBe(2);
+    expect(rovingIndex('a', 0, 3)).toBeNull();
+    expect(rovingIndex('ArrowRight', 0, 0)).toBeNull();
+  });
+
+  it('keeps only one button tabbable and moves the stop with focus and arrow keys', () => {
+    const a = new GroupActions({ openMenu: () => undefined });
+    document.body.append(a.element);
+    const buttons = [...a.element.querySelectorAll('button')];
+    expect(buttons.map((b) => b.tabIndex)).toEqual([0, -1]);
+    expect(a.element.getAttribute('role')).toBe('toolbar');
+    buttons[0]!.focus();
+    buttons[0]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(buttons[1]);
+    expect(buttons.map((b) => b.tabIndex)).toEqual([-1, 0]);
+    buttons[1]!.dispatchEvent(new KeyboardEvent('keydown', { key: 'x', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(buttons[1]);
+    a.element.remove();
   });
 });

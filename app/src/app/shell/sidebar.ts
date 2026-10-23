@@ -71,6 +71,9 @@ function shortPath(path: string): string {
 
     <div class="sources" role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="debrief-sources-read-only">
       <span id="debrief-sources-read-only" class="sr">{{ readOnly }}</span>
+      @if (layout().root; as root) {
+        <div class="folder-root" data-testid="folder-root" [title]="root"><debrief-icon name="folder" [size]="12" /><span>{{ root }}</span></div>
+      }
       @for (row of layout().rows; track row.item.kind === 'file' ? 'f' + row.item.source.id : 'g' + row.item.group.key) {
         @let item = row.item;
         @if (row.heading; as h) {
@@ -185,6 +188,9 @@ function shortPath(path: string): string {
     .src .name { flex: 1; min-width: 0; display: flex; overflow: hidden; }
     .src .name .head { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .src .name .tail { flex: none; white-space: pre; }
+    /* The folder every listed path shares, said once; a long one wraps instead of hiding its distinguishing end. */
+    .folder-root { display: flex; align-items: flex-start; gap: 6px; padding: 4px 6px 0; font-size: var(--fs-xs); color: var(--text-2); overflow-wrap: anywhere; }
+    .folder-root debrief-icon { flex: none; margin-top: 2px; }
     .folder-head { display: flex; align-items: center; gap: 6px; height: 22px; padding: 0 6px; margin-top: 4px; font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
     .group .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .src .count { flex: none; font-size: var(--fs-xs); color: var(--muted); min-width: 32px; text-align: end; font-variant-numeric: tabular-nums; }

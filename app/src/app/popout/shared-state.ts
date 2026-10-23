@@ -5,7 +5,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { isSchemeMode, isUiFont } from '../core/workspace/ui-prefs.store';
 import { isThemeId } from '../theme/themes';
 import { TimeCursor } from '../analysis/time-cursor';
-import { sanitizeQuery } from '../lifecycle/core-ui-state';
+import { sanitizeQuery } from '../core/sanitize-query';
 import { LiveFollow, sanitizeFollow } from '../live/live-follow.store';
 import { GridDensity, SettingsStore, SOURCE_COLOR_MODES, SourceColorMode } from '../settings/settings.store';
 import { LiveTail } from '../workspace/live-tail';

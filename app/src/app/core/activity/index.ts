@@ -1,5 +1,5 @@
 export { ActivityLog } from './activity-log';
-export { ActivityObservers, queryChanges, QUERY_DEBOUNCE_MS, SELECTION_THROTTLE_MS } from './observers';
+export { ACTIVITY_DOCK, ActivityObservers, queryChanges, QUERY_DEBOUNCE_MS, SELECTION_THROTTLE_MS } from './observers';
 export { activity, ActivityRuntime, currentOperationId, errorCode, isCancellation, LINGER_MS } from './runtime';
 export type { Operation } from './runtime';
 export { fingerprint, isSecretKey, safeParam, safeParams, safePath, safeText } from './privacy';

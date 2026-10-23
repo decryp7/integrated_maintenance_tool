@@ -4,12 +4,11 @@ import { MemoryLogger, provideFakeDock, provideTinyBackendBare, FakeDock } from 
 import { COMMAND_CONTEXT, CommandRegistry } from '../../extensions/command-registry';
 import { CommandContext, DEBRIEF_COMMANDS, DebriefCommand } from '../../extensions/tokens';
 import { PANEL_WINDOWS, PanelWindows } from '../../dock/panel-windows';
-import { DockService } from '../../dock/dock.service';
 import { Logger, withFailureLogging } from '../logger';
 import { WorkspaceStore } from '../workspace.store';
 import { ActivityLog } from './activity-log';
 import { methodKind } from './backend-activity';
-import { ActivityObservers, queryChanges, QUERY_DEBOUNCE_MS, SELECTION_THROTTLE_MS } from './observers';
+import { ACTIVITY_DOCK, ActivityObservers, queryChanges, QUERY_DEBOUNCE_MS, SELECTION_THROTTLE_MS } from './observers';
 import { activity } from './runtime';
 import { EMPTY_QUERY } from '../workspace.store';
 import { RecordView } from '../api.types';
@@ -206,7 +205,7 @@ describe('activity: observers', () => {
     TestBed.configureTestingModule({
       providers: [
         provideTinyBackendBare(),
-        { provide: DockService, useValue: Object.assign(dock, { autoHide }) },
+        { provide: ACTIVITY_DOCK, useValue: Object.assign(dock, { autoHide }) },
         { provide: PANEL_WINDOWS, useValue: windows },
       ],
     });

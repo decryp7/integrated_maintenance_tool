@@ -15,6 +15,12 @@ const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
 /** The share of the dock's height the events grid keeps when a document opens beside the timeline. */
 const DOCUMENT_GRID_SHARE = 0.35;
+/** The share of the dock's width a full-height document (Home, Registry) gets in its own column. */
+const FULL_HEIGHT_WIDTH_SHARE = 0.55;
+/** ...but never wider than this, px: on a 2560 px window a sparse tree or a dashboard does not need 1400 px (U15). */
+const FULL_HEIGHT_MAX_WIDTH = 960;
+/** A document group counts as full height when it is at least this share of the dock's height. */
+const FULL_HEIGHT_MIN_SHARE = 0.9;
 /** Size and position of a group floated with the "Float panel" button: roomy, and inside the window. */
 const floatRect = () => ({ ...floatedSize({ width: window.innerWidth, height: window.innerHeight }), ...FLOAT_ORIGIN });
 /** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
@@ -131,7 +137,7 @@ export class DockPlacement {
       case 'analysis':
         return this.addAnalysis(api, base);
       case 'document':
-        return this.addDocument(api, base);
+        return this.addDocument(api, base, view.fullHeight === true);
     }
   }
 
@@ -190,7 +196,8 @@ export class DockPlacement {
    * A document beside the timeline and the grid: tabbed into the most recently used document group that holds
    * neither, else a new group to the right of the timeline (or the grid).
    */
-  private addDocument(api: DockviewApi, base: AddPanel): IDockviewPanel {
+  private addDocument(api: DockviewApi, base: AddPanel, fullHeight: boolean): IDockviewPanel {
+    if (fullHeight) return this.addFullHeight(api, base);
     const well = this.documentWell(undefined, true);
     if (well) return api.addPanel({ ...base, position: { referenceGroup: well.id, direction: 'within' } });
     const main = api.getPanel(PANEL.timeline) ?? api.getPanel(PANEL.events);
@@ -201,6 +208,25 @@ export class DockPlacement {
     }
     const ref = this.anchorFor(api, 'center');
     return api.addPanel({ ...base, ...(ref ? { position: { referencePanel: ref, direction: 'within' as const } } : {}) });
+  }
+
+  /**
+   * A full-height document (`DebriefView.fullHeight`): tabbed into a document group that already spans the dock
+   * (documents opened later share it), else a new column at the window's right edge, so a group that is only the
+   * timeline row's strip is never the place it lands in. The timeline and the grid keep their rows beside it.
+   */
+  private addFullHeight(api: DockviewApi, base: AddPanel): IDockviewPanel {
+    const tall = (g: DockviewGroupPanel) => g.api.location.type === 'grid' && g.height >= api.height * FULL_HEIGHT_MIN_SHARE;
+    const column = api.groups.find((g) => tall(g) && g.panels.length > 0 && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.isDocument(p.id)));
+    if (column) return api.addPanel({ ...base, position: { referenceGroup: column.id, direction: 'within' } });
+    if (!api.getPanel(PANEL.timeline) && !api.getPanel(PANEL.events)) return api.addPanel(base);
+    const panel = api.addPanel({ ...base, position: { direction: 'right' } });
+    if (api.width > 0) panel.group.api.setSize({ width: Math.min(FULL_HEIGHT_MAX_WIDTH, Math.round(api.width * FULL_HEIGHT_WIDTH_SHARE)) });
+    return panel;
+  }
+
+  private isDocument(id: string): boolean {
+    return this.ctx.kindOf(id) === 'document' && viewArea(this.ctx.views.find(id)) === 'document';
   }
 
   /**

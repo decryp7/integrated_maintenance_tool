@@ -2,7 +2,7 @@ import { formatBytes, formatNumber, formatPercent, formatRate } from '../../shar
 import type { EChartsCoreOption } from 'echarts/core';
 import { ChartData, ChartDef, Query, WorkspaceSummary } from '../../core/api.types';
 import { EMPTY_QUERY } from '../../core/workspace.store';
-import { buildOption } from '../../metrics/chart-card';
+import { buildOption } from '../../metrics/chart-option';
 import { ChartTokens } from '../../metrics/chart-theme';
 import { activeLocale } from '../../i18n/locale';
 

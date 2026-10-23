@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, si
 import { SparkPoint, TileCfg, TileData } from '../../core/api.types';
 import { formatCount, formatDateTime, formatNumber } from '../../core/format';
 import { WorkspaceStore } from '../../core/workspace.store';
-import { buildOption } from '../../metrics/chart-card';
+import { buildOption } from '../../metrics/chart-option';
 import { ChartTheme } from '../../metrics/chart-theme';
 import { EChart } from '../../metrics/echart';
 import { ShareBackend } from '../share-backend';

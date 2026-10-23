@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { formatDateTime } from '../../core/format';
 import { WorkspaceStore } from '../../core/workspace.store';
-import { liveOption } from '../../metrics/chart-card';
+import { liveOption } from '../../metrics/chart-option';
 import { ChartTheme } from '../../metrics/chart-theme';
 import { EChart } from '../../metrics/echart';
 import { isAutoUnit, MONITOR_WINDOWS, monitorOption, MonitorWindow } from './monitor-charts-model';
