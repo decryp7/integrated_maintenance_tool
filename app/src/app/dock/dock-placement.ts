@@ -16,11 +16,19 @@ const TIMELINE_HEIGHT = 300;
 /** The share of the dock's height the events grid keeps when a document opens beside the timeline. */
 const DOCUMENT_GRID_SHARE = 0.35;
 /** The share of the dock's width a full-height document (Home, Registry) gets in its own column. */
-const FULL_HEIGHT_WIDTH_SHARE = 0.55;
+const FULL_HEIGHT_WIDTH_SHARE = 0.4;
 /** ...but never wider than this, px: on a 2560 px window a sparse tree or a dashboard does not need 1400 px (U15). */
-const FULL_HEIGHT_MAX_WIDTH = 960;
+const FULL_HEIGHT_MAX_WIDTH = 880;
+/** The events grid and timeline keep at least this much width beside a full-height column (the column gives way first, never below its minimum). */
+const MAIN_MIN_WIDTH = 640;
+const FULL_HEIGHT_MIN_WIDTH = 320;
+/** Below this dock width a full-height document is placed like any other document. */
+const FULL_HEIGHT_MIN_DOCK_WIDTH = 800;
 /** A document group counts as full height when it is at least this share of the dock's height. */
 const FULL_HEIGHT_MIN_SHARE = 0.9;
+/** Width of a full-height column in a dock `dockWidth` px wide: a share of it, capped, and never so wide that the grid drops below its minimum. */
+export const fullHeightWidth = (dockWidth: number): number =>
+  Math.max(FULL_HEIGHT_MIN_WIDTH, Math.min(FULL_HEIGHT_MAX_WIDTH, Math.round(dockWidth * FULL_HEIGHT_WIDTH_SHARE), dockWidth - MAIN_MIN_WIDTH));
 /** Size and position of a group floated with the "Float panel" button: roomy, and inside the window. */
 const floatRect = () => ({ ...floatedSize({ width: window.innerWidth, height: window.innerHeight }), ...FLOAT_ORIGIN });
 /** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
@@ -197,9 +205,11 @@ export class DockPlacement {
    * neither, else a new group to the right of the timeline (or the grid).
    */
   private addDocument(api: DockviewApi, base: AddPanel, fullHeight: boolean): IDockviewPanel {
-    if (fullHeight) return this.addFullHeight(api, base);
+    // In a narrow window a column beside the grid would squeeze the events, so there it shares the strip like any document.
+    if (fullHeight && api.width >= FULL_HEIGHT_MIN_DOCK_WIDTH) return this.addFullHeight(api, base);
+    // A full-height column (Home, Registry) is theirs: other documents share the strip beside the timeline instead.
     const well = this.documentWell(undefined, true);
-    if (well) return api.addPanel({ ...base, position: { referenceGroup: well.id, direction: 'within' } });
+    if (well && !this.isFullHeightColumn(api, well)) return api.addPanel({ ...base, position: { referenceGroup: well.id, direction: 'within' } });
     const main = api.getPanel(PANEL.timeline) ?? api.getPanel(PANEL.events);
     if (main && main.group.api.location.type === 'grid') {
       const panel = api.addPanel({ ...base, position: { referenceGroup: main.group.id, direction: 'right' } });
@@ -216,13 +226,21 @@ export class DockPlacement {
    * timeline row's strip is never the place it lands in. The timeline and the grid keep their rows beside it.
    */
   private addFullHeight(api: DockviewApi, base: AddPanel): IDockviewPanel {
-    const tall = (g: DockviewGroupPanel) => g.api.location.type === 'grid' && g.height >= api.height * FULL_HEIGHT_MIN_SHARE;
-    const column = api.groups.find((g) => tall(g) && g.panels.length > 0 && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.isDocument(p.id)));
+    const column = api.groups.find((g) => this.isTall(api, g) && g.panels.length > 0 && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.isDocument(p.id)));
     if (column) return api.addPanel({ ...base, position: { referenceGroup: column.id, direction: 'within' } });
     if (!api.getPanel(PANEL.timeline) && !api.getPanel(PANEL.events)) return api.addPanel(base);
     const panel = api.addPanel({ ...base, position: { direction: 'right' } });
-    if (api.width > 0) panel.group.api.setSize({ width: Math.min(FULL_HEIGHT_MAX_WIDTH, Math.round(api.width * FULL_HEIGHT_WIDTH_SHARE)) });
+    if (api.width > 0) panel.group.api.setSize({ width: fullHeightWidth(api.width) });
     return panel;
+  }
+
+  private isTall(api: DockviewApi, g: DockviewGroupPanel): boolean {
+    return g.api.location.type === 'grid' && g.height >= api.height * FULL_HEIGHT_MIN_SHARE;
+  }
+
+  /** A document group as tall as the dock that holds a full-height view. */
+  private isFullHeightColumn(api: DockviewApi, g: DockviewGroupPanel): boolean {
+    return this.isTall(api, g) && g.panels.some((p) => this.ctx.views.find(p.id)?.fullHeight === true);
   }
 
   private isDocument(id: string): boolean {

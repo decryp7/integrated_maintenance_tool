@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import type { DockviewApi, IDockviewPanel } from 'dockview';
 import { provideDockTesting } from '../../testing/helpers';
 import { DebriefView } from '../extensions/tokens';
-import { DockPlacement } from './dock-placement';
+import { DockPlacement, fullHeightWidth } from './dock-placement';
 
 const view = (minSize?: DebriefView['minSize']): DebriefView => ({ id: 'v', title: 'V', icon: 'panel', defaultPosition: 'center', ...(minSize ? { minSize } : {}), component: async () => class {} }) as DebriefView;
 
@@ -65,17 +65,17 @@ describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () =>
     return { dock, addPanel, setSize, placement: TestBed.inject(DockPlacement) };
   }
 
-  it('opens in its own column at the window edge, spanning the dock height, 55% of its width', () => {
+  it('opens in its own column at the window edge, spanning the dock height, 40% of its width', () => {
     const { dock, addPanel, setSize, placement } = fakeDock(1400);
     placement.addView(dock, full(), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
-    expect(setSize).toHaveBeenCalledWith({ width: 770 });
+    expect(setSize).toHaveBeenCalledWith({ width: 560 });
   });
 
   it('caps the column on a wide window (2560 px)', () => {
     const { dock, setSize, placement } = fakeDock(2560);
     placement.addView(dock, full(), false);
-    expect(setSize).toHaveBeenCalledWith({ width: 960 });
+    expect(setSize).toHaveBeenCalledWith({ width: 880 });
   });
 
   it('does not land in a document group that is only the timeline row\'s strip: it gets its own column', () => {
@@ -93,5 +93,14 @@ describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () =>
     placement.addView(dock, full('registry'), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { referenceGroup: 'g7', direction: 'within' } }));
     expect(setSize).not.toHaveBeenCalled();
+  });
+});
+
+describe('fullHeightWidth', () => {
+  it('is a share of the dock, capped, and leaves the grid its minimum', () => {
+    expect(fullHeightWidth(1440)).toBe(576);
+    expect(fullHeightWidth(2560)).toBe(880);
+    expect(fullHeightWidth(900)).toBe(320);
+    expect(fullHeightWidth(1100)).toBe(440);
   });
 });

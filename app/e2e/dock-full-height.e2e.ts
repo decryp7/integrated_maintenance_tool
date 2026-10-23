@@ -77,7 +77,7 @@ test.describe('2560 px window (U15) and the explorer (U14)', () => {
     await page.getByRole('tab', { name: 'Registry', exact: true }).click();
     await expect(page.getByRole('tree', { name: 'Registry' })).toBeVisible();
     const column = await box(groupOf(page.getByRole('tree', { name: 'Registry' })));
-    expect(column.width).toBeLessThanOrEqual(960 + 4);
+    expect(column.width).toBeLessThanOrEqual(880 + 4);
     expect(column.height).toBeGreaterThan(1000);
   });
 });
