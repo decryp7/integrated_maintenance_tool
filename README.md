@@ -16,7 +16,7 @@ profile, and it never leaves your machine.
 
 ## At a glance
 
-![IMT at a glance: many sources and collectors feed importers contributed by Rust plugins, each running out of process in a sandbox; the Rust engine imports, transforms, stores, queries and analyses; the Angular and Tauri workbench investigates and shares](docs/diagrams/imt-overview.svg)
+![Debrief at a glance: logs, Windows diagnostics, captures and collection tools feed importers that run as sandboxed plugins; the Rust engine imports them into a DuckDB store worker, queries and analyses; the Angular and Tauri workbench investigates and shares](docs/diagrams/debrief-overview.svg)
 
 Many inputs, one engine, sandboxed plugins: logs, Windows diagnostics, profiler captures and
 built-in collectors flow through importers (built in, or Rust plugins that each run out of process in a sandbox)

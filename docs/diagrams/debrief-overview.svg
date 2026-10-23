@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1088" width="1280" height="1088" role="img" aria-labelledby="t d">
+  <title id="t">Debrief architecture overview</title>
+  <desc id="d">Logs, Windows diagnostics, profiler captures and recordings, and collection tools feed importers that run as sandboxed plugins. A Rust engine imports them into a DuckDB store worker, answers queries and analyses, and drives an optional local AI and a research browser. The Angular and Tauri workbench shows and controls it. A pure Rust core holds all the rules.</desc>
+  <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" class="ah"/></marker></defs>
+  <style>
+    :root{--acc-s:#1D5FD1;--acc-f:#E8EFFA;--ui-s:#C24E00;--ui-f:#F9EDE6;--core-s:#007A5E;--core-f:#E6F2EF;--plg-s:#B0508A;--plg-f:#F7EEF3;--pro-s:#565E6B;--pro-f:#F0F2F5;--ext-s:#6B7380;--ext-f:#F4F5F7;--grp-s:#C4C7CD;--grp-f:#F8F9FA;--ink:#14171C;--mut:#565E6B;--line:#565E6B;}
+    @media (prefers-color-scheme: dark){:root{--acc-s:#5B9BFF;--acc-f:#202C3F;--ui-s:#F07D3A;--ui-f:#382720;--core-s:#2EC4A0;--core-f:#193330;--plg-s:#D98BC0;--plg-f:#342A35;--pro-s:#A0A7B2;--pro-f:#1B1E23;--ext-s:#7F8794;--ext-f:#17191E;--grp-s:#353A42;--grp-f:#121418;--ink:#ECEEF1;--mut:#A0A7B2;--line:#A0A7B2;}}
+    text{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;fill:var(--ink)}
+    .c{font-family:ui-monospace,'SF Mono','Cascadia Mono',Consolas,monospace}
+    .title{font-size:24px;font-weight:600}.sub{font-size:14px;fill:var(--mut)}.desc{font-size:12px;fill:var(--mut)}
+    .h{font-size:14px;font-weight:600}.t{font-size:12px}.m{font-size:12px;fill:var(--mut)}.gl{font-size:12px;font-weight:600;fill:var(--mut)}.foot{font-size:11px;fill:var(--mut);text-anchor:end}
+    .g{fill:var(--grp-f);stroke:var(--grp-s);stroke-width:1}
+    .n{stroke-width:1.5}
+    .acc{fill:var(--acc-f);stroke:var(--acc-s)}.ui{fill:var(--ui-f);stroke:var(--ui-s)}.core{fill:var(--core-f);stroke:var(--core-s)}.plg{fill:var(--plg-f);stroke:var(--plg-s)}.pro{fill:var(--pro-f);stroke:var(--pro-s)}
+    .ext{fill:var(--ext-f);stroke:var(--ext-s);stroke-dasharray:6 4}
+    .e{stroke:var(--line);stroke-width:1.5;fill:none}.ah{fill:var(--line)}
+  </style>
+<text x="48" y="64" class="title">Debrief</text>
+<text x="48" y="94" class="sub">An IDE for analysing logs and diagnostic files: import once, correlate on one timeline, explain and share</text>
+<text x="48" y="118" class="desc">Local-first · a Rust engine, sandboxed plugins and an Angular workbench · Windows, macOS and Linux</text>
+<rect x="48" y="160" width="288" height="672" rx="10" class="g"/>
+<text x="64" y="188" class="gl">Outside Debrief</text>
+<rect x="448" y="160" width="384" height="672" rx="10" class="g"/>
+<text x="464" y="188" class="gl">Engine and workers: compute everything</text>
+<rect x="944" y="160" width="288" height="672" rx="10" class="g"/>
+<text x="960" y="188" class="gl">Workbench: show and control</text>
+<rect x="72" y="208" width="240" height="156" rx="6" class="n ext"/>
+<text x="88" y="238" class="h">Logs and archives</text>
+<text x="88" y="260" class="t">Serilog CLEF, JSON, text,</text>
+<text x="88" y="276" class="t">log4net, NLog, log4j, CSV, syslog</text>
+<text x="88" y="292" class="t">and journald, IIS and web</text>
+<text x="88" y="308" class="t">servers, HAR, OpenTelemetry,</text>
+<text x="88" y="324" class="t">Docker and Kubernetes, <tspan class="c">.zip</tspan>, <tspan class="c">.gz</tspan></text>
+<text x="88" y="340" class="t">and <tspan class="c">.imtz</tspan> bundles.</text>
+<rect x="72" y="388" width="240" height="124" rx="6" class="n ext"/>
+<text x="88" y="418" class="h">Windows diagnostics</text>
+<text x="88" y="440" class="t">Event logs, Performance</text>
+<text x="88" y="456" class="t">Monitor, Process Monitor,</text>
+<text x="88" y="472" class="t">registry exports, msinfo, crash</text>
+<text x="88" y="488" class="t">dumps and UMDH heap logs.</text>
+<rect x="72" y="536" width="240" height="124" rx="6" class="n ext"/>
+<text x="88" y="566" class="h">Captures and recordings</text>
+<text x="88" y="588" class="t">Profiler captures (speedscope,</text>
+<text x="88" y="604" class="t">pprof, perf, nettrace, Chrome),</text>
+<text x="88" y="620" class="t">heap snapshots and screen</text>
+<text x="88" y="636" class="t">recordings.</text>
+<rect x="72" y="684" width="240" height="124" rx="6" class="n acc"/>
+<text x="88" y="714" class="h">Collection and automation</text>
+<text x="88" y="736" class="t"><tspan class="c">imt-agent</tspan>, <tspan class="c">imt-collect</tspan>,</text>
+<text x="88" y="752" class="t"><tspan class="c">imt-monitor</tspan>, the <tspan class="c">imt</tspan> command</text>
+<text x="88" y="768" class="t">line for scripts and CI, and</text>
+<text x="88" y="784" class="t">watched folders.</text>
+<rect x="472" y="208" width="336" height="108" rx="6" class="n plg"/>
+<text x="488" y="238" class="h">Plugins: importers, tools, transforms</text>
+<text x="488" y="260" class="t">Each in its own sandboxed process over one IPC</text>
+<text x="488" y="276" class="t">(<tspan class="c">imt-ipc</tspan>): built in, or signed <tspan class="c">.imtplugin</tspan> packages</text>
+<text x="488" y="292" class="t">written in Rust.</text>
+<rect x="472" y="340" width="336" height="124" rx="6" class="n acc"/>
+<text x="488" y="370" class="h">Store worker</text>
+<text x="488" y="392" class="t">DuckDB and Tantivy in a supervised process:</text>
+<text x="488" y="408" class="t">Parquet segments, a full-text index, time-range</text>
+<text x="488" y="424" class="t">import and <tspan class="c">.imtz</tspan> projects. The app never holds</text>
+<text x="488" y="440" class="t">the records.</text>
+<rect x="472" y="488" width="336" height="108" rx="6" class="n acc"/>
+<text x="488" y="518" class="h">Queries and analysis</text>
+<text x="488" y="540" class="t">Query language, facets, paging and charts;</text>
+<text x="488" y="556" class="t">anomalies, patterns, exceptions, error outliers,</text>
+<text x="488" y="572" class="t">Moment, known issues and incident reports.</text>
+<rect x="472" y="620" width="336" height="108" rx="6" class="n acc"/>
+<text x="488" y="650" class="h">AI and research</text>
+<text x="488" y="672" class="t">A local <tspan class="c">llama-server</tspan> worker with vision and</text>
+<text x="488" y="688" class="t">knowledge files; research and Agent mode drive</text>
+<text x="488" y="704" class="t">a real Chromium over DevTools.</text>
+<rect x="968" y="208" width="240" height="124" rx="6" class="n ui"/>
+<text x="984" y="238" class="h">Investigate</text>
+<text x="984" y="260" class="t">A timeline per instance, the</text>
+<text x="984" y="276" class="t">events grid and inspector, lenses</text>
+<text x="984" y="292" class="t">and filter sets, search</text>
+<text x="984" y="308" class="t">everything and Home.</text>
+<rect x="968" y="356" width="240" height="108" rx="6" class="n ui"/>
+<text x="984" y="386" class="h">Follow</text>
+<text x="984" y="408" class="t">Live tail with alerts, watched</text>
+<text x="984" y="424" class="t">folders, the Jobs pane and</text>
+<text x="984" y="440" class="t">notifications.</text>
+<rect x="968" y="488" width="240" height="108" rx="6" class="n ui"/>
+<text x="984" y="518" class="h">Teach and share</text>
+<text x="984" y="540" class="t">Profiles and parsers, reports,</text>
+<text x="984" y="556" class="t">redacted copies, bundles and</text>
+<text x="984" y="572" class="t">notes.</text>
+<rect x="968" y="620" width="240" height="108" rx="6" class="n acc"/>
+<text x="984" y="650" class="h">Tauri shell</text>
+<text x="984" y="672" class="t">Validates every request and</text>
+<text x="984" y="688" class="t">codes against the Store ports</text>
+<text x="984" y="704" class="t">only; least-privilege capabilities.</text>
+<path d="M336 248 L448 248" class="e" marker-end="url(#a)"/>
+<text x="367" y="238" class="m">read by</text>
+<path d="M832 528 L944 528" class="e" marker-end="url(#a)"/>
+<text x="863" y="518" class="m">results</text>
+<path d="M944 660 L832 660" class="e" marker-end="url(#a)"/>
+<text x="858" y="650" class="m">requests</text>
+<path d="M336 724 L448 724" class="e" marker-end="url(#a)"/>
+<text x="344" y="714" class="m">writes bundles</text>
+<rect x="48" y="872" width="1184" height="112" rx="6" class="n core"/>
+<text x="64" y="902" class="h">imt-core: pure Rust, no windows, no network</text>
+<text x="64" y="926" class="t">Store ports, parsers and profiles, the pipeline, the query language, analysis, reports and redaction: the single source of truth for data and behaviour. The app, the store worker and <tspan class="c">imt</tspan></text>
+<text x="64" y="942" class="t">all use it.</text>
+<text x="64" y="958" class="t">Files are untrusted: parsed once at the edge, bounded by line, regex and archive limits, fuzzed, and never allowed to panic. Nothing leaves your machine unless you start an update, a</text>
+<text x="64" y="974" class="t">download or research.</text>
+<rect x="48" y="1020" width="639" height="40" rx="14" class="g"/>
+<rect x="68" y="1032" width="28" height="16" rx="4" class="n ext"/>
+<text x="104" y="1044" class="m">Outside</text>
+<rect x="192" y="1032" width="28" height="16" rx="4" class="n plg"/>
+<text x="228" y="1044" class="m">Plugin</text>
+<rect x="306" y="1032" width="28" height="16" rx="4" class="n acc"/>
+<text x="342" y="1044" class="m">Debrief</text>
+<rect x="430" y="1032" width="28" height="16" rx="4" class="n ui"/>
+<text x="466" y="1044" class="m">Workbench</text>
+<rect x="574" y="1032" width="28" height="16" rx="4" class="n core"/>
+<text x="610" y="1044" class="m">Pure core</text>
+<text x="1232" y="1044" class="foot">Debrief · updated 2026-10-23</text>
+</svg>

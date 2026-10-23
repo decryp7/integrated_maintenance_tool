@@ -6,8 +6,8 @@ planned work is in [roadmap.md](roadmap.md). In short: a Rust engine (`crates/im
 store ports (`imt_core::ports`) and `Importer` port, a thin Tauri 2 shell (`app/src-tauri`), and an Angular UI
 (`app/src/app`) that only talks to the engine through the `ImtBackend` service.
 
-The diagrams follow [diagrams/STYLE.md](diagrams/STYLE.md): planned work (not built yet) is drawn
-with a dashed outline and "(planned)" after its name. The sections below describe the plugin runtime,
+The diagrams follow [diagrams/STYLE.md](diagrams/STYLE.md) (the suite spec in Paddock plus Debrief's colours): planned work (not built yet) is drawn
+with a dashed outline and a "planned" tag. The sections below describe the plugin runtime,
 multiple windows, live tail and annotations in text.
 
 ## Overview
@@ -278,33 +278,65 @@ every lane whose key contains that value (when the field is part of the lane key
 height; spans are bands, points glyphs. `annotation-track.ts` draws them as buttons (severity by icon
 and fill pattern, not colour alone); clicking one applies its evidence query.
 
-## C4 model
+## Diagrams
+
+The diagram set is split so that each drawing reads at README width (at most 1600 × 1200 pixels; "1 of n" in the kind line). All of them are on one page in [design.md](design.md); the overview is [debrief-overview.svg](diagrams/debrief-overview.svg).
+
+### C4 model
 
 | Diagram | What it shows |
 |---|---|
-| [c4-1-context](diagrams/c4-1-context.drawio) | IMT, its users (support engineer, developer, administrator, plugin author) and the external systems it reads from or talks to: the file system, the OS webview, Windows Event Log and performance counters, third-party plugins (Rust programs in signed `.imtplugin` packages, sandboxed, over `imt-ipc`), the web sites the user opens in the docked browser, and the only network hosts used when the user starts an update or a download: Gitea releases, Hugging Face (models) and GitHub releases (llama-server). IMT runs offline otherwise. |
-| [c4-2-containers](diagrams/c4-2-containers.drawio) | The runnable units, the processes they run in and how they talk: the app process with the libraries linked into it (`imt-core`, `imt-store-client`, `imt-plugin-host`, `imt-ai`, `imt-pdf`, `imt-profile`, `imt-notes`, `imt-dump`, `imt-symbols`, `imt-video`) and the sandboxed child processes (`imt-plugins`, third-party plugins, `imt-store-worker` with DuckDB and Tantivy, `imt-ai-worker` and `llama-server`, the downloaded `ffmpeg`), all over `imt-ipc` (ADR 0017). |
-| [c4-3-components-engine](diagrams/c4-3-components-engine.drawio) | Modules of `imt-core`: the store ports (`ports`: fourteen traits, `Ingest` to `Tail`), the live, Home, search, investigate, encoding, paste and redacted-copy modules, the video frames importer, `api`, `row` and `batch`, `importers`, `ingest`, `archive`, `profile`, `pipeline`, `query` and `ql`, `analysis`, `patterns`, `exceptions`, `chart`, `export`, `project` and `package`, the plugin registry with guarded adapters and the plugin runtime, the parser library (`parser`), `survey`, `spans` and `related`, the sharing and analysis modules (`report`, `redact`, `dashboard`, `bundle`, `skew`, `config`) and the in-memory `Workspace` that stays as the test oracle and the headless agent's store. Around the core: the Store adapters (`imt-store-client`, `imt-store-worker` with `imt-store-duck`), `imt-plugin-host` and `imt-ipc`, the plugin crates, `imt-pdf`, `imt-ai` and the CLIs. The engine is the single source of truth; the shell reaches it only through the `Store` ports. |
-| [c4-3-components-ui](diagrams/c4-3-components-ui.drawio) | Folders under `app/src/app`: shell, `WorkspaceStore`, the `ImtBackend` token with `TauriBackend` / `MockBackend`, views (including Home, investigate, search everything, video, the Store pane, jobs, notifications, notes, the docked browser and dumps), extension tokens, docking, logger. Angular presents what the engine returns; state lives in SignalStores. |
+| [c4-1-context](diagrams/c4-1-context.drawio) | Debrief, its users (support engineer, developer, administrator, plugin author) and the external systems: the file system, the OS webview, Windows diagnostics, third-party plugins (signed `.imtplugin` packages, sandboxed, over `imt-ipc`), the Chromium browser it drives for research, and the download hosts (Gitea releases, Hugging Face, GitHub releases). Debrief runs offline otherwise. |
+| [c4-2-containers](diagrams/c4-2-containers.drawio) | The workbench: the app process (Angular UI, Tauri shell, `imt-core`, `imt-store-client`, `imt-plugin-host`) and its sandboxed child processes (`imt-plugins`, third-party plugins, `imt-store-worker` with DuckDB and Tantivy) over `imt-ipc` (ADR 0017). |
+| [c4-2-containers-helpers](diagrams/c4-2-containers-helpers.drawio) | AI, research and video: `imt-ai` and `imt-ai-worker` with `llama-server`, `chromium-driver` and the Chromium it launches (ADR 0043), `imt-video` and the sandboxed FFmpeg runtime, `imt-symbols` and the symbol servers. |
+| [c4-2-containers-headless](diagrams/c4-2-containers-headless.drawio) | The `imt` command line over the store worker (ADR 0044) and the collection tools `imt-agent`, `imt-collect` and `imt-monitor` that write bundles and rolling CLEF files. |
+| [c4-3-engine-ingest](diagrams/c4-3-engine-ingest.drawio) | `imt-core` ingest: archives, importers, the parser library, `ingest` (file plan, record batcher, encodings, the import window of ADR 0047), the profile and pipeline, clock skew, the Store ports, the plugin runtime with its guarded adapters and the watched-folder state machine (ADR 0048). |
+| [c4-3-engine-query](diagrams/c4-3-engine-query.drawio) | `imt-core` query and aggregation: the query language, `CompiledQuery` and `Condition`, bounded regexes, charts and spans, the read ports, and the views over them (Home, search everything, lenses of ADR 0049, live alerts). |
+| [c4-3-engine-analysis](diagrams/c4-3-engine-analysis.drawio) | `imt-core` analysis and investigation: anomalies, trends, compare and Moment, error outliers (ADR 0045), patterns and exceptions, known issues, the incident report, playbooks and related sources, over the `Analysis` and `Query` ports. |
+| [c4-3-engine-sharing](diagrams/c4-3-engine-sharing.drawio) | `imt-core` sharing, projects and configuration: export, reports (with `imt-pdf`), the one redactor and the redacted copy, bundles, projects, dashboards, configuration diff, settings and the SVG sanitiser. |
+| [c4-3-ui-frame](diagrams/c4-3-ui-frame.drawio) | The Angular UI frame: shell, docking, registries, state (`WorkspaceStore`, `QueryStore`) and the backends (`ImtBackend`, `TauriBackend`, `MockBackend`). |
+| [c4-3-ui-investigate](diagrams/c4-3-ui-investigate.drawio) | The investigating views: grid, timeline, charts, lenses and filter sets, search everything, Home, live tail, watched folders, Jobs, analysis, investigate and notes. |
+| [c4-3-ui-tools](diagrams/c4-3-ui-tools.drawio) | Building, sharing and tools: profile editor and parsers, import and projects, reports and bundles, profiling and dumps, video and the Store pane, system tools, the AI assistant, research and settings. |
+| [c4-3-research-browser](diagrams/c4-3-research-browser.drawio) | Research and Agent mode over a real Chromium: the three browser ports and rules in `imt-ai`, the shell’s renderer, research jobs and pinned runtime, and the `chromium-driver` crate (ADR 0043). |
 
-## UML
+### UML
 
 | Diagram | What it shows |
 |---|---|
-| [uml-use-cases](diagrams/uml-use-cases.drawio) | What each role does with IMT (including notes, research in the docked browser, dumps, jobs and installing signed plugins). A developer can do everything a support engineer does (generalisation); «include» marks a step that is always part of the base use case. |
-| [uml-class-domain](diagrams/uml-class-domain.drawio) | The `Store` ports, `Record`, `Level`, `Query`, `CompiledQuery`, `Profile` and its sections, the parser's `FormatCfg`, `CompiledProfile`, `Pipeline`, `Condition`, the in-memory `Workspace` (test oracle), `ProjectFile`, `SourceInfo`, `WorkspaceSummary`. |
-| [uml-class-plugin-api](diagrams/uml-class-plugin-api.drawio) | The traits plugins implement (`Plugin`, `Importer`, `BinaryImporter`, `RecordTransform`, `Exporter`, `Collector`, `Annotator`, `Tool`), `PluginRegistry` with its `Guarded*` adapters, the out-of-process side (`Builtins`, `RemotePlugin`, `PluginProcess`, the supervisor, installed packages) and the plugin crates `imt-plugins` serves, one sandboxed process each. |
-| [uml-seq-open-folder](diagrams/uml-seq-open-folder.drawio) | `open_paths`: an import job in the store worker reads files in parallel (archive, parser and importer choice, ingest into event batches), writes Parquet segments and indexes them; the UI follows the job and can cancel. |
-| [uml-seq-query-timeline](diagrams/uml-seq-query-timeline.drawio) | A filter change (queries against the DuckDB store) fanning out to the grid, timeline and chart queries (side-effect free; stale replies are dropped), a marker click with an anchored page and `source_context`, and the search field's query run, which streams progress and can be cancelled. |
-| [uml-seq-moment](diagrams/uml-seq-moment.drawio) | What happened around a moment: `MomentView` asks `query_moment` for the selected range; `Analysis::moment` in the store summarises it against the window before it. |
-| [uml-seq-plugin-registration](diagrams/uml-seq-plugin-registration.drawio) | Each window builds a `PluginRegistry`: `Builtins` (the plugin processes, built-in and installed) are wrapped as `RemotePlugin`s, every built-in plugin runs in its own sandboxed process over `imt-ipc` frames, and every contribution is wrapped in a `Guarded*` adapter before the window's `Host` compiles the profile. |
-| [uml-component-store-protocol](diagrams/uml-component-store-protocol.drawio) | The store port table: the `Store` ports, `store_port_table!`, its three expansions (`StoreOp`, `RemoteStore`, the worker's dispatch) and the wire version ([ADR 0042](adr/0042-store-port-table.md)). |
-| [uml-activity-video](diagrams/uml-activity-video.drawio) | A video source from file to events: runtime check and install, sandboxed `ffprobe` and frame passes, pure selection, alignment, vision descriptions and the `.frames` source ([ADR 0033](adr/0033-video-sources-ffmpeg-runtime.md)). |
-| [uml-activity-ingest](diagrams/uml-activity-ingest.drawio) | Ingest of one file (`ingest::import_path`, the file plan, `RecordBatcher`, `CompiledProfile::ingest`: extractors, pipeline, markers). Every failure lists the file as unrecognised with its reason; the rest of the import continues. |
-| [uml-state-perfmon](diagrams/uml-state-perfmon.drawio) | A Data Collector Set as IMT drives it: `PerfmonController` (`imt-plugin-tools`) runs `logman`; the Performance Monitor view installs, starts, stops, queries, deletes and imports its output. |
-| [uml-state-live-tail](diagrams/uml-state-live-tail.drawio) | `set_live` drives a live-tail worker per window; the store reads what was appended (`Ingest::append_tail`, the last event held for `carry_flush_ms`); `LiveSession` evaluates alerts and the tail status over the ports. |
-| [uml-state-project](diagrams/uml-state-project.drawio) | Left: the open project as `ProjectService` tracks it (`save_project` / `open_project`; a project is the store folder saved as `.imtz`). Right: one app run with crash detection, recovery offer and session autosave (lifecycle). |
-| [uml-deployment](diagrams/uml-deployment.drawio) | Where IMT's parts run: the analyst workstation (the app, the sandboxed child processes, the data folder), monitored servers, the Gitea build farm that produces the installers, and the download and web hosts. |
+| [uml-use-cases-investigate](diagrams/uml-use-cases-investigate.drawio) | What a support engineer does with logs and diagnostics; a developer can do everything a support engineer does. |
+| [uml-use-cases-report](diagrams/uml-use-cases-report.drawio) | Explaining and sharing: known issues, incident reports, bundles with redaction, projects, clock skew, the AI assistant, dumps. |
+| [uml-use-cases-extend](diagrams/uml-use-cases-extend.drawio) | Teaching and extending: parsers and profiles, pipelines, lenses and filter sets, dashboards, profiling, configuration diff, and writing plugins. |
+| [uml-use-cases-operate](diagrams/uml-use-cases-operate.drawio) | Operating and automating: the agent, collection, monitoring, watched folders, plugin management, updates and the `imt` command line in scripts and CI. |
+| [uml-class-domain-store](diagrams/uml-class-domain-store.drawio) | The `Store` ports with the DuckDB, remote and in-memory adapters, and the project state (`WorkspaceState`, `ClockOffsets`, `ProjectManifest`). |
+| [uml-class-domain-events](diagrams/uml-class-domain-events.drawio) | `Record`, `Level`, `EventBatch`, `EventSchema`, `WorkspaceSummary`, `SourceInfo` and the lists it owns. |
+| [uml-class-domain-profile](diagrams/uml-class-domain-profile.drawio) | `Profile` with its sections (including `LensCfg`), `CompiledProfile`, `Pipeline`, `Step`, `RecordTransform`, the parser library and `FormatCfg`. |
+| [uml-class-domain-query](diagrams/uml-class-domain-query.drawio) | `Query`, `FieldFilter`, `CompiledQuery`, `Condition`, and the query-language `Program`, `Stage` and `Expr`. |
+| [uml-class-plugin-api](diagrams/uml-class-plugin-api.drawio) | What a plugin implements in `imt-plugin-api`: `Plugin`, `Contributions`, the contribution traits and `serve`. |
+| [uml-class-plugin-registry](diagrams/uml-class-plugin-registry.drawio) | `PluginRegistry`, `Guard`, `Health`, the `Guarded*` adapters, `PluginInfo` and `PluginStatus`. |
+| [uml-class-plugin-process](diagrams/uml-class-plugin-process.drawio) | Plugins out of process: `Builtins`, `RemotePlugin`, the `Remote*` proxies, `PluginProcess`, the supervisor and the sandboxed child. |
+| [uml-component-store-protocol](diagrams/uml-component-store-protocol.drawio) | The store port table: `store_port_table!`, its three expansions (`StoreOp`, `RemoteStore`, the worker’s dispatch), the wire version and the run-time path of one call ([ADR 0042](adr/0042-store-port-table.md)). |
+| [uml-activity-ingest-read](diagrams/uml-activity-ingest-read.drawio) | Ingest of one file: read, expand, plan, import; every failure is listed as unrecognised with its reason and the rest of the import continues. |
+| [uml-activity-ingest-events](diagrams/uml-activity-ingest-events.drawio) | Records to events: import window, extractors, pipeline, markers and the store writer. |
+| [uml-activity-video](diagrams/uml-activity-video.drawio) | A video source from file to events: runtime check and install, sandboxed probe and frame passes, pure selection, alignment, vision descriptions and the `.frames` source ([ADR 0033](adr/0033-video-sources-ffmpeg-runtime.md)). |
+| [uml-seq-open-folder](diagrams/uml-seq-open-folder.drawio) | `open_paths`: path checks, the import job, progress polling and cancel, the report and the summary. |
+| [uml-seq-open-folder-worker](diagrams/uml-seq-open-folder-worker.drawio) | The import in the store worker: parallel files, importer, batcher, Parquet segments and the index. |
+| [uml-seq-query-timeline](diagrams/uml-seq-query-timeline.drawio) | A filter change fanning out to the grid, timeline and charts (side-effect free; stale replies are dropped). |
+| [uml-seq-marker-jump](diagrams/uml-seq-marker-jump.drawio) | A marker click: the page around an anchor event and `source_context`. |
+| [uml-seq-query-stream](diagrams/uml-seq-query-stream.drawio) | The search field’s query run as a job: streamed progress, Cancel through the Jobs pane. |
+| [uml-seq-moment](diagrams/uml-seq-moment.drawio) | What happened around a moment: `query_moment` and `Analysis::moment` in the store. |
+| [uml-seq-watched-folder](diagrams/uml-seq-watched-folder.drawio) | A watched folder: polling, `WatchState`, import jobs, known-issue notices. |
+| [uml-seq-cli-outliers](diagrams/uml-seq-cli-outliers.drawio) | `imt analyze outliers`: the CLI, the store worker and the pure `error_outliers` function over the `Query` port. |
+| [uml-seq-plugin-start](diagrams/uml-seq-plugin-start.drawio) | Starting the plugin processes: manifests, supervised processes, handshake and sandbox; safe mode starts none. |
+| [uml-seq-plugin-register](diagrams/uml-seq-plugin-register.drawio) | Registering contributions: `PluginRegistry`, `Guard`, `RemotePlugin` proxies, `Host` and profile compilation. |
+| [uml-state-live-tail](diagrams/uml-state-live-tail.drawio) | `set_live` drives a live-tail worker per window: watching, coalescing and refreshing with `Ingest::append_tail`. |
+| [uml-state-live-alerts](diagrams/uml-state-live-alerts.drawio) | Alert machines (armed, cooling down, muted) and the timeline follow mode. |
+| [uml-state-project](diagrams/uml-state-project.drawio) | The open project: untitled and saved, clean and dirty. |
+| [uml-state-session](diagrams/uml-state-session.drawio) | One app run: crash detection, the recovery offer, safe mode and session autosave. |
+| [uml-state-watched-file](diagrams/uml-state-watched-file.drawio) | One watched file: settling, import, back-off, giving up and too-large files. |
+| [uml-state-perfmon](diagrams/uml-state-perfmon.drawio) | A Data Collector Set as Debrief drives it: `PerfmonController` runs `logman`. |
+| [uml-deployment-workstation](diagrams/uml-deployment-workstation.drawio) | The analyst workstation: the webview, the app process, the data folder and the supervised child processes with their sandboxes. |
+| [uml-deployment-server](diagrams/uml-deployment-server.drawio) | A monitored server: `imt-agent`, `imt-collect`, `imt-monitor`, the OS sources and the output folder. |
+| [uml-deployment-release](diagrams/uml-deployment-release.drawio) | The Gitea build farm that produces the installers, the release assets, and the download hosts the app uses. |
 
 ## Opening and editing the diagrams
 
@@ -327,7 +359,7 @@ When saving from draw.io, keep *File > Properties > Compressed* turned off so th
   `api.rs` DTO (components, domain), a new profile section (domain), a new CI job or runner (deployment).
 - Treat a diagram that disagrees with the code as a bug in the diagram; fix the diagram, not the code.
 - Follow [diagrams/STYLE.md](diagrams/STYLE.md) for notation, palette and layout. Planned work is drawn with a dashed
-  outline and "(planned)"; remove the marker when the code lands, and update the date in the diagram footer.
-- The SVGs under `docs/diagrams/svg/` are exported from the `.drawio` sources with `scripts/export-diagrams.sh` (draw.io desktop); re-export in the same change as the edit.
+  outline and a "planned" tag; remove the tag when the code lands, and update the date in the diagram footer.
+- The `.drawio` sources are generated by the scripts in [`docs/diagrams/src`](diagrams/src/README.md): change the generator, run `src/generate.sh`, then export. The SVGs under `docs/diagrams/svg/` come from `scripts/export-diagrams.sh` (draw.io desktop); re-export in the same change as the edit.
 - Contracts remain defined in code: `app/src/app/core/api.types.ts` and `crates/imt-core/src/api.rs` for
   the wire format, `crates/imt-core/src/default_profile.toml` for the profile schema.
