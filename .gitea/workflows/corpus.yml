@@ -21,7 +21,7 @@ jobs:
     name: real-world EVTX corpus
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4

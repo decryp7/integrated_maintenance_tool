@@ -23,7 +23,7 @@ jobs:
   mutants:
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     steps:
       - uses: actions/checkout@v4
         with:

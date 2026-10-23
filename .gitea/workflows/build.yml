@@ -3,7 +3,7 @@
 #
 # Runner labels: ubuntu-latest, windows-latest, macos-latest. Adjust `runs-on`
 # if your act_runner instances use other labels.
-# Linux jobs run in the catthehacker/ubuntu:act-latest container (Node for JavaScript actions, git,
+# Linux jobs run in the garage image (Node for JavaScript actions, git,
 # and sudo-free root), since the runner's default ubuntu-latest image has no Node.
 # Releases need a repository secret RELEASE_TOKEN (a Gitea access token with
 # write:repository scope).
@@ -43,7 +43,8 @@ jobs:
     name: rust format + clippy
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      # garage: the Paddock CI image (dev.decryptology.net/decryp7/garage) with Rust tools, Tauri libraries, Node 24 and Playwright browsers pre-installed
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     steps:
       - uses: actions/checkout@v4
 
@@ -112,7 +113,7 @@ jobs:
     name: rust tests
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     steps:
       - uses: actions/checkout@v4
 
@@ -191,7 +192,7 @@ jobs:
     name: plugin SDK templates
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     env:
       CARGO_TARGET_DIR: /tmp/debrief-sdk-target
     steps:
@@ -232,7 +233,7 @@ jobs:
     name: licences, notices + commits
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     steps:
       - uses: actions/checkout@v4
         with:
@@ -290,7 +291,7 @@ jobs:
     name: frontend build, lint + unit tests
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     defaults:
       run:
         working-directory: app
@@ -328,7 +329,7 @@ jobs:
     name: end-to-end (shard ${{ matrix.shard }}/2)
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     strategy:
       fail-fast: false
       matrix:
@@ -380,7 +381,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     # Linux legs run in the act image (Node and the usual tools); Windows and macOS run on the host.
-    container: ${{ matrix.os == 'ubuntu-latest' && 'catthehacker/ubuntu:act-latest' || '' }}
+    container: ${{ matrix.os == 'ubuntu-latest' && 'dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023' || '' }}
     timeout-minutes: 60
     # Windows runners usually run as administrator, where WebView2 ignores WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS (how
     # msedgedriver enables remote debugging); the debug build hands those arguments to WebView2 itself, so both legs
@@ -633,7 +634,7 @@ jobs:
             bundles: dmg
     runs-on: ${{ matrix.os }}
     # Linux legs run in the act image (Node and the usual tools); Windows and macOS run on the host.
-    container: ${{ matrix.os == 'ubuntu-latest' && 'catthehacker/ubuntu:act-latest' || '' }}
+    container: ${{ matrix.os == 'ubuntu-latest' && 'dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -834,7 +835,7 @@ jobs:
     needs: [bundle, tauri-smoke, rust-lint, rust-test, licences, frontend, e2e]
     runs-on: ubuntu-latest
     container:
-      image: catthehacker/ubuntu:act-latest
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023
     steps:
       - uses: actions/checkout@v4
         with:
