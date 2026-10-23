@@ -49,6 +49,22 @@ with unapplied edits; closing from the title bar goes through the same check: Ru
 cannot trap the user), Enter runs the default action (`[data-default]` or the first enabled primary button; not in
 text areas, buttons, links or lists). On close the parent is re-enabled and focused.
 
+**Bootstrap.** Each OS window is its own Angular bootstrap (Paddock rule 34). The main window and pop-outs keep the full
+`appConfig` (now a lazily imported chunk, so a dialog window never loads it); a dialog window boots
+`dialogAppConfig(id)`: logger, error handling, the backends (commands to the engine), icons, the theme and a command
+forwarder, plus the *features* its registry entry names (`ai`, `tools`, `share`, `analysis`, `updates`, `diagnostics`,
+`profiling`, `native`, `dotnet`), each only the backend providers of that area. It has no session, docking, windowing,
+update, job or notification machinery and shares no store state with other windows: UI state syncs by events, data comes
+from the engine, and commands a dialog runs (open a view, change the layout) are handed to its host (`dialogRun`).
+`e2e/dialog-window.e2e.ts` opens the dialog route by URL in the browser build and renders 22 dialogs with only these
+providers; a dialog that needs a backend its entry does not name fails there with a missing-provider error.
+
+Measured (production build served locally, Chromium, median of 5, dialog route in a fresh context): JavaScript loaded
+for the about / AI setup / settings / export dialogs 2574 / 2627 / 2575 / 2574 KB in 177-179 files with the full config,
+2383 / 1847 / 1935 / 1906 KB in 68-104 files with the dialog config; time to a rendered dialog about 345 ms before, about
+320 ms after (loopback, so the real saving on a slower disk or CPU is larger). JS heap showed no stable difference
+(37-62 MB, noise). Real webview creation inside Tauri was not measured.
+
 **One window per dialog id** (per opener): opening it again focuses the open window and returns the same ref (new
 inputs are not applied to an open window).
 

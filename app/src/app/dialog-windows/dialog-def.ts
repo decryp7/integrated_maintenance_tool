@@ -6,6 +6,9 @@ import { Injector, Type } from '@angular/core';
  */
 export type DialogModality = 'modal' | 'modeless';
 
+/** A group of providers a dialog window loads on top of the base set. */
+export type DialogFeature = 'ai' | 'tools' | 'share' | 'updates' | 'diagnostics' | 'analysis' | 'profiling' | 'native' | 'dotnet';
+
 /** One dialog of Debrief (ADR 0050): its id, modality and how its content is loaded in its own window. */
 export interface DialogDef {
   /** Stable id (`ai-setup`): the dialog window's route, its remembered bounds' key, its test id. */
@@ -21,6 +24,8 @@ export interface DialogDef {
    * id with the same input focuses it, with another input opens another window. Without it, one window per id.
    */
   readonly instanced?: boolean;
+  /** Feature providers the dialog's window needs besides the small base set (see `dialog-bootstrap.ts`). */
+  readonly features?: readonly DialogFeature[];
   /** The content component, loaded when the dialog window opens (the host never loads it). */
   readonly load: () => Promise<Type<unknown>>;
 }

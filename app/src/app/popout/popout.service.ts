@@ -312,6 +312,8 @@ export class PopoutService implements PanelWindows {
   private hostCommand(command: string, arg: string | undefined): void {
     if (command === 'showView' && arg && this.views.find(arg)) this.dock.show(arg);
     else if (command === 'run' && arg && runsInHost(arg)) void this.injector.get(CommandRegistry).run(arg);
+    // A dialog window's command (its own window has none of the app's commands): run for the user, here.
+    else if (command === 'dialogRun' && arg) void this.injector.get(CommandRegistry).run(arg);
     else if (command === 'dragOver' && arg) {
       const over = parseDragOver(arg);
       if (over) void this.draggedOver(over.label, over, 'handle');

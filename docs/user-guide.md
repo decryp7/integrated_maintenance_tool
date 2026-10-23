@@ -120,6 +120,12 @@ Two kinds:
 
 ![A modal dialog over a dimmed window](screenshots/dialog-modal.png)
 
+![The first-start AI set-up](screenshots/dialog-ai-setup.png)
+
+![Share a redacted copy: the buttons stay in view](screenshots/dialog-redacted-copy.png)
+
+![Export events](screenshots/dialog-export.png)
+
 The screenshots come from the browser build, which draws the same dialogs inside the page; on the desktop each is a real window.
 
 `Esc` and `Cmd+W` / `Ctrl+W` close a dialog window (Settings asks first when edits are unapplied), `Enter` runs its default

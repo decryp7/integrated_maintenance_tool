@@ -1,5 +1,6 @@
 import { InjectionToken } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
+import { isTauri } from '../core/platform';
 import { Rect } from '../dock/dock-geometry';
 import { WorkArea } from '../popout/bounds';
 import { currentWindowLabel, listenHere, Unlisten } from '../windowing/window-events';
@@ -57,7 +58,7 @@ export interface DialogIo {
   windowLabel(): Promise<string>;
 }
 
-export const DIALOG_IO = new InjectionToken<DialogIo>('DIALOG_IO', { providedIn: 'root', factory: tauriDialogIo });
+export const DIALOG_IO = new InjectionToken<DialogIo>('DIALOG_IO', { providedIn: 'root', factory: createDialogIo });
 
 export function tauriDialogIo(): DialogIo {
   return {
@@ -83,5 +84,49 @@ export function tauriDialogIo(): DialogIo {
       });
     },
     windowLabel: currentWindowLabel,
+  };
+}
+
+export function createDialogIo(): DialogIo {
+  return isTauri() ? tauriDialogIo() : browserDialogIo();
+}
+
+/** Key under which the browser build leaves a dialog window's answer (tests and tooling read it). */
+export const BROWSER_DIALOG_RESULT_KEY = 'debrief.dialog.browserResult';
+
+/**
+ * The browser build has no dialog windows (the host shows dialogs in the page), but the dialog route can still be
+ * opened by URL (`#/dialog?...&dialogInput=<json>`): this is for tests and measurements of the dialog window's own
+ * bootstrap. The answer is left in `localStorage` and the tab closes.
+ */
+export function browserDialogIo(): DialogIo {
+  const route = () => new URLSearchParams(location.hash.split('?')[1] ?? '');
+  return {
+    open: async () => {
+      throw new Error('dialogs open in the page in the browser build');
+    },
+    take: async () => {
+      const r = route();
+      let input: unknown = {};
+      try {
+        input = JSON.parse(r.get('dialogInput') ?? '{}');
+      } catch {
+        /* no input */
+      }
+      return { dialogId: r.get('id') ?? '', title: r.get('title') ?? r.get('id') ?? '', modality: r.get('modality') === 'modal' ? 'modal' : 'modeless', input };
+    },
+    close: async (result) => {
+      try {
+        localStorage.setItem(BROWSER_DIALOG_RESULT_KEY, JSON.stringify({ result: result ?? null }));
+      } catch {
+        /* a convenience only */
+      }
+      window.close();
+    },
+    listen: async () => () => undefined,
+    requestClose: async () => undefined,
+    ask: async (q) => window.confirm(q.message),
+    workAreas: async () => [],
+    windowLabel: async () => route().get('label') ?? '',
   };
 }

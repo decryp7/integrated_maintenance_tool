@@ -371,10 +371,17 @@ import {
     .err {
       color: var(--danger-text, var(--lvl-error));
     }
+    /* The buttons stay in view while the models scroll. */
     .foot {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
+      position: sticky;
+      bottom: -16px;
+      margin-bottom: -16px;
+      padding: 10px 0 16px;
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
     }
   `,
 })
