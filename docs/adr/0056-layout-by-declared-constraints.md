@@ -1,6 +1,6 @@
 # 56. Layout by declared constraints
 
-- Status: Proposed
+- Status: Accepted (2026-10-24; user: per-dialog command lists, everything in 1.1; incident-summary becomes a modeless viewer; a saved layout that does not fit is fitted with one Undo notification; shared crates `paddock-dialogs` and `paddock-health`)
 - Date: 2026-10-24
 - Related: ADR 0024-style dock work (dockview host `app/src/app/dock/`), Paddock rules 18 and 40, AGENTS.md "Pure core, thin edges"
 - Replaces: the placement heuristics in `app/src/app/dock/dock-placement.ts`

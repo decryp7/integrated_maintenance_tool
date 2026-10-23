@@ -1,6 +1,6 @@
 # 55. One notification service and service-health model
 
-- Status: Proposed
+- Status: Accepted (2026-10-24; user: per-dialog command lists, everything in 1.1; incident-summary becomes a modeless viewer; a saved layout that does not fit is fitted with one Undo notification; shared crates `paddock-dialogs` and `paddock-health`)
 - Date: 2026-10-24
 - Related: ADR 0016 (command table), ADR 0050/0054 (dialogs), the notification centre (`app/src-tauri/src/notification_centre/`),
   the process watcher (`app/src-tauri/src/performance/watch.rs`), Paddock rules 19, 40 and "Where logic lives" in AGENTS.md

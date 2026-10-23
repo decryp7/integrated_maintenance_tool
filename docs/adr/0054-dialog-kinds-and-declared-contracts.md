@@ -1,6 +1,6 @@
 # 54. Dialog kinds and declared contracts
 
-- Status: Proposed
+- Status: Accepted (2026-10-24; user: per-dialog command lists, everything in 1.1; incident-summary becomes a modeless viewer; a saved layout that does not fit is fitted with one Undo notification; shared crates `paddock-dialogs` and `paddock-health`)
 - Date: 2026-10-24
 - Amends: ADR 0050 (dialogs are real OS windows). Related: ADR 0016 (command table), Paddock rules 17 and 40
 - Extraction: the kind model, the contract and the checks are written to move into `paddock-ui` and the Paddock Rust
