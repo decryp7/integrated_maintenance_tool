@@ -13,6 +13,7 @@ export function fileName(path: string | null): string {
 /** 0–100, from bytes when known, else from files; 0 while the files are still being found (the bar is then indeterminate). */
 export function percent(p: ImportProgress): number {
   if (p.phase === 'finding') return 0;
+  if (p.phase === 'finishing') return 100;
   if (p.phase === 'detecting') return p.total > 0 ? Math.min(100, Math.round((p.done / p.total) * 100)) : 0;
   if (p.bytesTotal > 0) return Math.min(100, Math.round((p.bytesDone / p.bytesTotal) * 100));
   if (p.total > 0) return Math.min(100, Math.round((p.done / p.total) * 100));
@@ -67,6 +68,7 @@ export function progressLine(p: ImportProgress): string {
  * them yet (a folder is still being walked), instead of a "0 of 0 files" that reads as broken.
  */
 export function importStatusText(p: ImportProgress): string {
+  if (p.phase === 'finishing') return p.stage ?? $localize`:@@import.format.finishing:Finishing…`;
   if (p.phase !== 'importing') return progressLine(p);
   if (p.total <= 0) return $localize`:@@import.format.scanning:Scanning for files…`;
   const line = progressLine(p);

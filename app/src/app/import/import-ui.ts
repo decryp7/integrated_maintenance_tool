@@ -13,8 +13,8 @@ function view(svc: ImportProgressService) {
     const p = svc.progress();
     if (!p) return null;
     // Finding files has no total: the bar is indeterminate (animated) while the number grows.
-    const counted = p.phase !== 'finding' && p.total > 0;
-    const indeterminate = p.phase === 'finding' || (p.phase === 'importing' && p.total <= 0);
+    const counted = p.phase !== 'finding' && p.phase !== 'finishing' && p.total > 0;
+    const indeterminate = p.phase === 'finding' || p.phase === 'finishing' || (p.phase === 'importing' && p.total <= 0);
     return {
       percent: percent(p),
       line: counted ? progressLine(p) : importStatusText(p),

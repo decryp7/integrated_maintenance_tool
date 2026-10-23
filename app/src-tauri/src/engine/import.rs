@@ -3,7 +3,7 @@
 //! bytes, the current file) is the job's, Cancel cancels the session, and its report is the result. Readers keep
 //! working meanwhile (the store never blocks them). The annotators run over the new data before the job ends.
 
-use crate::jobs::{Controls, Done, JobCtx, JobProgress, JobResult, JobSpec};
+use crate::jobs::{Controls, Done, JobCtx, JobPhase, JobProgress, JobResult, JobSpec, PhaseScale};
 use crate::windows::{CurrentWindow, WindowState};
 use crate::CmdResult;
 use debrief_core::ports::{ImportReport, ImportSession, Store, StoreResult};
@@ -46,11 +46,11 @@ fn start_when_free(store: &dyn Store, start: &Start, ctx: &JobCtx, cancel: &Atom
 /// The job's progress from the session's.
 pub(crate) fn job_progress(p: &ProgressSnapshot) -> JobProgress {
     JobProgress {
-        // Until the files are counted ("finding") the bar has no fraction: it stays indeterminate.
+        phase: import_phase(p),
+        // Only the byte-reading phase has a fraction: finding, detecting and the tail have no byte scale.
         fraction: (p.phase == ImportPhase::Importing && p.bytes_total > 0).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
         done: Some(p.done as u64),
         total: Some(p.total as u64),
-        phase: Some(p.phase),
         eta_ms: p.eta_ms,
         bytes_done: Some(p.bytes_done),
         bytes_total: (p.bytes_total > 0).then_some(p.bytes_total),
@@ -63,6 +63,17 @@ pub(crate) fn job_progress(p: &ProgressSnapshot) -> JobProgress {
             }
         }),
         ..JobProgress::default()
+    }
+}
+
+/// The one phase the job shows, from the session's phase (and the step of the tail). Idle shows none.
+fn import_phase(p: &ProgressSnapshot) -> Option<JobPhase> {
+    match p.phase {
+        ImportPhase::Idle => None,
+        ImportPhase::Finding => Some(JobPhase::new("Finding files", PhaseScale::Indeterminate)),
+        ImportPhase::Detecting => Some(JobPhase::new("Checking files", PhaseScale::Count)),
+        ImportPhase::Importing => Some(JobPhase::new("Importing", PhaseScale::Count)),
+        ImportPhase::Finishing => Some(JobPhase::new(p.stage.as_deref().unwrap_or("Finishing"), PhaseScale::Indeterminate)),
     }
 }
 
@@ -179,6 +190,7 @@ mod tests {
             current: Some("/logs/app.log".into()),
             elapsed_ms: 10,
             eta_ms: Some(30),
+            stage: None,
         };
         let j = job_progress(&p);
         assert_eq!(j.fraction, Some(0.25));
@@ -187,9 +199,16 @@ mod tests {
             (Some(2), Some(5), Some(50), Some(200))
         );
         assert_eq!(j.current.as_deref(), Some("app.log"));
-        assert_eq!(j.phase, Some(ImportPhase::Importing));
+        assert_eq!(j.phase, Some(JobPhase::new("Importing", PhaseScale::Count)));
         let idle = job_progress(&ProgressSnapshot::stopped());
         assert_eq!((idle.fraction, idle.bytes_total, idle.current), (None, None, None));
+        let tail = job_progress(&ProgressSnapshot {
+            phase: ImportPhase::Finishing,
+            stage: Some("Compacting segments".into()),
+            ..p.clone()
+        });
+        assert_eq!(tail.fraction, None, "the tail has no byte scale");
+        assert_eq!(tail.phase, Some(JobPhase::new("Compacting segments", PhaseScale::Indeterminate)));
     }
 
     #[test]
@@ -203,7 +222,7 @@ mod tests {
             ..ProgressSnapshot::stopped()
         };
         let j = job_progress(&p);
-        assert_eq!((j.phase, j.done, j.fraction), (Some(ImportPhase::Finding), Some(12_345), None));
+        assert_eq!((j.phase, j.done, j.fraction), (Some(JobPhase::new("Finding files", PhaseScale::Indeterminate)), Some(12_345), None));
         assert_eq!(j.current.as_deref(), Some("2026/march"), "the folder, not the whole path");
         assert_eq!(folder_name("/x"), "x");
     }

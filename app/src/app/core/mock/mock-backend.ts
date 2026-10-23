@@ -51,6 +51,7 @@ import { mockExplainRegex, mockInferRegex } from './mock-regex';
 import { syntheticFacet, syntheticPage } from './mock-synthetic';
 import { MOCK_PROFILE_TOML } from './mock-profile';
 import { mockJobs, mockSteps } from '../../jobs/mock-jobs';
+import type { JobPhase } from '../../jobs/jobs.types';
 import { emptyReport, LEGACY_LIVE, MockAlertMutes, MockLiveConfig, MockLiveSim, mockGroupOf, mockResolveLiveOptions, mockResolveWindow, mockWatchMode } from './mock-live';
 import { validateLiveSection } from './mock-live-profile';
 import { BUILTIN_ICONS } from '../../markers/builtin-icons';
@@ -424,7 +425,7 @@ export class MockBackend implements DebriefBackend {
             etaMs: p.etaMs,
             bytesDone: p.bytesDone,
             bytesTotal: p.bytesTotal,
-            phase: p.phase,
+            phase: importJobPhase(p),
             ...(p.current ? { current: p.current } : {}),
           }),
       );
@@ -1024,4 +1025,20 @@ function alertNotice(alert: LiveAlert) {
     primary: { type: 'showAlert' as const, alertId: alert.id },
     dedupeKey: `live:${alert.kind}:${who}`,
   };
+}
+
+/** The one phase an import job shows, from the import's phase (as the engine's job progress derives it). */
+function importJobPhase(p: ImportProgress): JobPhase | null {
+  switch (p.phase) {
+    case 'finding':
+      return { label: 'Finding files', scale: 'indeterminate' };
+    case 'detecting':
+      return { label: 'Checking files', scale: 'count' };
+    case 'importing':
+      return { label: 'Importing', scale: 'count' };
+    case 'finishing':
+      return { label: p.stage ?? 'Finishing', scale: 'indeterminate' };
+    default:
+      return null;
+  }
 }

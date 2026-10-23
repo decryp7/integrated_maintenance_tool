@@ -56,11 +56,26 @@ impl Inner {
         Ok(out)
     }
 
-    /// Forgets every event and source (keeping the opened roots), then imports the roots again.
+    /// Imports the opened roots again, replacing what is stored only when the new data is complete: the old
+    /// catalog rows and segment files are kept aside until the import ends, so a cancel (or a failure) puts the
+    /// previous store back untouched.
     fn reimport(&self, progress: &debrief_core::workspace::ImportProgress) -> StoreResult<ImportReport> {
         let roots = read_lock(&self.state).roots.clone();
-        self.forget_events()?;
-        self.import(&roots, progress)
+        progress.set_stage(Some("Keeping the current data safe"));
+        let kept = self.set_aside_events()?;
+        let result = self.import(&roots, progress);
+        let cancelled = progress.is_cancelled_flag();
+        match result {
+            Ok(report) if !cancelled => {
+                self.discard_aside(kept);
+                Ok(report)
+            }
+            other => {
+                progress.set_stage(Some("Restoring the previous data"));
+                self.restore_aside(kept)?;
+                other.map(|_| ImportReport::default())
+            }
+        }
     }
 
     /// Makes `parsers` (the library compiled with the new profile) current.

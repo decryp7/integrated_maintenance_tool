@@ -65,6 +65,8 @@ pub struct ImportProgress {
 #[derive(Debug, Default)]
 struct ProgressDetail {
     current: Option<String>,
+    /// The label of the `Finishing` phase ("Compacting segments"); `None` while reading.
+    stage: Option<String>,
     started: Option<Instant>,
     finished_ms: Option<u64>,
 }
@@ -83,6 +85,8 @@ pub enum ImportPhase {
     Detecting,
     /// Reading the files: `done` of `total` files, `bytes_done` of `bytes_total`.
     Importing,
+    /// After the files are read (compacting, indexing, restoring): the snapshot's `stage` names the step.
+    Finishing,
 }
 
 impl ImportPhase {
@@ -91,6 +95,7 @@ impl ImportPhase {
             1 => ImportPhase::Finding,
             2 => ImportPhase::Detecting,
             3 => ImportPhase::Importing,
+            4 => ImportPhase::Finishing,
             _ => ImportPhase::Idle,
         }
     }
@@ -115,6 +120,9 @@ pub struct ProgressSnapshot {
     pub elapsed_ms: u64,
     /// Estimated time left from the bytes read so far; `None` until it can be estimated.
     pub eta_ms: Option<u64>,
+    /// The step of the `Finishing` phase ("Compacting segments"); `None` in every other phase.
+    #[serde(default)]
+    pub stage: Option<String>,
 }
 
 impl ProgressSnapshot {
@@ -131,6 +139,7 @@ impl ProgressSnapshot {
             current: None,
             elapsed_ms: 0,
             eta_ms: None,
+            stage: None,
         }
     }
 }
@@ -152,14 +161,14 @@ impl ImportProgress {
     pub fn snapshot(&self) -> ProgressSnapshot {
         use std::sync::atomic::Ordering::SeqCst;
         let running = self.running.load(SeqCst);
-        let (current, elapsed_ms) = {
+        let (current, stage, elapsed_ms) = {
             let d = self.detail();
             let elapsed = match (d.finished_ms, d.started) {
                 (Some(ms), _) => ms,
                 (None, Some(t)) => t.elapsed().as_millis() as u64,
                 (None, None) => 0,
             };
-            (d.current.clone(), elapsed)
+            (d.current.clone(), d.stage.clone(), elapsed)
         };
         let (bytes_done, bytes_total) = (self.bytes_done.load(SeqCst), self.bytes_total.load(SeqCst));
         ProgressSnapshot {
@@ -169,10 +178,15 @@ impl ImportProgress {
             cancelled: self.cancel.load(SeqCst),
             bytes_done,
             bytes_total,
-            phase: if running { ImportPhase::from_u8(self.phase.load(SeqCst)) } else { ImportPhase::Idle },
+            phase: match (running, stage.is_some()) {
+                (false, _) => ImportPhase::Idle,
+                (true, true) => ImportPhase::Finishing,
+                (true, false) => ImportPhase::from_u8(self.phase.load(SeqCst)),
+            },
             current: if running { current } else { None },
             elapsed_ms,
             eta_ms: if running { eta(elapsed_ms, bytes_done, bytes_total) } else { None },
+            stage: if running { stage } else { None },
         }
     }
 
@@ -189,6 +203,7 @@ impl ImportProgress {
         self.reset_counts();
         *self.detail() = ProgressDetail {
             current: None,
+            stage: None,
             started: Some(Instant::now()),
             finished_ms: None,
         };
@@ -223,6 +238,7 @@ impl ImportProgress {
             self.cancel.store(false, SeqCst);
             *self.detail() = ProgressDetail {
                 current: None,
+                stage: None,
                 started: Some(Instant::now()),
                 finished_ms: None,
             };
@@ -247,6 +263,7 @@ impl ImportProgress {
             self.cancel.store(false, SeqCst);
             *self.detail() = ProgressDetail {
                 current: None,
+                stage: None,
                 started: Some(Instant::now()),
                 finished_ms: None,
             };
@@ -257,6 +274,11 @@ impl ImportProgress {
         self.detail().current = None;
         self.phase.store(ImportPhase::Importing as u8, SeqCst);
         self.running.store(true, SeqCst);
+    }
+
+    /// Names the step of the `Finishing` phase once the files are read (`None` clears it).
+    pub fn set_stage(&self, stage: Option<&str>) {
+        self.detail().stage = stage.map(str::to_string);
     }
 
     pub(crate) fn reading(&self, path: &Path) {
@@ -272,6 +294,7 @@ impl ImportProgress {
     pub(crate) fn finish(&self) {
         let mut d = self.detail();
         d.current = None;
+        d.stage = None;
         d.finished_ms = Some(d.started.map_or(0, |t| t.elapsed().as_millis() as u64));
         drop(d);
         self.phase.store(ImportPhase::Idle as u8, std::sync::atomic::Ordering::SeqCst);
@@ -281,6 +304,11 @@ impl ImportProgress {
     /// The flag [`ImportProgress::cancel`] sets, for code that checks it in a loop.
     pub fn cancel_flag(&self) -> &std::sync::atomic::AtomicBool {
         &self.cancel
+    }
+
+    /// Whether Cancel was asked for (also for code outside this crate that decides what to keep).
+    pub fn is_cancelled_flag(&self) -> bool {
+        self.is_cancelled()
     }
 
     pub(crate) fn is_cancelled(&self) -> bool {
@@ -1370,5 +1398,29 @@ mod progress_tests {
         let (p, name, result) = &results[0];
         assert_eq!((p.as_str(), name.as_str()), ("/definitely/not/here.log", "here.log"));
         assert!(result.is_err());
+    }
+}
+
+#[cfg(test)]
+mod phase_tests {
+    use super::*;
+
+    #[test]
+    fn the_phase_shows_while_running_and_clears_on_start_and_finish() {
+        let p = ImportProgress::default();
+        p.start(2, 10);
+        assert_eq!((p.snapshot().phase, p.snapshot().stage), (ImportPhase::Importing, None));
+        p.set_stage(Some("Compacting segments"));
+        let s = p.snapshot();
+        assert_eq!((s.phase, s.stage.as_deref()), (ImportPhase::Finishing, Some("Compacting segments")));
+        p.finish();
+        assert_eq!(p.snapshot().stage, None);
+        p.set_stage(Some("late"));
+        assert_eq!(p.snapshot().stage, None, "a stopped import shows no stage");
+        p.start(1, 1);
+        assert_eq!(p.snapshot().stage, None, "a new import starts without the old stage");
+        assert!(!p.is_cancelled_flag());
+        p.cancel();
+        assert!(p.is_cancelled_flag());
     }
 }

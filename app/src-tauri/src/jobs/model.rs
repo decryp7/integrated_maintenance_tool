@@ -195,6 +195,37 @@ pub enum ProgressUnit {
     Bytes,
 }
 
+/// How a phase is measured. Maps 1:1 onto the shared `paddock-jobs` phase scale.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PhaseScale {
+    /// `done`/`total` are bytes.
+    Bytes,
+    /// `done`/`total` are items.
+    #[default]
+    Count,
+    /// The total is not known (yet): the bar is indeterminate and `done` is a growing count.
+    Indeterminate,
+}
+
+/// The stage a job is in ("Downloading", "Unpacking"): its own label and scale, shown next to the bar.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct JobPhase {
+    pub label: String,
+    #[serde(default)]
+    pub scale: PhaseScale,
+}
+
+impl JobPhase {
+    pub fn new(label: impl Into<String>, scale: PhaseScale) -> JobPhase {
+        JobPhase {
+            label: label.into(),
+            scale,
+        }
+    }
+}
+
 /// How far a job is. Any part may be unknown.
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -216,12 +247,29 @@ pub struct JobProgress {
     /// What it works on now (an import: the file's name; never a path).
     #[serde(default)]
     pub current: Option<String>,
-    /// What an import is doing (finding files, detecting, importing); `done`/`total` count different things per phase.
+    /// The stage the job is in now, on its own scale (absent for jobs that have no stages).
     #[serde(default)]
-    pub phase: Option<debrief_core::workspace::ImportPhase>,
+    pub phase: Option<JobPhase>,
 }
 
 impl JobProgress {
+    /// A named phase on its own scale. `total` 0 or an indeterminate scale gives no fraction (growing `done` only).
+    pub fn in_phase(label: &str, scale: PhaseScale, done: u64, total: u64) -> JobProgress {
+        let known = total > 0 && scale != PhaseScale::Indeterminate;
+        JobProgress {
+            fraction: known.then(|| (done as f64 / total as f64).min(1.0) as f32),
+            done: Some(done),
+            total: known.then_some(total),
+            unit: if scale == PhaseScale::Bytes {
+                ProgressUnit::Bytes
+            } else {
+                ProgressUnit::Items
+            },
+            phase: Some(JobPhase::new(label, scale)),
+            ..JobProgress::default()
+        }
+    }
+
     pub fn fraction(f: f32) -> JobProgress {
         JobProgress {
             fraction: Some(f),
@@ -518,5 +566,20 @@ mod tests {
         assert_eq!(serde_json::to_value(p).unwrap()["unit"], "bytes");
         let old: JobProgress = serde_json::from_value(serde_json::json!({"fraction": 0.5, "done": 1, "total": 2, "etaMs": null})).unwrap();
         assert_eq!(old.unit, ProgressUnit::Items);
+    }
+
+    #[test]
+    fn phases_have_their_own_scale_and_mirror_the_wire() {
+        let b = JobProgress::in_phase("Downloading", PhaseScale::Bytes, 5, 10);
+        assert_eq!((b.fraction, b.unit), (Some(0.5), ProgressUnit::Bytes));
+        let i = JobProgress::in_phase("Finding files", PhaseScale::Indeterminate, 42, 100);
+        assert_eq!((i.fraction, i.total, i.done), (None, None, Some(42)));
+        let c = JobProgress::in_phase("Importing", PhaseScale::Count, 3, 0);
+        assert_eq!((c.fraction, c.total), (None, None));
+        let v = serde_json::to_value(&b).unwrap();
+        assert_eq!(v["phase"], serde_json::json!({"label": "Downloading", "scale": "bytes"}));
+        let old: JobProgress =
+            serde_json::from_value(serde_json::json!({"fraction": null, "done": null, "total": null, "etaMs": null})).unwrap();
+        assert_eq!(old.phase, None);
     }
 }

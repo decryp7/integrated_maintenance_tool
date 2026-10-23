@@ -12,7 +12,7 @@ import { JobViewer } from './job-viewer';
 import { KindFilter, KindOption } from '../ui/kind-filter';
 import { JobsStore, JobsView } from './jobs.store';
 import { JOB_KINDS, JobInfo, JobKind, JobState } from './jobs.types';
-import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
+import { kindLabel, linkLabel, phaseText, queuedLabel, stateLabel } from './jobs-text';
 
 /**
  * The Jobs pane: running, queued and finished work of this window (and app-wide downloads), with progress, ETA,
@@ -92,6 +92,9 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
                 @if (j.state !== 'queued') {
                   <span>{{ elapsedText(j) }}</span>
                 }
+                @if (j.state === 'running' && phaseOf(j); as ph) {
+                  <span class="phase" [attr.data-testid]="'job-phase-' + j.id">{{ ph }}</span>
+                }
                 @if (progressText(j); as p) {
                   <span [attr.data-testid]="'job-progress-' + j.id">{{ p }}</span>
                 }
@@ -127,6 +130,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
     .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
     .state { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
     [data-state='failed'] .state, .error { color: var(--danger-text, var(--lvl-error)); }
+    .phase { font-weight: 600; color: var(--text-2); }
     .error { margin: 0; overflow-wrap: anywhere; }
     progress { width: 100%; height: 6px; accent-color: var(--accent); }
     .meta { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -220,6 +224,10 @@ export class JobsPanel {
    * "1.2 GB of 4 GB · 12 MB/s · about 3 min left" for byte progress (speed and time left from the job's meter),
    * "3 / 12 · about 2 min left" for counted items; '' when there is nothing to say.
    */
+  protected phaseOf(j: JobInfo): string {
+    return phaseText(j.progress);
+  }
+
   protected progressText(j: JobInfo): string {
     const { done, total, unit } = j.progress;
     if (unit === 'bytes' && done !== null) {

@@ -178,6 +178,20 @@ describe('JobsPanel', () => {
     expect(bar.hasAttribute('value')).toBe(false);
   });
 
+  it('names the running phase next to the bar, with a growing count when the total is unknown', async () => {
+    const phase = (label: string, scale: 'bytes' | 'count' | 'indeterminate', done: number | null) => ({ fraction: null, done, total: null, etaMs: null, unit: 'items' as const, phase: { label, scale } });
+    const { f, fake } = setup({ jobs: [jobInfo({ id: 1, state: 'running', progress: phase('Compacting segments', 'indeterminate', 1234) })], paused: [] });
+    await render(f);
+    expect(el(f, '[data-testid=job-phase-1]').textContent).toBe('Compacting segments: 1,234');
+    expect(el<HTMLProgressElement>(f, '[data-testid=job-1] progress').hasAttribute('value')).toBe(false);
+    fake.push({ jobs: [jobInfo({ id: 1, state: 'running', progress: phase('Unpacking', 'bytes', 10) })], paused: [] });
+    await settle(f);
+    expect(el(f, '[data-testid=job-phase-1]').textContent).toBe('Unpacking');
+    fake.push({ jobs: [jobInfo({ id: 1, state: 'running' })], paused: [] });
+    await settle(f);
+    expect(f.nativeElement.querySelector('[data-testid=job-phase-1]')).toBeNull();
+  });
+
   it('cancels, retries and views through the store and the viewer', async () => {
     const { f, fake, viewer } = setup(sample());
     await render(f);
@@ -431,6 +445,14 @@ describe('StatusJobs', () => {
     expect(bell.getAttribute('aria-label')).toBe('Notifications');
     expect(bell.textContent?.trim()).toBe('');
     expect(bell.classList.contains('on')).toBe(false);
+  });
+
+  it('shows the first running job\'s phase in the status bar and its tooltip', async () => {
+    const progress = { fraction: null, done: 3, total: null, etaMs: null, unit: 'items' as const, phase: { label: 'Writing the project file', scale: 'bytes' as const } };
+    const { f } = setupStatus([jobInfo({ id: 1, state: 'running', progress })], 0);
+    await render(f);
+    expect(el(f, '[data-testid=status-jobs-phase]').textContent).toBe('Writing the project file');
+    expect(el(f, '[data-testid=status-jobs]').getAttribute('aria-label')).toBe('1 job running or waiting: Writing the project file');
   });
 
   it('shows the running and waiting job count and opens the Jobs pane', async () => {
