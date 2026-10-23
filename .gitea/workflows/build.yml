@@ -755,6 +755,11 @@ jobs:
           IMT_CARGO_PROFILE: dist
         run: |
           npm ci
+          # The Windows runner keeps its target folder between runs: drop old installers so an earlier version's
+          # (signed) installer can never be collected into this release.
+          target="${CARGO_TARGET_DIR:-../target}"
+          if command -v cygpath >/dev/null; then target="$(cygpath -u "$target")"; fi
+          rm -rf "$target/dist/bundle"
           bundles='${{ matrix.bundles }}'
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && [ -n "$TAURI_UPDATER_PUBKEY" ]; then
             # macOS updates install from the .app bundle's archive.
@@ -811,6 +816,10 @@ jobs:
           if command -v cygpath >/dev/null; then dir="$(cygpath -u "$dir")"; fi
           find "$dir/dist/bundle" -type f \( -name '*.deb' -o -name '*.rpm' -o -name '*-setup.exe' -o -name '*.dmg' -o -name '*.app.tar.gz' -o -name '*.sig' \) -exec cp {} dist/ \;
           ls -la dist
+          # Every versioned installer must carry this build's version (the .app.tar.gz has none in its name).
+          version="$(node -p "require('./app/src-tauri/tauri.conf.json').version")"
+          stale="$(ls dist | grep -E '_[0-9]+\.[0-9]+\.[0-9]+' | grep -v "_${version}_" || true)"
+          if [ -n "$stale" ]; then echo "::error::Installers from another version: $stale"; exit 1; fi
 
       # Gitea Actions supports upload/download-artifact v3.
       - uses: actions/upload-artifact@v3
@@ -858,20 +867,29 @@ jobs:
       # releases/download/latest/latest.json, i.e. from the latest (non-pre-release) release.
       - name: Updater manifest (latest.json)
         shell: bash
+        env:
+          # The public address installed apps download from. Inside the runners github.server_url is Gitea's internal
+          # http address, which the updater must never be given.
+          BASE_URL: https://dev.decryptology.net/${{ github.repository }}/releases/download/${{ github.ref_name }}
         run: |
-          node --test scripts/release
+          node --test scripts/release/latest-json.test.mjs
           if ! find artifacts -name '*.sig' | grep -q .; then
             echo '::warning::No signed updater artifacts; latest.json is not published (installed apps will not see this release).'
             exit 0
           fi
           tag='${{ github.ref_name }}'
           node scripts/release/latest-json.mjs --dir artifacts --version "$tag" --notes artifacts/RELEASE_NOTES.md \
-            --base-url "${{ github.server_url }}/${{ github.repository }}/releases/download/$tag" --out artifacts/latest.json
+            --base-url "$BASE_URL" --out artifacts/latest.json
           # The signatures are in latest.json; the .sig files are not release assets.
           find artifacts -name '*.sig' -delete
           cat artifacts/latest.json
 
-      - uses: https://gitea.com/actions/release-action@main
-        with:
-          files: artifacts/**/*
-          api_key: ${{ secrets.RELEASE_TOKEN }}
+      # Plain API calls instead of gitea.com/actions/release-action, which is a Go action and the runner image has no Go.
+      - name: Publish the release
+        shell: bash
+        env:
+          GITEA_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          node --test scripts/release/publish.test.mjs
+          node scripts/release/publish.mjs --api "${{ github.server_url }}/api/v1" --repo "${{ github.repository }}" \
+            --tag "${{ github.ref_name }}" --notes artifacts/RELEASE_NOTES.md --dir artifacts
