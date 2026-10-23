@@ -115,3 +115,7 @@ and a CI step that verifies the result. Without it the bundle is only linker-sig
 (v1.0.0 shipped like this; fixed in 1.0.1). `scripts/ci/macos-verify-bundle.sh` runs after the macOS bundle step and
 fails the job unless `codesign --verify --deep --strict` passes on the `.app` and on the `.app` inside the DMG, the
 signature is not linker-signed only, resources are sealed and every nested Mach-O (sidecars, `libduckdb.dylib`) verifies.
+
+## First launch note
+
+Apple notarization and Windows code signing are deferred until after the releases settle (decision 2026-10-23). Until then the release workflow appends a "First launch" section to every release's notes (and so to `latest.json`) explaining **Open Anyway** (macOS) and **More info > Run anyway** (Windows SmartScreen).
