@@ -667,7 +667,7 @@ impl Jobs {
                         result: None,
                         error: None,
                         message: None,
-                    }
+                    };
                 }
             }
         };
@@ -922,15 +922,25 @@ pub(crate) mod tests {
         // Under 2 s old when it ends, the job is not kept in the history; a dialog that starts waiting afterwards must
         // still hear "done" (or the failure), not "cancelled".
         let (jobs, _clock) = service();
-        let done = jobs.submit(ai("quick"), Controls::default(), |_ctx| Ok::<_, String>(Done::new(7u32))).unwrap();
-        let failed = jobs.submit(ai("quick failure"), Controls::default(), |_ctx| Err::<Done<u32>, _>("boom".to_string())).unwrap();
+        let done = jobs
+            .submit(ai("quick"), Controls::default(), |_ctx| Ok::<_, String>(Done::new(7u32)))
+            .unwrap();
+        let failed = jobs
+            .submit(ai("quick failure"), Controls::default(), |_ctx| {
+                Err::<Done<u32>, _>("boom".to_string())
+            })
+            .unwrap();
         let (done_id, failed_id) = (done.id, failed.id);
         assert_eq!(done.wait(), Ok(Ok(7)));
         assert_eq!(failed.wait(), Ok(Err("boom".to_string())));
         assert_eq!(jobs.wait_end(done_id).state, JobState::Done);
         let late = jobs.wait_end(failed_id);
         assert_eq!((late.state, late.error.as_deref()), (JobState::Failed, Some("boom")));
-        assert_eq!(jobs.wait_end(JobId(9_999)).state, JobState::Cancelled, "a job nobody knows is still cancelled");
+        assert_eq!(
+            jobs.wait_end(JobId(9_999)).state,
+            JobState::Cancelled,
+            "a job nobody knows is still cancelled"
+        );
     }
 
     #[test]
