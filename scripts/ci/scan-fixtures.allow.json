@@ -1,0 +1,9 @@
+{
+  "values": ["okhttp3.internal", "3.14.2.0", "20.50.2.14", "93.184.216.34"],
+  "notes": {
+    "okhttp3.internal": "a Java package name in the Android logcat sample, not a host",
+    "3.14.2.0": "a library version in a sample stack trace",
+    "20.50.2.14": "a synthetic server address in the generated HAR sample (cargo xtask gen-samples)",
+    "93.184.216.34": "the address example.com has resolved to for years; used by the web plugin's traffic fixture"
+  }
+}
