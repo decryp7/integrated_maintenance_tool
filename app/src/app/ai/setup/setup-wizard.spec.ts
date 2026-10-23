@@ -92,6 +92,26 @@ describe('AiSetupWizard', () => {
     expect(ref.close).toHaveBeenCalled();
   });
 
+  it('one download is one progress entry: phases are labelled and the bar never restarts under the same label', async () => {
+    const { fixture, q, backend } = setup();
+    const seen: { stage: string; bytes: number; total: number }[] = [];
+    void backend.onSetup((e) => {
+      if (e.stage === 'downloading' || e.stage === 'verifying') seen.push({ stage: e.stage, bytes: e.bytes, total: e.total });
+    });
+    await until(fixture, () => !!q('ai-setup-start'));
+    q('ai-setup-start')!.click();
+    await until(fixture, () => !!q('ai-setup-ready'));
+    const stages = seen.map((s) => s.stage);
+    expect(stages.indexOf('verifying')).toBeGreaterThan(stages.lastIndexOf('downloading'));
+    for (let i = 1; i < seen.length; i++) {
+      const [a, b] = [seen[i - 1]!, seen[i]!];
+      if (a.stage === b.stage) expect(b.bytes).toBeGreaterThanOrEqual(a.bytes);
+    }
+    // The check starts where the download ended: it does not look like a second download from zero.
+    const check = seen.find((s) => s.stage === 'verifying')!;
+    expect(check.bytes).toBe(check.total);
+  });
+
   it('sets up an installed or preselected model without downloading', async () => {
     const { fixture, q } = setup({ mode: 'setup' }, 'llama3.2-3b-q4km');
     await until(fixture, () => !!q('ai-plan-summary'));

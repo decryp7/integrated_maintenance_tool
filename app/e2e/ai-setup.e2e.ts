@@ -73,3 +73,32 @@ test('AI is hidden when it is unavailable', async ({ page }) => {
   await expect(settings.getByTestId('ai-settings-unavailable')).toContainText('not available');
   await expect(settings.getByTestId('ai-settings-setup')).toHaveCount(0);
 });
+
+test('the set-up shows one progress entry per download, labelled by phase, never restarting under the same label', async ({ page }) => {
+  await openAppWith(page, '?mockAi=setup&mockAiStepMs=15');
+  await runCommand(page, 'Set up AI assistant');
+  const dialog = wizard(page);
+  await dialog.getByTestId('ai-setup-start').click();
+  const bar = dialog.getByRole('progressbar');
+  let label = '';
+  let last = -1;
+  const deadline = Date.now() + 20_000;
+  while (Date.now() < deadline && (await dialog.getByTestId('ai-setup-ready').count()) === 0) {
+    // The bar can vanish between the two reads when the phase changes; skip that sample.
+    const sample = await bar
+      .evaluate((el) => ({ now: Number(el.getAttribute('aria-valuenow')), name: el.getAttribute('aria-label') ?? '' }), undefined, { timeout: 200 })
+      .catch(() => null);
+    if (sample) {
+      const { now, name } = sample;
+      if (name !== label) {
+        label = name;
+        last = -1;
+      }
+      expect(now).toBeGreaterThanOrEqual(last);
+      last = now;
+    }
+    await page.waitForTimeout(10);
+  }
+  await expect(dialog.getByTestId('ai-setup-ready')).toBeVisible();
+  expect(label).toBe('Verification progress');
+});

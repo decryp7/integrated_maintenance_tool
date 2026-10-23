@@ -475,3 +475,47 @@ fn endpoint_and_proxy_validation() {
         Err(AiError::Invalid(_))
     ));
 }
+
+#[test]
+fn a_fresh_download_is_hashed_as_it_is_written_without_a_second_pass() {
+    let data = Arc::new(blob(300_000));
+    let m = server(data.clone(), Opts::default());
+    let dir = tempfile::tempdir().unwrap();
+    let p = Progress::new();
+    let path = run(&hf(&m), &Disk(Some(u64::MAX)), dir.path(), &p).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), *data);
+    let s = p.snapshot();
+    // The bar never restarted for a verification pass: it ended as the download, full.
+    assert_eq!((s.phase, s.bytes, s.total), (Phase::Downloading, 300_000, 300_000));
+}
+
+#[test]
+fn a_fresh_download_with_a_wrong_checksum_is_still_rejected_and_deleted() {
+    let data = Arc::new(blob(50_000));
+    let m = server(
+        data.clone(),
+        Opts {
+            sha: Some("0".repeat(64)),
+            ..Opts::default()
+        },
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let err = run(&hf(&m), &Disk(Some(u64::MAX)), dir.path(), &Progress::new()).unwrap_err();
+    assert!(matches!(err, AiError::Integrity(_)));
+    assert!(!dir.path().join("m.gguf").exists() && !dir.path().join("m.gguf.part").exists());
+}
+
+#[test]
+fn a_download_that_resumed_after_a_cut_still_verifies() {
+    let data = Arc::new(blob(300_000));
+    let m = server(
+        data.clone(),
+        Opts {
+            cut_first: true,
+            ..Opts::default()
+        },
+    );
+    let dir = tempfile::tempdir().unwrap();
+    let path = run(&hf(&m), &Disk(Some(u64::MAX)), dir.path(), &Progress::new()).unwrap();
+    assert_eq!(std::fs::read(&path).unwrap(), *data);
+}

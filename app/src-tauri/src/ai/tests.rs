@@ -2009,3 +2009,12 @@ fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
 mod knowledge;
 mod update_checks;
 mod vision;
+
+#[test]
+fn job_progress_labels_the_phase_so_a_check_is_not_a_second_download() {
+    use super::runtime_commands::phase_progress;
+    let d = phase_progress(false, 5, 10);
+    let v = phase_progress(true, 10, 10);
+    assert_eq!((d.current.as_deref(), d.done, d.total), (Some("Downloading"), Some(5), Some(10)));
+    assert_eq!((v.current.as_deref(), v.done, v.total), (Some("Checking"), Some(10), Some(10)));
+}
