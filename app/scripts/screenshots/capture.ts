@@ -125,6 +125,8 @@ async function fresh(page: Page, theme: 'dark' | 'light' = 'dark'): Promise<void
   await openApp(page);
   await command(page, `Colour scheme: ${theme}`);
   await command(page, 'Reset layout');
+  // The demo layout docks the registry viewer beside the timeline: close it so shots show the timeline and grid at a useful size.
+  await page.locator('.debrief-tab[data-panel-id="registry"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
   await page.waitForTimeout(500);
 }
 
@@ -138,8 +140,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await expect(page.locator('debrief-welcome')).toBeVisible();
   });
   await fresh(page, theme);
-  await growTimeline(page);
-
+  await growTimeline(page, 40); // all seven lanes whole, with the first grid rows below
   await shot(page, 'workspace', async () => {
     // The default layout keeps the inspector auto-hidden; the README shot shows it docked with an event selected.
     await clickRow(page, 'HTTP POST');
@@ -184,6 +185,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await page.getByTestId('query-field').fill('').catch(() => undefined);
   await page.keyboard.press('Enter');
 
+  await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'metrics', async () => {
     await showPanel(page, 'Metrics', 'Show Metrics');
     await page.waitForTimeout(1200);
@@ -195,46 +197,59 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     ['anomalies', 'Show anomalies', 'Anomalies'],
     ['compare', 'Compare time ranges', 'Compare time ranges'],
   ] as const) {
+    await fresh(page, theme);
     await shot(
       page,
       name,
       async () => {
         await need(page, show);
-        if (name === 'compare') await page.getByRole('button', { name: 'Current range vs previous' }).click();
+        if (name === 'exceptions') await (await page.waitForTimeout(1200), await page.locator('debrief-exceptions-view button.head').first().click().catch(() => undefined));
+        if (name === 'compare') await page.getByRole('button', { name: 'Before / after selected time' }).click();
         await page.waitForTimeout(1500);
       },
       tab,
     );
   }
 
+  await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'moment', async () => {
-    await showPanel(page, 'Events', 'Show events');
-    await page.locator('debrief-events-grid [role=row].row').nth(8).click();
-    await need(page, 'Analyse this moment');
+    // A sub-range after the quiet start, so the metrics have an earlier window to compare with (the whole range has none).
+    const plot = page.locator('debrief-timeline-panel .plot').first();
+    const b = (await plot.boundingBox())!;
+    await page.mouse.move(b.x + b.width * 0.45, b.y + 40);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.7, b.y + 40, { steps: 8 });
+    await page.mouse.up();
+    await need(page, 'Moment: selected range');
     await page.waitForTimeout(1500);
   }, 'Moment');
 
+  await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'markers', async () => {
     await need(page, 'Manage markers');
     await page.waitForTimeout(800);
   }, 'Markers');
 
+  await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'profile', async () => {
     await showPanel(page, 'Profile', 'Profile editor', 'Show Profile editor');
     await page.waitForTimeout(800);
   }, 'Profile');
 
 
+  await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'perfmon', async () => {
     await showPanel(page, 'Performance Monitor', 'Open Performance Monitor');
     await page.waitForTimeout(800);
   }, 'Performance Monitor');
 
+  await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'process-monitor', async () => {
     await showPanel(page, 'Process Monitor', 'Open Process Monitor');
     await page.waitForTimeout(800);
   }, 'Process Monitor');
 
+  await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'registry', async () => {
     await showPanel(page, 'Registry', 'Show registry viewer');
     await page.waitForTimeout(800);
@@ -246,17 +261,99 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await page.waitForTimeout(600);
   });
 
+
+  // ---- views added for 1.0: outliers, pattern values, time-range import, watched folders, lenses, plugins, jobs ----
+  await fresh(page, theme);
+  await shot(page, 'outliers', async () => {
+    await need(page, 'Show error outliers');
+    await page.waitForTimeout(1500);
+  }, 'Error outliers');
+
+  await fresh(page, theme);
+  await shot(page, 'pattern-values', async () => {
+    await need(page, 'Show patterns');
+    await page.getByRole('button', { name: /^Show the values behind the placeholders/ }).first().click();
+    await page.waitForTimeout(1200);
+  }, 'Patterns');
+
+  await fresh(page, theme);
+  await shot(page, 'time-window', async () => {
+    await page.getByTestId('open-range').click();
+    const dialog = page.getByRole('dialog', { name: 'Open a time range' });
+    await expect(dialog).toBeVisible();
+    await dialog.getByTestId('range-from').fill('2026-10-14 10:30');
+    await dialog.getByTestId('range-to').fill('2026-10-14 11:00');
+    await dialog.getByText('Only events inside this range').click(); // take the focus ring off the date field
+    await page.waitForTimeout(500);
+  });
+  await page.keyboard.press('Escape');
+
+  await fresh(page, theme);
+  await shot(page, 'watched-folders', async () => {
+    await need(page, 'Show watched folders');
+    await page.getByTestId('watch-add').click();
+    await page.waitForTimeout(1200);
+  }, 'Watched folders');
+
+  await fresh(page, theme);
+  await shot(page, 'lenses', async () => {
+    const pick = async (item: string | RegExp) => {
+      await page.getByTestId('lens-button').click();
+      await page.getByRole('menuitem', { name: item, exact: typeof item === 'string' }).click();
+    };
+    await pick('Warnings and worse');
+    await page.getByRole('button', { name: '+ Add filter' }).click();
+    await page.getByLabel('Field', { exact: true }).fill('MachineName');
+    await page.getByLabel('Value', { exact: true }).fill('WEB01');
+    await page.getByRole('button', { name: 'Add', exact: true }).click();
+    await pick('Filters → set');
+    await page.getByTestId('lens-button').click(); // leave the menu open
+    await page.waitForTimeout(500);
+  });
+  await page.keyboard.press('Escape');
+
+  await fresh(page, theme);
+  await shot(page, 'plugins', async () => {
+    await need(page, 'Open Plugins');
+    await page.getByRole('button', { name: /^Pin/ }).first().click(); // dock the sheet so it can fill the window
+    await page.waitForTimeout(800);
+  }, 'Plugins');
+
+  // Jobs: a slow AI answer and a slow export run side by side, a root-cause request waits behind them.
+  await page.goto('/');
+  await page.evaluate(() => localStorage.clear()); // forget the layout the Plugins shot saved
+  await page.goto('/?mockAiStepMs=60000&mockExportMs=60000&mockJobsVisibleMs=0&mockJobsAttentionMs=600000');
+  await expect(page.locator('debrief-status-bar')).toContainText('events', { timeout: 20_000 });
+  await command(page, `Colour scheme: ${theme}`);
+  await page.locator('.debrief-tab[data-panel-id="registry"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
+  await shot(page, 'jobs', async () => {
+    await page.locator('debrief-events-grid [role=row].row').nth(8).click(); // a real event, not the very first row (event 0)
+    await need(page, 'AI: Explain the selected event');
+    await need(page, 'AI: Find likely root causes');
+    await need(page, 'New incident report');
+    const view = page.locator('debrief-report-view');
+    await view.getByRole('textbox', { name: 'Report title' }).fill('Incident 2026-10-14 checkout failures');
+    await view.getByRole('textbox', { name: 'Report title' }).press('Tab');
+    await need(page, 'Export report');
+    const dialog = page.getByRole('dialog', { name: 'Export report' });
+    await dialog.getByRole('button', { name: 'Export…' }).click();
+    await need(page, 'View: Jobs');
+    await expect(page.locator('debrief-jobs-panel')).toBeVisible();
+    // Toasts would cover the pane, and the report editor behind it is not the point of this shot.
+    for (const x of await page.getByTestId('notice-toast').getByRole('button', { name: /close|dismiss/i }).all()) await x.click().catch(() => undefined);
+    await page.locator('.debrief-tab[data-panel-id="report"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
+    await need(page, 'View: Jobs').catch(() => undefined);
+    await page.waitForTimeout(800);
+  });
+
   // Home: the dashboard (tiles, history by level, findings, activity).
   await fresh(page, theme);
-  await growTimeline(page);
-  // Home is a scrolling page: a taller window shows its first screen whole (nothing cut mid-card).
+  // Home fits the default window: its first screen is whole, Recent activity collapsed below it.
   await shot(page, 'home', async () => {
-    await page.setViewportSize({ width: 1440, height: 1000 });
     await command(page, 'Show Home');
     await expect(page.locator('debrief-home-view [data-testid=home-history]')).toBeVisible();
     await page.waitForTimeout(800);
   }, 'Home');
-  await page.setViewportSize({ width: 1440, height: 900 });
 }
 
 test('capture README screenshots', async ({ page }) => {
