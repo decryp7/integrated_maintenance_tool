@@ -108,13 +108,25 @@ pickers such as the time range or the text encoding, ...) opens as a window of i
 bar, owned by the Debrief window you opened it from and centred on it. Drag it to another monitor, resize it: Debrief
 remembers the size and place of each dialog. Yes/no questions ("Delete this source?") use the system's message box.
 
+Dialog windows have **no close, minimise or zoom buttons** in the title bar: each one closes from its own content, with a
+Close or Cancel button (or its answer). You can still move and resize it, and Debrief remembers its size and place.
+
 Two kinds:
 
-- **Dialogs you must answer** (confirmations, unsaved changes, pickers that feed the next step, plugin permissions) are
-  *modal*: the Debrief window behind them is dimmed and does not react until you answer, and the dialog stays above it.
-- **Tools you keep beside the work** (Settings, AI set-up and models, What's new, About, Export, Report a problem, ...) are
-  *modeless*: the Debrief window stays usable, and opening the same dialog again brings the open window to the front. The
-  first-start AI set-up is one of these, so you can look around while the model downloads.
+- **Dialogs you must answer** (confirmations, unsaved changes, pickers that feed the next step, plugin permissions, the AI
+  set-up choice) are *modal*: the Debrief window behind them is dimmed and does not react until you answer, and the dialog
+  stays above it. `Esc` and `Cmd+W` / `Ctrl+W` are their Cancel; the few that have no Cancel (such as "Close Debrief?",
+  which is a choice between two ways forward) ignore them.
+- **Tools you keep beside the work** (Settings, models, What's new, About, Export, editors such as the note, knowledge,
+  parser and format editors, the incident summary, Search the web, Report export, ...) are *modeless*: the Debrief window stays
+  usable, and opening the same dialog again brings the open window to the front. `Esc` and `Cmd+W` / `Ctrl+W` are the same as
+  their Close button.
+
+**First-start AI set-up.** The set-up window is only a choice: pick the model and press **Download and set up**. The window
+closes at once and the rest runs in the background as a job: the inference runtime first when none is installed, then the
+model (downloading, checking, loading and testing it), with bytes, speed, time left and connections in Jobs and the status
+bar, and "Setting up - 1.2 of 5.6 GB" in the assistant pane. When it is done a message says "AI assistant ready" with **Open
+the assistant**; if it fails one plain message says why, with **Retry**. Cancel it from Jobs.
 
 ![A modeless dialog beside the work](screenshots/dialog-modeless.png)
 
@@ -128,7 +140,7 @@ Two kinds:
 
 The screenshots come from the browser build, which draws the same dialogs inside the page; on the desktop each is a real window.
 
-`Esc` and `Cmd+W` / `Ctrl+W` close a dialog window (Settings asks first when edits are unapplied), `Enter` runs its default
+`Esc` and `Cmd+W` / `Ctrl+W` close a dialog window as described above (Settings asks first when edits are unapplied), `Enter` runs its default
 button, and focus returns to the window you came from. The command palette and the Search everything list, menus,
 drop-downs and tooltips are not dialogs; they stay inside the window.
 
@@ -436,8 +448,9 @@ dialog changes it for one search.
 
 Research and the chat's **Browser** menu (*Off*, *Read along*, *Agent*) use a real Chromium-based browser that Debrief starts
 for the AI: Edge, Chrome or Chromium from your computer, or a Chromium you download in Settings ▸ Web browser (*Download
-Chromium*, about 200 MB, checksum verified, on request only). *Read along* and *Agent* show its window next to Debrief;
-research keeps it out of sight. When a page needs you (a cookie consent or a "verify you are human" check) the window comes
+Chromium*, about 200 MB, checksum verified, on request only). *Read along*, *Agent* and research show its window
+like any other window; research closes it again when it finishes (done, cancelled or failed), and Debrief closes it when you quit.
+If you took part (you signed in, solved a check, navigated or opened a tab) it stays open and the chat says so, with **Close it** and **Keep it**. When a page needs you (a cookie consent or a "verify you are human" check) the window comes
 to the front, you deal with it, and the AI goes on. The browser has a throwaway profile (no cookies of yours, nothing
 kept) and the real user agent. If no browser is found, research and the modes say so and point to Settings.
 

@@ -19,6 +19,11 @@ export const CHANGELOG: readonly ChangelogRelease[] = [
       {
         "title": "Fixed",
         "items": [
+          "Dialogs: Dialog windows have no title-bar buttons and close from their content (Close or Cancel; `Esc` and `Cmd+W` act as Cancel, and \"Close Debrief?\" ignores them); the note, knowledge, parser and format editors, the incident summary, Search the web and Report export are tools you can keep beside the work",
+          "Dialogs: Windows that fill in as they load or stream (Explain event, proposals, the incident summary, research, What's new) open at a usable size and only grow",
+          "AI setup: Pick the model, press Download and set up, and the window closes; the download runs in the background (Jobs, status bar, the assistant pane) and a message says when the assistant is ready or why it failed, with Retry",
+          "About: It shows the real version, fills its window with the notices scrolling inside and a pinned footer, and loads the 15,000-line third-party notices only when asked (no longer part of the app's JavaScript)",
+          "Research: The research browser opens as a normal window and closes itself when research ends, unless you used it; it also closes when you quit",
           "AI setup: Model and runtime downloads are checked while they are written, so the progress no longer restarts for a second pass",
           "AI models: Whether a model fits is judged from its weights plus the cache for the real context size, against the memory that is free now",
           "Search: A phrase such as \"graphic builder\" finds Graphic.Builder whatever the separators or capitalisation",

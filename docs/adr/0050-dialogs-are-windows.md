@@ -24,7 +24,7 @@ and is listed once in `dialog-registry.ts` with its id, **modality**, size and l
 `DialogPresenter`:
 
 - `TauriDialogBackend` (desktop): `dialog_open` creates a `WebviewWindow` labelled `d-<host>-<n>`: native title bar with
-  the dialog's title, owned by (child/transient/owner of) the opener, centred on it, at the size and place it had last
+  the dialog's title (and no title-bar buttons, see Title bar), owned by (child/transient/owner of) the opener, centred on it, at the size and place it had last
   time (kept on a visible monitor), minimum size, resizable. Yes/no confirmations (`ConfirmDialog`) are the native OS
   message box (`tauri-plugin-dialog`).
 - `InPageDialogBackend` (browser build, e2e, overlays): the same dialogs rendered in the page by `debrief-dialog-host`;
@@ -43,10 +43,10 @@ are replaced by the result.
 **Dialog window.** The app boots `#/dialog?id=..&host=..&label=..` into `DialogShell` (as pop-outs do): host-only services
 are inert, UI state (query, selection, theme, display settings) syncs with the host over `UiSync` (the host adds
 the dialog labels to its sync targets), data comes from the engine (`CurrentWindow` resolves `d-*` to the host's
-workspace). Keys: Escape and Cmd/Ctrl+W close (the component may refuse through `static dialogCanClose`, e.g. Settings
-with unapplied edits; closing from the title bar goes through the same check: Rust emits
+workspace). Keys: Escape and Cmd/Ctrl+W are the dialog's Close or Cancel (the component may refuse through `static dialogCanClose`, e.g.
+Settings with unapplied edits; a window-manager close request goes through the same check: Rust emits
 `debrief://dialog-close-requested`, and closes anyway if the dialog does not answer within 1.5 s so a hung webview
-cannot trap the user), Enter runs the default action (`[data-default]` or the first enabled primary button; not in
+cannot trap the user; a required-choice modal ignores keys and requests), Enter runs the default action (`[data-default]` or the first enabled primary button; not in
 text areas, buttons, links or lists). On close the parent is re-enabled and focused.
 
 **Bootstrap.** Each OS window is its own Angular bootstrap (Paddock rule 34). The main window and pop-outs keep the full
@@ -65,6 +65,27 @@ for the about / AI setup / settings / export dialogs 2574 / 2627 / 2575 / 2574 K
 320 ms after (loopback, so the real saving on a slower disk or CPU is larger). JS heap showed no stable difference
 (37-62 MB, noise). Real webview creation inside Tauri was not measured.
 
+**Title bar.** Every dialog window, modal or modeless, is built with `closable(false)`, `minimizable(false)` and
+`maximizable(false)` (`title_buttons`, checked by a test of `window_config`): no native close, minimise or zoom. Modeless windows stay
+resizable and movable and remember their size and place. Each dialog therefore has a visible way out in its own content: a
+Close or Cancel button, or its answer. The dialog shell guarantees it: when the content shows no Close/Cancel/Done/Not now button
+(still loading, an error, a state that offers other actions) the shell adds a **Close** footer, and a test renders all 51
+dialogs and asserts each has one. Escape and Cmd/Ctrl+W act as that button (Cancel on a modal). A modal without a Cancel
+(`close-prompt`: a choice between two ways forward) is marked `requiredChoice` in the registry (sent to Rust as `required_choice`):
+Escape, Cmd/Ctrl+W and a close request leave it open and are not even forwarded to it. A window-manager close request on any
+other dialog (Linux, or Cmd+Q paths) is delivered to the dialog as its Cancel/Close, never a silent drop.
+
+**Default size.** A dialog that streams or loads results (`ai-narrative`, `ai-proposal-result`, `ai-query`, `incident-summary`,
+`research`, `whats-new`, ...) names a height in the registry instead of being fitted to its first (short) state; the default
+size is bounded to 75% of the screen. Small decision dialogs omit the height and are fitted to their content; a fitted window only
+ever **grows** (no re-fit cap; the engine stops at 90% of the screen height and the content scrolls inside), so a window never
+shrinks under someone reading. A size the user set is remembered per dialog id and wins.
+
+**About** shows the version the engine reports (`app_status`, the Cargo version; the dialog window has no lifecycle service of its own),
+fills its window (the notices take the remaining height and scroll inside, the footer with "Copy version info..." and Close is
+pinned) and gets the 15,639-line third-party notices from the engine (`legal_text`, compiled in), not from a generated TypeScript
+module: the UI's JavaScript no longer contains them (the lazy chunk was about 781 KB of source text plus 13 KB of licences).
+
 **One window per dialog id** (per opener): opening it again focuses the open window and returns the same ref (new
 inputs are not applied to an open window).
 
@@ -82,7 +103,7 @@ Classification (decisions in bold are judgement calls):
 | Dialog id | Modality | Dialog | Why |
 |---|---|---|---|
 | `settings` | modeless | Settings | A tool kept beside the work; edits apply to the live app |
-| `ai-setup` | modeless | First-start AI setup | Downloads a model for minutes; the user looks around meanwhile. The wizard blocks nothing: AI features say "set up the assistant" until it finishes |
+| `ai-setup` | **modal** | First-start AI setup | Only the *choice* of model is modal and quick. "Download and set up" closes the dialog at once and the rest is a background job (see below) |
 | `ai-models` | modeless | Model manager | Long downloads with progress |
 | `ai-query` | modeless | AI query dialog | The user compares it with the grid while writing |
 | `ai-narrative / ai-proposal-result / ai-propose / ai-regex` | modeless | AI result and proposal windows | Read beside the data they refer to |
@@ -94,14 +115,23 @@ Classification (decisions in bold are judgement calls):
 | `alert-rules / clock / manage-layouts` | modeless | Alert rules, Adjust clock, Manage perspectives | Edited while watching the grid |
 | `unsaved-changes / close-prompt / open-ask` | modal | Unsaved changes, Close Debrief?, Open in this window? | The user must answer before anything else happens |
 | `(ConfirmDialog)` | modal (native) | Every yes/no confirmation | The native OS message box (sheet on macOS); counts as a real window |
-| `parser-editor / parser-import-confirm / format-wizard` | modal | Parser editor, import confirmation, format wizard | Feed the next step; the caller awaits the result |
+| `parser-editor / format-wizard` | **modeless** | Parser editor, format wizard | Tools edited beside the grid; the opener still awaits the result through the ref |
+| `parser-import-confirm` | modal | Import confirmation | Feeds the next step; the caller awaits the answer |
 | `package-review / plugin-permissions` | modal | Install plugin, plugin permissions | Consent: nothing else may change the plugin set meanwhile |
 | `mark / drop / mask / extract / infer / marker-override` | modal | Rules created from a record | Act on a snapshot of the selected record; the parent must not change under them |
 | `encoding / open-live / paste / import-range / recent-projects` | modal | Pickers feeding the next step (encoding, live tail, paste, time range, recent projects) | The time-range dialog gates the import that asked for it |
-| `note-editor / knowledge-editor / save-layout / add-tile / redaction / report-export / incident-summary / search-web` | modal | Small editors whose result the caller awaits | The caller continues with the result |
+| `note-editor / knowledge-editor / incident-summary / search-web / report-export` | **modeless** | Editors and result windows | Kept beside the work; a modeless window can still answer its opener |
+| `save-layout / add-tile / redaction` | modal | Small editors whose result the caller awaits | The caller continues with the result |
+| `close-prompt` | modal, **required choice** | Close Debrief? | No Cancel: Escape and close requests are ignored |
 
-First-start AI setup is **modeless**: it downloads for minutes and nothing is inconsistent while it runs. The
-time-range dialog is **modal** because the import that asked for it waits for the answer.
+**First-start AI setup is a modal choice plus a background download.** The dialog shows the hardware and the models that
+fit; "Download and set up" calls `ai_setup_background` and closes. The engine runs one flow as Download jobs
+(`ai/assistant_setup.rs`): the inference runtime when none is installed (phases Downloading, Unpacking, Finishing, Testing), then
+the model (Downloading, Checking, Testing), with bytes, speed, time left and connections in Jobs and the status bar, and
+"Setting up - 1.2 of 5.6 GB" in the assistant pane. The jobs are `quiet` (no generic job message); the flow posts exactly one
+message itself: "AI assistant ready" with **Open the assistant** (`openAssistant`), or one plain failure message with **Retry**
+(`setUpAssistant`, also the Retry of the job: it re-runs the whole set-up). Cancel is the job's Cancel in Jobs and is silent. A modal is
+a quick decision, never a long wait. The time-range dialog is **modal** because the import that asked for it waits for the answer.
 
 **Not dialogs (stay in the page):** context menus, dropdowns, autocomplete lists, tooltips, toasts and the command
 palette / Search everything (`SearchEverythingPalette`: a transient overlay over the grid that is dismissed by the

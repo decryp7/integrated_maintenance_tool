@@ -47,6 +47,7 @@ mod insights;
 mod instance;
 mod investigate;
 mod jobs;
+mod legal;
 mod lifecycle;
 mod live;
 mod logging;
@@ -333,6 +334,7 @@ command_table! {
     Query [WINDOW] => agent_commands::agent_run_manifest,
     Mutation [WINDOW] => agent_commands::agent_open_run,
     Query [WINDOW] => lifecycle::app_status,
+    Query [WINDOW] => legal::legal_text,
     Mutation [MAIN | DIALOG] => lifecycle::restart_app,
     Mutation [MAIN | DIALOG] => plugin_config::plugin_reset,
     Mutation [MAIN | DIALOG] => plugin_config::plugin_set_enabled,
@@ -410,6 +412,7 @@ command_table! {
     Query [WINDOW] => ai::commands::ai_catalog,
     Query [WINDOW] => ai::commands::ai_setup_plan,
     Mutation [WINDOW] => ai::commands::ai_setup_run,
+    Mutation [WINDOW] => ai::commands::ai_setup_background,
     Query [WINDOW] => ai::commands::ai_models,
     Mutation [WINDOW] => ai::commands::ai_model_activate,
     Mutation [WINDOW] => ai::commands::ai_model_delete,
@@ -466,6 +469,7 @@ command_table! {
     Mutation [WINDOW] => browser::commands::browser_agent_respond,
     Mutation [WINDOW] => browser::commands::browser_open_suggested,
     Mutation [WINDOW] => browser::commands::browser_stop,
+    Mutation [WINDOW] => browser::commands::research_browser_close,
     Query [WINDOW] => browser::runtime::browser_runtime_status,
     Mutation [WINDOW] => browser::runtime::browser_runtime_install,
     Mutation [WINDOW] => browser::runtime::browser_runtime_remove,
