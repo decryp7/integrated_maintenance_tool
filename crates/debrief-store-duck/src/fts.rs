@@ -544,8 +544,10 @@ fn run(s: &FtsShared, dir: &Path, conn: &Connection, write_lock: &Mutex<()>, epo
         }
         // Idle: free the writer's heap and wait for news (or retry a busy lock soon).
         if s.pending.load(Ordering::SeqCst) == 0 {
-            let writer = crate::lock(&s.writer).take();
-            if let Some(w) = writer {
+            // The slot stays locked until the writer is gone: a clear or a source removal in that window would find the
+            // slot empty, try to open a second writer and fail on the index's lock (leaving the old documents searchable).
+            let mut slot = crate::lock(&s.writer);
+            if let Some(w) = slot.take() {
                 // Let the background merges finish (they hold memory and allocate until they do), then give the
                 // index build's heap and its threads' pages back to the OS: the process may idle now.
                 if let Err(e) = w.wait_merging_threads() {
