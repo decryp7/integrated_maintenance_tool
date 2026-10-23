@@ -74,7 +74,7 @@ test.describe('activity bar', () => {
   });
 
   test('works from the keyboard alone: open, move, choose, and Escape back to the button', async ({ page, browserName }, testInfo) => {
-    test.skip(browserName === 'webkit' && process.platform === 'darwin', 'Tab does not reach buttons in macOS WebKit unless the system 'full keyboard access' setting is on; passes on Linux and Windows');
+    test.skip(browserName === 'webkit' && process.platform === 'darwin', 'Tab does not reach buttons in macOS WebKit unless the system full keyboard access setting is on; passes on Linux and Windows');
     const analysis = barButton(page, 'Analysis');
     await analysis.focus();
     await expect(analysis).toBeFocused();

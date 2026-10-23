@@ -6,7 +6,7 @@ import { openAppWith } from './mock-url';
 // The Store pane and its SQL console (ADR 0030) against the mock backend: the reports, a confirmed maintenance job,
 // and a SQL run with completion, a refusal, results, Open in Events and saving next to the saved queries.
 test('Store pane: reports, maintenance and the read-only SQL console', async ({ page, browserName }, testInfo) => {
-  test.skip(browserName === 'webkit' && process.platform === 'darwin', 'Tab does not reach buttons in macOS WebKit unless the system 'full keyboard access' setting is on; passes on Linux and Windows');
+  test.skip(browserName === 'webkit' && process.platform === 'darwin', 'Tab does not reach buttons in macOS WebKit unless the system full keyboard access setting is on; passes on Linux and Windows');
   await openAppWith(page, '');
   await chooseMenu(page, 'View', 'Store');
   const pane = page.locator('debrief-store-pane');
