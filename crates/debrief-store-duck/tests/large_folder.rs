@@ -69,7 +69,7 @@ fn progress_starts_at_once_and_the_found_count_grows() {
     let session = store.open(&paths).unwrap();
     let mut first_running: Option<Duration> = None;
     let mut first_total: Option<Duration> = None;
-    let mut seen: Vec<(Duration, String, usize, usize, u64)> = Vec::new();
+    let mut seen: Vec<(Duration, String, usize, usize, u64, bool)> = Vec::new();
     while !session.is_finished() {
         let p = session.progress();
         let t = started.elapsed();
@@ -79,7 +79,7 @@ fn progress_starts_at_once_and_the_found_count_grows() {
         if p.total > 0 && first_total.is_none() {
             first_total = Some(t);
         }
-        seen.push((t, format!("{:?}", p.phase), p.done, p.total, p.bytes_total));
+        seen.push((t, format!("{:?}", p.phase), p.done, p.total, p.bytes_total, p.finding));
         std::thread::sleep(Duration::from_millis(5));
     }
     let report = session.wait().unwrap();
@@ -109,7 +109,8 @@ fn progress_starts_at_once_and_the_found_count_grows() {
         assert!(distinct.len() > 3, "the found count did not visibly grow: {distinct:?}");
     }
     // The phases come in order and each is shown with its own counts.
-    let order = ["Idle", "Finding", "Detecting", "Importing"];
+    // Files are read while they are found (ADR 0050): there is no separate checking phase any more.
+    let order = ["Idle", "Finding", "Importing", "Finishing"];
     let ranks: Vec<usize> = seen
         .iter()
         .filter(|s| s.1 != "Idle" || s.2 == 0)
@@ -117,8 +118,8 @@ fn progress_starts_at_once_and_the_found_count_grows() {
         .collect();
     assert!(ranks.windows(2).all(|w| w[0] <= w[1]), "phases out of order: {ranks:?}");
     assert!(
-        seen.iter().any(|s| s.1 == "Importing" && s.3 == files() + 5 + 3),
-        "the importing phase knows the total"
+        seen.iter().any(|s| s.1 == "Importing" && !s.5 && s.3 == files() + 5 + 3),
+        "the importing phase knows the total once the walk ended"
     );
     assert!(report.events > 0);
 }

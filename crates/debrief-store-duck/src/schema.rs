@@ -29,7 +29,8 @@ pub const ADDED_DDL: &str = "CREATE TABLE IF NOT EXISTS source_encodings (path V
 CREATE TABLE IF NOT EXISTS clock_offsets (path VARCHAR PRIMARY KEY, offset_ms BIGINT NOT NULL);
 CREATE TABLE IF NOT EXISTS tail_offsets (
   source UINTEGER PRIMARY KEY, byte UBIGINT NOT NULL, line UBIGINT NOT NULL, size UBIGINT NOT NULL,
-  whole BOOLEAN NOT NULL DEFAULT FALSE, held BOOLEAN NOT NULL DEFAULT FALSE, note VARCHAR, changed_ms BIGINT);";
+  whole BOOLEAN NOT NULL DEFAULT FALSE, held BOOLEAN NOT NULL DEFAULT FALSE, note VARCHAR, changed_ms BIGINT);
+CREATE TABLE IF NOT EXISTS source_fingerprints (source UINTEGER PRIMARY KEY, size UBIGINT NOT NULL, hash UBIGINT NOT NULL);";
 
 /// The DuckDB type of a declared column.
 fn sql_type(t: ColumnType) -> &'static str {

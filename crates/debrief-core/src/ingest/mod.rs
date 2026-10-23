@@ -14,9 +14,11 @@ mod batcher;
 mod chunk;
 mod discover;
 mod encoding;
+mod fingerprint;
 mod json;
 mod legacy;
 mod parallel;
+mod pipeline;
 mod plan;
 mod problems;
 mod region;
@@ -27,12 +29,14 @@ mod window;
 
 pub use batcher::{column_type, schema_for, BatchedSource, RecordBatcher};
 pub use chunk::{Chunk, ChunkSource, Encoding, Line, LineReader, LineSpan, OwnedLine, ReaderChunks, TextChunks, CHUNK_BYTES};
-pub use discover::discover;
+pub use discover::{discover, discover_stream, Found};
 pub use encoding::{
     detect as detect_text_encoding, options as encoding_options, EncodingChoice, EncodingInfo, EncodingOption, EncodingOrigin,
     EncodingPolicy, EncodingRequest, SNIFF_BYTES,
 };
+pub use fingerprint::{fingerprint, Fingerprint};
 pub use parallel::{default_threads, import_files_parallel, ParallelOptions, SharedRef, SharedSink, MAX_DEFAULT_THREADS};
+pub use pipeline::{import_stream, StreamOptions, StreamSpec, DEFAULT_QUEUE};
 pub use plan::{
     detect_encoding, plan, plan_with, scan_chunk_starts, score_text, score_text_with, ChunkStart, FilePlan, JsonShape, PlanKind,
     CHUNK_TARGET, HEAD_BYTES,

@@ -48,7 +48,8 @@ pub(crate) fn job_progress(p: &ProgressSnapshot) -> JobProgress {
     JobProgress {
         phase: import_phase(p),
         // Only the byte-reading phase has a fraction: finding, detecting and the tail have no byte scale.
-        fraction: (p.phase == ImportPhase::Importing && p.bytes_total > 0).then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
+        fraction: (p.phase == ImportPhase::Importing && !p.finding && p.bytes_total > 0)
+            .then(|| (p.bytes_done as f64 / p.bytes_total as f64) as f32),
         done: Some(p.done as u64),
         total: Some(p.total as u64),
         eta_ms: p.eta_ms,
@@ -72,6 +73,8 @@ fn import_phase(p: &ProgressSnapshot) -> Option<JobPhase> {
         ImportPhase::Idle => None,
         ImportPhase::Finding => Some(JobPhase::new("Finding files", PhaseScale::Indeterminate)),
         ImportPhase::Detecting => Some(JobPhase::new("Checking files", PhaseScale::Count)),
+        // Files are read while the walk goes on: the count is of the files found so far, which still grows.
+        ImportPhase::Importing if p.finding => Some(JobPhase::new("Importing while finding files", PhaseScale::Count)),
         ImportPhase::Importing => Some(JobPhase::new("Importing", PhaseScale::Count)),
         ImportPhase::Finishing => Some(JobPhase::new(p.stage.as_deref().unwrap_or("Finishing"), PhaseScale::Indeterminate)),
     }
@@ -191,6 +194,7 @@ mod tests {
             elapsed_ms: 10,
             eta_ms: Some(30),
             stage: None,
+            finding: false,
         };
         let j = job_progress(&p);
         assert_eq!(j.fraction, Some(0.25));
@@ -209,6 +213,27 @@ mod tests {
         });
         assert_eq!(tail.fraction, None, "the tail has no byte scale");
         assert_eq!(tail.phase, Some(JobPhase::new("Compacting segments", PhaseScale::Indeterminate)));
+    }
+
+    #[test]
+    fn importing_while_files_are_still_found_has_no_fraction_and_says_so() {
+        let p = ProgressSnapshot {
+            running: true,
+            done: 40,
+            total: 900,
+            bytes_done: 10,
+            bytes_total: 5_000,
+            phase: ImportPhase::Importing,
+            finding: true,
+            current: Some("/data/a.log".into()),
+            ..ProgressSnapshot::stopped()
+        };
+        let j = job_progress(&p);
+        assert_eq!(j.phase, Some(JobPhase::new("Importing while finding files", PhaseScale::Count)));
+        assert_eq!((j.done, j.total, j.fraction), (Some(40), Some(900), None), "the total still grows");
+        let settled = job_progress(&ProgressSnapshot { finding: false, ..p });
+        assert_eq!(settled.phase, Some(JobPhase::new("Importing", PhaseScale::Count)));
+        assert!(settled.fraction.is_some());
     }
 
     #[test]

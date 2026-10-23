@@ -66,6 +66,13 @@ pub trait SharedSink: Sync {
     fn write(&self, batch: PendingBatch) -> Result<()>;
     fn finish_source(&self, report: &SourceReport) -> Result<()>;
     fn abort_source(&self, id: SourceId) -> Result<()>;
+    /// How many of the `slots` sources `path` can become still need a new id: sources that keep an id they had
+    /// (a reload) need none. The default is all of them.
+    fn new_slots(&self, _path: &Path, slots: u32) -> u32 {
+        slots
+    }
+    /// The content fingerprint of a plain file's source, kept so a rename can be recognised later.
+    fn note_fingerprint(&self, _id: SourceId, _fingerprint: super::fingerprint::Fingerprint) {}
 }
 
 /// A [`SharedSink`] used where a [`BatchSink`] is expected.
@@ -87,10 +94,10 @@ impl BatchSink for SharedRef<'_> {
 }
 
 /// The sink of one file: its sources take the ids reserved for the file, in order.
-struct Ordered<'a> {
-    sink: &'a dyn SharedSink,
-    next: u32,
-    end: u32,
+pub(super) struct Ordered<'a> {
+    pub sink: &'a dyn SharedSink,
+    pub next: u32,
+    pub end: u32,
 }
 
 impl BatchSink for Ordered<'_> {
@@ -116,7 +123,7 @@ impl BatchSink for Ordered<'_> {
 const MAX_RESERVED: u32 = 10_000;
 
 /// Sources a file can become: the entries of a zip archive, otherwise one.
-fn source_slots(path: &Path) -> u32 {
+pub(super) fn source_slots(path: &Path) -> u32 {
     let Ok(mut f) = std::fs::File::open(path) else { return 1 };
     let mut magic = [0u8; 4];
     if f.read_exact(&mut magic).is_err() || !crate::archive::is_zip(&magic) {

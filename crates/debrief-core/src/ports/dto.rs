@@ -220,6 +220,10 @@ pub struct ImportReport {
     pub events: usize,
     pub bytes: u64,
     pub elapsed_ms: u64,
+    /// Things the user should know that are not failures: e.g. files that look like renamed ones but were not
+    /// matched to an earlier source because the match was ambiguous (they are new sources).
+    #[serde(default)]
+    pub notices: Vec<String>,
 }
 
 /// One kind of import problem in one source (or one file that was not imported).

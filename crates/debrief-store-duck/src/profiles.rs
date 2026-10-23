@@ -63,7 +63,19 @@ impl Inner {
         let roots = read_lock(&self.state).roots.clone();
         progress.set_stage(Some("Keeping the current data safe"));
         let kept = self.set_aside_events()?;
-        let result = self.import(&roots, progress);
+        // Files that were sources keep their ids, also when renamed or moved (ADR 0050).
+        let reuse = crate::reuse::plan(self, || {
+            let (profile, removed) = {
+                let s = read_lock(&self.state);
+                (s.profile.clone(), s.removed.clone())
+            };
+            debrief_core::ingest::discover(&roots, &profile, &removed, &std::collections::HashSet::new(), progress, 8)
+        })?;
+        let notices = reuse.notices;
+        let result = self.import_keeping(&roots, progress, reuse.keep).map(|mut r| {
+            r.notices = notices;
+            r
+        });
         let cancelled = progress.is_cancelled_flag();
         match result {
             Ok(report) if !cancelled => {

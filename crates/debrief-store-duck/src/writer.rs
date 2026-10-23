@@ -19,7 +19,7 @@ use crate::schema::events_view;
 use crate::segments::{Segment, SegmentWriter, SEGMENTS_DIR, SEGMENT_ROWS};
 use anyhow::{Context, Result};
 use debrief_core::batch::{EventBatch, EventId, EventSchema, PendingBatch, SourceId};
-use debrief_core::ingest::{NewSource, SharedSink, SourceReport};
+use debrief_core::ingest::{Fingerprint, NewSource, SharedSink, SourceReport};
 use duckdb::{params, Connection};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -222,6 +222,10 @@ pub struct SegmentSink {
     path_offsets: HashMap<String, i64>,
     /// The correction of each source of this writer that has one.
     shifts: Mutex<HashMap<SourceId, i64>>,
+    /// Ids that sources of a re-read keep, by their path (see [`SegmentSink::keep_ids`]).
+    keep: Mutex<HashMap<String, u32>>,
+    /// Content fingerprints of the plain files read, by source, written to the catalog at the end of the import.
+    fingerprints: Mutex<Vec<(u32, Fingerprint)>>,
 }
 
 impl SegmentSink {
@@ -263,7 +267,20 @@ impl SegmentSink {
             observe,
             path_offsets,
             shifts: Mutex::new(HashMap::new()),
+            keep: Mutex::new(HashMap::new()),
+            fingerprints: Mutex::new(Vec::new()),
         })
+    }
+
+    /// Sources at these paths keep the given ids instead of getting new ones (a reload: files that were read before keep
+    /// their source, so notes and links stay valid). The ids must be unused by the other sources of this import.
+    pub fn keep_ids(&self, keep: HashMap<String, u32>) {
+        *lock(&self.keep) = keep;
+    }
+
+    /// The fingerprints of the files read so far (taken: a second call returns the ones added since).
+    pub fn take_fingerprints(&self) -> Vec<(u32, Fingerprint)> {
+        std::mem::take(&mut *lock(&self.fingerprints))
     }
 
     /// Moves the events written for `source` (an existing source being appended to) by its file's correction.
@@ -393,7 +410,7 @@ impl SharedSink for SegmentSink {
         let mut ids = lock(&self.ids);
         let first = ids.source;
         let end = first.checked_add(n).context("out of source ids")?;
-        set_meta(&lock(&self.catalog), "next_source", end as u64)?;
+        // Persisted with the segments listed (`list`), not per reservation: a streaming import reserves per file.
         ids.source = end;
         Ok(SourceId(first))
     }
@@ -401,9 +418,11 @@ impl SharedSink for SegmentSink {
     /// Sources are listed when they become ready (one catalog commit costs tens of milliseconds, so
     /// nothing is written per source while reading).
     fn begin_source(&self, source: &NewSource, reserved: Option<SourceId>) -> Result<SourceId> {
-        let id = match reserved {
-            Some(id) => id,
-            None => self.reserve_sources(1)?,
+        let kept = lock(&self.keep).get(&source.path).copied();
+        let id = match (kept, reserved) {
+            (Some(id), _) => SourceId(id),
+            (None, Some(id)) => id,
+            (None, None) => self.reserve_sources(1)?,
         };
         lock(&self.sources).insert(id, SourceState::default());
         if let Some(offset) = self.path_offsets.get(&source.path).copied().filter(|o| *o != 0) {
@@ -463,6 +482,18 @@ impl SharedSink for SegmentSink {
         st.aborted = true;
         st.finished = None;
         Ok(())
+    }
+
+    fn new_slots(&self, path: &std::path::Path, slots: u32) -> u32 {
+        if slots == 1 && lock(&self.keep).contains_key(path.to_string_lossy().as_ref()) {
+            0
+        } else {
+            slots
+        }
+    }
+
+    fn note_fingerprint(&self, id: SourceId, fingerprint: Fingerprint) {
+        lock(&self.fingerprints).push((id.0, fingerprint));
     }
 }
 

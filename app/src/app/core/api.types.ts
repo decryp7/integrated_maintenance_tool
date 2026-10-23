@@ -2896,6 +2896,8 @@ export interface ImportProgress {
   etaMs: number | null;
   /** The step of the `finishing` phase ("Compacting segments"); null in every other phase. */
   stage?: string | null;
+  /** Files are still being found while others are read (`importing`): `total` counts what was found so far and keeps growing. */
+  finding?: boolean;
 }
 
 /** A saved previous version of the active profile. */
