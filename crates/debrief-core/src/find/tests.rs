@@ -270,8 +270,10 @@ mod names {
     use crate::names::Names;
 
     fn spelled() -> WorkspaceStore {
+        static N: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let unique = format!("names-{}", N.fetch_add(1, std::sync::atomic::Ordering::SeqCst));
         store_with(
-            "names",
+            &unique,
             &[
                 ("Started CompanyA.Graphic.Builder.exe pid 4242", "agent.exe"),
                 ("Render queue drained by graphicbuilder.exe", "agent.exe"),
