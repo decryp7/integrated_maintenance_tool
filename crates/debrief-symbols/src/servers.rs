@@ -2,7 +2,7 @@
 //! at most a configured number of downloads at a time across every caller ([`Gate`]), each bounded in size and
 //! time by its [`ServerConfig`]. Nothing is requested while downloads are off.
 
-use crate::fetch::{FetchError, Fetcher, HttpFetcher, ServerList};
+use crate::fetch::{DownloadWatch, FetchError, Fetcher, HttpFetcher, ServerList};
 use crate::id::PdbKey;
 use crate::{ServerConfig, SymbolError};
 use std::path::{Path, PathBuf};
@@ -143,6 +143,21 @@ pub fn get_all_observed(
     cancel: &AtomicBool,
     each: &(dyn Fn(&PdbKey, &Outcome) + Sync),
 ) -> Vec<(PdbKey, Outcome)> {
+    get_all_watched(fetcher, keys, cache, gate, cancel, each, &|_| {})
+}
+
+/// [`get_all_observed`] that also stops a download that is running when `cancel` is set (its PDB is
+/// [`Outcome::Cancelled`], nothing partial stays in the cache) and tells `bytes` the size of every chunk received,
+/// from the downloading threads, for a byte count in the progress.
+pub fn get_all_watched(
+    fetcher: Option<&dyn Fetcher>,
+    keys: &[PdbKey],
+    cache: &Path,
+    gate: &Gate,
+    cancel: &AtomicBool,
+    each: &(dyn Fn(&PdbKey, &Outcome) + Sync),
+    bytes: &(dyn Fn(u64) + Sync),
+) -> Vec<(PdbKey, Outcome)> {
     let mut unique: Vec<PdbKey> = keys.to_vec();
     unique.sort();
     unique.dedup();
@@ -182,8 +197,9 @@ pub fn get_all_observed(
                             if cancel.load(Ordering::Relaxed) {
                                 Outcome::Cancelled
                             } else {
-                                match fetcher.fetch(k, cache) {
+                                match fetcher.fetch_watched(k, cache, &DownloadWatch { cancel, bytes }) {
                                     Ok(f) => Outcome::Downloaded(f),
+                                    Err(FetchError::Cancelled) => Outcome::Cancelled,
                                     Err(e) => Outcome::Failed(e),
                                 }
                             }

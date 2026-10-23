@@ -230,21 +230,40 @@ fn step<R: Runtime>(app: &AppHandle<R>, win: &CurrentWindow, dir: &Path, state: 
         };
         win.watched.note(dir, |f| f.message = text);
     }
+    if !state.flush_due(&ready, now) {
+        // More files may still be settling: they go together in one job.
+        let waiting = ready.new.len() + ready.changed.len();
+        if waiting > 0 {
+            win.watched
+                .note(dir, |f| f.message = format!("{waiting} file{} ready, waiting for more", if waiting == 1 { "" } else { "s" }));
+        }
+        return;
+    }
     let stamps: HashMap<&Path, &FileStamp> = scan.iter().map(|f| (f.path.as_path(), f)).collect();
     let mut imported = 0usize;
-    for (path, refresh) in ready.new.iter().map(|p| (p, false)).chain(ready.changed.iter().map(|p| (p, true))) {
-        let Some(stamp) = stamps.get(path.as_path()) else { continue };
-        match import_one(app, win, path, refresh) {
-            Ok(()) => {
-                state.imported(stamp);
-                imported += 1;
+    // New files open together and changed files refresh together: one import job (one position rebuild) each.
+    for (files, refresh) in [(&ready.new, false), (&ready.changed, true)] {
+        let files: Vec<PathBuf> = files.iter().filter(|p| stamps.contains_key(p.as_path())).cloned().collect();
+        if files.is_empty() {
+            continue;
+        }
+        match import_batch(app, win, dir, &files, refresh) {
+            Ok(failed) => {
+                for path in &files {
+                    match failed.iter().find(|(p, _)| p == path || p.file_name() == path.file_name()) {
+                        None => {
+                            state.imported(stamps[path.as_path()]);
+                            imported += 1;
+                        }
+                        Some((_, reason)) => give_up_or_retry(win, dir, state, path, reason, now),
+                    }
+                }
             }
-            // Another import is running in the window: the file stays ready and is tried on the next scan.
+            // Another import is running in the window: the files stay ready and are tried on the next scan.
             Err(e) if e.to_string().to_ascii_lowercase().contains("busy") => {}
             Err(e) => {
-                if let Some(Skipped::GaveUp { reason }) = state.failed(path, &e.to_string(), now) {
-                    win.watched
-                        .note(dir, |f| f.message = format!("gave up on {}: {reason}", file_name(path)));
+                for path in &files {
+                    give_up_or_retry(win, dir, state, path, &e.to_string(), now);
                 }
             }
         }
@@ -256,26 +275,50 @@ fn step<R: Runtime>(app: &AppHandle<R>, win: &CurrentWindow, dir: &Path, state: 
     }
 }
 
+fn give_up_or_retry(win: &CurrentWindow, dir: &Path, state: &mut WatchState, path: &Path, reason: &str, now: u64) {
+    if let Some(Skipped::GaveUp { reason }) = state.failed(path, reason, now) {
+        win.watched
+            .note(dir, |f| f.message = format!("gave up on {}: {reason}", file_name(path)));
+    }
+}
+
 fn file_name(p: &Path) -> String {
     p.file_name()
         .map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into_owned())
 }
 
-/// Imports one file as an import job of the window; an unrecognised file is a failure with its reason.
-fn import_one<R: Runtime>(app: &AppHandle<R>, win: &CurrentWindow, path: &Path, refresh: bool) -> CmdResult<()> {
+/// Imports `files` of the watched folder `dir` as ONE import job of the window (opening them, or refreshing them
+/// when they changed). The job shows the files' progress and has Cancel like any import. Returns the files that were
+/// not recognised with the reason (the rest were imported).
+fn import_batch<R: Runtime>(
+    app: &AppHandle<R>,
+    win: &CurrentWindow,
+    dir: &Path,
+    files: &[PathBuf],
+    refresh: bool,
+) -> CmdResult<Vec<(PathBuf, String)>> {
     let before = crate::engine_errors::HealthSnapshot::new(&win.host.registry.plugins(), &[]);
-    let files = vec![path.to_path_buf()];
-    let spec = JobSpec::new(JobKind::Import, format!("Import {} (watched folder)", file_name(path))).window(win.label());
+    let paths = files.to_vec();
+    let spec = JobSpec::new(JobKind::Import, batch_title(dir, files)).window(win.label());
     let report = tauri::async_runtime::block_on(crate::engine::import::run(
         app,
         win,
         spec,
-        Box::new(move |s| if refresh { s.refresh(&files) } else { s.open(&files) }),
+        Box::new(move |s| if refresh { s.refresh(&paths) } else { s.open(&paths) }),
     ))?;
     crate::workspace_commands::after_import(app, win, &before, &report);
-    match report.unrecognized.first() {
-        Some(u) => Err(CmdError::failed(u.reason.clone())),
-        None => Ok(()),
+    Ok(report
+        .unrecognized
+        .iter()
+        .map(|u| (PathBuf::from(&u.path), u.reason.clone()))
+        .collect())
+}
+
+/// The job's title: the file for one, "N files from <folder>" for a batch.
+pub(crate) fn batch_title(dir: &Path, files: &[PathBuf]) -> String {
+    match files {
+        [one] => format!("Import {} (watched folder)", file_name(one)),
+        many => format!("Import {} files from {} (watched folder)", many.len(), file_name(dir)),
     }
 }
 
@@ -439,5 +482,49 @@ mod tests {
         assert_eq!(paused[0]["enabled"], false);
         let gone = ipc(&main, "remove_watched_folder", json!({ "path": listed_path })).unwrap();
         assert!(gone.as_array().unwrap().is_empty());
+    }
+
+    /// Files that settle together are imported by ONE job (one position rebuild), not one job per file.
+    #[test]
+    fn files_that_settle_together_are_imported_by_one_job() {
+        use crate::test_support::{test_app_with_commands, window, TempDir};
+        use crate::tools::tests::ipc;
+        use serde_json::json;
+        let app = test_app_with_commands(None);
+        let main = window(&app, crate::windows::MAIN);
+        let dir = TempDir::new("watched-batch");
+        crate::paths::allow_under(app.handle(), crate::windows::MAIN, &dir.0);
+        for n in 0..6 {
+            std::fs::write(dir.0.join(format!("f{n}.log")), format!("2026-10-14 0{n}:00:00.000 +00:00 [INF] tick {n}\n")).unwrap();
+        }
+        ipc(&main, "add_watched_folder", json!({ "path": dir.0.to_string_lossy() })).unwrap();
+        let started = Instant::now();
+        loop {
+            let now = ipc(&main, "watched_folders", json!({})).unwrap();
+            if now[0]["importedFiles"].as_u64().unwrap_or(0) >= 6 || started.elapsed() > Duration::from_secs(60) {
+                assert_eq!(now[0]["importedFiles"], 6);
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(300));
+        }
+        let jobs = ipc(&main, "jobs_list", json!({})).unwrap();
+        let titles: Vec<String> = jobs["jobs"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .filter_map(|j| j["title"].as_str().map(String::from))
+            .filter(|t| t.contains("watched folder"))
+            .collect();
+        assert_eq!(titles.len(), 1, "{titles:?} of {jobs}");
+        assert!(titles[0].starts_with("Import 6 files from "), "{titles:?}");
+        assert_eq!(ipc(&main, "workspace_summary", json!({})).unwrap()["total"], 6);
+    }
+
+    #[test]
+    fn a_batch_job_is_named_after_its_files() {
+        let one = [PathBuf::from("/w/a.log")];
+        assert_eq!(batch_title(Path::new("/w"), &one), "Import a.log (watched folder)");
+        let two = [PathBuf::from("/w/a.log"), PathBuf::from("/w/b.log")];
+        assert_eq!(batch_title(Path::new("/w"), &two), "Import 2 files from w (watched folder)");
     }
 }

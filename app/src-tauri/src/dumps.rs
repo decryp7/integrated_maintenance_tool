@@ -380,9 +380,14 @@ fn start_symbols_job<R: tauri::Runtime>(
     let job = download.clone();
     let queued = jobs::spawn(app, spec, Controls::default(), move |ctx: &JobCtx| -> Result<Done<()>, String> {
         let cancel = ctx.cancel_flag();
+        let received = std::sync::atomic::AtomicU64::new(0);
         let update = job.run(
             &cancel,
             &|done, total| ctx.progress(JobProgress::counts(done as u64, total as u64)),
+            &|n| {
+                let so_far = received.fetch_add(n, std::sync::atomic::Ordering::Relaxed) + n;
+                ctx.message(&format!("Downloaded {} MB", so_far >> 20));
+            },
             reimport,
         );
         let failure = update.failure();

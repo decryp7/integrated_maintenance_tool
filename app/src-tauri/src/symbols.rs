@@ -12,7 +12,7 @@ use debrief_dump::model::{Document, SymbolStatus};
 use debrief_dump::DumpDocs;
 use debrief_symbols::fetch::{FetchError, Fetcher};
 use debrief_symbols::id::PdbKey;
-use debrief_symbols::servers::{get_all, get_all_observed, Gate, Outcome, ServersConfig, MAX_CONCURRENT, MAX_SERVERS};
+use debrief_symbols::servers::{get_all, get_all_watched, Gate, Outcome, ServersConfig, MAX_CONCURRENT, MAX_SERVERS};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, RwLock};
@@ -156,20 +156,30 @@ impl Download {
         self.keys.is_empty()
     }
 
-    /// Gets the PDBs into the cache. No new one is started once `cancel` is set (a running one finishes within its
-    /// own limits); `progress(done, total)` is told as each PDB is settled. When any arrived, `reimport` reads the
-    /// dump again with them (a dump that cannot be read again keeps its first reading).
+    /// Gets the PDBs into the cache. No new one is started once `cancel` is set and a running one stops at its next
+    /// chunk; `progress(done, total)` is told as each PDB is settled and `bytes(n)` with the size of each chunk
+    /// received. When any arrived, `reimport` reads the dump again with them (a dump that cannot be read again keeps
+    /// its first reading).
     pub fn run(
         &self,
         cancel: &AtomicBool,
         progress: &(dyn Fn(usize, usize) + Sync),
+        bytes: &(dyn Fn(u64) + Sync),
         reimport: impl FnOnce() -> debrief_dump::Result<Document>,
     ) -> Update {
         let total = self.keys.len();
         let done = AtomicUsize::new(0);
-        let outcomes = get_all_observed(Some(&*self.fetcher), &self.keys, &self.cache, &self.gate, cancel, &|_, _| {
-            progress(done.fetch_add(1, Ordering::Relaxed) + 1, total);
-        });
+        let outcomes = get_all_watched(
+            Some(&*self.fetcher),
+            &self.keys,
+            &self.cache,
+            &self.gate,
+            cancel,
+            &|_, _| {
+                progress(done.fetch_add(1, Ordering::Relaxed) + 1, total);
+            },
+            bytes,
+        );
         let arrived = outcomes.iter().any(|(_, o)| matches!(o, Outcome::Downloaded(_)));
         let reimported = if arrived {
             debrief_symbols::cache::prune(&self.cache, self.config.cache_max_bytes);
@@ -582,6 +592,7 @@ mod tests {
         let update = dl.run(
             &AtomicBool::new(false),
             &|done, total| settled.lock().unwrap().push((done, total)),
+            &|_| {},
             || {
                 // The second reading finds the downloaded PDB.
                 let mut d = missing_dump();
@@ -618,7 +629,7 @@ mod tests {
         ));
         let dl = download(broken, &missing_dump(), cache.path());
         let (docs, id) = opened(&missing_dump(), &dl);
-        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, || panic!("nothing arrived"));
+        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, &|_| {}, || panic!("nothing arrived"));
         assert!(!update.arrived());
         assert!(update.failure().unwrap().contains("offline"));
         assert!(update.apply(&docs, id, 120));
@@ -626,7 +637,7 @@ mod tests {
         // Not on any server is an answer, not a failure.
         let none = Arc::new(table(vec![]));
         let dl = download(none, &missing_dump(), cache.path());
-        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, || panic!("nothing arrived"));
+        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, &|_| {}, || panic!("nothing arrived"));
         assert_eq!(update.failure(), None);
     }
 
@@ -639,7 +650,7 @@ mod tests {
         let (docs, id) = opened(&missing_dump(), &dl);
         let cancel = AtomicBool::new(false);
         // Cancel after the first PDB is settled.
-        let update = dl.run(&cancel, &|_, _| cancel.store(true, Ordering::SeqCst), || panic!("nothing arrived"));
+        let update = dl.run(&cancel, &|_, _| cancel.store(true, Ordering::SeqCst), &|_| {}, || panic!("nothing arrived"));
         assert_eq!(fetcher.asked.load(Ordering::SeqCst), 1);
         assert!(update.apply(&docs, id, 120));
         let d = stored(&docs, id);
@@ -659,7 +670,7 @@ mod tests {
         let cache = tempfile::tempdir().unwrap();
         let dl = download(Arc::new(table(vec![(&names[0], Ok(()))])), &missing_dump(), cache.path());
         let (docs, id) = opened(&missing_dump(), &dl);
-        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, || {
+        let update = dl.run(&AtomicBool::new(false), &|_, _| {}, &|_| {}, || {
             Err(debrief_dump::DumpError::new(debrief_dump::ErrorCode::Invalid, "gone"))
         });
         assert!(update.arrived());
@@ -672,7 +683,7 @@ mod tests {
         let (docs, id) = opened(&missing_dump(), &dl);
         assert!(crate::sync::write(&docs).close(id));
         assert!(!dl
-            .run(&AtomicBool::new(false), &|_, _| {}, || Ok(Document::Dump(missing_dump())))
+            .run(&AtomicBool::new(false), &|_, _| {}, &|_| {}, || Ok(Document::Dump(missing_dump())))
             .apply(&docs, id, 120));
         // A download that could not even start puts the modules back.
         let (docs, id) = opened(&missing_dump(), &dl);
