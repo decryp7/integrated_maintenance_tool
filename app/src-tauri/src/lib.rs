@@ -821,6 +821,8 @@ pub(crate) mod test_support {
         match (end.state, end.result) {
             (jobs::JobState::Done, Some(jobs::JobResult::Value { value })) => Ok(value),
             (jobs::JobState::Done, Some(jobs::JobResult::File { detail: Some(value), .. })) => Ok(value),
+            (jobs::JobState::Done, Some(jobs::JobResult::Workspace { detail: Some(value) })) => Ok(value),
+            (jobs::JobState::Done, Some(jobs::JobResult::Model { detail: Some(value), .. })) => Ok(value),
             (state, result) => Err(end
                 .error
                 .unwrap_or_else(|| format!("the job ended {state:?} without a value ({result:?})"))),
@@ -831,6 +833,51 @@ pub(crate) mod test_support {
     /// job's failure as an error.
     pub fn finished(app: &tauri::App<MockRuntime>, started: crate::CmdResult<u64>) -> crate::CmdResult<serde_json::Value> {
         job_value(app, started?).map_err(crate::CmdError::from)
+    }
+
+    /// The commands that start a job and return its id (the job's value is what they used to return).
+    const JOB_COMMANDS: &[&str] = &[
+        "open_paths",
+        "open_paths_live",
+        "reload_workspace",
+        "open_project",
+        "open_bundle",
+        "paste_log",
+        "ai_model_add_local",
+        "ai_model_add_projector",
+    ];
+
+    /// A reply from the IPC of `cmd` as the UI sees it once the job it started has ended: for the commands that start a
+    /// job and return its id, the job's value (or its failure as the error); any other reply as it is.
+    pub fn settle<M: tauri::Manager<MockRuntime>>(
+        m: &M,
+        cmd: &str,
+        reply: Result<serde_json::Value, serde_json::Value>,
+    ) -> Result<serde_json::Value, serde_json::Value> {
+        let id = match &reply {
+            Ok(v) if JOB_COMMANDS.contains(&cmd) => v.as_u64().expect("a job-starting command returns the job's id"),
+            _ => return reply,
+        };
+        let end = m.state::<jobs::Jobs>().wait_end(jobs::JobId(id));
+        match (end.state, end.result) {
+            (jobs::JobState::Done, Some(jobs::JobResult::Workspace { detail: Some(v) })) => Ok(v),
+            (jobs::JobState::Done, Some(jobs::JobResult::Model { detail: Some(v), .. })) => Ok(v),
+            (jobs::JobState::Done, Some(jobs::JobResult::Value { value })) => Ok(value),
+            // A failed job has its message only (not the command error's code), as `jobValue` gives the UI.
+            (state, result) => Err(serde_json::json!({
+                "code": if state == jobs::JobState::Cancelled { "cancelled" } else { "failed" },
+                "message": end.error.unwrap_or_else(|| format!("the job ended {state:?} ({result:?})")),
+                "retryable": true,
+            })),
+        }
+    }
+
+    /// [`finished`], with the job's value as the type the command used to return.
+    pub fn finished_as<T: serde::de::DeserializeOwned>(
+        app: &tauri::App<MockRuntime>,
+        started: crate::CmdResult<u64>,
+    ) -> crate::CmdResult<T> {
+        finished(app, started).map(|v| serde_json::from_value(v).expect("the job's value has the command's type"))
     }
 
     /// Asserts that a command's future returns within `FAST_RETURN` and hands back its output. A command that does long work

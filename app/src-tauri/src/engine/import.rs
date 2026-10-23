@@ -119,8 +119,19 @@ pub(crate) fn follow(win: &WindowState, ctx: &JobCtx, cancel: &AtomicBool, sessi
     Ok(report)
 }
 
-/// Runs an import as the window's import job and waits for its report (one import at a time per window; the
-/// Jobs pane shows its progress, Cancel stops it).
+/// Runs one import to its end on the calling job's thread: waits while the store is busy with another, follows the
+/// session (progress to the job and the window, the job's Cancel to the session), then runs the annotators. The
+/// work of every import job; a caller does its own post-processing after it, inside the same job.
+pub(crate) fn in_job(win: &WindowState, ctx: &JobCtx, cancel: &AtomicBool, start: &Start) -> CmdResult<ImportReport> {
+    let store = win.engine.store()?;
+    let session = start_when_free(store.as_ref(), start, ctx, cancel)?;
+    let report = follow(win, ctx, cancel, session)?;
+    super::annotate::run_in_job(win, store.as_ref(), ctx, cancel);
+    Ok(report)
+}
+
+/// Runs an import as the window's import job and waits for its report. For callers that are not commands (the watched
+/// folders' thread): a command starts its job and returns its id (see [`crate::workspace_commands`]).
 pub(crate) async fn run<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, spec: JobSpec, start: Start) -> CmdResult<ImportReport> {
     let (controls, flag) = controls();
     let win = state.arc().clone();
@@ -129,11 +140,8 @@ pub(crate) async fn run<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, s
         spec.window(state.label()),
         controls,
         move |ctx: &JobCtx| -> CmdResult<Done<ImportReport>> {
-            let store = win.engine.store()?;
-            let session = start_when_free(store.as_ref(), &start, ctx, &flag)?;
-            let report = follow(&win, ctx, &flag, session)?;
-            super::annotate::run_in_job(&win, store.as_ref(), ctx, &flag);
-            Ok(Done::new(report).with_result(JobResult::Workspace))
+            let report = in_job(&win, ctx, &flag, &start)?;
+            Ok(Done::new(report).with_result(JobResult::workspace()))
         },
     )
     .await
@@ -156,12 +164,9 @@ pub(crate) fn start<R: Runtime>(
             spec.window(state.label()),
             controls,
             move |ctx: &JobCtx| -> CmdResult<Done<()>> {
-                let store = win.engine.store()?;
-                let session = start_when_free(store.as_ref(), &start, ctx, &flag)?;
-                let report = follow(&win, ctx, &flag, session)?;
-                super::annotate::run_in_job(&win, store.as_ref(), ctx, &flag);
+                let report = in_job(&win, ctx, &flag, &start)?;
                 then(report)?;
-                Ok(Done::new(()).with_result(JobResult::Workspace))
+                Ok(Done::new(()).with_result(JobResult::workspace()))
             },
         )
         .map(|id| id.0),
@@ -169,7 +174,7 @@ pub(crate) fn start<R: Runtime>(
 }
 
 /// The job's Cancel sets a flag the follower passes to the session.
-fn controls() -> (Controls, Arc<AtomicBool>) {
+pub(crate) fn controls() -> (Controls, Arc<AtomicBool>) {
     let flag = Arc::new(AtomicBool::new(false));
     let f = flag.clone();
     (Controls::cancel(move || f.store(true, Ordering::Relaxed)), flag)
@@ -178,6 +183,47 @@ fn controls() -> (Controls, Arc<AtomicBool>) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// An import that finds the store busy waits for it (and says so); Cancel stops the wait with `Cancelled` before
+    /// anything is read.
+    #[test]
+    fn an_import_waits_for_a_busy_store_and_cancel_ends_the_wait() {
+        use crate::test_support::{main_window, test_app};
+        use debrief_core::ports::StoreError;
+        let app = test_app(None);
+        let win = main_window(&app);
+        let store = win.engine.store().unwrap();
+        let ctx = JobCtx::detached();
+        // Busy twice, then free: the start is retried, not failed.
+        let tries = std::sync::atomic::AtomicUsize::new(0);
+        let tries = Arc::new(tries);
+        let t = tries.clone();
+        let start: Start = Box::new(move |s| {
+            if t.fetch_add(1, Ordering::SeqCst) < 2 {
+                Err(StoreError::Busy("another import".into()))
+            } else {
+                s.open(&[])
+            }
+        });
+        let flag = AtomicBool::new(false);
+        let session = start_when_free(store.as_ref(), &start, &ctx, &flag).expect("the import starts once the store is free");
+        let _ = session.wait();
+        assert_eq!(tries.load(Ordering::SeqCst), 3);
+        // Cancelled while it waits: no further attempt, the job is cancelled.
+        let always_busy: Start = Box::new(|_| Err(StoreError::Busy("another import".into())));
+        flag.store(true, Ordering::SeqCst);
+        assert!(matches!(
+            start_when_free(store.as_ref(), &always_busy, &ctx, &flag),
+            Err(StoreError::Cancelled)
+        ));
+        // A real failure is not waited for.
+        let broken: Start = Box::new(|_| Err(StoreError::Engine("broken".into())));
+        flag.store(false, Ordering::SeqCst);
+        assert!(matches!(
+            start_when_free(store.as_ref(), &broken, &ctx, &flag),
+            Err(StoreError::Engine(_))
+        ));
+    }
 
     #[test]
     fn the_job_shows_files_bytes_and_the_current_file() {

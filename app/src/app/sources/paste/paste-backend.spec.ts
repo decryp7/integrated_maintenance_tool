@@ -6,15 +6,22 @@ import { MockPasteBackend } from './mock/mock-paste-backend';
 import { PasteBackend, TauriPasteBackend } from './paste-backend';
 
 describe('TauriPasteBackend', () => {
-  it('maps pasteLog to paste_log with { text, name }', async () => {
-    const call = vi.fn(async () => ({}));
+  it('starts paste_log as an import job with { text, name } and resolves with the workspace it ends with', async () => {
+    const call = vi.fn(async (cmd: string) => (cmd === 'jobs_wait' ? { state: 'done', result: { type: 'workspace', detail: { total: 2 } } } : 43));
     const b = new TauriPasteBackend(call as never);
-    await b.pasteLog('hello', 'web01');
+    expect(await b.pasteLog('hello', 'web01')).toEqual({ total: 2 });
     await b.pasteLog('hi', null);
     expect(call.mock.calls).toEqual([
       ['paste_log', { text: 'hello', name: 'web01' }],
+      ['jobs_wait', { id: 43 }],
       ['paste_log', { text: 'hi', name: null }],
+      ['jobs_wait', { id: 43 }],
     ]);
+  });
+
+  it('rejects when the import job fails', async () => {
+    const call = vi.fn(async (cmd: string) => (cmd === 'jobs_wait' ? { state: 'failed', error: 'disk full' } : 43));
+    await expect(new TauriPasteBackend(call as never).pasteLog('x', null)).rejects.toMatchObject({ message: 'disk full' });
   });
 
   it('is the mock in a browser, with failures logged', async () => {

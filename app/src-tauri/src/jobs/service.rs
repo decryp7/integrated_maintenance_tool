@@ -1128,7 +1128,7 @@ pub(crate) mod tests {
                 move |ctx| {
                     ctx.message("reading app.log");
                     let _ = lock(&rx).recv();
-                    Ok(Done::new(()).with_result(JobResult::Workspace))
+                    Ok(Done::new(()).with_result(JobResult::workspace()))
                 },
             )
             .unwrap();

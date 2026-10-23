@@ -351,8 +351,10 @@ export class TauriToolsBackend extends ToolsBackend {
     });
     return jobValue<ProjectSaved>(this.call, job);
   }
-  openProject(path: string) {
-    return this.call<ProjectOpened>('open_project', { path });
+  /** The command starts an import job and returns its id; the opened project is the job's value. */
+  async openProject(path: string) {
+    const job = await this.call<number>('open_project', { path });
+    return jobValue<ProjectOpened>(this.call, job);
   }
   takePendingOpen() {
     return this.call<string[]>('take_pending_open');

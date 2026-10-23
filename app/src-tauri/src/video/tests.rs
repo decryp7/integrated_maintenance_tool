@@ -7,7 +7,7 @@ use super::commands::*;
 use super::media::serve_for_tests;
 use super::runtime_commands::*;
 use super::*;
-use crate::test_support::{block, main_window, samples, test_app, window, TempDir};
+use crate::test_support::{block, finished, finished_as, main_window, samples, test_app, window, TempDir};
 use crate::windows::CurrentWindow;
 use debrief_video::align::UserAlignment;
 use debrief_video::api::*;
@@ -327,14 +327,20 @@ fn the_video_can_be_copied_into_the_project_and_the_copy_dropped() {
     let (_dir, app, r, file) = app_with_video("video-include");
     let win = main_window(&app);
     let h = app.handle().clone();
-    let v = block(video_include(
-        h.clone(),
-        win.clone(),
-        IncludeRequest {
-            key: r.key.clone(),
-            include: true,
-        },
-    ))
+    let v = finished_as::<VideoView>(
+        &app,
+        crate::test_support::returns_fast(
+            "video_include",
+            video_include(
+                h.clone(),
+                win.clone(),
+                IncludeRequest {
+                    key: r.key.clone(),
+                    include: true,
+                },
+            ),
+        ),
+    )
     .unwrap();
     assert_eq!(v.media, MediaState::Included);
     assert!(v.record.included);
@@ -344,20 +350,22 @@ fn the_video_can_be_copied_into_the_project_and_the_copy_dropped() {
         MediaState::Included,
         "the copy plays when the original is gone"
     );
-    let v = block(video_include(
-        h.clone(),
-        win.clone(),
-        IncludeRequest {
-            key: r.key.clone(),
-            include: false,
-        },
-    ))
+    let v = finished_as::<VideoView>(
+        &app,
+        block(video_include(
+            h.clone(),
+            win.clone(),
+            IncludeRequest {
+                key: r.key.clone(),
+                include: false,
+            },
+        )),
+    )
     .unwrap();
     assert_eq!(v.media, MediaState::Missing);
-    assert_eq!(
-        code(block(video_include(h, win, IncludeRequest { key: r.key, include: true }))),
-        crate::ErrorCode::NotFound
-    );
+    // The original is gone and the copy dropped: the job fails and says where the video was.
+    let e = finished(&app, block(video_include(h, win, IncludeRequest { key: r.key, include: true }))).unwrap_err();
+    assert!(e.to_string().contains("is not where it was"), "{e}");
 }
 
 #[test]
@@ -365,14 +373,17 @@ fn removing_a_video_removes_its_source_frames_and_copy_but_not_the_original() {
     let (_dir, app, r, file) = app_with_video("video-remove");
     let win = main_window(&app);
     let h = app.handle().clone();
-    block(video_include(
-        h.clone(),
-        win.clone(),
-        IncludeRequest {
-            key: r.key.clone(),
-            include: true,
-        },
-    ))
+    finished(
+        &app,
+        block(video_include(
+            h.clone(),
+            win.clone(),
+            IncludeRequest {
+                key: r.key.clone(),
+                include: true,
+            },
+        )),
+    )
     .unwrap();
     block(video_set_note(
         h.clone(),
@@ -458,13 +469,16 @@ fn the_runtime_commands_report_validate_and_refuse_what_cannot_work() {
         code(block(video_runtime_set_custom(h.clone(), "x".repeat(5000)))),
         crate::ErrorCode::Invalid
     );
-    assert_eq!(
-        code(block(video_runtime_set_custom(
+    // A file that is not there fails the check job (the command has returned its id by then), with the reason.
+    let e = finished(
+        &app,
+        block(video_runtime_set_custom(
             h.clone(),
-            dir.0.join("none").to_string_lossy().into_owned()
-        ))),
-        crate::ErrorCode::NotFound
-    );
+            dir.0.join("none").to_string_lossy().into_owned(),
+        )),
+    )
+    .unwrap_err();
+    assert!(!e.to_string().is_empty(), "the job says why");
     assert_eq!(code(block(video_runtime_delete(h.clone(), "".into()))), crate::ErrorCode::Invalid);
     assert_eq!(
         code(block(video_runtime_delete(h.clone(), "autobuild-1".into()))),
@@ -563,21 +577,30 @@ fn a_generated_clip_is_analysed_end_to_end_when_ffmpeg_is_installed() {
         return;
     }
     let h = app.handle().clone();
-    let v =
-        block(video_runtime_set_custom(h.clone(), ffmpeg.to_string_lossy().into_owned())).expect("the real ffmpeg passes the self-test");
-    assert_eq!(v.status.mode, debrief_video::runtime::RuntimeMode::Custom);
+    let v = finished(
+        &app,
+        block(video_runtime_set_custom(h.clone(), ffmpeg.to_string_lossy().into_owned())),
+    )
+    .expect("the real ffmpeg passes the self-test");
+    assert_eq!(
+        v["status"]["mode"],
+        serde_json::to_value(debrief_video::runtime::RuntimeMode::Custom).unwrap()
+    );
     let win = main_window(&app);
     let grants = crate::paths::WindowGrants::of(app.handle(), "main");
-    let view = block(video_open(
-        h,
-        win.clone(),
-        grants,
-        OpenVideoRequest {
-            path: clip.to_string_lossy().into_owned(),
-            options: SelectOptions::default(),
-            include: false,
-        },
-    ))
+    let view = finished_as::<VideoView>(
+        &app,
+        block(video_open(
+            h,
+            win.clone(),
+            grants,
+            OpenVideoRequest {
+                path: clip.to_string_lossy().into_owned(),
+                options: SelectOptions::default(),
+                include: false,
+            },
+        )),
+    )
     .expect("the clip is analysed");
     assert!(view.record.frames.len() >= 2, "{:?}", view.record.frames);
     assert_eq!(view.record.alignment.by, debrief_core::importers::video::AlignedBy::FileName);

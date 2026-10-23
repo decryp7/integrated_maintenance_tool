@@ -22,7 +22,7 @@
  *   save_session      { ui }                      -> void
  *   last_session      {}                          -> string | null
  *   save_project      { path, name, ui, reports?, overwrite? } -> number (the file job's id; its value, via `jobs_wait`, is { path, name }: a self-contained `.debriefz`)
- *   open_project      { path }                    -> ProjectOpened  (`.debriefz`, a `.debrief` folder, or Debrief's own `.debriefproj`)
+ *   open_project      { path }                    -> number (the import job's id; its value, via `jobs_wait`, is the ProjectOpened; `.debriefz`, a `.debrief` folder, or Debrief's own `.debriefproj`)
  *   set_live          { enabled }                 -> number (watched paths)
  *   take_pending_open {}                          -> string[]
  * Event Log follower (`tool_invoke { tool: 'event-log-follower', op, args }`, debrief-plugin-tools `eventlog_tool`):

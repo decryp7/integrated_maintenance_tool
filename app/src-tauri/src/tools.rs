@@ -405,10 +405,11 @@ pub(crate) mod tests {
                 invoke_key: INVOKE_KEY.to_string(),
             },
         );
-        res.map(|body| match body {
+        let reply = res.map(|body| match body {
             InvokeResponseBody::Json(s) => serde_json::from_str::<Value>(&s).unwrap(),
             InvokeResponseBody::Raw(_) => Value::Null,
-        })
+        });
+        crate::test_support::settle(w, cmd, reply)
     }
 
     /// Like [`ipc`], with the UI's operation id in the IPC header.
@@ -429,10 +430,11 @@ pub(crate) mod tests {
                 invoke_key: INVOKE_KEY.to_string(),
             },
         );
-        res.map(|body| match body {
+        let reply = res.map(|body| match body {
             InvokeResponseBody::Json(s) => serde_json::from_str::<Value>(&s).unwrap(),
             InvokeResponseBody::Raw(_) => Value::Null,
-        })
+        });
+        crate::test_support::settle(w, cmd, reply)
     }
 
     /// The domain events captured since `test_capture` (needs its guard held).

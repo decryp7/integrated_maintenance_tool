@@ -195,6 +195,7 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, 
     let queued = jobs::spawn(&app, spec, controls, move |ctx: &jobs::JobCtx| -> Ai<Done<()>> {
         run(&|p| ctx.progress(p))?;
         Ok(Done::new(()).with_result(JobResult::Model {
+            detail: None,
             file_name: Some(file_name.clone()),
         }))
     });
@@ -279,7 +280,7 @@ pub async fn ai_model_delete<R: Runtime>(app: AppHandle<R>, file_name: String) -
 /// Adds a `.gguf` the user picked in the open dialog to the models folder. A catalog model (a manual
 /// download) is checked against its SHA-256 first, as a download job with progress that Cancel stops.
 #[tauri::command]
-pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants, path: String) -> Ai<ModelDto> {
+pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants, path: String) -> Ai<u64> {
     let core = core(&app)?;
     core.availability()?;
     // Only a file the user chose in the dialog.
@@ -295,12 +296,11 @@ pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::pa
         (s.total > 0).then(|| JobProgress::bytes(s.bytes, s.total))
     });
     let spec = JobSpec::new(JobKind::Download, format!("Checking the model file {name}")).link(JobLink::Path { path: path.clone() });
-    jobs::run(&app, spec, controls, move |_ctx: &jobs::JobCtx| -> Ai<Done<ModelDto>> {
+    jobs::start_value(&app, spec, controls, move |_ctx: &jobs::JobCtx| -> Ai<Done<ModelDto>> {
         let m = core.add_local(&path, &progress)?;
         let file_name = Some(m.file_name.clone());
-        Ok(Done::new(m).with_result(JobResult::Model { file_name }))
+        Ok(Done::new(m).with_result(JobResult::Model { detail: None, file_name }))
     })
-    .await
 }
 
 /// Lets the engine run again after it was switched off for the session (quarantine) or a load failed.

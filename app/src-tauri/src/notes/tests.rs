@@ -39,13 +39,16 @@ fn workspace(tag: &str) -> (TempDir, tauri::App<MockRuntime>, std::path::PathBuf
     std::fs::write(&png, crate::activity::report::sample::png(40, 20, |x, _| [x as u8 * 6, 0, 0])).unwrap();
     let app = test_app(Some(dir.0.join("profiles")));
     crate::paths::allow_under(app.handle(), "main", &dir.0);
-    let opened = block(crate::workspace_commands::open_paths(
-        app.handle().clone(),
-        main_window(&app),
-        vec![logs.to_string_lossy().into_owned()],
-    ))
+    let opened = crate::test_support::finished(
+        &app,
+        block(crate::workspace_commands::open_paths(
+            app.handle().clone(),
+            main_window(&app),
+            vec![logs.to_string_lossy().into_owned()],
+        )),
+    )
     .unwrap();
-    assert!(opened.total > 0);
+    assert!(opened["total"].as_u64().unwrap() > 0);
     (dir, app, png)
 }
 
@@ -228,15 +231,18 @@ fn anchors_resolve_after_reopening_a_project() {
     std::fs::remove_dir_all(dir.0.join("logs")).unwrap();
     crate::paths::allow_under(app.handle(), "w-2", &dir.0);
     let w2 = || CurrentWindow::of(app.handle(), "w-2").unwrap();
-    let opened = block(crate::workspace_commands::open_project(
-        app.handle().clone(),
-        w2(),
-        grants(&app, "w-2"),
-        Default::default(),
-        file,
-    ))
+    let opened = crate::test_support::finished(
+        &app,
+        block(crate::workspace_commands::open_project(
+            app.handle().clone(),
+            w2(),
+            grants(&app, "w-2"),
+            Default::default(),
+            file,
+        )),
+    )
     .unwrap();
-    let restored = block(notes_restore(w2(), Some(opened.ui["notes"].clone()))).unwrap();
+    let restored = block(notes_restore(w2(), Some(opened["ui"]["notes"].clone()))).unwrap();
     assert_eq!((restored.count, restored.warning), (3, None));
     let list = block(notes_list(w2())).unwrap();
     assert!(list.notes.iter().all(|n| n.resolved), "{:?}", list.notes);
@@ -247,7 +253,7 @@ fn anchors_resolve_after_reopening_a_project() {
         "the original's size, from the project's copy"
     );
     // A note on an event the store does not have says so instead of disappearing.
-    let mut v = opened.ui["notes"].clone();
+    let mut v = opened["ui"]["notes"].clone();
     v["notes"][0]["anchor"]["eventId"] = json!(u32::MAX);
     block(notes_restore(w2(), Some(v))).unwrap();
     assert!(!block(notes_list(w2())).unwrap().notes[0].resolved);

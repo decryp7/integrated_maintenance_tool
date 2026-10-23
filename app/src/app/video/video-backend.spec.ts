@@ -26,9 +26,11 @@ describe('the browser build engine', () => {
 describe('TauriVideoBackend', () => {
   it('calls one command per method with its arguments', async () => {
     const calls: [string, unknown][] = [];
+    // The commands that do long work start a job and return its id; `jobs_wait` says how it ended.
     const invoke = (async (cmd: string, args?: unknown) => {
+      if (cmd === 'jobs_wait') return { state: 'done', result: { type: 'value', value: { ok: cmd } } };
       calls.push([cmd, args]);
-      return null;
+      return 45;
     }) as never;
     const b = new TauriVideoBackend(invoke);
     const frame = { key: 'k', index: 2 };
@@ -82,5 +84,18 @@ describe('TauriVideoBackend', () => {
     expect(calls[11]![1]).toEqual({ frame });
     expect(calls[14]![1]).toEqual({ request: { key: 'k', index: 2, note: 'n' } });
     expect(calls[19]![1]).toEqual({ frame });
+  });
+
+  it('resolves the job-starting commands with the job value and rejects when the job fails or is cancelled', async () => {
+    let outcome: unknown = { state: 'done', result: { type: 'value', value: { record: { key: 'k' } } } };
+    const invoke = vi.fn(async (cmd: string) => (cmd === 'jobs_wait' ? outcome : 45));
+    const b = new TauriVideoBackend(invoke as never);
+    expect(await b.open({ path: '/a.mp4', options: { mode: { mode: 'changes', threshold: 0.1 }, cap: 30 }, include: false })).toEqual({ record: { key: 'k' } });
+    expect(invoke).toHaveBeenLastCalledWith('jobs_wait', { id: 45 });
+    outcome = { state: 'failed', error: 'FFmpeg stopped' };
+    await expect(b.addFrame({ key: 'k', videoMs: 5 })).rejects.toMatchObject({ code: 'failed', message: 'FFmpeg stopped' });
+    outcome = { state: 'cancelled', error: 'cancelled' };
+    await expect(b.generateDescriptions({ key: 'k', indices: [], redo: false })).rejects.toMatchObject({ code: 'cancelled' });
+    await expect(b.installRuntime()).rejects.toMatchObject({ code: 'cancelled' });
   });
 });

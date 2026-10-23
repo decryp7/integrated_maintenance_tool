@@ -50,7 +50,7 @@ pub async fn video_runtime<R: Runtime>(app: AppHandle<R>) -> CmdResult<VideoRunt
 /// Downloads, verifies and self-tests the pinned build for this computer and makes it the one in use, as a download
 /// job (progress and Cancel in the Jobs pane). Not offered where no build is pinned (macOS): use your own ffmpeg.
 #[tauri::command]
-pub async fn video_runtime_install<R: Runtime>(app: AppHandle<R>) -> CmdResult<VideoRuntimeView> {
+pub async fn video_runtime_install<R: Runtime>(app: AppHandle<R>) -> CmdResult<u64> {
     let platform = current_platform();
     let h = app.clone();
     {
@@ -76,7 +76,7 @@ pub async fn video_runtime_install<R: Runtime>(app: AppHandle<R>) -> CmdResult<V
         (s.total > 0).then(|| JobProgress::bytes(s.bytes, s.total))
     });
     let spec = JobSpec::new(JobKind::Download, "Installing the FFmpeg video runtime");
-    jobs::run(&app, spec, controls, move |ctx: &JobCtx| -> CmdResult<Done<VideoRuntimeView>> {
+    jobs::start_value(&app, spec, controls, move |ctx: &JobCtx| -> CmdResult<Done<VideoRuntimeView>> {
         let st = state(&h)?;
         let source = GithubReleases::new(
             ReleaseConfig {
@@ -119,7 +119,6 @@ pub async fn video_runtime_install<R: Runtime>(app: AppHandle<R>) -> CmdResult<V
         result.map_err(cmd)?;
         Ok(Done::new(view(&st)))
     })
-    .await
 }
 
 /// Goes back to the release before the last update.
@@ -153,13 +152,13 @@ pub async fn video_runtime_delete<R: Runtime>(app: AppHandle<R>, tag: String) ->
 /// Uses the user's own ffmpeg (a file or its folder): it must pass the self-test, otherwise nothing changes and the
 /// error says why. `path` is one the user chose in a dialog or one of the detected ones.
 #[tauri::command]
-pub async fn video_runtime_set_custom<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult<VideoRuntimeView> {
+pub async fn video_runtime_set_custom<R: Runtime>(app: AppHandle<R>, path: String) -> CmdResult<u64> {
     if path.trim().is_empty() || path.len() > MAX_PATH {
         return Err(CmdError::invalid("choose the ffmpeg program or the folder it is in"));
     }
     let h = app.clone();
     let path = PathBuf::from(path.trim());
-    jobs::run(
+    jobs::start_value(
         &app,
         JobSpec::new(JobKind::Analysis, "Checking the chosen FFmpeg"),
         Controls::default(),
@@ -170,7 +169,6 @@ pub async fn video_runtime_set_custom<R: Runtime>(app: AppHandle<R>, path: Strin
             Ok(Done::new(view(&st)))
         },
     )
-    .await
 }
 
 /// Stops using the user's own ffmpeg.

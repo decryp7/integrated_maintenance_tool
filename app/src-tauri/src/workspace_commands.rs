@@ -27,9 +27,15 @@ use tauri::{AppHandle, Runtime};
 
 /// The window's summary: the store's (when one is open) with the host's profile and plugins.
 pub(crate) async fn summary_of(state: &CurrentWindow) -> CmdResult<WorkspaceSummary> {
+    let win = state.clone();
+    crate::sync::blocking("the log store", move || summary_now(&win)).await
+}
+
+/// [`summary_of`] on the calling thread (a job's, or a worker's): the store's reply can take a moment.
+pub(crate) fn summary_now(state: &CurrentWindow) -> CmdResult<WorkspaceSummary> {
     let win = state.arc().clone();
     let reply = match win.engine.opened() {
-        Some(store) => crate::sync::blocking("the log store", move || store.summary().map_err(CmdError::from)).await?,
+        Some(store) => store.summary().map_err(CmdError::from)?,
         // Nothing opened yet: an empty summary without starting the store worker.
         None => debrief_core::ports::SummaryReply {
             total: 0,
@@ -185,15 +191,18 @@ pub(crate) fn open_request<R: Runtime>(app: &AppHandle<R>, window: &str, paths: 
         .collect()
 }
 
+/// Opens the paths the user chose as an import job and returns its id at once; the job's value is the
+/// [`WorkspaceSummary`] (`jobs_wait`, or the Jobs events).
 #[tauri::command]
-pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<WorkspaceSummary> {
+pub(crate) async fn open_paths<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, paths: Vec<String>) -> CmdResult<u64> {
     let paths: Vec<String> = open_request(&app, state.label(), paths)?
         .into_iter()
         .map(|p| p.to_string_lossy().into_owned())
         .collect();
-    let summary = open_granted(&app, &state, paths.clone()).await?;
-    crate::recent::opened_files(&app, &paths);
-    Ok(summary)
+    let (recorder, recorded) = (app.clone(), paths.clone());
+    start_open_at(&app, &state, paths, false, move |_| {
+        crate::recent::opened_files(&recorder, &recorded)
+    })
 }
 
 /// What an import reported to the user and the logs: files not imported, crashes (typed engine errors),
@@ -222,33 +231,63 @@ pub(crate) fn after_import<R: Runtime>(
     state.set_loaded(true);
 }
 
-/// Opens paths that were checked already (granted, or Debrief's own): see [`open_request`].
-pub(crate) async fn open_granted<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, paths: Vec<String>) -> CmdResult<WorkspaceSummary> {
-    open_granted_at(app, state, paths, false).await
-}
-
-/// [`open_granted`], optionally at the end of the files: only the lines written from now on are read.
-pub(crate) async fn open_granted_at<R: Runtime>(
+/// Starts the import of paths that were checked already (granted, or Debrief's own: see [`open_request`]) as a job and
+/// returns its id at once, optionally at the end of the files (only the lines written from now on are read). The job
+/// does everything after the engine import (the report's messages, the summary, the notification); `then` runs with the
+/// summary once it is done.
+pub(crate) fn start_open_at<R: Runtime>(
     app: &AppHandle<R>,
     state: &CurrentWindow,
     paths: Vec<String>,
     at_end: bool,
+    then: impl FnOnce(&WorkspaceSummary) + Send + 'static,
+) -> CmdResult<u64> {
+    let (controls, flag) = crate::engine::import::controls();
+    let (handle, win) = (app.clone(), state.clone());
+    let spec = open_spec(&paths).window(state.label());
+    crate::jobs::start_value(app, spec, controls, move |ctx: &crate::jobs::JobCtx| {
+        let summary = open_in_job(&handle, &win, ctx, &flag, paths, at_end)?;
+        then(&summary);
+        Ok(crate::jobs::Done::new(summary).with_result(crate::jobs::JobResult::workspace()))
+    })
+}
+
+/// The body of an open job: diagnostics reports become the folders of their logs, the rest is imported.
+pub(crate) fn open_in_job<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    ctx: &crate::jobs::JobCtx,
+    cancel: &std::sync::atomic::AtomicBool,
+    paths: Vec<String>,
+    at_end: bool,
 ) -> CmdResult<WorkspaceSummary> {
-    let paths = crate::activity::report::open::divert(app, state.label(), paths).await;
+    let paths = tauri::async_runtime::block_on(crate::activity::report::open::divert(app, state.label(), paths));
     if paths.is_empty() {
-        return summary_of(state).await;
+        return summary_now(state);
     }
-    let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
     let files: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-    let report = crate::engine::import::run(
+    import_in_job(
         app,
         state,
-        open_spec(&paths),
+        ctx,
+        cancel,
         Box::new(move |store| if at_end { store.open_at_end(&files) } else { store.open(&files) }),
     )
-    .await?;
+}
+
+/// One import with what follows it, on the calling job's thread: the report's messages and logs, the window loaded,
+/// the summary, the "import finished" notification.
+fn import_in_job<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &CurrentWindow,
+    ctx: &crate::jobs::JobCtx,
+    cancel: &std::sync::atomic::AtomicBool,
+    start: crate::engine::import::Start,
+) -> CmdResult<WorkspaceSummary> {
+    let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
+    let report = crate::engine::import::in_job(state, ctx, cancel, &start)?;
     after_import(app, state, &before, &report);
-    let summary = summary_of(state).await?;
+    let summary = summary_now(state)?;
     crate::window_manager::import_finished(app, state.label(), summary.total as u64);
     Ok(summary)
 }
@@ -306,15 +345,16 @@ pub(crate) async fn clear_workspace(state: CurrentWindow) -> CmdResult<Workspace
     summary_of(&state).await
 }
 
+/// Reads the opened files again as an import job; returns its id at once (the job's value is the [`WorkspaceSummary`]).
 #[tauri::command]
-pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<WorkspaceSummary> {
-    let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
-    let spec = JobSpec::new(JobKind::Import, "Reload the files");
-    let report = crate::engine::import::run(&app, &state, spec, Box::new(|store| store.reload())).await?;
-    after_import(&app, &state, &before, &report);
-    let summary = summary_of(&state).await?;
-    crate::window_manager::import_finished(&app, state.label(), summary.total as u64);
-    Ok(summary)
+pub(crate) async fn reload_workspace<R: Runtime>(app: AppHandle<R>, state: CurrentWindow) -> CmdResult<u64> {
+    let spec = JobSpec::new(JobKind::Import, "Reload the files").window(state.label());
+    let (controls, flag) = crate::engine::import::controls();
+    let (handle, win) = (app.clone(), state.clone());
+    crate::jobs::start_value(&app, spec, controls, move |ctx: &crate::jobs::JobCtx| {
+        let summary = import_in_job(&handle, &win, ctx, &flag, Box::new(|store| store.reload()))?;
+        Ok(crate::jobs::Done::new(summary).with_result(crate::jobs::JobResult::workspace()))
+    })
 }
 
 #[tauri::command]
@@ -590,6 +630,7 @@ pub(crate) async fn save_project<R: Runtime>(
 /// Opens a project the user chose (or one from the recent list): an `.debriefz` (extracted into Debrief's stores
 /// folder) or a `.debrief` project folder; its events open without the original log files. Debrief's own workspace
 /// files (`.debriefproj`: the autosaved session, the activity log) reopen their store or import their files.
+/// An import job does the work and the command returns its id at once; the job's value is the [`OpenedProject`].
 #[tauri::command]
 pub(crate) async fn open_project<R: Runtime>(
     app: AppHandle<R>,
@@ -597,62 +638,66 @@ pub(crate) async fn open_project<R: Runtime>(
     grants: crate::paths::WindowGrants,
     op: OpId,
     path: String,
-) -> CmdResult<OpenedProject> {
+) -> CmdResult<u64> {
     let recents = crate::recent::recents(&app);
-    let file = grants.read_or_listed(
-        &path,
-        &[
-            debrief_core::package::ARCHIVE_EXTENSION,
-            "debriefproj",
-            debrief_core::package::PROJECT_EXTENSION,
-        ],
-        |p| recents.has_project(p),
-    )?;
-    let is_workspace_file = file.path().extension().is_some_and(|e| e == "debriefproj");
-    let session = crate::lifecycle::is_session_file(file.path());
-    let opened = if is_workspace_file {
-        open_project_file(&app, &state, op, file.path().to_path_buf(), path.clone()).await?
-    } else {
-        open_store_project(&app, &state, op, file.path().to_path_buf(), path.clone()).await?
-    };
-    if !session {
-        // The project's own file: "Save" writes it back without a dialog.
-        if let Err(e) = grants.grant(file.path(), crate::paths::Access::Write, crate::paths::GrantSource::Project) {
-            log::debug!("the project file is not writable from this window: {e}");
+    let file = grants
+        .read_or_listed(
+            &path,
+            &[
+                debrief_core::package::ARCHIVE_EXTENSION,
+                "debriefproj",
+                debrief_core::package::PROJECT_EXTENSION,
+            ],
+            |p| recents.has_project(p),
+        )?
+        .path()
+        .to_path_buf();
+    let is_workspace_file = file.extension().is_some_and(|e| e == "debriefproj");
+    let session = crate::lifecycle::is_session_file(&file);
+    let spec = JobSpec::new(JobKind::Import, "Open the project")
+        .window(state.label())
+        .link(JobLink::Path { path: path.clone() });
+    let (controls, flag) = crate::engine::import::controls();
+    let (handle, win) = (app.clone(), state.clone());
+    crate::jobs::start_value(&app, spec, controls, move |ctx: &crate::jobs::JobCtx| {
+        let opened = if is_workspace_file {
+            open_project_file_in_job(&handle, &win, ctx, &flag, op, file.clone(), path.clone())?
+        } else {
+            open_store_project_in_job(&handle, &win, ctx, &flag, op, file.clone(), path.clone())?
+        };
+        if !session {
+            // The project's own file: "Save" writes it back without a dialog.
+            if let Err(e) = grants.grant(&file, crate::paths::Access::Write, crate::paths::GrantSource::Project) {
+                log::debug!("the project file is not writable from this window: {e}");
+            }
+            win.set_project(Some(path.clone()));
+            crate::recent::opened_project(&handle, &path, &opened.name);
         }
-        state.set_project(Some(path.clone()));
-        crate::recent::opened_project(&app, &path, &opened.name);
-    }
-    Ok(opened)
+        Ok(crate::jobs::Done::new(opened).with_result(crate::jobs::JobResult::workspace()))
+    })
 }
 
-/// Opens a saved project (`.debriefz` or `.debrief`) as the window's store.
-async fn open_store_project<R: Runtime>(
+/// Opens a saved project (`.debriefz` or `.debrief`) as the window's store, on the calling job's thread.
+fn open_store_project_in_job<R: Runtime>(
     app: &AppHandle<R>,
     state: &CurrentWindow,
+    ctx: &crate::jobs::JobCtx,
+    cancel: &std::sync::atomic::AtomicBool,
     op: OpId,
     file: PathBuf,
     shown: String,
 ) -> CmdResult<OpenedProject> {
-    let win = state.arc().clone();
-    let spec = JobSpec::new(JobKind::Import, "Open the project")
-        .window(state.label())
-        .link(JobLink::Path { path: shown.clone() });
-    let (store, manifest) = crate::jobs::run(app, spec, Default::default(), move |ctx: &crate::jobs::JobCtx| -> CmdResult<_> {
-        ctx.message("Opening the project");
-        let base = win.engine.profile();
-        let dest = win.engine.unpack_root();
-        let opened = win.engine.host().open_project(&file, &dest, &base).map_err(CmdError::from)?;
-        crate::engine::annotate::run_in_job(&win, opened.0.as_ref(), ctx, &std::sync::atomic::AtomicBool::new(false));
-        Ok(crate::jobs::Done::new(opened).with_result(crate::jobs::JobResult::Workspace))
-    })
-    .await?;
+    ctx.message("Opening the project");
+    let base = state.engine.profile();
+    let dest = state.engine.unpack_root();
+    let (store, manifest) = state.engine.host().open_project(&file, &dest, &base).map_err(CmdError::from)?;
+    crate::engine::annotate::run_in_job(state, store.as_ref(), ctx, cancel);
+    if ctx.is_cancelled() || cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        return Err(CmdError::new(crate::ErrorCode::Cancelled, "opening the project was cancelled"));
+    }
     let (ui, reports) = crate::services::project::read_ui(&store.store_dir());
     // The project's profile: its overrides merged over the window's (what the store applied).
-    let profile = {
-        let s = store.clone();
-        crate::sync::blocking("the log store", move || s.active_profile().map_err(CmdError::from)).await?
-    };
+    let profile = store.active_profile().map_err(CmdError::from)?;
     let doc = if manifest.profile_overrides.trim().is_empty() {
         state.profile_doc()
     } else {
@@ -668,7 +713,7 @@ async fn open_store_project<R: Runtime>(
     state.set_loaded(true);
     let captures = crate::services::project::captures(&ui);
     crate::paths::grant_read_all(app, state.label(), &captures, crate::paths::GrantSource::Output);
-    let summary = summary_of(state).await?;
+    let summary = summary_now(state)?;
     log::info!(Sources = summary.sources.len() as u64; "Project opened");
     let safe = privacy::safe_path(std::path::Path::new(&shown));
     domain_event("project.opened", op.as_deref(), &[("Path", &safe)]);
@@ -698,14 +743,17 @@ fn apply_window_profile(state: &CurrentWindow, profile: Profile) -> CmdResult<()
 /// Opens a workspace file that was checked already (granted, or Debrief's own: a session, an unpacked bundle's).
 /// `shown` is the path as the UI names it. Its store folder is reopened when it is still there; otherwise its
 /// files are imported. Grants the window the captures the project's UI state reopens.
-pub(crate) async fn open_project_file<R: Runtime>(
+pub(crate) fn open_project_file_in_job<R: Runtime>(
     app: &AppHandle<R>,
     state: &CurrentWindow,
+    ctx: &crate::jobs::JobCtx,
+    cancel: &std::sync::atomic::AtomicBool,
     op: OpId,
     file: PathBuf,
     shown: String,
 ) -> CmdResult<OpenedProject> {
-    let project = crate::sync::blocking("reading the project", move || crate::services::project::load(&file)).await?;
+    ctx.message("Reading the project");
+    let project = crate::services::project::load(&file)?;
     let profile = Profile::from_toml(&project.profile).map_err(|e| CmdError::invalid(e.message).line(e.line))?;
     let doc = ProfileDoc {
         name: profile.name.clone(),
@@ -727,7 +775,8 @@ pub(crate) async fn open_project_file<R: Runtime>(
                 crate::engine::annotate::run(&win, store.as_ref(), &|_| {});
                 Ok(store)
             };
-            match crate::sync::blocking("reopening the session", reopen).await {
+            // A crash of the reopening is a failure to reopen, not of the job: the files are imported again.
+            match tauri::async_runtime::block_on(crate::sync::blocking("reopening the session", reopen)) {
                 Ok(_) => true,
                 Err(e) => {
                     log::warn!("the session's store could not be reopened ({e}); importing its files again");
@@ -743,16 +792,20 @@ pub(crate) async fn open_project_file<R: Runtime>(
         missing = project.sources.iter().filter(|p| !source_exists(p)).cloned().collect();
         if !existing.is_empty() {
             let before = crate::engine_errors::HealthSnapshot::new(&state.host.registry.plugins(), &[]);
-            let spec = JobSpec::new(JobKind::Import, format!("Open {}", project.name)).link(JobLink::Path { path: shown.clone() });
             let files: Vec<PathBuf> = existing.iter().map(PathBuf::from).collect();
-            let report = crate::engine::import::run(app, state, spec, Box::new(move |store| store.open(&files))).await?;
+            let report = crate::engine::import::in_job(
+                state,
+                ctx,
+                cancel,
+                &(Box::new(move |store: &dyn debrief_core::ports::Store| store.open(&files)) as crate::engine::import::Start),
+            )?;
             after_import(app, state, &before, &report);
         }
     }
     state.set_loaded(true);
     let captures = crate::services::project::captures(&project.ui);
     crate::paths::grant_read_all(app, state.label(), &captures, crate::paths::GrantSource::Output);
-    let summary = summary_of(state).await?;
+    let summary = summary_now(state)?;
     log::info!(Sources = project.sources.len() as u64, Missing = missing.len() as u64; "Project opened");
     let safe = privacy::safe_path(std::path::Path::new(&shown));
     let (sources, missing_n) = (project.sources.len().to_string(), missing.len().to_string());
@@ -837,7 +890,9 @@ mod tests {
         let pending = take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
             .now()
             .unwrap();
-        block(open_paths(app.handle().clone(), main_window(&app), pending)).unwrap().json();
+        crate::test_support::finished(&app, block(open_paths(app.handle().clone(), main_window(&app), pending)))
+            .unwrap()
+            .json();
         app
     }
 
@@ -864,6 +919,118 @@ mod tests {
         assert_eq!(exported_line(&r(3), true), "Exported 7 events (redacted, 3 values masked).");
     }
 
+    /// Opening returns the job's id at once; the import, the summary and the notification are the job's. The summary
+    /// is what `jobs_wait` hands the UI, and the job stays a workspace result so View still opens it.
+    #[test]
+    fn opening_and_reloading_return_at_once_and_the_job_carries_the_summary() {
+        let dir = TempDir::new("open-fast");
+        let app = test_app(Some(dir.0.clone()));
+        let st = || main_window(&app);
+        crate::paths::allow_under(app.handle(), "main", &samples());
+        let files = vec![samples().join("serilog-clef").to_string_lossy().into_owned()];
+        let started = crate::test_support::returns_fast("open_paths", open_paths(app.handle().clone(), st(), files));
+        let end = crate::test_support::job_end(&app, started.unwrap());
+        assert_eq!(end.state, crate::jobs::JobState::Done, "{end:?}");
+        let Some(crate::jobs::JobResult::Workspace { detail: Some(summary) }) = end.result else {
+            panic!("an open job ends with the workspace summary: {end:?}");
+        };
+        assert!(summary["total"].as_u64().unwrap() > 0);
+        assert!(!summary["sources"].as_array().unwrap().is_empty());
+        assert!(!st().is_pristine(), "the post-processing ran inside the job");
+
+        let started = crate::test_support::returns_fast("reload_workspace", reload_workspace(app.handle().clone(), st()));
+        let reloaded = crate::test_support::job_value(&app, started.unwrap()).unwrap();
+        assert_eq!(reloaded["total"], summary["total"]);
+    }
+
+    /// A project that cannot be opened is reported by its job (with the reason), not by the command, which has
+    /// already returned.
+    #[test]
+    fn a_damaged_project_fails_its_job_with_the_reason() {
+        let dir = TempDir::new("open-bad");
+        let app = test_app(Some(dir.0.join("profiles")));
+        crate::paths::allow_under(app.handle(), "w-2", &dir.0);
+        std::fs::write(dir.0.join("bad.debriefz"), "not a zip").unwrap();
+        std::fs::write(
+            dir.0.join("bad.debriefproj"),
+            r#"{"version":1,"name":"x","sources":[],"profile":"[parse"}"#,
+        )
+        .unwrap();
+        for name in ["bad.debriefz", "bad.debriefproj"] {
+            let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
+            let started = crate::test_support::returns_fast(
+                "open_project",
+                open_project(
+                    app.handle().clone(),
+                    w2,
+                    crate::paths::WindowGrants::of(app.handle(), "w-2"),
+                    OpId::default(),
+                    dir.0.join(name).to_string_lossy().into_owned(),
+                ),
+            );
+            let end = crate::test_support::job_end(&app, started.unwrap());
+            assert_eq!(end.state, crate::jobs::JobState::Failed, "{name}: {end:?}");
+            assert!(!end.error.unwrap_or_default().is_empty(), "{name}: the job says why");
+        }
+        let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
+        assert!(w2.is_pristine(), "a failed open leaves the window as it was");
+    }
+
+    /// Imports run one at a time per window: a second open waits in the queue while one runs (and the command returns at
+    /// once), Cancel takes it out before it reads anything, and the next one runs when the first ends.
+    #[test]
+    fn a_second_import_waits_for_the_running_one_and_cancel_removes_it() {
+        use crate::jobs::{Controls, Done, JobKind, JobSpec, JobState, Jobs};
+        let dir = TempDir::new("open-queue");
+        let app = test_app(Some(dir.0.clone()));
+        let st = || main_window(&app);
+        crate::paths::allow_under(app.handle(), "main", &samples());
+        let (release, hold) = std::sync::mpsc::channel::<()>();
+        let (running, is_running) = std::sync::mpsc::channel::<()>();
+        let blocker = crate::jobs::spawn(
+            app.handle(),
+            JobSpec::new(JobKind::Import, "an import that is running").window("main"),
+            Controls::default(),
+            move |_| -> Result<Done<()>, String> {
+                let _ = running.send(());
+                let _ = hold.recv_timeout(std::time::Duration::from_secs(30));
+                Ok(Done::new(()))
+            },
+        )
+        .unwrap();
+        is_running
+            .recv_timeout(std::time::Duration::from_secs(10))
+            .expect("the first import is running");
+
+        let open = |name: &str| {
+            let files = vec![samples().join(name).to_string_lossy().into_owned()];
+            crate::test_support::returns_fast("open_paths", open_paths(app.handle().clone(), st(), files)).unwrap()
+        };
+        let (cancelled, kept) = (open("csv"), open("log4net"));
+        let jobs = app.state::<Jobs>();
+        let state_of = |id: u64| jobs.state_of(crate::jobs::JobId(id));
+        assert_eq!(
+            (state_of(cancelled), state_of(kept)),
+            (Some(JobState::Queued), Some(JobState::Queued))
+        );
+        jobs.cancel(crate::jobs::JobId(cancelled)).unwrap();
+        assert_eq!(crate::test_support::job_end(&app, cancelled).state, JobState::Cancelled);
+
+        release.send(()).unwrap();
+        assert_eq!(crate::test_support::job_end(&app, blocker.0).state, JobState::Done);
+        let summary = crate::test_support::job_value(&app, kept).unwrap();
+        let names: Vec<String> = summary["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .map(|s| s["name"].to_string())
+            .collect();
+        assert!(
+            !names.is_empty() && names.iter().all(|n| !n.contains("csv")),
+            "the cancelled open read nothing: {names:?}"
+        );
+    }
+
     #[test]
     fn commands_round_trip() {
         let dir = TempDir::new("cmds");
@@ -877,17 +1044,22 @@ mod tests {
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
         assert_eq!(summary["profileName"], "Default (Serilog)");
 
-        let summary = block(open_paths(
-            app.handle().clone(),
-            st(),
-            vec![samples().join("log4net").to_string_lossy().into_owned()],
-        ))
+        let summary = crate::test_support::finished(
+            &app,
+            block(open_paths(
+                app.handle().clone(),
+                st(),
+                vec![samples().join("log4net").to_string_lossy().into_owned()],
+            )),
+        )
         .unwrap()
         .json();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 3);
-        assert!(block(open_paths(app.handle().clone(), st(), vec!["/does/not/exist".into()]))
-            .unwrap_err()
-            .contains("does/not/exist"));
+        assert!(
+            crate::test_support::finished(&app, block(open_paths(app.handle().clone(), st(), vec!["/does/not/exist".into()])))
+                .unwrap_err()
+                .contains("does/not/exist")
+        );
 
         let p = block(query_page(st(), page(5, Query::default()))).unwrap().json();
         assert_eq!(p["rows"].as_array().unwrap().len(), 5);
@@ -914,7 +1086,9 @@ mod tests {
         let id = summary["sources"][0]["id"].as_u64().unwrap() as u32;
         let summary = block(remove_source(st(), id)).unwrap().json();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
-        let summary = block(reload_workspace(app.handle().clone(), st())).unwrap().json();
+        let summary = crate::test_support::finished(&app, block(reload_workspace(app.handle().clone(), st())))
+            .unwrap()
+            .json();
         assert_eq!(summary["sources"].as_array().unwrap().len(), 2);
         let summary = block(clear_workspace(st())).unwrap().json();
         assert_eq!(summary["total"], 0);
@@ -968,11 +1142,14 @@ mod tests {
         assert!(block(import_problems(main_window(&app))).unwrap().is_empty());
         assert!(block(index_status(main_window(&app))).unwrap().ready);
         crate::paths::allow_under(app.handle(), "main", &dir.0);
-        block(open_paths(
-            app.handle().clone(),
-            main_window(&app),
-            vec![dir.0.to_string_lossy().into_owned()],
-        ))
+        crate::test_support::finished(
+            &app,
+            block(open_paths(
+                app.handle().clone(),
+                main_window(&app),
+                vec![dir.0.to_string_lossy().into_owned()],
+            )),
+        )
         .unwrap();
         let problems = block(import_problems(main_window(&app))).unwrap();
         assert!(!problems.is_empty(), "the unreadable timestamps are a problem");
@@ -1066,15 +1243,18 @@ mod tests {
         crate::test_support::finished(app, started).map(|v| serde_json::from_value(v).expect("the saved project"))
     }
 
-    fn open(app: &tauri::App<MockRuntime>, label: &str, path: &str) -> CmdResult<OpenedProject> {
+    fn open(app: &tauri::App<MockRuntime>, label: &str, path: &str) -> CmdResult<Value> {
         let st = crate::windows::CurrentWindow::of(app.handle(), label).unwrap();
-        block(open_project(
-            app.handle().clone(),
-            st,
-            crate::paths::WindowGrants::of(app.handle(), label),
-            OpId::default(),
-            path.to_string(),
-        ))
+        crate::test_support::finished(
+            app,
+            block(open_project(
+                app.handle().clone(),
+                st,
+                crate::paths::WindowGrants::of(app.handle(), label),
+                OpId::default(),
+                path.to_string(),
+            )),
+        )
     }
 
     /// A project is the store saved as an `.debriefz`: it opens without the log files, with its profile, view and
@@ -1098,8 +1278,12 @@ mod tests {
         let app = test_app(Some(dir.0.join("profiles")));
         crate::paths::allow_under(app.handle(), "main", &dir.0);
         let st = || main_window(&app);
-        let opened = block(open_paths(app.handle().clone(), st(), vec![logs.to_string_lossy().into_owned()])).unwrap();
-        assert!(opened.total > 0, "{:?}", opened.unrecognized);
+        let opened = crate::test_support::finished(
+            &app,
+            block(open_paths(app.handle().clone(), st(), vec![logs.to_string_lossy().into_owned()])),
+        )
+        .unwrap();
+        assert!(opened["total"].as_u64().unwrap() > 0, "{:?}", opened["unrecognized"]);
         let shared = || app.state::<crate::AppState>();
         crate::test_support::job_done(
             &app,
@@ -1144,12 +1328,12 @@ mod tests {
         std::fs::remove_dir_all(&logs).unwrap();
         crate::paths::allow_under(app.handle(), "w-2", &dir.0);
         let opened = open(&app, "w-2", &file).unwrap();
-        assert_eq!(opened.name, "Incident");
-        assert_eq!(opened.ui["bookmarks"][0], 3);
-        assert_eq!(opened.reports[0]["title"], "R");
-        assert_eq!(opened.profile.name, "Project profile");
-        assert_eq!(opened.summary.total, total);
-        assert!(opened.missing.is_empty());
+        assert_eq!(opened["name"], "Incident");
+        assert_eq!(opened["ui"]["bookmarks"][0], 3);
+        assert_eq!(opened["reports"][0]["title"], "R");
+        assert_eq!(opened["profile"]["name"], "Project profile");
+        assert_eq!(opened["summary"]["total"], json!(total));
+        assert!(opened["missing"].as_array().unwrap().is_empty());
         let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
         assert_eq!(crate::profile::get_profile(w2).now().unwrap().name, "Project profile");
         // Missing and damaged projects are refused with a message.
@@ -1178,7 +1362,16 @@ mod tests {
         let file = dir.0.join("session.debriefproj");
         session.save(&file).unwrap();
         let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
-        let opened = block(open_project_file(app.handle(), &w2, OpId::default(), file.clone(), String::new())).unwrap();
+        let opened = open_project_file_in_job(
+            app.handle(),
+            &w2,
+            &crate::jobs::JobCtx::detached(),
+            &std::sync::atomic::AtomicBool::new(false),
+            OpId::default(),
+            file.clone(),
+            String::new(),
+        )
+        .unwrap();
         assert_eq!(opened.summary.total, total);
         assert_eq!(opened.ui["zoom"], 1);
         // Its store gone, the session imports its files again.
@@ -1186,7 +1379,16 @@ mod tests {
         gone.store = Some(dir.0.join("no-store").to_string_lossy().into_owned());
         gone.save(&file).unwrap();
         let w3 = crate::windows::CurrentWindow::of(app.handle(), "w-3").unwrap();
-        let opened = block(open_project_file(app.handle(), &w3, OpId::default(), file, String::new())).unwrap();
+        let opened = open_project_file_in_job(
+            app.handle(),
+            &w3,
+            &crate::jobs::JobCtx::detached(),
+            &std::sync::atomic::AtomicBool::new(false),
+            OpId::default(),
+            file,
+            String::new(),
+        )
+        .unwrap();
         assert_eq!(opened.summary.total, total);
     }
 
@@ -1227,13 +1429,16 @@ mod tests {
         )
         .unwrap();
         assert!(crate::tools::tests::domain_event("project.saved", "op-save").props["Path"].starts_with("<dir#"));
-        block(open_project(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            op("op-open"),
-            file,
-        ))
+        crate::test_support::finished(
+            &app,
+            block(open_project(
+                app.handle().clone(),
+                st(),
+                crate::paths::WindowGrants::of(app.handle(), "main"),
+                op("op-open"),
+                file,
+            )),
+        )
         .unwrap();
         let opened = crate::tools::tests::domain_event("project.opened", "op-open");
         assert!(opened.props["Path"].starts_with("<dir#"));
@@ -1425,10 +1630,11 @@ mod tests {
                     invoke_key: INVOKE_KEY.to_string(),
                 },
             );
-            match res.unwrap() {
+            let reply = res.map(|body| match body {
                 InvokeResponseBody::Json(s) => serde_json::from_str::<Value>(&s).unwrap(),
                 InvokeResponseBody::Raw(_) => Value::Null,
-            }
+            });
+            crate::test_support::settle(w, cmd, reply).unwrap()
         };
         let csv = samples().join("csv").to_string_lossy().into_owned();
         let log4net = samples().join("log4net").to_string_lossy().into_owned();
@@ -1462,7 +1668,7 @@ mod tests {
         let st = || main_window(&app);
         let s = |p: &std::path::Path| p.to_string_lossy().into_owned();
         let grants = || crate::paths::WindowGrants::of(app.handle(), "main");
-        let e = block(open_paths(app.handle().clone(), st(), vec![s(&log)])).unwrap_err();
+        let e = crate::test_support::finished(&app, block(open_paths(app.handle().clone(), st(), vec![s(&log)]))).unwrap_err();
         assert!(e.contains("only reads files you choose"), "{e}");
         assert!(crate::recent::recents(app.handle()).list().files.is_empty());
         // Chosen (dropped, picked): opens and becomes a recent file.
@@ -1474,7 +1680,9 @@ mod tests {
             crate::paths::GrantSource::Drop,
         )
         .unwrap();
-        block(open_paths(app.handle().clone(), st(), vec![s(&log)])).unwrap().json();
+        crate::test_support::finished(&app, block(open_paths(app.handle().clone(), st(), vec![s(&log)])))
+            .unwrap()
+            .json();
         let recent: Vec<String> = crate::recent::recents(app.handle())
             .list()
             .files
@@ -1485,11 +1693,13 @@ mod tests {
         // Another window may reopen it from the recent list (granted again there); a file that is not
         // listed stays refused.
         let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
-        block(open_paths(app.handle().clone(), w2.clone(), recent.clone())).unwrap().json();
+        crate::test_support::finished(&app, block(open_paths(app.handle().clone(), w2.clone(), recent.clone())))
+            .unwrap()
+            .json();
         assert!(crate::paths::WindowGrants::of(app.handle(), "w-2")
             .read_file(&recent[0], &[])
             .is_ok());
-        assert!(block(open_paths(app.handle().clone(), w2, vec![s(&capture)])).is_err());
+        assert!(crate::test_support::finished(&app, block(open_paths(app.handle().clone(), w2, vec![s(&capture)]))).is_err());
 
         // A project: saved where the user chose, listed, reopened from the list by another window.
         let project = dir.0.join("p.debriefz");
@@ -1522,15 +1732,23 @@ mod tests {
         let w3 = crate::windows::CurrentWindow::of(app.handle(), "w-3").unwrap();
         let g3 = || crate::paths::WindowGrants::of(app.handle(), "w-3");
         assert!(g3().read_file(&s(&capture), &[]).is_err());
-        let opened = block(open_project(app.handle().clone(), w3.clone(), g3(), OpId::default(), s(&project))).unwrap();
-        assert_eq!(opened.name, "P");
+        let opened = crate::test_support::finished(
+            &app,
+            block(open_project(app.handle().clone(), w3.clone(), g3(), OpId::default(), s(&project))),
+        )
+        .unwrap();
+        assert_eq!(opened["name"], "P");
         assert!(g3().read_file(&s(&capture), &[]).is_ok(), "the project's captures may be reopened");
         assert!(g3().write(&s(&project), &["debriefz"]).is_ok(), "Save writes the project back");
         assert_eq!(w3.project().as_deref(), Some(s(&project).as_str()));
         // A project nobody chose is refused.
         let other = dir.0.join("other.debriefz");
         std::fs::copy(&project, &other).unwrap();
-        let e = block(open_project(app.handle().clone(), w3, g3(), OpId::default(), s(&other))).unwrap_err();
+        let e = crate::test_support::finished(
+            &app,
+            block(open_project(app.handle().clone(), w3, g3(), OpId::default(), s(&other))),
+        )
+        .unwrap_err();
         assert!(e.contains("only reads files you choose"), "{e}");
         assert!(crate::services::project::captures(&json!(null)).is_empty());
     }

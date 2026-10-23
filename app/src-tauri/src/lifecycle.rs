@@ -861,11 +861,14 @@ mod tests {
         let _main = window(&app, "main");
         crate::paths::allow_under(app.handle(), "main", &dir.0);
         let state = CurrentWindow::of(app.handle(), "main").unwrap();
-        block(crate::workspace_commands::open_paths(
-            app.handle().clone(),
-            state.clone(),
-            vec![log.to_string_lossy().into_owned()],
-        ))
+        crate::test_support::finished(
+            &app,
+            block(crate::workspace_commands::open_paths(
+                app.handle().clone(),
+                state.clone(),
+                vec![log.to_string_lossy().into_owned()],
+            )),
+        )
         .unwrap()
         .json();
         block(crate::workspace_commands::set_live(app.handle().clone(), state.clone(), true, None)).unwrap();
@@ -1526,9 +1529,12 @@ mod tests {
         // Autosave of this run, per window.
         crate::paths::allow_under(&h, MAIN, &samples());
         let csv = samples().join("csv").to_string_lossy().into_owned();
-        block(crate::workspace_commands::open_paths(h.clone(), main_window(&app), vec![csv]))
-            .unwrap()
-            .json();
+        crate::test_support::finished(
+            &app,
+            block(crate::workspace_commands::open_paths(h.clone(), main_window(&app), vec![csv])),
+        )
+        .unwrap()
+        .json();
         save_session(
             main_window(&app),
             life(),

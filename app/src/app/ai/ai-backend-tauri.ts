@@ -2,6 +2,7 @@ import { invoke } from '../core/activity/ipc';
 import { listenHere } from '../windowing/window-events';
 import { AiBackend, toAiError, Unlisten } from './ai-backend';
 import { cancelJob } from '../jobs/job-cancel';
+import { jobValue } from '../jobs/job-value';
 import {
   AI_CHAT_EVENT,
   AI_RUNTIME_EVENT,
@@ -103,14 +104,23 @@ export class TauriAiBackend extends AiBackend {
   deleteModel(fileName: string) {
     return this.run<void>('ai_model_delete', { fileName });
   }
-  addLocalModel(path: string) {
-    return this.run<InstalledModel>('ai_model_add_local', { path });
+  /** The command starts a download job and returns its id; the added model is the job's value. */
+  async addLocalModel(path: string) {
+    return this.modelJob(await this.run<number>('ai_model_add_local', { path }));
   }
   installProjector(fileName: string) {
     return this.run<number>('ai_model_install_projector', { fileName });
   }
-  addProjector(fileName: string, path: string) {
-    return this.run<InstalledModel>('ai_model_add_projector', { fileName, path });
+  /** Like `addLocalModel`. */
+  async addProjector(fileName: string, path: string) {
+    return this.modelJob(await this.run<number>('ai_model_add_projector', { fileName, path }));
+  }
+  private async modelJob(job: number): Promise<InstalledModel> {
+    try {
+      return await jobValue<InstalledModel>(this.call, job);
+    } catch (e) {
+      throw toAiError(e);
+    }
   }
   imageOpen(path: string) {
     return this.run<AiImage>('ai_image_open', { path });

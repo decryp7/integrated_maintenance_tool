@@ -149,7 +149,7 @@ pub(crate) fn start_install_with<R: Runtime>(
             after(&result);
         }
         emit_status(&app, &core);
-        result.map(|_| Done::new(()).with_result(JobResult::Model { file_name: None }))
+        result.map(|_| Done::new(()).with_result(JobResult::Model { detail: None, file_name: None }))
     });
     queued.map(|j| j.0).map_err(|e| {
         core.end_runtime_install();

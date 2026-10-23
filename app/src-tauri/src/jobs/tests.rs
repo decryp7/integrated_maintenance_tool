@@ -273,10 +273,9 @@ fn imports_are_import_jobs_with_retry_through_the_window() {
     ipc(&main, "open_paths", json!({ "paths": [dir.to_string_lossy()] })).unwrap();
     wait_until("the import job", || !ended.lock().unwrap().is_empty());
     let job = ended.lock().unwrap()[0].clone();
-    assert_eq!(
-        (job.kind, job.state(), job.result.clone()),
-        (JobKind::Import, JobState::Done, Some(JobResult::Workspace))
-    );
+    assert_eq!((job.kind, job.state()), (JobKind::Import, JobState::Done));
+    // The result is the workspace (View opens it) and carries the summary the command's waiter gets.
+    assert!(matches!(&job.result, Some(JobResult::Workspace { detail: Some(d) }) if d["total"].as_u64().unwrap_or(0) > 0));
     assert_eq!(job.title, "Open serilog-clef");
     // Retry hands the paths back to the window (as after a launch).
     assert_eq!(crate::workspace_commands::retry_import(app.handle(), &job).unwrap(), None);
