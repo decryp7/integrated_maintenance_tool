@@ -261,3 +261,136 @@ fn until_the_catalogue_is_built_values_come_from_facets() {
         "the names in message text need the catalogue"
     );
 }
+
+// Human-like names -------------------------------------------------------------------------------------------------
+
+mod names {
+    use super::*;
+    use crate::names::alias_job::{AliasJobConfig, AliasModel};
+    use crate::names::Names;
+
+    fn spelled() -> WorkspaceStore {
+        store_with(
+            "names",
+            &[
+                ("Started CompanyA.Graphic.Builder.exe pid 4242", "agent.exe"),
+                ("Render queue drained by graphicbuilder.exe", "agent.exe"),
+                ("Loaded GraphicBuilder.exe plugin", "agent.exe"),
+                ("Loaded graphicbuilder.exe again", "agent.exe"),
+                ("Started CompanyA.Tray.Agent.exe", "agent.exe"),
+                ("Started CompanyA.Report.Builder.exe", "agent.exe"),
+            ],
+        )
+    }
+
+    fn resolve(store: &WorkspaceStore, names: &Names, text: &str) -> Resolved {
+        let ctx = names.context().clone();
+        let settings = names.settings();
+        names
+            .read(|book, vocab| resolve_names(store, text, 5, Some(&NameLayer { book, vocab, ctx: &ctx, settings })))
+            .unwrap()
+    }
+
+    struct Model;
+    impl AliasModel for Model {
+        fn version(&self) -> String {
+            "fake-1".into()
+        }
+        fn complete(&self, prompt: &str) -> Result<String, String> {
+            // The fake model answers for whatever group is item 1..n in the prompt, by the name it sees.
+            let mut items = Vec::new();
+            for (i, line) in prompt.lines().filter(|l| l.contains(". [")).enumerate() {
+                let aliases = if line.to_lowercase().contains("graphicbuilder") { "[\"image editor\"]" } else { "[]" };
+                items.push(format!("{{\"id\":{},\"name\":\"Thing {}\",\"aliases\":{aliases}}}", i + 1, i));
+            }
+            Ok(format!("{{\"items\":[{}]}}", items.join(",")))
+        }
+    }
+
+    #[test]
+    fn layer_one_joins_spellings_and_says_why() {
+        let s = spelled();
+        let names = Names::default();
+        assert!(names.refresh(&s).unwrap() >= 3);
+        for q in ["graphic builder", "graphicbuilder", "Graphic-Builder.exe"] {
+            let r = resolve(&s, &names, q);
+            let top = &r.values[0];
+            assert_eq!(top.group.as_deref(), Some("executable|graphic builder"), "{q}: {r:#?}");
+            assert_eq!(top.spellings.len(), 2, "the catalogue folds case: {q}");
+            assert_eq!(top.count, 4);
+            assert!(!top.why.is_empty() && !top.evidence.is_empty(), "{q}: {top:#?}");
+            assert!(r.clarify.is_none());
+        }
+        let typo = resolve(&s, &names, "grafic bilder");
+        assert_eq!(typo.values[0].via, Via::Fuzzy);
+        assert!(typo.values[0].why.contains("close spelling"));
+    }
+
+    #[test]
+    fn layer_two_alias_resolves_synonyms_and_is_off_without_a_model() {
+        let s = spelled();
+        let names = Names::default();
+        names.refresh(&s).unwrap();
+        let cfg = AliasJobConfig { min_count: 1, pause: std::time::Duration::ZERO, ..AliasJobConfig::default() };
+        assert!(resolve(&s, &names, "image editor").values.is_empty());
+        assert_eq!(names.run_alias_job(None, &cfg, &|| false).skipped, "no model");
+        assert!(resolve(&s, &names, "image editor").values.is_empty());
+        assert!(names.run_alias_job(Some(&Model), &cfg, &|| false).stored >= 1);
+        let r = resolve(&s, &names, "image editor");
+        assert_eq!(r.values[0].via, Via::Alias);
+        assert_eq!(r.values[0].group.as_deref(), Some("executable|graphic builder"));
+        assert!(r.values[0].why.starts_with("AI alias"));
+        // Settings: AI aliases off.
+        names.set_settings(crate::names::NameSettings { ai_aliases: false, context: true });
+        assert!(resolve(&s, &names, "image editor").values.is_empty());
+    }
+
+    #[test]
+    fn a_tie_is_a_question_and_the_inspector_breaks_it() {
+        let s = spelled();
+        let names = Names::default();
+        names.refresh(&s).unwrap();
+        let ctx = names.context().clone();
+        let layer_find = |names: &Names, ctx: &SearchContext| {
+            names.read(|book, vocab| {
+                find_with(&s, "builder", 0, 5, Some(&NameLayer { book, vocab, ctx, settings: names.settings() })).unwrap()
+            })
+        };
+        let r = layer_find(&names, &ctx);
+        let q = r.clarify.as_ref().expect("two builders tie");
+        assert!(q.question.contains("Graphic Builder (process) or Report Builder (process)"), "{}", q.question);
+        assert!(r.note.contains(&q.question));
+        names.context().inspected = Some("Started CompanyA.Report.Builder.exe".into());
+        let ctx = names.context().clone();
+        let r = layer_find(&names, &ctx);
+        assert!(r.clarify.is_none());
+        assert_eq!(r.values[0].group.as_deref(), Some("executable|report builder"));
+        assert!(r.values[0].why.contains("inspecting"));
+        assert!(r.note.contains("because:") && r.note.contains("Example events"), "{}", r.note);
+    }
+
+    #[test]
+    fn accepting_a_match_teaches_it_and_outranks_the_model() {
+        let s = spelled();
+        let names = Names::default();
+        names.refresh(&s).unwrap();
+        let cfg = AliasJobConfig { min_count: 1, pause: std::time::Duration::ZERO, ..AliasJobConfig::default() };
+        names.run_alias_job(Some(&Model), &cfg, &|| false);
+        names.write(|b| b.accept("image editor", "executable|tray agent", false));
+        let r = resolve(&s, &names, "image editor");
+        assert_eq!(r.values[0].group.as_deref(), Some("executable|tray agent"));
+        assert_eq!(r.values[0].via, Via::UserAlias);
+        assert!(r.clarify.is_none());
+        names.write(|b| b.undo());
+        assert_eq!(resolve(&s, &names, "image editor").values[0].via, Via::Alias);
+    }
+
+    #[test]
+    fn without_a_book_nothing_changes() {
+        let s = spelled();
+        let plain = resolve_terms(&s, "graphic builder", 5).unwrap();
+        let with = resolve_names(&s, "graphic builder", 5, None).unwrap();
+        assert_eq!(plain, with.values);
+        assert!(plain.iter().all(|v| v.group.is_none() && v.spellings.is_empty()));
+    }
+}

@@ -17,7 +17,7 @@ const MAX_WORD_CHARS: usize = 24;
 const UNKNOWN_CHAR_COST: f64 = 14.0;
 const SEGMENT_COST: f64 = 0.5;
 /// Share of the token's letters that must be in known words for a split to be used.
-const MIN_KNOWN_SHARE: f64 = 0.7;
+const MIN_KNOWN_SHARE: f64 = 0.85;
 /// Fewest letters of a token worth splitting.
 const MIN_SPLIT_CHARS: usize = 4;
 

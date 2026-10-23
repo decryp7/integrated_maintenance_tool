@@ -25,6 +25,8 @@ pub const MAX_MATCHES: usize = 12;
 pub const MAX_TEXT_CHARS: usize = 256;
 /// Most options in a clarifying question.
 pub const MAX_OPTIONS: usize = 3;
+/// Words people put in front of a name that are not part of it.
+const FILLER: &[&str] = &["the", "a", "an", "my", "our", "that", "this", "please"];
 const POPULARITY_WEIGHT: f64 = 0.02;
 const CONTEXT_WEIGHT: f64 = 0.15;
 const COOCCURRENCE_WEIGHT: f64 = 0.1;
@@ -154,8 +156,8 @@ impl Resolver<'_> {
             return Resolution::default();
         }
         let qn = normalise(&text, self.vocab, &HashSet::new());
-        let qtokens = qn.tokens.clone();
-        let qjoined = qn.squashed();
+        let qtokens = self.tidy(qn.tokens);
+        let qjoined = qtokens.concat();
         let max_count = self.book.groups().iter().map(|g| g.count).max().unwrap_or(1).max(1);
         let mut found: Vec<NameMatch> = Vec::new();
         for g in self.book.groups() {
@@ -202,6 +204,19 @@ impl Resolver<'_> {
         Resolution { matches: found, clarify }
     }
 
+    /// The query's words without filler (`the`, `my`) and with plurals made singular when the singular is a known word.
+    fn tidy(&self, tokens: Vec<String>) -> Vec<String> {
+        let kept: Vec<String> = tokens.iter().filter(|t| !FILLER.contains(&t.as_str())).cloned().collect();
+        let tokens = if kept.is_empty() { tokens } else { kept };
+        tokens
+            .into_iter()
+            .map(|t| match t.strip_suffix('s') {
+                Some(one) if one.chars().count() >= 3 && !one.ends_with('s') && self.vocab.knows(one) && !self.vocab.knows(&t) => one.to_string(),
+                _ => t,
+            })
+            .collect()
+    }
+
     /// How `g` matches, with the phrase saying so.
     fn how(&self, g: &NameGroup, id: &str, text: &str, q: &str, qtokens: &[String], qjoined: &str) -> Option<(How, String)> {
         if self.book.user_terms(id).iter().any(|(t, _)| squash(t) == q) {
@@ -242,9 +257,31 @@ impl Resolver<'_> {
                 }
             }
         }
-        let d = edit_distance_capped(q, &gjoined, allowed_typos(gjoined.chars().count()));
-        if let Some(d) = d.filter(|_| q.chars().count() >= 4) {
+        // A typo has a word nobody knows; "grape builder" is two real words, so it is another thing.
+        let misspelt = qtokens.iter().any(|t| !self.vocab.knows(t));
+        let d = if qtokens.len() == ktokens.len() && ktokens.len() > 1 {
+            // Word by word: each word may be a letter or two off, but a different word is another thing.
+            qtokens
+                .iter()
+                .zip(&ktokens)
+                .map(|(a, b)| edit_distance_capped(a, b, (b.chars().count() / 3).max(1)))
+                .sum::<Option<usize>>()
+        } else {
+            edit_distance_capped(q, &gjoined, allowed_typos(gjoined.chars().count()))
+        };
+        if let Some(d) = d.filter(|_| q.chars().count() >= 4 && misspelt) {
             return Some((How::Typo, format!("close spelling ({d} letter{} off)", if d == 1 { "" } else { "s" })));
+        }
+        if self.settings.ai_aliases && q.chars().count() >= 4 && misspelt {
+            if let Some(e) = self.book.ai(id) {
+                let hit = e.aliases.iter().find(|a| {
+                    let s = squash(a);
+                    edit_distance_capped(q, &s, allowed_typos(s.chars().count())).is_some()
+                });
+                if let Some(a) = hit {
+                    return Some((How::Typo, format!("close spelling of the AI alias '{a}'")));
+                }
+            }
         }
         None
     }
@@ -254,20 +291,27 @@ fn allowed_typos(len: usize) -> usize {
     (len / 4).max(1)
 }
 
-/// Levenshtein distance when it is at most `cap`, else none. Inputs are cut at 64 characters.
+/// Edit distance (insert, delete, substitute, swap of neighbours) when it is at most `cap`, else none. Inputs are cut
+/// at 64 characters.
 pub fn edit_distance_capped(a: &str, b: &str, cap: usize) -> Option<usize> {
     let a: Vec<char> = a.chars().take(64).collect();
     let b: Vec<char> = b.chars().take(64).collect();
     if a.len().abs_diff(b.len()) > cap {
         return None;
     }
+    let mut prev2: Vec<usize> = vec![0; b.len() + 1];
     let mut prev: Vec<usize> = (0..=b.len()).collect();
     for (i, ca) in a.iter().enumerate() {
         let mut cur = vec![i + 1];
         for (j, cb) in b.iter().enumerate() {
             let sub = prev[j] + usize::from(ca != cb);
-            cur.push(sub.min(prev[j + 1] + 1).min(cur[j] + 1));
+            let mut best = sub.min(prev[j + 1] + 1).min(cur[j] + 1);
+            if i > 0 && j > 0 && *ca == b[j - 1] && a[i - 1] == *cb {
+                best = best.min(prev2[j - 1] + 1);
+            }
+            cur.push(best);
         }
+        prev2 = prev;
         prev = cur;
     }
     let d = prev[b.len()];
@@ -480,6 +524,7 @@ mod tests {
         assert_eq!(edit_distance_capped("kitten", "sitting", 2), None);
         assert_eq!(edit_distance_capped("a", "abcdef", 2), None);
         assert_eq!(edit_distance_capped("", "", 1), Some(0));
+        assert_eq!(edit_distance_capped("cahce", "cache", 1), Some(1), "a swap is one edit");
     }
 
     #[test]
