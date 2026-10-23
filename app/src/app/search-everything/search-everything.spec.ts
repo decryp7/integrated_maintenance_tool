@@ -1,10 +1,10 @@
 import { Dialog, DialogRef } from '@angular/cdk/dialog';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { el, all, MemoryLogger, provideTinyBackend, tinyBackend, typeInto } from '../../testing/helpers';
 import { at, must } from '../../testing/must';
 import { appConfig } from '../app.config';
 import { isActivityTracked } from '../core/activity/backend-activity';
-import { DocHit, FindValuesRequest, KindHits, SearchAllReply, ValueMatch } from '../core/api.types';
+import { DocHit, FindValuesReply, FindValuesRequest, KindHits, NameClarification, NameFeedback, SearchAllReply, ValueMatch } from '../core/api.types';
 import { CmdError } from '../core/cmd-error';
 import { Logger } from '../core/logger';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -55,14 +55,35 @@ class FakeBackend extends SearchEverythingBackend {
   readonly calls: string[] = [];
   answer: (text: string) => Promise<SearchAllReply | null> = async () => full;
   values: ValueMatch[] = [];
+  clarify: NameClarification | undefined;
   valuesFail = false;
+  readonly told: string[] = [];
+  feedbackFail = false;
   searchEverything(request: { text: string }) {
     this.calls.push(request.text);
     return this.answer(request.text);
   }
-  async findValues(_request: FindValuesRequest) {
+  async findValues(_request: FindValuesRequest): Promise<FindValuesReply> {
     if (this.valuesFail) throw new Error('boom');
-    return this.values;
+    return this.clarify ? { values: this.values, clarify: this.clarify } : { values: this.values };
+  }
+  private tell(what: string, f: NameFeedback) {
+    if (this.feedbackFail) throw new Error('not saved');
+    this.told.push(`${what} ${f.text} ${f.group}`);
+    return { fact: this.told.length };
+  }
+  async acceptName(f: NameFeedback) {
+    return this.tell('accept', f);
+  }
+  async rejectName(f: NameFeedback) {
+    return this.tell('reject', f);
+  }
+  async undoName() {
+    this.told.push('undo');
+    return { undone: null };
+  }
+  async removeNameAlias() {
+    return { removed: true };
   }
 }
 
@@ -80,6 +101,17 @@ describe('search everything backend', () => {
     expect(invoke).toHaveBeenCalledWith('search_everything', { request: { text: 'timeout' } });
     await new TauriSearchEverythingBackend(invoke as never).findValues({ text: 'graphic builder' });
     expect(invoke).toHaveBeenCalledWith('find_values', { request: { text: 'graphic builder' } });
+    const tauri = new TauriSearchEverythingBackend(invoke as never);
+    await tauri.acceptName({ text: 'gfx', group: 'g' });
+    await tauri.rejectName({ text: 'gfx', group: 'g', global: true });
+    await tauri.undoName();
+    await tauri.removeNameAlias({ group: 'g', alias: 'image editor' });
+    expect(invoke.mock.calls.slice(-4)).toEqual([
+      ['names_accept', { request: { text: 'gfx', group: 'g' } }],
+      ['names_reject', { request: { text: 'gfx', group: 'g', global: true } }],
+      ['names_undo'],
+      ['names_remove_alias', { request: { group: 'g', alias: 'image editor' } }],
+    ]);
   });
 
   it('the mock resolves words to the source whose name holds them, ignoring separators and case', async () => {
@@ -87,9 +119,43 @@ describe('search everything backend', () => {
     const mock = new MockSearchEverythingBackend(workspace, { notes: () => new MockNotesBackend(), knowledge: () => new MockKnowledgeBackend(), analysis: () => new MockAnalysisBackend(recordsFrom(workspace)) });
     const name = must((await workspace.workspaceSummary()).sources[0]).name;
     const spaced = name.replace(/[^\p{L}\p{N}]+/gu, ' ').toUpperCase();
-    const values = await mock.findValues({ text: spaced });
+    const { values } = await mock.findValues({ text: spaced });
     expect(values.map((v) => [v.field, v.value, v.via])).toContainEqual(['@source', name, 'exact']);
-    expect(await mock.findValues({ text: ' -- ' })).toEqual([]);
+    expect(await mock.findValues({ text: ' -- ' })).toEqual({ values: [] });
+  });
+
+  it('the mock name book explains matches, asks on a tie and learns from the user', async () => {
+    const workspace = tinyBackend();
+    const mock = new MockSearchEverythingBackend(workspace, { notes: () => new MockNotesBackend(), knowledge: () => new MockKnowledgeBackend(), analysis: () => new MockAnalysisBackend(recordsFrom(workspace)) });
+    const top = async (text: string) => must((await mock.findValues({ text })).values[0]);
+    const written = await top('graphic builder');
+    expect([written.via, written.group, written.kind, written.why]).toEqual(['segmented', 'executable|graphic builder', 'executable', 'same name written differently']);
+    expect(written.spellings?.map((x) => x.name)).toContain('graphicbuilder.exe');
+    expect(written.evidence?.length).toBeGreaterThan(0);
+    expect((await top('image editor')).via).toBe('alias');
+    // "builder" is two things: the reply asks which.
+    const tie = await mock.findValues({ text: 'builder' });
+    expect(tie.clarify?.options).toEqual(['executable|graphic builder', 'executable|report builder']);
+    expect(tie.clarify?.question).toContain('Graphic Builder or Report Builder');
+    expect((await mock.findValues({ text: 'graphic builder' })).clarify).toBeUndefined();
+    // Accept, reject and undo.
+    expect((await mock.findValues({ text: 'gfx' })).values).toEqual([]);
+    await mock.acceptName({ text: 'gfx', group: 'executable|graphic builder' });
+    expect((await top('gfx')).via).toBe('userAlias');
+    await mock.rejectName({ text: 'graphic builder', group: 'executable|graphic builder' });
+    expect((await mock.findValues({ text: 'graphic builder' })).values).toEqual([]);
+    expect((await mock.undoName()).undone).not.toBeNull();
+    expect((await top('graphic builder')).group).toBe('executable|graphic builder');
+    expect((await mock.undoName()).undone).not.toBeNull();
+    expect((await mock.findValues({ text: 'gfx' })).values).toEqual([]);
+    expect((await mock.undoName()).undone).toBeNull();
+    // AI aliases can be removed once.
+    expect(await mock.removeNameAlias({ group: 'executable|graphic builder', alias: 'image editor' })).toEqual({ removed: true });
+    expect(await mock.removeNameAlias({ group: 'executable|graphic builder', alias: 'image editor' })).toEqual({ removed: false });
+    expect((await mock.findValues({ text: 'image editor' })).values).toEqual([]);
+    // The webview's arguments are checked like the engine does.
+    await expect(mock.acceptName({ text: ' ', group: 'executable|graphic builder' })).rejects.toBeInstanceOf(CmdError);
+    await expect(mock.rejectName({ text: 'x', group: 'nope' })).rejects.toBeInstanceOf(CmdError);
   });
 
   it('is the mock behind the shared proxy in a browser', () => {
@@ -296,7 +362,7 @@ describe('search everything suggestion', () => {
   it('offers the value the words mean, takes it on accept, and stays quiet when it is what was typed or the lookup fails', async () => {
     const { backend } = provide();
     const fake = backend as FakeBackend;
-    fake.values = [{ field: 'ProcessName', value: 'CompanyA.Graphic.Builder.exe', count: 40, via: 'parts' }];
+    fake.values = [{ field: 'ProcessName', value: 'CompanyA.Graphic.Builder.exe', count: 40, via: 'parts', why: '' }];
     const store = TestBed.inject(SearchEverythingStore);
     store.setText('graphic builder');
     await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
@@ -317,7 +383,7 @@ describe('search everything suggestion', () => {
 
   it('shows the line in the palette with the field', async () => {
     const { backend } = provide();
-    (backend as FakeBackend).values = [{ field: 'ProcessName', value: 'CompanyA.Graphic.Builder.exe', count: 40, via: 'parts' }];
+    (backend as FakeBackend).values = [{ field: 'ProcessName', value: 'CompanyA.Graphic.Builder.exe', count: 40, via: 'parts', why: '' }];
     TestBed.overrideProvider(DialogRef, { useValue: { close: vi.fn() } });
     const f = TestBed.createComponent(SearchEverythingPalette);
     f.detectChanges();
@@ -332,7 +398,7 @@ describe('search everything suggestion', () => {
 
   it('names what an entity found in event text is instead of the pseudo field', async () => {
     const { backend } = provide();
-    (backend as FakeBackend).values = [{ field: '@entity', value: 'CompanyA.Graphic.Builder.exe', count: 3, via: 'fuzzy', kind: 'executable' }];
+    (backend as FakeBackend).values = [{ field: '@entity', value: 'CompanyA.Graphic.Builder.exe', count: 3, via: 'fuzzy', kind: 'executable', why: '' }];
     TestBed.overrideProvider(DialogRef, { useValue: { close: vi.fn() } });
     const f = TestBed.createComponent(SearchEverythingPalette);
     f.detectChanges();
@@ -340,6 +406,138 @@ describe('search everything suggestion', () => {
     await TestBed.inject(SearchEverythingStore).searchNow();
     f.detectChanges();
     expect(el(f, '[data-testid=search-everything-suggestion]').textContent).toContain('(executable)?');
+  });
+});
+
+describe('search everything names', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  const builder = (patch: Partial<ValueMatch> = {}): ValueMatch => ({
+    field: '@entity',
+    value: 'CompanyA.Graphic.Builder.exe',
+    count: 16,
+    via: 'segmented',
+    kind: 'executable',
+    why: 'same name written differently',
+    spellings: [
+      { name: 'CompanyA.Graphic.Builder.exe', count: 5 },
+      { name: 'graphicbuilder.exe', count: 9 },
+    ],
+    evidence: [1, 2],
+    group: 'executable|graphic builder',
+    ...patch,
+  });
+  const palette = async (typed: string, again?: ComponentFixture<SearchEverythingPalette>) => {
+    if (!again) TestBed.overrideProvider(DialogRef, { useValue: { close: vi.fn() } });
+    const f = again ?? TestBed.createComponent(SearchEverythingPalette);
+    f.detectChanges();
+    typeInto(el<HTMLInputElement>(f, '[data-testid=search-everything-input]'), typed);
+    await TestBed.inject(SearchEverythingStore).searchNow();
+    f.detectChanges();
+    return f;
+  };
+
+  it('shows why a name matched, its other spellings and that an alias is AI-generated', async () => {
+    const { backend } = provide();
+    (backend as FakeBackend).values = [builder({ via: 'alias', why: 'AI alias' })];
+    const f = await palette('image editor');
+    expect(el(f, '[data-testid=search-everything-why]').textContent).toContain('AI alias');
+    expect(el(f, '[data-testid=search-everything-ai]').textContent).toContain('AI-generated');
+    expect(el(f, '[data-testid=search-everything-spellings]').textContent).toContain('graphicbuilder.exe');
+    expect(el(f, '[data-testid=search-everything-spellings]').textContent).not.toContain('CompanyA.Graphic.Builder.exe');
+  });
+
+  it('lists a few spellings and no AI tag for a plain match; plain values have no remember controls', async () => {
+    const { backend } = provide();
+    const fake = backend as FakeBackend;
+    fake.values = [builder({ spellings: ['a', 'b', 'c', 'd', 'e', 'f'].map((n) => ({ name: `${n}.exe`, count: 1 })) })];
+    const f = await palette('graphic builder');
+    expect(f.nativeElement.querySelector('[data-testid=search-everything-ai]')).toBeNull();
+    expect(el(f, '[data-testid=search-everything-spellings]').textContent).toContain('d.exe, …');
+    fake.values = [{ field: '@source', value: 'app.log', count: 2, via: 'exact', why: '' }];
+    const g = await palette('app', f);
+    expect(g.nativeElement.querySelector('[data-testid=search-everything-accept]')).toBeNull();
+    expect(g.nativeElement.querySelector('[data-testid=search-everything-why]')).toBeNull();
+  });
+
+  it('accepts a match: tells the engine what was typed, searches the name and offers Undo', async () => {
+    const { backend } = provide();
+    const fake = backend as FakeBackend;
+    fake.values = [builder()];
+    const f = await palette('gfx');
+    el<HTMLButtonElement>(f, '[data-testid=search-everything-accept]').click();
+    await vi.advanceTimersByTimeAsync(0);
+    f.detectChanges();
+    expect(fake.told).toEqual(['accept gfx executable|graphic builder']);
+    const store = TestBed.inject(SearchEverythingStore);
+    expect(store.text()).toBe('CompanyA.Graphic.Builder.exe');
+    expect(el(f, '[data-testid=search-everything-feedback]').textContent).toContain('“gfx” means CompanyA.Graphic.Builder.exe');
+    el<HTMLButtonElement>(f, '[data-testid=search-everything-undo]').click();
+    await vi.advanceTimersByTimeAsync(0);
+    f.detectChanges();
+    expect(fake.told.at(-1)).toBe('undo');
+    expect(store.text()).toBe('gfx');
+    expect(store.feedback()).toBeNull();
+  });
+
+  it('rejects a match: tells the engine, searches the typed words again and offers Undo', async () => {
+    const { backend } = provide();
+    const fake = backend as FakeBackend;
+    fake.values = [builder()];
+    const f = await palette('graphic builder');
+    el<HTMLButtonElement>(f, '[data-testid=search-everything-reject]').click();
+    await vi.advanceTimersByTimeAsync(0);
+    f.detectChanges();
+    expect(fake.told).toEqual(['reject graphic builder executable|graphic builder']);
+    const store = TestBed.inject(SearchEverythingStore);
+    expect(store.text()).toBe('graphic builder');
+    expect(el(f, '[data-testid=search-everything-feedback]').textContent).toContain('is not CompanyA.Graphic.Builder.exe');
+    await store.undoName();
+    expect(fake.told.at(-1)).toBe('undo');
+  });
+
+  it('asks the engine\'s question on a tie and takes the chosen option', async () => {
+    const { backend } = provide();
+    const fake = backend as FakeBackend;
+    const report = builder({ value: 'CompanyA.Report.Builder.exe', group: 'executable|report builder' });
+    fake.values = [builder({ via: 'parts' }), { ...report, via: 'parts' }];
+    fake.clarify = { question: 'Which one do you mean: Graphic Builder or Report Builder?', options: ['executable|graphic builder', 'executable|report builder'] };
+    const f = await palette('builder');
+    const ask = el(f, '[data-testid=search-everything-clarify]');
+    expect(ask.textContent).toContain('Which one do you mean');
+    expect(f.nativeElement.querySelector('[data-testid=search-everything-suggestion]')).toBeNull();
+    const options = all<HTMLButtonElement>(f, '[data-testid=search-everything-option]');
+    expect(options.map((o) => o.textContent?.trim())).toEqual(['CompanyA.Graphic.Builder.exe', 'CompanyA.Report.Builder.exe']);
+    fake.clarify = undefined;
+    fake.values = [];
+    options[1]?.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(fake.told).toEqual(['accept builder executable|report builder']);
+    expect(TestBed.inject(SearchEverythingStore).text()).toBe('CompanyA.Report.Builder.exe');
+  });
+
+  it('treats a tie whose options are not all in the values as no tie, and shows a failed correction', async () => {
+    const { backend } = provide();
+    const fake = backend as FakeBackend;
+    fake.values = [builder({ via: 'parts' })];
+    fake.clarify = { question: 'Which?', options: ['executable|graphic builder', 'executable|gone'] };
+    const store = TestBed.inject(SearchEverythingStore);
+    store.setText('builder');
+    await vi.advanceTimersByTimeAsync(SEARCH_DEBOUNCE_MS);
+    expect(store.clarify()).toBeNull();
+    expect(store.suggestion()?.group).toBe('executable|graphic builder');
+    fake.feedbackFail = true;
+    await store.acceptName(must(store.suggestion()));
+    expect(store.error()).toBe('not saved');
+    expect(store.feedback()).toBeNull();
+    await store.rejectName(must(store.suggestion()));
+    await store.undoName();
+    // Values without an entity cannot be remembered; nothing is sent.
+    fake.feedbackFail = false;
+    await store.acceptName(builder({ group: undefined }));
+    await store.rejectName(builder({ group: undefined }));
+    expect(fake.told).toEqual([]);
   });
 });
 

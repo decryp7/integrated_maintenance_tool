@@ -379,6 +379,16 @@ impl AiCore {
         }
     }
 
+    /// Whether background work (the name aliases) may use the model without loading it by itself: it is in memory, or
+    /// it is loaded automatically anyway.
+    pub fn background_ready(&self) -> bool {
+        match self.status().state {
+            EngineStateDto::Ready => true,
+            EngineStateDto::Idle => self.settings().autoload,
+            _ => false,
+        }
+    }
+
     /// Ok when AI can be used in this run; otherwise why not.
     pub fn availability(&self) -> AiResult<()> {
         if self.safe_mode {

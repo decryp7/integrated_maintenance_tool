@@ -1,6 +1,6 @@
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withMethods, withState } from '@ngrx/signals';
-import { SearchAllReply, ValueMatch } from '../core/api.types';
+import { NameClarification, SearchAllReply, ValueMatch } from '../core/api.types';
 import { CmdError, isCmdErrorDto } from '../core/cmd-error';
 import { flatRows, resultGroups } from './search-everything.model';
 import { SearchEverythingBackend } from './search-everything-backend';
@@ -16,11 +16,33 @@ interface SearchEverythingState {
   reply: SearchAllReply | null;
   /** The value the engine thinks the words mean ("Did you mean ...?"); null when none or when it is what was typed. */
   suggestion: ValueMatch | null;
+  /** The question to ask when two things match equally; null when there is no tie. */
+  clarify: NameClarification | null;
+  /** The values behind `clarify.options`, in the engine's order. */
+  options: ValueMatch[];
+  /** What the user just told Debrief about a match, so it can be taken back. */
+  feedback: NameFeedbackNote | null;
   loading: boolean;
   error: string | null;
 }
 
-const initial: SearchEverythingState = { text: '', searched: '', reply: null, suggestion: null, loading: false, error: null };
+/** A correction the user made: what they typed, what it was for and whether they accepted or rejected it. */
+export interface NameFeedbackNote {
+  kind: 'accepted' | 'rejected';
+  typed: string;
+  value: string;
+}
+
+/** What the engine thinks the words mean: the best value that is not what was typed, and the tie question if any. */
+interface Understanding {
+  suggestion: ValueMatch | null;
+  clarify: NameClarification | null;
+  options: ValueMatch[];
+}
+
+const NOTHING: Understanding = { suggestion: null, clarify: null, options: [] };
+
+const initial: SearchEverythingState = { text: '', searched: '', reply: null, suggestion: null, clarify: null, options: [], feedback: null, loading: false, error: null };
 
 function message(e: unknown): string {
   if (e instanceof CmdError || isCmdErrorDto(e)) return e.message;
@@ -43,26 +65,28 @@ export const SearchEverythingStore = signalStore(
     let seq = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    /** The best value for the words, unless it is what was typed. A failed lookup only means no suggestion. */
-    async function suggest(text: string): Promise<ValueMatch | null> {
+    /** What the engine thinks the words mean. A failed lookup only means no suggestion. */
+    async function understand(text: string): Promise<Understanding> {
       try {
-        const values = await backend.findValues({ text, limit: 3 });
-        return values.find((v) => v.value.toLowerCase() !== text.trim().toLowerCase()) ?? null;
+        const { values, clarify } = await backend.findValues({ text, limit: 3 });
+        const options = clarify ? clarify.options.flatMap((id) => values.filter((v) => v.group === id)) : [];
+        if (clarify && options.length > 1) return { suggestion: null, clarify, options };
+        return { ...NOTHING, suggestion: values.find((v) => v.value.toLowerCase() !== text.trim().toLowerCase()) ?? null };
       } catch {
-        return null;
+        return NOTHING;
       }
     }
 
     async function search(text: string): Promise<void> {
       const mine = ++seq;
       if (!text.trim()) {
-        patchState(store, { searched: text, reply: null, suggestion: null, loading: false, error: null });
+        patchState(store, { searched: text, reply: null, ...NOTHING, loading: false, error: null });
         return;
       }
       patchState(store, { loading: true, error: null });
       try {
-        const [reply, suggestion] = await Promise.all([backend.searchEverything({ text }), suggest(text)]);
-        if (mine === seq) patchState(store, { searched: text, reply, suggestion, loading: false });
+        const [reply, understood] = await Promise.all([backend.searchEverything({ text }), understand(text)]);
+        if (mine === seq) patchState(store, { searched: text, reply, ...understood, loading: false });
       } catch (e) {
         if (mine === seq) patchState(store, { searched: text, reply: null, loading: false, error: message(e) });
       }
@@ -85,9 +109,50 @@ export const SearchEverythingStore = signalStore(
       acceptSuggestion(): void {
         const value = store.suggestion()?.value;
         if (!value) return;
-        patchState(store, { text: value });
+        patchState(store, { text: value, feedback: null });
         clearTimeout(timer);
         void search(value);
+      },
+      /** "Yes, that is what I meant": remembers that the typed words mean `match`, and searches its name. */
+      async acceptName(match: ValueMatch): Promise<void> {
+        const typed = store.searched();
+        if (!match.group || !typed.trim()) return;
+        try {
+          await backend.acceptName({ text: typed, group: match.group });
+        } catch (e) {
+          patchState(store, { error: message(e) });
+          return;
+        }
+        patchState(store, { text: match.value, feedback: { kind: 'accepted', typed, value: match.value } });
+        clearTimeout(timer);
+        await search(match.value);
+      },
+      /** "Not that": remembers that the typed words do not mean `match`, and searches the typed words again. */
+      async rejectName(match: ValueMatch): Promise<void> {
+        const typed = store.searched();
+        if (!match.group || !typed.trim()) return;
+        try {
+          await backend.rejectName({ text: typed, group: match.group });
+        } catch (e) {
+          patchState(store, { error: message(e) });
+          return;
+        }
+        await search(typed);
+        patchState(store, { feedback: { kind: 'rejected', typed, value: match.value } });
+      },
+      /** Takes back the latest correction and searches the words as they were typed. */
+      async undoName(): Promise<void> {
+        const note = store.feedback();
+        if (!note) return;
+        try {
+          await backend.undoName();
+        } catch (e) {
+          patchState(store, { error: message(e) });
+          return;
+        }
+        patchState(store, { text: note.typed, feedback: null });
+        clearTimeout(timer);
+        await search(note.typed);
       },
       /** Searches the current text now (Retry, or Enter before the pause ended). */
       searchNow(): Promise<void> {

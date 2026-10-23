@@ -6,10 +6,11 @@
 //! window cancels the older one at its next step (it answers `null`), so typing never queues up searches.
 
 use crate::error::{CmdError, ErrorCode};
+use crate::names::Freshness;
 use crate::windows::{CurrentWindow, WindowState};
 use crate::CmdResult;
 use debrief_core::batch::EventId;
-use debrief_core::find::{self, FindValuesRequest, ValueMatch};
+use debrief_core::find::{FindValuesRequest, Resolved};
 use debrief_core::search_all::{self, Control, Corpus, DocScope, SearchAllError, SearchAllReply, SearchAllRequest, SearchDoc};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -122,10 +123,12 @@ pub async fn search_everything<R: Runtime>(
     out
 }
 
-/// The values the logs hold that the search box's words refer to (`CompanyA.Graphic.Builder.exe` for "graphic
-/// builder"), best first, for a "Did you mean" line. A query: nothing changes.
+/// The values and entities the logs hold that the search box's words refer to (`CompanyA.Graphic.Builder.exe` for
+/// "graphic builder"), best first, each with how and why it matched, its spellings and evidence, and a clarifying
+/// question when two things match equally. Rebuilds the window's name table when its catalogue is ready and starts
+/// the background alias job; nothing else changes.
 #[tauri::command]
-pub async fn find_values<R: Runtime>(_app: AppHandle<R>, state: CurrentWindow, request: FindValuesRequest) -> CmdResult<Vec<ValueMatch>> {
+pub async fn find_values<R: Runtime>(app: AppHandle<R>, state: CurrentWindow, request: FindValuesRequest) -> CmdResult<Resolved> {
     if request.text.chars().count() > search_all::MAX_TEXT_CHARS {
         return Err(CmdError::new(
             ErrorCode::Invalid,
@@ -133,11 +136,17 @@ pub async fn find_values<R: Runtime>(_app: AppHandle<R>, state: CurrentWindow, r
         ));
     }
     let store = state.engine.store()?;
-    crate::sync::blocking("find values", move || {
-        find::resolve_terms(store.as_ref(), &request.text, request.limit)
-            .map_err(|e| CmdError::new(ErrorCode::Internal, format!("the values cannot be looked up: {e}")))
+    let win = state.arc().clone();
+    let aliases = crate::ai::commands::core(&app).map(|c| c.settings().name_aliases).unwrap_or(false);
+    let (found, fresh) = crate::sync::blocking("find values", move || {
+        win.names.apply_settings(aliases);
+        win.names.search(store.as_ref(), &request.text, request.limit)
     })
-    .await
+    .await?;
+    if fresh == Freshness::Rebuilt {
+        crate::names::schedule_alias_job(&app, state.label(), &state.names);
+    }
+    Ok(found)
 }
 
 #[cfg(test)]
@@ -200,9 +209,9 @@ mod tests {
                 },
             ))
         };
-        assert!(ask("timeout").unwrap().is_empty(), "nothing opened: no values, not an error");
+        assert!(ask("timeout").unwrap().values.is_empty(), "nothing opened: no values, not an error");
         import(&main_window(&app), &[samples().join("serilog-clef")]);
-        assert!(ask("--").unwrap().is_empty(), "no words: no values");
+        assert!(ask("--").unwrap().values.is_empty(), "no words: no values");
         let too_long = ask(&"x".repeat(search_all::MAX_TEXT_CHARS + 1)).unwrap_err();
         assert_eq!(too_long.code, ErrorCode::Invalid);
     }

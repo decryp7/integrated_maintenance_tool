@@ -1,7 +1,17 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { KnowledgeBackend } from '../ai/knowledge/knowledge-backend';
 import { invoke } from '../core/activity/ipc';
-import { FindValuesRequest, SearchAllReply, SearchAllRequest, ValueMatch } from '../core/api.types';
+import {
+  FindValuesReply,
+  FindValuesRequest,
+  NameFactReply,
+  NameFeedback,
+  NameRemovedReply,
+  NameUndoReply,
+  RemoveNameAlias,
+  SearchAllReply,
+  SearchAllRequest,
+} from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { DebriefBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
@@ -20,8 +30,19 @@ import { NotesBackend } from '../notes/notes-backend';
 export abstract class SearchEverythingBackend {
   /** The results for `request`; null when the text has no words or a newer search of the window replaced this one. */
   abstract searchEverything(request: SearchAllRequest): Promise<SearchAllReply | null>;
-  /** The values the logs hold that the words refer to, best first (the "Did you mean" line); a query, nothing changes. */
-  abstract findValues(request: FindValuesRequest): Promise<ValueMatch[]>;
+  /**
+   * The values the logs hold that the words refer to, best first (the "Did you mean" line), each saying how and why it
+   * matched, and the question to ask when two things tie; a query, nothing changes.
+   */
+  abstract findValues(request: FindValuesRequest): Promise<FindValuesReply>;
+  /** "Yes, that is what I meant": the words now mean the entity (`group` of a value). */
+  abstract acceptName(feedback: NameFeedback): Promise<NameFactReply>;
+  /** "Not that": the words never mean the entity again. */
+  abstract rejectName(feedback: NameFeedback): Promise<NameFactReply>;
+  /** Takes back the latest correction. */
+  abstract undoName(): Promise<NameUndoReply>;
+  /** Removes an AI-suggested alias of an entity. */
+  abstract removeNameAlias(request: RemoveNameAlias): Promise<NameRemovedReply>;
 }
 
 /** Talks to the `search_everything` command. */
@@ -34,7 +55,19 @@ export class TauriSearchEverythingBackend extends SearchEverythingBackend {
     return this.call<SearchAllReply | null>('search_everything', { request });
   }
   findValues(request: FindValuesRequest) {
-    return this.call<ValueMatch[]>('find_values', { request });
+    return this.call<FindValuesReply>('find_values', { request });
+  }
+  acceptName(request: NameFeedback) {
+    return this.call<NameFactReply>('names_accept', { request });
+  }
+  rejectName(request: NameFeedback) {
+    return this.call<NameFactReply>('names_reject', { request });
+  }
+  undoName() {
+    return this.call<NameUndoReply>('names_undo');
+  }
+  removeNameAlias(request: RemoveNameAlias) {
+    return this.call<NameRemovedReply>('names_remove_alias', { request });
   }
 }
 

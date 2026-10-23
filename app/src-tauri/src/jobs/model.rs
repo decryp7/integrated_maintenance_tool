@@ -385,6 +385,8 @@ pub struct JobSpec {
     pub cancellable: bool,
     /// What Retry runs again (parsed by the producer's retry handler); `None`: not retryable.
     pub request: Option<Value>,
+    /// Background housekeeping nobody waits for: it ends without a message or notification (it still shows in the pane).
+    pub quiet: bool,
 }
 
 impl JobSpec {
@@ -395,7 +397,14 @@ impl JobSpec {
             source: JobSource::default(),
             cancellable: true,
             request: None,
+            quiet: false,
         }
+    }
+
+    /// Ends without a message or notification (see [`JobSpec::quiet`]).
+    pub fn quiet(mut self) -> JobSpec {
+        self.quiet = true;
+        self
     }
 
     pub fn window(mut self, window: &str) -> JobSpec {
@@ -446,6 +455,9 @@ pub struct Job {
     pub seen: bool,
     #[serde(default)]
     pub request: Option<Value>,
+    /// Ends without a message or notification.
+    #[serde(default)]
+    pub quiet: bool,
     /// The job this one retries.
     #[serde(default)]
     pub retry_of: Option<JobId>,
@@ -492,6 +504,7 @@ impl Job {
             error: None,
             seen: false,
             request: spec.request,
+            quiet: spec.quiet,
             retry_of: None,
         }
     }

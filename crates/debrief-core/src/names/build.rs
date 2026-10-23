@@ -4,14 +4,17 @@
 
 use super::alias_job::{self, AliasJobConfig, AliasJobReport, AliasModel};
 use super::book::NameBook;
-use super::context::SearchContext;
-use super::group::group;
+use super::context::{Cooccurrence, SearchContext};
+use super::group::{group, look_alikes, merge_cooccurring, NameGroup};
 use super::normalise::{file_name, strip_extension};
 use super::resolve::NameSettings;
 use super::segment::{split_raw, Vocabulary};
 use crate::catalogue::{Candidate, CatalogueRequest};
-use crate::ports::StoreResult;
+use crate::find::{self, NameLayer, Resolved};
+use crate::ports::{Filter, PageQuery, StoreResult};
+use crate::query::TextMode;
 use crate::search_all::SearchSource;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, MutexGuard, RwLock};
 
 /// The workspace's own words: pieces of names that are separated in the logs (`Graphic` and `Builder` in
@@ -35,6 +38,49 @@ pub fn vocabulary_from(candidates: &[Candidate]) -> Vocabulary {
     v
 }
 
+/// Groups (most events first) whose events are read to join look-alike spellings that appear together.
+const MERGE_GROUPS: usize = 200;
+/// Events read per such group.
+const MERGE_EVENTS: usize = 30;
+/// Share of the rarer name's events that must hold the other for two look-alike names to be one.
+const MERGE_STRENGTH: f64 = 0.6;
+
+/// Joins look-alike groups whose names appear in the same events (best effort: a store that cannot answer leaves the
+/// groups as they are). Returns the number of merges.
+fn merge_by_cooccurrence(store: &(impl SearchSource + ?Sized), groups: &mut Vec<NameGroup>) -> usize {
+    let wanted = look_alikes(groups, MERGE_GROUPS);
+    if wanted.len() < 2 {
+        return 0;
+    }
+    let mut cooc = Cooccurrence::default();
+    for i in wanted {
+        let Ok(page) = store.page(&PageQuery {
+            query: Filter {
+                text: format!("\"{}\"", groups[i].canonical().replace('"', " ")),
+                text_mode: TextMode::Words,
+                ..Filter::default()
+            },
+            offset: 0,
+            limit: MERGE_EVENTS,
+            ..PageQuery::default()
+        }) else {
+            return 0;
+        };
+        for e in &page.rows {
+            let names: Vec<String> = crate::entities::extract(&[e.message.as_str()])
+                .entities
+                .into_iter()
+                .map(|x| x.name)
+                .collect();
+            cooc.add_event(&names);
+        }
+    }
+    if cooc.is_empty() {
+        return 0;
+    }
+    merge_cooccurring(groups, &cooc, MERGE_STRENGTH)
+}
+
 /// What the app shares: the book, its vocabulary, the user's context and the Settings switches.
 #[derive(Default)]
 pub struct Names {
@@ -42,9 +88,16 @@ pub struct Names {
     vocab: RwLock<Vocabulary>,
     ctx: Mutex<SearchContext>,
     settings: Mutex<NameSettings>,
+    /// The last [`Names::refresh`] found the catalogue built.
+    built: AtomicBool,
 }
 
 impl Names {
+    /// Whether the table was built from a finished catalogue (false until then, and while new sources are catalogued).
+    pub fn is_built(&self) -> bool {
+        self.built.load(Ordering::Relaxed)
+    }
+
     /// Rebuilds the table from the store's catalogue (when it is built) and returns the number of groups. The
     /// store is read once, off the lock; AI aliases and user facts are kept.
     pub fn refresh(&self, store: &(impl SearchSource + ?Sized)) -> StoreResult<usize> {
@@ -52,15 +105,38 @@ impl Names {
             all: true,
             ..CatalogueRequest::default()
         })?;
+        self.built.store(reply.built, Ordering::Relaxed);
         if !reply.built {
             return Ok(self.read(|b, _| b.groups().len()));
         }
         let vocab = vocabulary_from(&reply.candidates);
-        let groups = group(&reply.candidates, &vocab);
+        let mut groups = group(&reply.candidates, &vocab);
+        merge_by_cooccurrence(store, &mut groups);
         let n = groups.len();
         self.book.write().unwrap_or_else(|p| p.into_inner()).rebuild(groups);
         *self.vocab.write().unwrap_or_else(|p| p.into_inner()) = vocab;
         Ok(n)
+    }
+
+    /// What the search box and the assistant ask: the values and entities the words refer to, with how and why they
+    /// matched and a clarifying question on a tie. Remembers the words as context; changes nothing else.
+    pub fn search(&self, store: &(impl SearchSource + ?Sized), text: &str, limit: usize) -> StoreResult<Resolved> {
+        self.context().remember(text);
+        let ctx = self.context().clone();
+        let settings = self.settings();
+        self.read(|book, vocab| {
+            find::resolve_names(
+                store,
+                text,
+                limit,
+                Some(&NameLayer {
+                    book,
+                    vocab,
+                    ctx: &ctx,
+                    settings,
+                }),
+            )
+        })
     }
 
     /// Reads the book and vocabulary.
@@ -169,13 +245,16 @@ mod tests {
     fn refresh_builds_groups_and_keeps_learning() {
         let names = Names::default();
         let store = Fixed(vec![cand("Acme.Graphic.Builder.exe", 5), cand("graphicbuilder.exe", 9)], true);
+        assert!(!names.is_built());
         assert_eq!(names.refresh(&store).unwrap(), 1);
+        assert!(names.is_built());
         names.write(|b| b.accept("gfx", "executable|graphic builder", false));
         assert_eq!(names.refresh(&store).unwrap(), 1);
         assert_eq!(names.read(|b, _| b.facts().len()), 1);
         // A catalogue that is not built keeps the old table.
         let unbuilt = Fixed(vec![], false);
         assert_eq!(names.refresh(&unbuilt).unwrap(), 1);
+        assert!(!names.is_built(), "new sources are being catalogued");
         names.context().remember("graphic");
         assert_eq!(names.context().recent.len(), 1);
         names.set_settings(NameSettings {

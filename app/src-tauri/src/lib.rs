@@ -69,6 +69,7 @@ mod profiling;
 mod query_cancel;
 mod recent;
 mod redacted_copy;
+mod names;
 mod search_everything;
 mod services;
 mod settings;
@@ -186,6 +187,10 @@ command_table! {
     Query [WINDOW] => smart_search::search_partial,
     Query [WINDOW] => search_everything::search_everything,
     Query [WINDOW] => search_everything::find_values,
+    Mutation [WINDOW] => names::names_accept,
+    Mutation [WINDOW] => names::names_reject,
+    Mutation [WINDOW] => names::names_undo,
+    Mutation [WINDOW] => names::names_remove_alias,
     Query [WINDOW] => insights::check_query,
     Query [WINDOW] => insights::complete_query,
     Query [WINDOW] limit MIB => insights::classify_search,

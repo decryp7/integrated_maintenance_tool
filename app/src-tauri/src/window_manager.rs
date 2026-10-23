@@ -219,6 +219,7 @@ fn begin_quit<R: Runtime>(app: &AppHandle<R>) {
 /// Tells the user an import finished in a window that is not in front.
 /// Called from commands and workers: the window getters run on the main thread ([`crate::ui_dispatch::run`]).
 pub fn import_finished<R: Runtime>(app: &AppHandle<R>, label: &str, events: u64) {
+    crate::names::after_import(app, label);
     let title = app
         .try_state::<Windows>()
         .and_then(|ws| ws.get(label))

@@ -125,6 +125,7 @@ impl AppState {
         let mut state = WindowState::new(label, engine, host, doc);
         state.profiling = profiling;
         state.dumps = dumps;
+        state.names = crate::names::WindowNames::open(self.config_dir.as_ref().map(|d| d.join(crate::names::BOOK_FILE)));
         Ok(state)
     }
 

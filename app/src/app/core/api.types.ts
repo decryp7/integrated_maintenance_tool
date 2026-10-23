@@ -473,7 +473,7 @@ export interface SearchAllRequest {
   limit?: number;
 }
 
-/** What the search box asks for its "Did you mean" line (`find_values({ request })` → `ValueMatch[]`, Rust `debrief_core::find`). */
+/** What the search box asks for its "Did you mean" line (`find_values({ request })` → `FindValuesReply`, Rust `debrief_core::find`). */
 export interface FindValuesRequest {
   text: string;
   /** Most values; 0/absent = a few. */
@@ -884,6 +884,48 @@ export type QueryOutcome = { result: QlResult } | { error: QlError };
 export type SearchInputKind = 'text' | 'query';
 
 export type CompletionKind = 'field' | 'keyword' | 'operator' | 'function' | 'value';
+
+/** A question to ask the user when two different entities match about equally (Rust `names::resolve::Clarification`). */
+export interface NameClarification {
+  question: string;
+  /** The `group`s of the tied values, best first. */
+  options: string[];
+}
+
+/** What `find_values` answers: the values, and `clarify` when it is a tie (ask it instead of guessing). */
+export interface FindValuesReply {
+  values: ValueMatch[];
+  clarify?: NameClarification;
+}
+
+/** What the user said about a match (`names_accept`, `names_reject`): the words they typed and the entity's `group`. */
+export interface NameFeedback {
+  text: string;
+  group: string;
+  /** Remember it for every workspace, not only this one. */
+  global?: boolean;
+}
+
+/** An AI-suggested alias to remove from an entity (`names_remove_alias`). */
+export interface RemoveNameAlias {
+  group: string;
+  alias: string;
+}
+
+/** The recorded fact (its id undoes it); none when the book already said so. */
+export interface NameFactReply {
+  fact: number | null;
+}
+
+/** What `names_undo` took back: the user's latest correction, if there was one. */
+export interface NameUndoReply {
+  undone: { id: number; kind: Record<string, unknown>; global: boolean } | null;
+}
+
+/** What `names_remove_alias` did. */
+export interface NameRemovedReply {
+  removed: boolean;
+}
 
 /**
  * A name the logs hold that search words refer to (`did_you_mean`, the assistant's `find_values`): a field value, a

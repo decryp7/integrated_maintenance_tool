@@ -456,7 +456,9 @@ pub(crate) fn run_turn(
         // Each tool call takes a short read lock; live tail and imports never wait for the model.
         let access = WindowStore(win.clone());
         let browser_env = browser.map(|b| b.env());
-        let mut env = ChatEnv::new(&assistant, (&access as &dyn StoreAccess).into());
+        let store = win.engine.store().ok();
+        let names = win.names.for_assistant(store.as_deref(), core.settings().name_aliases);
+        let mut env = ChatEnv::new(&assistant, (&access as &dyn StoreAccess).into()).with_names(names);
         if let (Some(b), Some(e)) = (browser, browser_env.as_ref()) {
             env = env.with_browser(e).with_pages(b.pages.clone());
         }

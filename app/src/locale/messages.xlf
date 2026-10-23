@@ -29499,56 +29499,112 @@
         <source>Search everything</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
-          <context context-type="linenumber">26,28</context>
+          <context context-type="linenumber">29,31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="search.input.placeholder" datatype="html">
         <source>Search events, sources, fields, markers, notes…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
-          <context context-type="linenumber">32,34</context>
+          <context context-type="linenumber">35,37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="search.status.searching" datatype="html">
         <source>Searching…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
-          <context context-type="linenumber">41,42</context>
+          <context context-type="linenumber">44,45</context>
         </context-group>
       </trans-unit>
       <trans-unit id="search.status.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
-          <context context-type="linenumber">44,45</context>
+          <context context-type="linenumber">47,48</context>
         </context-group>
       </trans-unit>
       <trans-unit id="search.status.none" datatype="html">
         <source>Nothing matches “<x id="TEXT" equiv-text="{{ store.searched() //i18n(ph=&quot;text&quot;) }}"/>”.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
-          <context context-type="linenumber">46,47</context>
+          <context context-type="linenumber">49,50</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.clarify.label" datatype="html">
+        <source>Which one do you mean?</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">53,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="search.suggestion.prefix" datatype="html">
         <source>Did you mean</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
-          <context context-type="linenumber">51,52</context>
+          <context context-type="linenumber">61,62</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.suggestion.accept" datatype="html">
+        <source>Yes, remember</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">65,66</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.suggestion.reject" datatype="html">
+        <source>Not this</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">66,69</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.suggestion.ai" datatype="html">
+        <source>AI-generated</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">73,75</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.suggestion.spellings" datatype="html">
+        <source>Also written: <x id="SPELLINGS" equiv-text="{{ written //i18n(ph=&quot;spellings&quot;) }}"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">76,77</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.feedback.accepted" datatype="html">
+        <source>Remembered: “<x id="TYPED" equiv-text="{{ f.typed //i18n(ph=&quot;typed&quot;) }}"/>” means <x id="VALUE" equiv-text="{{ f.value //i18n(ph=&quot;value&quot;) }}"/>.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">84,85</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.feedback.rejected" datatype="html">
+        <source>Remembered: “<x id="TYPED" equiv-text="{{ f.typed //i18n(ph=&quot;typed&quot;) }}"/>” is not <x id="VALUE" equiv-text="{{ f.value //i18n(ph=&quot;value&quot;) }}"/>.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">86,87</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="search.feedback.undo" datatype="html">
+        <source>Undo</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
+          <context context-type="linenumber">88,91</context>
         </context-group>
       </trans-unit>
       <trans-unit id="search.list.label" datatype="html">
         <source>Results</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
-          <context context-type="linenumber">56,57</context>
+          <context context-type="linenumber">91,92</context>
         </context-group>
       </trans-unit>
       <trans-unit id="search.suggestion.source" datatype="html">
         <source>source</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/search-everything/search-everything-palette.ts</context>
-          <context context-type="linenumber">132</context>
+          <context context-type="linenumber">169</context>
         </context-group>
       </trans-unit>
       <trans-unit id="search.kind.events" datatype="html">
