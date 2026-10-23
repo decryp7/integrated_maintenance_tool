@@ -31,6 +31,11 @@ export interface DebriefView {
   defaultPosition?: ViewPosition;
   /** Its home area (see `ViewArea`); derived from the kind and `defaultPosition` when left out (`viewArea`). */
   area?: ViewArea;
+  /**
+   * A document that needs the full height of the window (a home screen, a tree): it opens in its own group at the
+   * window's edge, not in the timeline's 300 px row, and only shares that group with other full-height views.
+   */
+  fullHeight?: boolean;
   /** The smallest the view's dock group may be made, px (a drag that would go below it is refused). Absent = dockview's default. */
   minSize?: { width?: number; height?: number };
   /** Its place in the View menu (see `ViewCategory`). Defaults to the Plugins submenu. */

@@ -6,7 +6,8 @@ import { TEXT_DEBOUNCE_MS } from '../core/workspace/query.store';
 import { DockService } from '../dock/dock.service';
 import { FakeDock } from '../../testing/helpers';
 import { provideToolsTesting } from '../tools/mock/test-support';
-import { CoreUiState, sanitizeQuery } from './core-ui-state';
+import { sanitizeQuery } from '../core/sanitize-query';
+import { CoreUiState } from './core-ui-state';
 import { UI_STATE_CONTRIBUTIONS, UiStateRegistry } from './ui-state';
 
 describe('UiStateRegistry', () => {

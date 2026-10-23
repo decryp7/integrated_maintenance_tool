@@ -12,6 +12,7 @@ export const REGISTRY_PLUGIN: DebriefPlugin = {
       plugin: $localize`:@@plugins.registry.view.plugin:Windows registry`,
       icon: 'folder',
       defaultPosition: 'center',
+      fullHeight: true,
       component: () => import('./registry-view').then((m) => m.RegistryView),
       when: (summary) => summary.sources.some((s) => s.importer === 'registry'),
       // A viewer for the file just opened, like a document: it opens with the registry export.

@@ -52,3 +52,46 @@ describe('DockPlacement.addView: DebriefView.minSize', () => {
     expect(setup(null).addView(api, view({ width: 360 }), false)).toBeNull();
   });
 });
+
+describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () => {
+  const full = (id = 'full'): DebriefView => ({ id, title: id, icon: 'panel', area: 'document', fullHeight: true, component: async () => class {} }) as DebriefView;
+
+  /** A fake dock holding the timeline; `addPanel` records the position it is given and returns a panel with a sizeable group. */
+  function fakeDock(width: number, groups: unknown[] = []) {
+    const setSize = vi.fn();
+    const addPanel = vi.fn(() => ({ group: { api: { setSize, setConstraints: vi.fn() } } }));
+    const dock = { width, height: 900, groups, getPanel: (id: string) => (id === 'timeline' ? {} : undefined), addPanel } as unknown as DockviewApi;
+    TestBed.configureTestingModule({ providers: provideDockTesting() });
+    return { dock, addPanel, setSize, placement: TestBed.inject(DockPlacement) };
+  }
+
+  it('opens in its own column at the window edge, spanning the dock height, 55% of its width', () => {
+    const { dock, addPanel, setSize, placement } = fakeDock(1400);
+    placement.addView(dock, full(), false);
+    expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
+    expect(setSize).toHaveBeenCalledWith({ width: 770 });
+  });
+
+  it('caps the column on a wide window (2560 px)', () => {
+    const { dock, setSize, placement } = fakeDock(2560);
+    placement.addView(dock, full(), false);
+    expect(setSize).toHaveBeenCalledWith({ width: 960 });
+  });
+
+  it('does not land in a document group that is only the timeline row\'s strip: it gets its own column', () => {
+    const strip = { id: 'g3', height: 300, api: { location: { type: 'grid' } }, panels: [{ id: 'metrics' }] };
+    const { dock, addPanel, placement } = fakeDock(1400, [strip]);
+    vi.spyOn(placement as unknown as { isDocument: (id: string) => boolean }, 'isDocument').mockReturnValue(true);
+    placement.addView(dock, full(), false);
+    expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
+  });
+
+  it('tabs into a document group that already spans the dock', () => {
+    const column = { id: 'g7', height: 900, api: { location: { type: 'grid' } }, panels: [{ id: 'home' }] };
+    const { dock, addPanel, setSize, placement } = fakeDock(1400, [column]);
+    vi.spyOn(placement as unknown as { isDocument: (id: string) => boolean }, 'isDocument').mockReturnValue(true);
+    placement.addView(dock, full('registry'), false);
+    expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { referenceGroup: 'g7', direction: 'within' } }));
+    expect(setSize).not.toHaveBeenCalled();
+  });
+});

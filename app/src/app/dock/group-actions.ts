@@ -42,6 +42,26 @@ export interface AutoHideButtonHost {
   shortcut?(): string;
 }
 
+/**
+ * The index a toolbar's roving tabindex moves to for an arrow/Home/End key, or null for any other key. Left and Right
+ * wrap around; `count` is the number of visible buttons.
+ */
+export function rovingIndex(key: string, index: number, count: number): number | null {
+  if (count <= 0) return null;
+  switch (key) {
+    case 'ArrowRight':
+      return (index + 1) % count;
+    case 'ArrowLeft':
+      return (index - 1 + count) % count;
+    case 'Home':
+      return 0;
+    case 'End':
+      return count - 1;
+    default:
+      return null;
+  }
+}
+
 export interface GroupActionsHost {
   /** Opens the active panel's menu (Float, Pop out, Dock, Auto hide, Close...) under `anchor`. */
   openMenu(group: DockviewGroupPanel, anchor: HTMLElement): void;
@@ -59,15 +79,49 @@ export class GroupActions implements IHeaderActionsRenderer {
   private readonly maximize = this.button();
   private cleanup: (() => void)[] = [];
   private group?: DockviewGroupPanel;
+  /** The button that holds the toolbar's one Tab stop (the last one focused, else the first visible). */
+  private roving?: HTMLButtonElement;
 
   constructor(private readonly host: GroupActionsHost) {
     this.element.className = 'debrief-dock-actions';
+    // One Tab stop for the whole group header: arrows move between the buttons (roving tabindex).
+    this.element.setAttribute('role', 'toolbar');
+    this.element.setAttribute('aria-label', $localize`:@@dock.groupActions.toolbar:Panel actions`);
+    this.element.addEventListener('focusin', (e) => {
+      if (e.target instanceof HTMLButtonElement) {
+        this.roving = e.target;
+        this.syncRoving();
+      }
+    });
+    this.element.addEventListener('keydown', (e) => this.moveRoving(e));
     this.menu.setAttribute('aria-haspopup', 'menu');
     this.set(this.menu, $localize`:@@dock.groupActions.panelMenu:Panel menu`, ICONS.more);
     this.autoHide.hidden = true;
     this.autoHide.className += ' debrief-dock-autohide';
     this.autoHide.setAttribute('aria-haspopup', 'false');
     this.element.append(...(host.autoHide ? [this.autoHide] : []), this.menu, this.maximize);
+    this.syncRoving();
+  }
+
+  private visibleButtons(): HTMLButtonElement[] {
+    return [...this.element.querySelectorAll<HTMLButtonElement>('button')].filter((b) => !b.hidden);
+  }
+
+  /** Gives the Tab stop to the remembered button (the first visible one when it is gone or hidden). */
+  private syncRoving(): void {
+    const buttons = this.visibleButtons();
+    const stop = this.roving && buttons.includes(this.roving) ? this.roving : buttons[0];
+    for (const b of this.element.querySelectorAll<HTMLButtonElement>('button')) b.tabIndex = b === stop ? 0 : -1;
+  }
+
+  private moveRoving(e: KeyboardEvent): void {
+    const buttons = this.visibleButtons();
+    const at = buttons.findIndex((b) => b === e.target);
+    const to = at < 0 ? null : rovingIndex(e.key, at, buttons.length);
+    if (to === null) return;
+    e.preventDefault();
+    e.stopPropagation();
+    buttons[to]?.focus();
   }
 
   private button(): HTMLButtonElement {
@@ -129,6 +183,7 @@ export class GroupActions implements IHeaderActionsRenderer {
     const panel = this.group!.activePanel;
     const show = !!ah && !!panel && ah.available(this.group!);
     this.autoHide.hidden = !show;
+    this.syncRoving();
     if (!show || !panel) return;
     const title = panel.title ?? panel.id;
     this.autoHide.setAttribute('aria-pressed', 'false');

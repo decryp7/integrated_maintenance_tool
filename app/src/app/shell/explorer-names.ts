@@ -41,11 +41,47 @@ export interface ExplorerRow {
   heading: { label: string; path: string } | null;
 }
 
+/** The segments of a folder, without empty ones. */
+function segments(folder: string): string[] {
+  return folder.split('/').filter(Boolean);
+}
+
+/** The leading folder segments every folder shares (joined as the first folder wrote them), "" when none. */
+export function commonFolder(folders: readonly string[]): string {
+  const first = folders[0];
+  if (first === undefined) return '';
+  const lead = first.startsWith('/') ? '/' : '';
+  const shared = segments(first);
+  let n = shared.length;
+  for (const f of folders) {
+    const parts = segments(f);
+    let i = 0;
+    while (i < n && i < parts.length && parts[i] === shared[i]) i++;
+    n = i;
+  }
+  return n === 0 ? '' : lead + shared.slice(0, n).join('/');
+}
+
+/** A folder relative to the shared prefix ("web01"), or its own last segment when it is the prefix itself. */
+export function folderRelative(folder: string, root: string): string {
+  const rest = segments(folder).slice(segments(root).length);
+  return rest.length ? rest.join('/') : (segments(folder).pop() ?? folderLabel(folder));
+}
+
+/** The explorer's rows, whether files are grouped under folder headings, and the folder prefix every heading shares. */
+export interface ExplorerLayout {
+  rows: ExplorerRow[];
+  byFolder: boolean;
+  /** The common folder of all listed paths, shown once above the headings (which are relative to it); "" when none. */
+  root: string;
+}
+
 /**
  * Orders the explorer items by folder (first appearance first, stable inside a folder) and marks where each folder
- * starts, but only when more than one folder is open: one folder needs no heading.
+ * starts, but only when more than one folder is open: one folder needs no heading. The prefix every folder shares
+ * ("incident-2026-10-14") is hoisted into `root` so the headings only say what differs ("web01", "web02").
  */
-export function explorerRows(items: readonly SourceItem[]): { rows: ExplorerRow[]; byFolder: boolean } {
+export function explorerRows(items: readonly SourceItem[]): ExplorerLayout {
   const order: string[] = [];
   const byFolder = new Map<string, SourceItem[]>();
   for (const item of items) {
@@ -57,7 +93,9 @@ export function explorerRows(items: readonly SourceItem[]): { rows: ExplorerRow[
       byFolder.set(folder, [item]);
     }
   }
-  if (order.length < 2) return { rows: items.map((item) => ({ item, heading: null })), byFolder: false };
-  const rows = order.flatMap((folder) => (byFolder.get(folder) ?? []).map((item, i): ExplorerRow => ({ item, heading: i === 0 ? { label: folderLabel(folder), path: folder } : null })));
-  return { rows, byFolder: true };
+  if (order.length < 2) return { rows: items.map((item) => ({ item, heading: null })), byFolder: false, root: '' };
+  const root = commonFolder(order);
+  const label = (folder: string) => (root ? folderRelative(folder, root) : folderLabel(folder));
+  const rows = order.flatMap((folder) => (byFolder.get(folder) ?? []).map((item, i): ExplorerRow => ({ item, heading: i === 0 ? { label: label(folder), path: folder } : null })));
+  return { rows, byFolder: true, root };
 }
