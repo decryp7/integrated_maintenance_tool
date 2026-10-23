@@ -221,3 +221,43 @@ fn a_name_only_in_message_text_is_resolved_with_its_kind() {
         ("executable", "executable Acme.Render.Worker.exe")
     );
 }
+
+/// A store whose catalogue is not built yet: everything else is the workspace's.
+struct Unbuilt(WorkspaceStore);
+
+impl SearchSource for Unbuilt {
+    fn summary(&self) -> StoreResult<crate::ports::SummaryReply> {
+        SearchSource::summary(&self.0)
+    }
+    fn page(&self, req: &PageQuery) -> StoreResult<crate::ports::PageReply> {
+        SearchSource::page(&self.0, req)
+    }
+    fn facet(&self, req: &FacetRequest) -> StoreResult<crate::api::Facet> {
+        SearchSource::facet(&self.0, req)
+    }
+    fn exception_groups(&self) -> StoreResult<Vec<crate::exceptions::ExceptionGroup>> {
+        SearchSource::exception_groups(&self.0)
+    }
+    fn catalogue(&self, _: &CatalogueRequest) -> StoreResult<crate::catalogue::CatalogueReply> {
+        Ok(crate::catalogue::CatalogueReply {
+            built: false,
+            pending: 1,
+            candidates: Vec::new(),
+        })
+    }
+}
+
+#[test]
+fn until_the_catalogue_is_built_values_come_from_facets() {
+    let s = Unbuilt(store_with(
+        "unbuilt",
+        &[("Started Acme.Render.Worker.exe", "Acme.Render.Worker.exe"), ("idle", "agent")],
+    ));
+    let v = resolve_terms(&s, "render worker", 5).unwrap();
+    assert_eq!(v.len(), 1, "{v:#?}");
+    assert_eq!(
+        (v[0].field.as_str(), v[0].kind),
+        ("ProcessName", None),
+        "the names in message text need the catalogue"
+    );
+}
