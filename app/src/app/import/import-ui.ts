@@ -1,7 +1,7 @@
 import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { Icon } from '../shared/icon';
-import { fileName, importStatusText, percent, progressLine } from './import-format';
+import { detailText, fileName, importStatusText, percent, progressLine } from './import-format';
 import { ImportProgressService } from './import-progress.service';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { JOBS_VIEW } from '../jobs/job-viewer';
@@ -12,8 +12,19 @@ function view(svc: ImportProgressService) {
   return computed(() => {
     const p = svc.progress();
     if (!p) return null;
-    const counted = p.total > 0;
-    return { percent: percent(p), line: counted ? progressLine(p) : importStatusText(p), status: importStatusText(p), file: fileName(p.current), path: p.current ?? '', counted };
+    // Finding files has no total: the bar is indeterminate (animated) while the number grows.
+    const counted = p.phase !== 'finding' && p.total > 0;
+    const indeterminate = p.phase === 'finding' || (p.phase === 'importing' && p.total <= 0);
+    return {
+      percent: percent(p),
+      line: counted ? progressLine(p) : importStatusText(p),
+      status: importStatusText(p),
+      file: fileName(p.current),
+      path: p.current ?? '',
+      detail: detailText(p),
+      counted,
+      indeterminate,
+    };
   });
 }
 
@@ -29,6 +40,7 @@ function view(svc: ImportProgressService) {
       <span class="wrap" data-testid="import-status">
         <span
           class="bar"
+          [class.indeterminate]="v.indeterminate"
           role="progressbar"
           aria-label="Import progress"
           i18n-aria-label="@@import.ui.progress"
@@ -36,7 +48,7 @@ function view(svc: ImportProgressService) {
           aria-valuemax="100"
           [attr.aria-valuenow]="v.counted ? v.percent : null"
           [attr.aria-valuetext]="v.line"
-        ><span class="fill" [style.width.%]="v.percent"></span></span>
+        ><span class="fill" [style.width.%]="v.indeterminate ? 100 : v.percent"></span></span>
         <button type="button" class="open-job" data-testid="import-status-open" [title]="openJobTitle" (click)="ctx.showView(jobsView)">
           <span>{{ v.status }}</span>
           @if (v.file) { <span class="file" [title]="v.path">{{ v.file }}</span> }
@@ -57,7 +69,9 @@ function view(svc: ImportProgressService) {
     .file { max-width: 180px; overflow: hidden; text-overflow: ellipsis; font-family: var(--font-mono); font-size: var(--fs-xs); }
     .cancel { height: 18px; padding: 0 8px; border-radius: 9px; border: 1px solid currentColor; background: transparent; color: inherit; cursor: pointer; font-size: var(--fs-xs); font-weight: 600; }
     .cancel:hover:not(:disabled) { background: var(--bg-hover); }
-    @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+    .bar.indeterminate .fill { background: repeating-linear-gradient(90deg, var(--accent) 0 12px, var(--bg-3) 12px 24px); background-size: 48px 100%; animation: import-slide 0.8s linear infinite; }
+    @keyframes import-slide { to { background-position: 48px 0; } }
+    @media (prefers-reduced-motion: reduce) { .fill { transition: none; } .bar.indeterminate .fill { animation: none; } }
   `,
 })
 export class ImportStatus {
@@ -88,9 +102,9 @@ export class ImportStatus {
             <span class="spacer"></span>
             <button type="button" class="btn" [disabled]="svc.cancelling()" (click)="svc.cancel()">{{ svc.cancelling() ? cancellingLabel : cancelImportLabel }}</button>
           </div>
-          <div class="bar" aria-hidden="true"><span class="fill" [style.width.%]="v.percent"></span></div>
-          <div class="line">{{ v.line }}</div>
-          @if (v.file) { <div class="file" [title]="v.path" i18n="@@import.ui.reading">Reading {{ v.file }}</div> }
+          <div class="bar" [class.indeterminate]="v.indeterminate" aria-hidden="true"><span class="fill" [style.width.%]="v.indeterminate ? 100 : v.percent"></span></div>
+          <div class="line" data-testid="import-line">{{ v.line }}</div>
+          @if (v.detail) { <div class="file" [title]="v.path">{{ v.detail }}</div> }
           <div class="faint small" i18n="@@import.ui.keepWorking">You can keep working; files already read stay open if you cancel.</div>
         </div>
       }
@@ -106,7 +120,9 @@ export class ImportStatus {
     .line { color: var(--text-2); }
     .file { font-family: var(--font-mono); font-size: var(--fs-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
     .small { font-size: var(--fs-xs); }
-    @media (prefers-reduced-motion: reduce) { .fill { transition: none; } }
+    .bar.indeterminate .fill { background: repeating-linear-gradient(90deg, var(--accent) 0 12px, var(--bg-3) 12px 24px); background-size: 48px 100%; animation: import-slide 0.8s linear infinite; }
+    @keyframes import-slide { to { background-position: 48px 0; } }
+    @media (prefers-reduced-motion: reduce) { .fill { transition: none; } .bar.indeterminate .fill { animation: none; } }
   `,
 })
 export class ImportToast {

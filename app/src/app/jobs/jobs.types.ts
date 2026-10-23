@@ -39,6 +39,8 @@ export interface JobProgress {
   bytesTotal?: number;
   /** What the job works on now (an import: the file being read); absent between items. */
   current?: string;
+  /** What an import is doing (finding files, detecting, importing); absent for other jobs. */
+  phase?: 'idle' | 'finding' | 'detecting' | 'importing';
 }
 
 /** Where a finished job's result is (`jobs_result`). */

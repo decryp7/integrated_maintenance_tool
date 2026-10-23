@@ -56,6 +56,8 @@ pub struct ImportProgress {
     total: std::sync::atomic::AtomicUsize,
     bytes_done: std::sync::atomic::AtomicU64,
     bytes_total: std::sync::atomic::AtomicU64,
+    /// [`ImportPhase`] as a number (an atomic, so the counters and the phase are read without a lock).
+    phase: std::sync::atomic::AtomicU8,
     /// The file being read now, and when the import started (behind a lock: rarely contended).
     detail: Mutex<ProgressDetail>,
 }
@@ -65,6 +67,33 @@ struct ProgressDetail {
     current: Option<String>,
     started: Option<Instant>,
     finished_ms: Option<u64>,
+}
+
+/// What an import is doing, in order. Before `Importing` the totals are not known yet: the counters of the
+/// snapshot then count what has been found or checked so far.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum ImportPhase {
+    /// Nothing runs.
+    #[default]
+    Idle,
+    /// Walking the folders: `done` files found so far (`total` unknown, 0), `bytes_total` their size, `current` the folder.
+    Finding,
+    /// Looking at each file (size, archive entries) to number the sources: `done` of `total` files.
+    Detecting,
+    /// Reading the files: `done` of `total` files, `bytes_done` of `bytes_total`.
+    Importing,
+}
+
+impl ImportPhase {
+    fn from_u8(n: u8) -> ImportPhase {
+        match n {
+            1 => ImportPhase::Finding,
+            2 => ImportPhase::Detecting,
+            3 => ImportPhase::Importing,
+            _ => ImportPhase::Idle,
+        }
+    }
 }
 
 /// Reason of the files a cancelled import did not read (listed as unrecognised, re-imported on the next open).
@@ -79,7 +108,9 @@ pub struct ProgressSnapshot {
     pub cancelled: bool,
     pub bytes_done: u64,
     pub bytes_total: u64,
-    /// Path of the file being read now (`None` between files and after the import).
+    /// What the import is doing now (the counters above mean different things per phase, see [`ImportPhase`]).
+    pub phase: ImportPhase,
+    /// Path of the file being read now, or the folder being listed while finding (`None` between files and after the import).
     pub current: Option<String>,
     pub elapsed_ms: u64,
     /// Estimated time left from the bytes read so far; `None` until it can be estimated.
@@ -96,6 +127,7 @@ impl ProgressSnapshot {
             cancelled: false,
             bytes_done: 0,
             bytes_total: 0,
+            phase: ImportPhase::Idle,
             current: None,
             elapsed_ms: 0,
             eta_ms: None,
@@ -137,6 +169,7 @@ impl ImportProgress {
             cancelled: self.cancel.load(SeqCst),
             bytes_done,
             bytes_total,
+            phase: if running { ImportPhase::from_u8(self.phase.load(SeqCst)) } else { ImportPhase::Idle },
             current: if running { current } else { None },
             elapsed_ms,
             eta_ms: if running { eta(elapsed_ms, bytes_done, bytes_total) } else { None },
@@ -147,18 +180,82 @@ impl ImportProgress {
         self.detail.lock().unwrap_or_else(|p| p.into_inner())
     }
 
-    pub(crate) fn start(&self, total: usize, bytes: u64) {
+    /// Starts an import at its first phase, before anything is known: the snapshot reads "finding" with
+    /// zero counts from this moment (and a Cancel in any later phase is kept). Dropping the guard ends the
+    /// import, also when it fails early.
+    pub fn begin(&self) -> ProgressRun<'_> {
         use std::sync::atomic::Ordering::SeqCst;
         self.cancel.store(false, SeqCst);
-        self.done.store(0, SeqCst);
-        self.total.store(total, SeqCst);
-        self.bytes_done.store(0, SeqCst);
-        self.bytes_total.store(bytes, SeqCst);
+        self.reset_counts();
         *self.detail() = ProgressDetail {
             current: None,
             started: Some(Instant::now()),
             finished_ms: None,
         };
+        self.phase.store(ImportPhase::Finding as u8, SeqCst);
+        self.running.store(true, SeqCst);
+        ProgressRun(self)
+    }
+
+    fn reset_counts(&self) {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.done.store(0, SeqCst);
+        self.total.store(0, SeqCst);
+        self.bytes_done.store(0, SeqCst);
+        self.bytes_total.store(0, SeqCst);
+    }
+
+    /// `files` and `bytes` more files were found, in `folder`.
+    pub(crate) fn found(&self, files: usize, bytes: u64, folder: &Path) {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.done.fetch_add(files, SeqCst);
+        self.bytes_total.fetch_add(bytes, SeqCst);
+        // Many threads list folders; the name shown is the latest one that could be set without waiting.
+        if let Ok(mut d) = self.detail.try_lock() {
+            d.current = Some(folder.to_string_lossy().into_owned());
+        }
+    }
+
+    /// Looking at `total` files, none yet.
+    pub(crate) fn detecting(&self, total: usize) {
+        use std::sync::atomic::Ordering::SeqCst;
+        if !self.running.load(SeqCst) {
+            self.cancel.store(false, SeqCst);
+            *self.detail() = ProgressDetail {
+                current: None,
+                started: Some(Instant::now()),
+                finished_ms: None,
+            };
+        }
+        self.reset_counts();
+        self.total.store(total, SeqCst);
+        self.detail().current = None;
+        self.phase.store(ImportPhase::Detecting as u8, SeqCst);
+        self.running.store(true, SeqCst);
+    }
+
+    pub(crate) fn detected(&self, files: usize) {
+        self.done.fetch_add(files, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// Reading `total` files of `bytes`. A cancel asked for in an earlier phase stays; a read that did not
+    /// [`begin`](ImportProgress::begin) starts clean.
+    pub(crate) fn start(&self, total: usize, bytes: u64) {
+        use std::sync::atomic::Ordering::SeqCst;
+        let begun = self.running.load(SeqCst);
+        if !begun {
+            self.cancel.store(false, SeqCst);
+            *self.detail() = ProgressDetail {
+                current: None,
+                started: Some(Instant::now()),
+                finished_ms: None,
+            };
+        }
+        self.reset_counts();
+        self.total.store(total, SeqCst);
+        self.bytes_total.store(bytes, SeqCst);
+        self.detail().current = None;
+        self.phase.store(ImportPhase::Importing as u8, SeqCst);
         self.running.store(true, SeqCst);
     }
 
@@ -177,6 +274,7 @@ impl ImportProgress {
         d.current = None;
         d.finished_ms = Some(d.started.map_or(0, |t| t.elapsed().as_millis() as u64));
         drop(d);
+        self.phase.store(ImportPhase::Idle as u8, std::sync::atomic::Ordering::SeqCst);
         self.running.store(false, std::sync::atomic::Ordering::SeqCst);
     }
 
@@ -187,6 +285,15 @@ impl ImportProgress {
 
     pub(crate) fn is_cancelled(&self) -> bool {
         self.cancel.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+
+/// Ends the import it was returned for when dropped (see [`ImportProgress::begin`]).
+pub struct ProgressRun<'a>(&'a ImportProgress);
+
+impl Drop for ProgressRun<'_> {
+    fn drop(&mut self) {
+        self.0.finish();
     }
 }
 

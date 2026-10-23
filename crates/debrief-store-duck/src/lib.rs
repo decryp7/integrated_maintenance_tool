@@ -372,6 +372,8 @@ impl Inner {
     /// Reads `paths` (canonical) into the database.
     pub(crate) fn import(&self, paths: &[PathBuf], progress: &ImportProgress) -> StoreResult<ImportReport> {
         let started = std::time::Instant::now();
+        // From here the progress reads "finding files" with live counts; it ends with this function, however.
+        let _run = progress.begin();
         let (profile, parser_set, roots, removed) = {
             let s = read_lock(&self.state);
             (s.profile.clone(), s.parsers.clone(), s.roots.clone(), s.removed.clone())
@@ -387,7 +389,9 @@ impl Inner {
             }
         }
         known.extend(self.unrecognized().into_iter().map(|u| u.path));
-        let files = ingest::files_to_read(paths, &roots, &profile, &removed, &known);
+        let threads = read_lock(&self.options).parse_threads.max(1);
+        // Walkers mostly wait for the disk or the network, so they may outnumber the parse threads.
+        let files = ingest::find_files(paths, &roots, &profile, &removed, &known, progress, (threads * 2).clamp(4, 16));
         let encodings = self.encoding_policy(&conn);
         let env = ImportEnv {
             importers: self.registry.importers(),

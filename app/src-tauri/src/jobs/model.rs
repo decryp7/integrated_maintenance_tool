@@ -216,6 +216,9 @@ pub struct JobProgress {
     /// What it works on now (an import: the file's name; never a path).
     #[serde(default)]
     pub current: Option<String>,
+    /// What an import is doing (finding files, detecting, importing); `done`/`total` count different things per phase.
+    #[serde(default)]
+    pub phase: Option<debrief_core::workspace::ImportPhase>,
 }
 
 impl JobProgress {
