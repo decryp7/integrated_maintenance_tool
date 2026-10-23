@@ -38,7 +38,7 @@ export class MarkersCommands {
 export function provideMarkers(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideDebriefPlugin({
-      views: [{ id: 'markers', category: 'Analysis', title: $localize`:View title|@@markers.view.title:Markers`, icon: 'alert', defaultPosition: 'center', area: 'analysis', component: () => import('./markers-manager').then((m) => m.MarkersManager) }],
+      views: [{ id: 'markers', category: 'Analysis', title: $localize`:View title|@@markers.view.title:Markers`, icon: 'alert', defaultPosition: 'center', layout: { area: 'analysis', min: { width: 420, height: 180 }, pref: { width: 560, height: 280 }, priority: 50 }, component: () => import('./markers-manager').then((m) => m.MarkersManager) }],
     }),
     { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(MarkersCommands).commands },
   ]);

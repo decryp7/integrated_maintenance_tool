@@ -10,7 +10,7 @@ describe('heavy editors (A4)', () => {
     const all = [...BUILTIN_VIEWS, ...SCHEDULES_VIEWS, ...CONFIG_DIFF_VIEWS, ...REPORT_VIEWS];
     for (const id of ['profile', 'parsers', 'metrics', 'collection-schedules', 'config-diff', 'report']) {
       const view = all.find((v) => v.id === id);
-      expect(view?.area, id).toBe('document');
+      expect(view?.layout?.area ?? view?.area, id).toBe('document');
       expect(viewArea(view), id).toBe('document');
       expect(viewKind(view), id).toBe('document');
     }

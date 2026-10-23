@@ -10,6 +10,7 @@ export class DockPersistence {
   private readonly ctx = inject(DockContext);
   private readonly store = inject(LAYOUT_STORE);
   private timer: ReturnType<typeof setTimeout> | undefined;
+  private held = false;
   private readonly saved = signal<SavedLayout | null>(null);
 
   constructor() {
@@ -45,9 +46,22 @@ export class DockPersistence {
     this.store.clear();
   }
 
-  /** Persists the layout soon; nothing while a layout is being built or restored. */
+  /**
+   * Stops saving: the arrangement on screen was fitted to a small window (ADR 0056), and the saved one stays on disk
+   * untouched so it returns on a larger window. Ends with `release` (an explicit change, Undo, reset).
+   */
+  hold(): void {
+    this.held = true;
+    clearTimeout(this.timer);
+  }
+
+  release(): void {
+    this.held = false;
+  }
+
+  /** Persists the layout soon; nothing while a layout is being built or restored, or held. */
   schedule(): void {
-    if (this.ctx.restoring || !this.ctx.api) return;
+    if (this.ctx.restoring || this.held || !this.ctx.api) return;
     clearTimeout(this.timer);
     this.timer = setTimeout(() => {
       const layout = this.current();

@@ -2,87 +2,60 @@ import { TestBed } from '@angular/core/testing';
 import type { DockviewApi, IDockviewPanel } from 'dockview';
 import { provideDockTesting } from '../../testing/helpers';
 import { DebriefView } from '../extensions/tokens';
+import { DockLayout } from './dock-layout';
 import { DockPlacement } from './dock-placement';
 
-const view = (minSize?: DebriefView['minSize']): DebriefView => ({ id: 'v', title: 'V', icon: 'panel', defaultPosition: 'center', ...(minSize ? { minSize } : {}), component: async () => class {} }) as DebriefView;
+const view = (patch: Partial<DebriefView> = {}): DebriefView => ({ id: 'v', title: 'V', icon: 'panel', defaultPosition: 'center', component: async () => class {}, ...patch }) as DebriefView;
 
-/** A placement whose `place` returns a fake panel, so only the constraint step of `addView` is under test. */
+/** A placement whose `place` returns a fake panel, so only the step after the add is under test. */
 function setup(panel: IDockviewPanel | null) {
   TestBed.configureTestingModule({ providers: provideDockTesting() });
   const placement = TestBed.inject(DockPlacement);
+  const fit = vi.spyOn(TestBed.inject(DockLayout), 'fit').mockReturnValue(null);
   vi.spyOn(placement as unknown as { place: () => IDockviewPanel | null }, 'place').mockReturnValue(panel);
-  return placement;
-}
-
-function fakePanel() {
-  const setConstraints = vi.fn();
-  return { panel: { group: { api: { setConstraints } } } as unknown as IDockviewPanel, setConstraints };
+  return { placement, fit };
 }
 
 const api = {} as DockviewApi;
+const panel = {} as IDockviewPanel;
 
-describe('DockPlacement.addView: DebriefView.minSize', () => {
-  it('applies both dimensions of the minimum size as the group constraints', () => {
-    const { panel, setConstraints } = fakePanel();
-    expect(setup(panel).addView(api, view({ width: 360, height: 240 }), false)).toBe(panel);
-    expect(setConstraints).toHaveBeenCalledWith({ minimumWidth: 360, minimumHeight: 240 });
+describe('DockPlacement.addView: the plan decides sizes, tabs and constraints (ADR 0056)', () => {
+  it('re-plans after every add, with the new panel marked fresh so its own size is not taken as a wish', () => {
+    const { placement, fit } = setup(panel);
+    expect(placement.addView(api, view(), false, 'v#2')).toBe(panel);
+    expect(fit).toHaveBeenCalledWith(api, { sizes: true, fresh: ['v#2'] });
   });
 
-  it('applies only the dimension that is set', () => {
-    const a = fakePanel();
-    setup(a.panel).addView(api, view({ width: 300 }), false);
-    expect(a.setConstraints).toHaveBeenCalledWith({ minimumWidth: 300 });
-    TestBed.resetTestingModule();
-    const b = fakePanel();
-    setup(b.panel).addView(api, view({ height: 120 }), false);
-    expect(b.setConstraints).toHaveBeenCalledWith({ minimumHeight: 120 });
-  });
-
-  it('ignores a zero dimension and sets nothing without a minimum size', () => {
-    const a = fakePanel();
-    setup(a.panel).addView(api, view({ width: 0, height: 0 }), false);
-    expect(a.setConstraints).toHaveBeenCalledWith({});
-    TestBed.resetTestingModule();
-    const b = fakePanel();
-    setup(b.panel).addView(api, view(), false);
-    expect(b.setConstraints).not.toHaveBeenCalled();
-  });
-
-  it('returns null and constrains nothing when the view went to a side bar instead of a panel', () => {
-    expect(setup(null).addView(api, view({ width: 360 }), false)).toBeNull();
+  it('does not re-plan when the view went to a side bar instead of a panel', () => {
+    const { placement, fit } = setup(null);
+    expect(placement.addView(api, view(), false)).toBeNull();
+    expect(fit).not.toHaveBeenCalled();
   });
 });
 
-describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () => {
-  const full = (id = 'full'): DebriefView => ({ id, title: id, icon: 'panel', area: 'document', fullHeight: true, component: async () => class {} }) as DebriefView;
+describe('DockPlacement.addView: fullHeight documents (Home, Registry)', () => {
+  const full = (id = 'full'): DebriefView => view({ id, area: 'document', fullHeight: true });
 
-  /** A fake dock holding the timeline; `addPanel` records the position it is given and returns a panel with a sizeable group. */
-  function fakeDock(width: number, groups: unknown[] = [], main?: { id: string; width: number }) {
-    const setSize = vi.fn();
-    const addPanel = vi.fn(() => ({ group: { api: { setSize, setConstraints: vi.fn() } } }));
-    const group = main ? { id: main.id, width: main.width, api: { location: { type: 'grid' }, setConstraints: vi.fn() } } : undefined;
-    const getPanel = (id: string) => (id === 'timeline' ? { group } : id === 'events' && group ? { group } : undefined);
-    const dock = { width, height: 900, groups, panels: [], getPanel, addPanel } as unknown as DockviewApi;
+  /** A fake dock holding the timeline; `addPanel` records the position it is given. */
+  function fakeDock(groups: unknown[] = []) {
+    const addPanel = vi.fn(() => ({ group: { api: { setSize: vi.fn(), setConstraints: vi.fn() } } }));
+    const timeline = { group: { id: 'gt', width: 1000, api: { location: { type: 'grid' } } } };
+    const dock = { width: 1400, height: 900, groups, panels: [], getPanel: (id: string) => (id === 'timeline' ? timeline : undefined), addPanel } as unknown as DockviewApi;
     TestBed.configureTestingModule({ providers: provideDockTesting() });
-    return { dock, addPanel, setSize, placement: TestBed.inject(DockPlacement) };
+    const fit = vi.spyOn(TestBed.inject(DockLayout), 'fit').mockReturnValue(null);
+    return { dock, addPanel, fit, placement: TestBed.inject(DockPlacement) };
   }
 
-  it('opens in its own column at the window edge, spanning the dock height, 55% of its width', () => {
-    const { dock, addPanel, setSize, placement } = fakeDock(1400);
+  it('opens in its own column at the window edge and leaves its width to the plan', () => {
+    const { dock, addPanel, fit, placement } = fakeDock();
     placement.addView(dock, full(), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
-    expect(setSize).toHaveBeenCalledWith({ width: 770 });
-  });
-
-  it('caps the column on a wide window (2560 px)', () => {
-    const { dock, setSize, placement } = fakeDock(2560);
-    placement.addView(dock, full(), false);
-    expect(setSize).toHaveBeenCalledWith({ width: 960 });
+    expect(fit).toHaveBeenCalledWith(dock, { sizes: true, fresh: ['full'] });
   });
 
   it('does not land in a document group that is only the timeline row\'s strip: it gets its own column', () => {
     const strip = { id: 'g3', height: 300, api: { location: { type: 'grid' } }, panels: [{ id: 'metrics' }] };
-    const { dock, addPanel, placement } = fakeDock(1400, [strip]);
+    const { dock, addPanel, placement } = fakeDock([strip]);
     vi.spyOn(placement as unknown as { isDocument: (id: string) => boolean }, 'isDocument').mockReturnValue(true);
     placement.addView(dock, full(), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
@@ -90,37 +63,9 @@ describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () =>
 
   it('tabs into a document group that already spans the dock', () => {
     const column = { id: 'g7', height: 900, api: { location: { type: 'grid' } }, panels: [{ id: 'home' }] };
-    const { dock, addPanel, setSize, placement } = fakeDock(1400, [column]);
+    const { dock, addPanel, placement } = fakeDock([column]);
     vi.spyOn(placement as unknown as { isDocument: (id: string) => boolean }, 'isDocument').mockReturnValue(true);
     placement.addView(dock, full('registry'), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { referenceGroup: 'g7', direction: 'within' } }));
-    expect(setSize).not.toHaveBeenCalled();
-  });
-
-  it('shares the events group as a tab when the timeline column cannot spare a readable column ', () => {
-    const { dock, addPanel, setSize, placement } = fakeDock(900, [], { id: 'gm', width: 900 });
-    placement.addView(dock, full(), false);
-    expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { referenceGroup: 'gm', direction: 'within' } }));
-    expect(setSize).not.toHaveBeenCalled();
-  });
-
-  it('limits its column to the width the timeline column can spare,', () => {
-    const { dock, addPanel, setSize, placement } = fakeDock(1600, [], { id: 'gm', width: 1600 });
-    placement.addView(dock, full(), false);
-    expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
-    expect(setSize).toHaveBeenCalledWith({ width: 1600 - 560 });
-  });
-});
-
-describe('DockPlacement.addView: side tool windows', () => {
-  it('never get narrower than the side-tool minimum, whatever their view declares', () => {
-    const side = (minSize?: DebriefView['minSize']): DebriefView => ({ ...view(minSize), area: 'side' });
-    const a = fakePanel();
-    setup(a.panel).addView(api, side(), false);
-    expect(a.setConstraints).toHaveBeenCalledWith({ minimumWidth: 320 });
-    TestBed.resetTestingModule();
-    const b = fakePanel();
-    setup(b.panel).addView(api, side({ width: 400 }), false);
-    expect(b.setConstraints).toHaveBeenCalledWith({ minimumWidth: 400 });
   });
 });

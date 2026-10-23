@@ -11,8 +11,9 @@ export const ANALYSIS_TAB_CAP = 8;
  * declare none): tool windows on the right are side tools, other tool windows status tools; documents at the bottom
  * open in the analysis panel, the others in the centre.
  */
-export function viewArea(view: Pick<DebriefView, 'id' | 'defaultPosition' | 'area'> | undefined | null): ViewArea {
+export function viewArea(view: Pick<DebriefView, 'id' | 'defaultPosition' | 'area' | 'layout'> | undefined | null): ViewArea {
   if (!view) return 'document';
+  if (view.layout) return view.layout.area;
   if (view.area) return view.area;
   if (viewKind(view) === 'tool') return view.defaultPosition === 'right' ? 'side' : 'status';
   return view.defaultPosition === 'bottom' ? 'analysis' : 'document';

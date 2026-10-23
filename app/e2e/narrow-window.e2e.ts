@@ -62,7 +62,8 @@ test.describe('narrow window', () => {
     await resize(page, 900);
     const msg = page.locator('debrief-events-grid [role=row].row').first().locator('.msg');
     await expect(msg).toBeVisible();
-    expect((await msg.boundingBox())!.width).toBeGreaterThan(200);
+    // The grid re-lays out after the window's resize: poll, never read once (a single read raced the layout and saw 120 px).
+    await expect.poll(async () => (await msg.boundingBox())!.width).toBeGreaterThan(200);
     // The dock re-lays out after the window's resize event, so the group's edge settles a moment later.
     const eventsGroup = page.locator('.dv-groupview').filter({ has: page.getByRole('tab', { name: 'Events', exact: true }) });
     await expect.poll(async () => { const g = (await eventsGroup.boundingBox())!; return g.x + g.width; }).toBeLessThanOrEqual(900 + 1);

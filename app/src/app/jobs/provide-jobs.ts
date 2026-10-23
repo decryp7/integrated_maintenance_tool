@@ -15,7 +15,7 @@ export function jobsViews(): DebriefView[] {
       icon: 'jobs',
       category: 'core',
       defaultPosition: 'bottom',
-      area: 'status',
+      layout: { area: 'status', min: { width: 320, height: 180 }, pref: { width: 480, height: 360 }, priority: 20 },
       component: () => import('./jobs-panel').then((m) => m.JobsPanel),
     },
   ];

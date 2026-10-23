@@ -11,6 +11,7 @@ import { DockAutoHide } from './dock-auto-hide';
 import { DockContext } from './dock-context';
 import { keepGroupsUnscrolled, labelTabOverflow, observeFloatingAria } from './dock-dom';
 import { DockSlot, isLayoutTarget, Point, Rect, resolveGuideDrop, Side } from './dock-geometry';
+import { DockLayout } from './dock-layout';
 import { DockPersistence } from './dock-persistence';
 import { DockPlacement } from './dock-placement';
 import { DockPolicy } from './dock-policy';
@@ -55,6 +56,7 @@ export class DockService {
   private readonly placement = inject(DockPlacement);
   private readonly autoHider = inject(DockAutoHide);
   private readonly persistence = inject(DockPersistence);
+  private readonly layout = inject(DockLayout);
   private readonly views = this.ctx.views;
   private readonly appRef = inject(ApplicationRef);
   private readonly injector = inject(EnvironmentInjector);
@@ -63,8 +65,11 @@ export class DockService {
   private readonly menus = inject(ContextMenuService);
 
   private disposers: { dispose(): void }[] = [];
+  private stopResize: (() => void) | null = null;
   /** True when the layout was built from defaults rather than restored from the store. */
   private fresh = false;
+  /** The arrangement before the last fit to a small window (the saved one), for Undo; null when nothing was fitted. */
+  private fitted: SavedLayout | null = null;
   /** Conditional views that were available at the last check, to detect "became available". */
   private readonly wasAvailable = new Set<string>();
   private evaluated = false;
@@ -266,12 +271,14 @@ export class DockService {
     ];
     this.ctx.restoring = true;
     let extras: DockExtras;
+    let loaded: SavedLayout | null = null;
     try {
       const saved = this.persistence.load();
       if (saved) {
         try {
           api.fromJSON(saved.layout);
           extras = saved.extras;
+          loaded = saved;
         } catch (e) {
           this.logger.warn('ui.layout', 'Saved layout could not be restored; using the default', { Error: String(e) });
           this.persistence.clear();
@@ -291,6 +298,8 @@ export class DockService {
     this.evaluated = false;
     this.wasAvailable.clear();
     this.ctx.apiReady.set(true);
+    this.stopResize = this.layout.watchResize(api, () => this.fitToWindow(api, null));
+    if (loaded) this.layout.whenSized(api, () => this.fitToWindow(api, loaded));
     if (extras.poppedOut.length) void this.ctx.windows()?.restore(extras.poppedOut);
   }
 
@@ -299,6 +308,10 @@ export class DockService {
     this.persistence.cancel();
     this.disposers.forEach((d) => d.dispose());
     this.disposers = [];
+    this.stopResize?.();
+    this.stopResize = null;
+    this.fitted = null;
+    this.persistence.release();
     this.ctx.api?.dispose();
     this.ctx.api = null;
     this.ctx.container = null;
@@ -310,6 +323,7 @@ export class DockService {
 
   /** Restores the default arrangement (Investigate) and forgets the saved one. */
   reset(): void {
+    this.releaseFit();
     this.persistence.clear();
     this.rebuild((api) => this.placement.buildDefault(api));
   }
@@ -325,6 +339,7 @@ export class DockService {
   private rebuild(build: (api: DockviewApi) => DockExtras): void {
     const api = this.api;
     if (!api) return;
+    this.releaseFit();
     const windows = this.ctx.windows();
     for (const id of [...(windows?.poppedIds() ?? [])]) void windows?.discard(id);
     this.ctx.restoring = true;
@@ -381,6 +396,7 @@ export class DockService {
       return;
     }
     if (!this.views.available().includes(view)) return;
+    this.releaseFit();
     this.placement.addView(api, view, options.inactive ?? false, id);
   }
 
@@ -400,6 +416,7 @@ export class DockService {
   }
 
   close(id: string): void {
+    this.releaseFit();
     const windows = this.ctx.windows();
     if (windows?.poppedIds().has(id)) {
       void windows.discard(id);
@@ -758,6 +775,56 @@ export class DockService {
 
   /* --------------------------------------------------------------- layouts */
 
+  /**
+   * Fits the arrangement to the window when a minimum would be violated (ADR 0056): lower-priority views are tabbed or
+   * auto-hidden, groups are constrained. The arrangement before the fit (`before`, else the current one) is kept for
+   * Undo and stays the one on disk (saving is held until an explicit change); one notification says so.
+   */
+  private fitToWindow(api: DockviewApi, before: SavedLayout | null): void {
+    if (this.ctx.api !== api || this.ctx.restoring) return;
+    const plan = this.layout.plan(api);
+    if (!plan || !this.layout.needsFit(api, plan)) {
+      this.layout.constrain(api);
+      return;
+    }
+    const snapshot = this.fitted ?? before ?? this.persistence.current();
+    this.ctx.restoring = true;
+    try {
+      this.layout.fit(api, { sizes: true });
+    } finally {
+      this.ctx.restoring = false;
+    }
+    this.persistence.hold();
+    this.ctx.refreshOpen();
+    if (!snapshot) return;
+    this.fitted = snapshot;
+    this.layout.notifyFitted(() => this.undoFit());
+  }
+
+  /** Undo of "Some panes were tabbed to fit": the saved arrangement, unclamped, for this session. */
+  private undoFit(): void {
+    const api = this.api;
+    const saved = this.fitted;
+    this.releaseFit();
+    if (!api || !saved) return;
+    this.ctx.restoring = true;
+    try {
+      api.fromJSON(saved.layout);
+      this.applyExtras(saved.extras);
+    } catch (e) {
+      this.logger.warn('ui.layout', 'The saved layout could not be restored', { Error: String(e) });
+    } finally {
+      this.ctx.restoring = false;
+    }
+    this.ctx.refreshOpen();
+  }
+
+  /** A deliberate layout change ends the hold: from here the arrangement on screen is the one to save. */
+  private releaseFit(): void {
+    this.fitted = null;
+    this.persistence.release();
+  }
+
   /** The whole arrangement (grid, auto-hidden tool windows, pinned tabs, pop-outs), or null before attach. */
   currentLayout(): SavedLayout | null {
     return this.persistence.current();
@@ -767,6 +834,7 @@ export class DockService {
   applyLayout(saved: SavedLayout): boolean {
     const api = this.api;
     if (!api) return false;
+    this.releaseFit();
     const windows = this.ctx.windows();
     for (const id of [...(windows?.poppedIds() ?? [])]) if (!saved.extras.poppedOut.some((p) => p.id === id)) void windows?.discard(id);
     this.ctx.restoring = true;
@@ -788,6 +856,7 @@ export class DockService {
     this.ctx.refreshOpen();
     this.syncConditionalViews();
     this.persistence.schedule();
+    if (ok) this.layout.whenSized(api, () => this.fitToWindow(api, saved));
     const popped = windows?.poppedIds() ?? new Set<string>();
     if (ok) void windows?.restore(saved.extras.poppedOut.filter((p) => !popped.has(p.id)));
     return ok;

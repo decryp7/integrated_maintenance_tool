@@ -12,6 +12,7 @@ export const REGISTRY_PLUGIN: DebriefPlugin = {
       plugin: $localize`:@@plugins.registry.view.plugin:Windows registry`,
       icon: 'folder',
       defaultPosition: 'center',
+      layout: { area: 'document', min: { width: 420, height: 300 }, pref: { width: 700, height: 600 }, priority: 58 },
       fullHeight: true,
       component: () => import('./registry-view').then((m) => m.RegistryView),
       when: (summary) => summary.sources.some((s) => s.importer === 'registry'),
