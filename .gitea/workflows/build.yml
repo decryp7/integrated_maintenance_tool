@@ -778,16 +778,24 @@ jobs:
           # Secrets pasted into Gitea often carry a trailing newline or a line break; both keys are single-line base64.
           if [ -n "${TAURI_SIGNING_PRIVATE_KEY:-}" ]; then export TAURI_SIGNING_PRIVATE_KEY="$(printf '%s' "$TAURI_SIGNING_PRIVATE_KEY" | tr -d ' \t\r\n')"; fi
           if [ -n "${TAURI_UPDATER_PUBKEY:-}" ]; then export TAURI_UPDATER_PUBKEY="$(printf '%s' "$TAURI_UPDATER_PUBKEY" | tr -d ' \t\r\n')"; fi
+          # Ad-hoc builds ship WITHOUT the hardened runtime (tauri.macos.conf.json): with it, library validation refuses the
+          # bundled libduckdb even after an ad-hoc re-sign (docs/releasing.md). A Developer ID build turns it back on.
+          extra=()
+          if [ "$RUNNER_OS" = macOS ] && [ -n "${APPLE_SIGNING_IDENTITY:-}" ] && [ "$APPLE_SIGNING_IDENTITY" != "-" ]; then
+            mkdir -p ../target
+            echo '{"bundle":{"macOS":{"hardenedRuntime":true}}}' > ../target/hardened.conf.json
+            extra=(--config ../target/hardened.conf.json)
+          fi
           if [ -n "$TAURI_SIGNING_PRIVATE_KEY" ] && [ -n "$TAURI_UPDATER_PUBKEY" ]; then
             # macOS updates install from the .app bundle's archive.
             if [ "$RUNNER_OS" = macOS ]; then bundles="app,$bundles"; fi
             mkdir -p ../target
             node -e 'process.stdout.write(JSON.stringify({ bundle: { createUpdaterArtifacts: true }, plugins: { updater: { pubkey: process.env.TAURI_UPDATER_PUBKEY } } }))' > ../target/updater.conf.json
-            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json --config ../target/updater.conf.json -- --profile dist
+            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json --config ../target/updater.conf.json "${extra[@]}" -- --profile dist
           else
             echo '::warning::No updater signing secrets: this build cannot update itself.'
             unset TAURI_UPDATER_PUBKEY TAURI_SIGNING_PRIVATE_KEY TAURI_SIGNING_PRIVATE_KEY_PASSWORD
-            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json -- --profile dist
+            npx tauri build --bundles "$bundles" --config src-tauri/tauri.sidecars.conf.json "${extra[@]}" -- --profile dist
           fi
 
       # The packaged store worker finds libduckdb by run path (crates/debrief-store-worker/build/rpath.rs): a signed,

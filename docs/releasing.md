@@ -116,6 +116,20 @@ and a CI step that verifies the result. Without it the bundle is only linker-sig
 fails the job unless `codesign --verify --deep --strict` passes on the `.app` and on the `.app` inside the DMG, the
 signature is not linker-signed only, resources are sealed and every nested Mach-O (sidecars, `libduckdb.dylib`) verifies.
 
+### Hardened runtime is off for ad-hoc builds
+
+`tauri.macos.conf.json` sets `bundle.macOS.hardenedRuntime: false`. Reproduced on 1.0.1: an ad-hoc binary signed with the
+hardened runtime enforces library validation, and dyld then refuses the bundled `libduckdb.dylib` ("code signature ... not
+valid for use in process: mapping process and mapped file (non-platform) have different Team IDs"; the store worker aborts
+three times and is quarantined). Re-signing the library ad hoc (`app/scripts/build-sidecars.mjs`, `adhocSign`) removes the
+Team ID mismatch but is not enough: library validation also rejects an ad-hoc library. Without the hardened runtime the
+ad-hoc worker loads it. A hardened runtime brings nothing to a build that cannot be notarized.
+
+When `APPLE_SIGNING_IDENTITY` names a Developer ID, the CI bundle step passes `{"bundle":{"macOS":{"hardenedRuntime":true}}}`
+as a config override (required for notarization); then every bundled library must carry the same Team ID, which
+`macos-verify-bundle.sh` checks. The script also runs `debrief-store-worker --self-test` and `debrief-plugins --manifests`
+from the built `.app` and the DMG copy, so a load failure fails the job.
+
 ## First launch note
 
 Apple notarization and Windows code signing are deferred until after the releases settle (decision 2026-10-23). Until then the release workflow appends a "First launch" section to every release's notes (and so to `latest.json`) explaining **Open Anyway** (macOS) and **More info > Run anyway** (Windows SmartScreen).
