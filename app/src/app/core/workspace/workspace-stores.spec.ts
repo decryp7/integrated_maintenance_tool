@@ -115,6 +115,21 @@ describe('workspace stores', () => {
     expect(status.busy()).toBeNull();
   });
 
+  it('says a cancelled re-import kept the previous data instead of showing a failure', async () => {
+    const backend = tinyBackend();
+    const { data, status } = bare(backend);
+    await settle();
+    const before = data.summary();
+    vi.spyOn(backend, 'reloadWorkspace').mockRejectedValue(new Error('cancelled'));
+    await data.reload();
+    expect(status.error()).toBe('Reload cancelled — previous data kept');
+    expect(data.summary()).toBe(before);
+    expect(status.busy()).toBeNull();
+    vi.spyOn(backend, 'reloadWorkspace').mockRejectedValue(new Error('disk full'));
+    await data.reload();
+    expect(status.error()).toContain('disk full');
+  });
+
   it('clears the selection and the error when a new summary applies', async () => {
     const { data, status } = bare();
     await settle();

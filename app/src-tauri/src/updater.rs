@@ -510,8 +510,12 @@ pub async fn updates_download<R: Runtime>(app: AppHandle<R>) -> crate::CmdResult
     let job = crate::jobs::spawn(&app, spec, controls, move |ctx| {
         // The transfer runs on the async runtime; the job follows its phase.
         while watch.downloading() && !ctx.is_cancelled() {
+            if let UpdatePhase::Downloading { downloaded, total, .. } = watch.status().phase {
+                ctx.phase("Downloading", crate::jobs::PhaseScale::Bytes, downloaded, total.unwrap_or(0));
+            }
             std::thread::sleep(DOWNLOAD_WATCH);
         }
+        ctx.phase("Verifying signature", crate::jobs::PhaseScale::Indeterminate, 0, 0);
         match watch.status().phase {
             UpdatePhase::Ready { .. } => Ok(crate::jobs::Done::new(())),
             UpdatePhase::Failed { error, .. } => Err(error.to_string()),

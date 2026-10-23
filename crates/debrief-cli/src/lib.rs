@@ -7,6 +7,7 @@
 pub mod args;
 pub mod host;
 pub mod output;
+pub mod progress;
 pub mod run;
 pub mod time_arg;
 pub mod watch;
@@ -25,6 +26,8 @@ pub enum Exit {
     Usage = 2,
     /// Done, but a `--fail-on-findings` check found something (for CI).
     Findings = 3,
+    /// Stopped by Ctrl+C or SIGTERM (128 + SIGINT).
+    Interrupted = 130,
 }
 
 impl Exit {

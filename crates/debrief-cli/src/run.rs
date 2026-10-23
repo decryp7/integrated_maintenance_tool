@@ -50,7 +50,11 @@ pub fn run(command: Command, host: &dyn StoreHost, out: &mut dyn Write, err: &mu
             if json {
                 let _ = writeln!(out, "{}", error_json(&message));
             }
-            Exit::Failure
+            if message == crate::progress::INTERRUPTED {
+                Exit::Interrupted
+            } else {
+                Exit::Failure
+            }
         }
     }
 }
@@ -150,7 +154,11 @@ fn prepare(src: &Source, host: &dyn StoreHost, err: &mut dyn Write) -> Result<(P
             })
             .map_err(store_message)?;
     }
-    let report = prepared.store.open(&paths).and_then(|s| s.wait()).map_err(store_message)?;
+    let session = prepared.store.open(&paths).map_err(store_message)?;
+    let show = crate::progress::show_progress(src.quiet);
+    let report = crate::progress::wait_with_progress(session, show, err)
+        .map_err(str::to_string)?
+        .map_err(store_message)?;
     for u in &report.unrecognized {
         let _ = writeln!(err, "{BIN_NAME}: skipped {}: {}", u.name, u.reason);
     }
