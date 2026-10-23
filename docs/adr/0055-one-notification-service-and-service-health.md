@@ -92,6 +92,16 @@ plain sentence, next step, technical detail) and a **repair action** (`restart`,
 the latest snapshot only. `StoreHealth`, `reportCommandFailure`/`reportCommandSuccess`, `isStoreDown`, the string
 prefix and the `storeDownText` suppression in `workspace-toasts.ts` are deleted.
 
+## Shared with the other Paddock apps (rule 39)
+
+The family-level decision is Paddock ADR 0010 (notifications and service health); Debrief is the first adopter.
+
+| Part | Where it lives |
+|---|---|
+| Service-health model (`ServiceState` enum, cause, repair action, registry, `health_snapshot`/`health_repair` shapes, event name and payload) and the notification centre's cause-key dedupe/update/resolve logic | a shared Rust crate (`paddock-health`; the notification core may be a module of it), no Tauri dependency, Tauri event sink as a 10-line adapter like `paddock-jobs` |
+| `NotificationHost` (one display rule), `ServiceHealthStore`, the status-bar chip and the `WaitingFor` panel state, and the wire types | `@decryp7/paddock-ui` |
+| Which services exist (store, ai, plugins, browser, downloads), `StoreFailure` classification, the supervisors and their repair actions, the notification kinds and actions (`NoticeAction`) | Debrief |
+
 ## Consequences
 
 - One failure produces one status-bar chip and one notification, in every window, with the engine's wording.

@@ -120,6 +120,17 @@ than the kind's minimum is raised to it.
 | `ai-models`, `research` | modeless | tool | long downloads / research session, own progress, remembered size |
 | `(ConfirmDialog)` | native modal | decision (native) | stays the OS message box; the kind exists so tests treat it uniformly |
 
+## Shared with the other Paddock apps (rule 39)
+
+The family-level decision is Paddock ADR 0009 (dialogs as windows, kinds and declared contracts); Debrief is the first
+adopter.
+
+| Part | Where it lives |
+|---|---|
+| `DialogKind` enum and the per-kind defaults (size, buttons, keys), `defineDialog`, the typed `DialogService.open`, `DialogShell` with the visible Close/Cancel footer, `InPageDialogBackend`, `ModalGate`, bounds persistence (`dialog-bounds.ts`), the boot-every-dialog harness and the command lint script | `@decryp7/paddock-ui` (moved from `app/src/app/dialog-windows/` once the shapes settle; extraction already planned in ADR 0050) |
+| Window creation by kind (min size, native close/min/max disabled, owner/modal relation, remembered bounds, `dialog_take_input`/`dialog_close`/`dialog_resize`/`dialog_grow`), the contract JSON schema and the per-dialog command guard | a shared Rust crate (`paddock-dialogs`, same set-up as `paddock-jobs`: no Tauri dependency in the core, a thin adapter feature for Tauri) |
+| The 51 registry entries, their typed inputs and results, the `backends` provider groups, the command lists, the `close-prompt` -> `resolve_close` exception, the command table (`lib.rs`) | Debrief |
+
 ## Consequences
 
 - A new dialog is one `defineDialog` call; the missing provider, the denied command, the missing Close button and the

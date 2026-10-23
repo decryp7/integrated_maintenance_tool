@@ -104,6 +104,16 @@ user's sizes as the new `pref`, still clamped to `min`); an explicit "Reset layo
   squeezing. A saved-layout test loads a layout that violates minimums.
 - A lint that every built-in view declares `layout` and every `min <= pref`.
 
+## Shared with the other Paddock apps (rule 39)
+
+The family-level decision is Paddock ADR 0011 (layout by declared constraints). Only Debrief docks panes today, but
+the other apps lay out fixed shells that need the same guarantee (never below a minimum, tab or hide before squeezing).
+
+| Part | Where it lives |
+|---|---|
+| `planLayout` and its types (`ViewLayout`, `LayoutPlan`, saved-hint fitting), pure and DOM-free, with its table-driven and property tests, and a Playwright helper that asserts every pane against its declared minimum at the standard sizes | `@decryp7/paddock-ui` |
+| The dockview adapter (`DockPlacement` translating a plan to `addPanel`/`setSize`/`setConstraints`/auto-hide), the built-in view declarations, the priorities, saved perspectives (`layout-store.ts`) | Debrief |
+
 ## Consequences
 
 - The dock's behaviour is explained by data (the view declarations) plus one function, so each layout complaint is a
