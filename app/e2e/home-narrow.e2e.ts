@@ -18,7 +18,9 @@ async function openHome(page: Page): Promise<void> {
 async function squeeze(page: Page, width: number): Promise<void> {
   await page.evaluate((w) => {
     const host = document.querySelector('debrief-home-view') as HTMLElement;
-    host.style.cssText += `;position:fixed;top:0;left:0;z-index:9999;width:${w}px;height:900px;flex:none;`;
+    // Moved to the body so nothing of the app (its filter bar) paints over the narrow pane.
+    document.body.appendChild(host);
+    host.style.cssText += `;position:fixed;top:0;left:0;z-index:2147483000;background:var(--bg-1);width:${w}px;height:900px;flex:none;`;
   }, width);
   await page.waitForTimeout(250);
 }
@@ -37,6 +39,21 @@ async function overflowing(page: Page): Promise<string[]> {
       const label = `${el.tagName.toLowerCase()}.${el.className}`;
       if (el.scrollWidth > el.clientWidth + 1) bad.push(`${label} scroll ${el.scrollWidth}>${el.clientWidth}`);
       if (r.right > box.right + 1 || r.left < box.left - 1) bad.push(`${label} outside host (${Math.round(r.left)}..${Math.round(r.right)} of ${Math.round(box.right)})`);
+    }
+    // Nothing anywhere in Home (toolbar, actions, tiles, cards, rows) may stick out of the pane, or hide text by clipping.
+    for (const el of host.querySelectorAll<HTMLElement>('*')) {
+      if (el.closest('svg, canvas, .sr-only, debrief-echart, .cdk-visually-hidden') || el.classList.contains('cover')) continue;
+      const r = el.getBoundingClientRect();
+      if (r.width === 0 && r.height === 0) continue;
+      const label = `${el.tagName.toLowerCase()}.${String(el.className).slice(0, 40)}`;
+      if (r.right > box.right + 1) bad.push(`${label} sticks out (${Math.round(r.right)}>${Math.round(box.right)})`);
+      const css = getComputedStyle(el);
+      const clips = css.overflowX === 'hidden' || css.overflowX === 'clip';
+      if (clips && el.scrollWidth > el.clientWidth + 1 && css.textOverflow !== 'ellipsis' && el.tagName !== 'DEBRIEF-HOME-VIEW') bad.push(`${label} clips its content (${el.scrollWidth}>${el.clientWidth})`);
+    }
+    for (const el of host.querySelectorAll<HTMLElement>('.bar > *')) {
+      const r = el.getBoundingClientRect();
+      if (r.right > box.right + 1) bad.push(`toolbar ${el.tagName.toLowerCase()} sticks out`);
     }
     // Buttons must stay inside the pane.
     for (const b of host.querySelectorAll<HTMLElement>('.finding button')) {
@@ -57,7 +74,7 @@ test.describe('home in a narrow pane with very long paths and names', () => {
         await page.evaluate(() => document.querySelector('debrief-home-view .scroll')?.scrollTo(0, 99999));
         await page.screenshot({ path: `${SHOTS}/${info.project.name}-${width}-bottom.png`, clip: { x: 0, y: 0, width, height: 900 } });
       }
-      if (width <= 560 || process.env['HOME_ALL']) expect(await overflowing(page)).toEqual([]);
+      expect(await overflowing(page)).toEqual([]);
     });
   }
 

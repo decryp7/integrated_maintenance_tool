@@ -179,10 +179,12 @@ const VISIBLE_ROWS = 6;
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-1); color: var(--text); }
-    .bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
+    :host { container: home / inline-size; display: flex; flex-direction: column; height: 100%; min-height: 0; min-width: 0; background: var(--bg-1); color: var(--text); }
+    .bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
     .spacer { flex: 1; }
-    .scroll { flex: 1; min-height: 0; min-width: 0; container: home / inline-size; overflow-x: hidden; overflow-y: auto; padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+    .subtitle { min-width: 0; overflow-wrap: anywhere; }
+    @container home (max-width: 479px) { .bar .subtitle { flex: 1 0 100%; order: -1; } .bar .spacer { display: none; } .bar { justify-content: flex-end; } }
+    .scroll { flex: 1; min-height: 0; min-width: 0; overflow-x: hidden; overflow-y: auto; padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
     .scroll > * { flex: none; }
     .pair { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px 16px; align-items: start; }
     .pair > * { min-width: 0; }
@@ -195,7 +197,7 @@ const VISIBLE_ROWS = 6;
     .subtitle { margin: 0; font-size: var(--fs-sm); color: var(--muted); font-variant-numeric: tabular-nums; }
     .tiles { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
     .tiles .hero { flex: 1 1 calc(25% - 8px); min-width: min(160px, 100%); }
-    @container home (max-width: 399px) { .tiles .hero { flex-basis: calc(50% - 8px); } }
+    @container home (max-width: 399px) { .tiles .hero { flex: 1 1 calc(50% - 8px); min-width: 0; } }
     .tiles > div { position: relative; }
     .tiles .hero { padding: 10px 12px; border: 1px solid var(--border-2); border-radius: var(--r-3); background: var(--bg-2); min-height: 60px; }
     .tiles .hero dt { font-size: var(--fs-sm); color: var(--muted); }
@@ -291,9 +293,11 @@ export class HomeView {
     const s = this.summary();
     if (!s || s.from === null || s.to === null) return $localize`:@@home.view.noTimestamps:No timestamps`;
     const tz = this.store.timezone();
-    const from = formatDateTime(s.from, tz);
-    const to = formatDateTime(s.to, tz);
-    const duration = formatDuration(s.to - s.from);
+    // Non-breaking spaces inside each value: the line can only break between the dates and the duration, never inside one.
+    const unbreakable = (v: string): string => v.replace(/ /g, '\u00a0');
+    const from = unbreakable(formatDateTime(s.from, tz));
+    const to = unbreakable(formatDateTime(s.to, tz));
+    const duration = unbreakable(formatDuration(s.to - s.from));
     return $localize`:@@home.view.span:${from}:from: → ${to}:to: (${duration}:duration:)`;
   });
   protected readonly option = computed(() => {
