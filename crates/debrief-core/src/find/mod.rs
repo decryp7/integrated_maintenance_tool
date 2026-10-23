@@ -296,7 +296,12 @@ pub fn find_with(
     let Some((step, total, rows)) = found else {
         reply.note = match (&reply.clarify, reply.values.first()) {
             (Some(c), _) => format!("No events contain '{text}'. {}", c.question),
-            (None, Some(v)) => format!("No events contain '{text}'. Did you mean {} ({})?{}", v.value, v.label(), explain(v)),
+            (None, Some(v)) => format!(
+                "No events contain '{text}'. Did you mean {} ({})?{}",
+                v.value,
+                v.label(),
+                explain(v)
+            ),
             (None, None) => format!("No events, field values or sources match '{text}', not even partly."),
         };
         return Ok(reply);
@@ -346,11 +351,18 @@ fn explain(v: &ValueMatch) -> String {
         return String::new();
     }
     let others: Vec<&str> = v.spellings.iter().skip(1).take(4).map(|s| s.name.as_str()).collect();
-    let also = if others.is_empty() { String::new() } else { format!(" Also written as {}.", others.join(", ")) };
+    let also = if others.is_empty() {
+        String::new()
+    } else {
+        format!(" Also written as {}.", others.join(", "))
+    };
     let events = if v.evidence.is_empty() {
         String::new()
     } else {
-        format!(" Example events: {}.", v.evidence.iter().map(|e| format!("#{e}")).collect::<Vec<_>>().join(", "))
+        format!(
+            " Example events: {}.",
+            v.evidence.iter().map(|e| format!("#{e}")).collect::<Vec<_>>().join(", ")
+        )
     };
     format!(" Matched {} because: {}.{also}{events}", v.value, v.why)
 }
@@ -488,7 +500,10 @@ pub fn resolve_names(
 ) -> StoreResult<Resolved> {
     let plain = resolve_plain(store, text, limit)?;
     let Some(layer) = layer.filter(|l| !l.book.groups().is_empty()) else {
-        return Ok(Resolved { values: plain, clarify: None });
+        return Ok(Resolved {
+            values: plain,
+            clarify: None,
+        });
     };
     let text = clip(text.trim(), MAX_TEXT_CHARS);
     let resolver = Resolver {
@@ -533,7 +548,11 @@ pub fn resolve_names(
     for v in plain.into_iter().filter(|v| !covered.contains(&v.value.to_lowercase())) {
         scored.push((v.via.base(), v));
     }
-    scored.sort_by(|a, b| b.0.total_cmp(&a.0).then(b.1.count.cmp(&a.1.count)).then_with(|| a.1.value.cmp(&b.1.value)));
+    scored.sort_by(|a, b| {
+        b.0.total_cmp(&a.0)
+            .then(b.1.count.cmp(&a.1.count))
+            .then_with(|| a.1.value.cmp(&b.1.value))
+    });
     let mut values: Vec<ValueMatch> = scored.into_iter().map(|s| s.1).collect();
     values.truncate(limit.clamp(1, MAX_VALUES));
     for v in values.iter_mut().take(EVIDENCE_MATCHES) {
@@ -545,7 +564,10 @@ pub fn resolve_names(
         })?;
         v.evidence = rows.rows.iter().take(EVIDENCE_EVENTS).map(|e| e.id.0).collect();
     }
-    Ok(Resolved { values, clarify: res.clarify })
+    Ok(Resolved {
+        values,
+        clarify: res.clarify,
+    })
 }
 
 /// The events that carry a value: its source, the field value, or the name in the text.
@@ -580,7 +602,9 @@ fn sample_cooccurrence(
     let mut cooc = crate::names::Cooccurrence::default();
     let tied = res.clarify.iter().flat_map(|c| &c.options);
     for id in tied {
-        let Some(m) = res.matches.iter().find(|m| &m.id == id) else { continue };
+        let Some(m) = res.matches.iter().find(|m| &m.id == id) else {
+            continue;
+        };
         let page = store.page(&PageQuery {
             query: Filter {
                 text: format!("\"{}\"", m.canonical.replace('"', " ")),
@@ -627,11 +651,14 @@ fn resolve_plain(store: &(impl SearchSource + ?Sized), text: &str, limit: usize)
                 why: v.phrase().into(),
                 spellings: Vec::new(),
                 evidence: Vec::new(),
-                group: None
+                group: None,
             });
         }
     }
-    let catalogue = store.catalogue(&CatalogueRequest { text: text.clone(), all: false })?;
+    let catalogue = store.catalogue(&CatalogueRequest {
+        text: text.clone(),
+        all: false,
+    })?;
     if catalogue.built {
         // The catalogue holds field values and the names found in event text; no facet is read.
         for c in &catalogue.candidates {
@@ -651,9 +678,9 @@ fn resolve_plain(store: &(impl SearchSource + ?Sized), text: &str, limit: usize)
                     last_seen: kind.and(c.last_ts),
                     seen_in: c.seen_in.clone(),
                     why: via.phrase().into(),
-                spellings: Vec::new(),
-                evidence: Vec::new(),
-                group: None
+                    spellings: Vec::new(),
+                    evidence: Vec::new(),
+                    group: None,
                 });
             }
         }
@@ -700,9 +727,9 @@ fn facet_values(
                     last_seen: None,
                     seen_in: Vec::new(),
                     why: via.phrase().into(),
-                spellings: Vec::new(),
-                evidence: Vec::new(),
-                group: None
+                    spellings: Vec::new(),
+                    evidence: Vec::new(),
+                    group: None,
                 });
             }
         }

@@ -170,7 +170,10 @@ pub fn split_raw(raw: &str) -> Vec<String> {
         cur.push(c);
     }
     flush(&mut cur, &mut raw_pieces);
-    raw_pieces.into_iter().map(|p| p.chars().flat_map(char::to_lowercase).collect()).collect()
+    raw_pieces
+        .into_iter()
+        .map(|p| p.chars().flat_map(char::to_lowercase).collect())
+        .collect()
 }
 
 fn flush(cur: &mut String, out: &mut Vec<String>) {

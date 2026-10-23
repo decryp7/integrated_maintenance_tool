@@ -111,7 +111,10 @@ pub fn valid_name(s: &str) -> Option<String> {
     if n == 0 || n > MAX_ALIAS_CHARS || t.split_whitespace().count() > MAX_ALIAS_WORDS {
         return None;
     }
-    if !t.chars().all(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.' | '&' | '+' | '\'')) {
+    if !t
+        .chars()
+        .all(|c| c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.' | '&' | '+' | '\''))
+    {
         return None;
     }
     let lower = t.to_lowercase();
@@ -130,11 +133,15 @@ pub fn parse_reply(raw: &str, batch_len: usize, model: &str) -> (Vec<(usize, AiE
     }
     let raw = &raw[..end];
     // Models wrap JSON in prose or code fences: read the outermost object.
-    let (Some(a), Some(b)) = (raw.find('{'), raw.rfind('}')) else { return (Vec::new(), batch_len) };
+    let (Some(a), Some(b)) = (raw.find('{'), raw.rfind('}')) else {
+        return (Vec::new(), batch_len);
+    };
     if b < a {
         return (Vec::new(), batch_len);
     }
-    let Ok(reply) = serde_json::from_str::<Reply>(&raw[a..=b]) else { return (Vec::new(), batch_len) };
+    let Ok(reply) = serde_json::from_str::<Reply>(&raw[a..=b]) else {
+        return (Vec::new(), batch_len);
+    };
     let mut out = Vec::new();
     let mut seen_ids = HashSet::new();
     let mut rejected = 0;
@@ -232,7 +239,10 @@ mod tests {
             scope: Scope::Entity(EntityKind::Executable),
             key: key.into(),
             display: key.into(),
-            spellings: vec![Spelling { name: format!("{key}.exe"), count }],
+            spellings: vec![Spelling {
+                name: format!("{key}.exe"),
+                count,
+            }],
             count,
             first_ts: None,
             last_ts: None,
@@ -271,7 +281,10 @@ mod tests {
     }
 
     fn cfg() -> AliasJobConfig {
-        AliasJobConfig { pause: Duration::ZERO, ..AliasJobConfig::default() }
+        AliasJobConfig {
+            pause: Duration::ZERO,
+            ..AliasJobConfig::default()
+        }
     }
 
     fn book() -> NameBook {
@@ -297,7 +310,10 @@ mod tests {
         assert_eq!((r.asked, r.cached), (0, 2));
         assert_eq!(*m.calls.borrow(), 1);
         // A new model version asks again.
-        let m2 = Fake { version: "pitwall-2".into(), ..fake(GOOD) };
+        let m2 = Fake {
+            version: "pitwall-2".into(),
+            ..fake(GOOD)
+        };
         assert_eq!(run(&mut b, Some(&m2), &cfg(), &|| false).stored, 2);
     }
 
@@ -327,7 +343,11 @@ mod tests {
         let e = &v[0].1;
         assert_eq!(v[0].0, 1);
         assert_eq!(e.aliases.len(), MAX_ALIASES);
-        assert_eq!(&e.aliases[..2], ["svc host", "x1"], "service host equals the name, SVC HOST repeats, others are invalid");
+        assert_eq!(
+            &e.aliases[..2],
+            ["svc host", "x1"],
+            "service host equals the name, SVC HOST repeats, others are invalid"
+        );
     }
 
     #[test]
@@ -349,7 +369,14 @@ mod tests {
         assert_eq!(valid_name("  Graphic Builder "), Some("Graphic Builder".into()));
         assert_eq!(valid_name("C&C Server"), Some("C&C Server".into()));
         assert_eq!(valid_name("Müller Dienst"), Some("Müller Dienst".into()));
-        for bad in ["", "a\nb", "<b>x</b>", &"x".repeat(49), "one two three four five six", "list of aliases"] {
+        for bad in [
+            "",
+            "a\nb",
+            "<b>x</b>",
+            &"x".repeat(49),
+            "one two three four five six",
+            "list of aliases",
+        ] {
             assert_eq!(valid_name(bad), None, "{bad}");
         }
     }
@@ -384,7 +411,10 @@ mod tests {
         let mut b = book();
         run(&mut b, Some(&fake(GOOD)), &cfg(), &|| false);
         assert!(b.remove_ai_alias("executable|gfxbldr", "gfx"));
-        let m2 = Fake { version: "pitwall-2".into(), ..fake(GOOD) };
+        let m2 = Fake {
+            version: "pitwall-2".into(),
+            ..fake(GOOD)
+        };
         run(&mut b, Some(&m2), &cfg(), &|| false);
         assert_eq!(b.ai("executable|gfxbldr").unwrap().aliases, vec!["image editor"]);
     }

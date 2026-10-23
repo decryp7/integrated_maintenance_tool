@@ -8,9 +8,13 @@ use super::segment::{pieces, Vocabulary};
 use std::collections::{HashMap, HashSet};
 
 /// Extensions dropped from the end of a name.
-const EXTENSIONS: &[&str] = &["exe", "dll", "so", "dylib", "log", "sys", "bin", "app", "dmp", "tmp", "txt", "json", "xml"];
+const EXTENSIONS: &[&str] = &[
+    "exe", "dll", "so", "dylib", "log", "sys", "bin", "app", "dmp", "tmp", "txt", "json", "xml",
+];
 /// Architecture and platform words dropped from the end of a name.
-const ARCH: &[&str] = &["x86", "x64", "x32", "amd64", "arm64", "win32", "win64", "i386", "i686", "ia64", "arm", "aarch64"];
+const ARCH: &[&str] = &[
+    "x86", "x64", "x32", "amd64", "arm64", "win32", "win64", "i386", "i686", "ia64", "arm", "aarch64",
+];
 /// Most dotted/separated parts of a name that are read.
 const MAX_PARTS: usize = 16;
 
@@ -59,11 +63,15 @@ fn is_version_part(p: &str) -> bool {
     if l.chars().all(|c| c.is_ascii_digit()) || ARCH.contains(&l.as_str()) {
         return true;
     }
-    l.strip_prefix('v').is_some_and(|r| !r.is_empty() && r.chars().all(|c| c.is_ascii_digit()))
+    l.strip_prefix('v')
+        .is_some_and(|r| !r.is_empty() && r.chars().all(|c| c.is_ascii_digit()))
 }
 
 fn parts_of(stem: &str) -> Vec<&str> {
-    stem.split(|c: char| !c.is_alphanumeric()).filter(|p| !p.is_empty()).take(MAX_PARTS).collect()
+    stem.split(|c: char| !c.is_alphanumeric())
+        .filter(|p| !p.is_empty())
+        .take(MAX_PARTS)
+        .collect()
 }
 
 /// The first part of names with three or more parts that several different names share (`companya` in

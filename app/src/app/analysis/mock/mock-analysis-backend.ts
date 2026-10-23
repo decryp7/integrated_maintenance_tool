@@ -123,7 +123,7 @@ export class MockAnalysisBackend extends AnalysisBackend {
         if (typeof v === 'string' && v.toLowerCase().includes(needle)) counts.set(v, (counts.get(v) ?? 0) + 1);
       }
     }
-    return [...counts].slice(0, 5).map(([value, count]) => ({ field: 'Service', value, count, via: 'prefix' as const }));
+    return [...counts].slice(0, 5).map(([value, count]) => ({ field: 'Service', value, count, via: 'prefix' as const, why: 'your words start the words of the value' }));
   }
   async queryPatterns(query: QlQuery) {
     const m = await this.matched(query);

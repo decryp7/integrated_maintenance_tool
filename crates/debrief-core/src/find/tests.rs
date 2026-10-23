@@ -287,7 +287,19 @@ mod names {
         let ctx = names.context().clone();
         let settings = names.settings();
         names
-            .read(|book, vocab| resolve_names(store, text, 5, Some(&NameLayer { book, vocab, ctx: &ctx, settings })))
+            .read(|book, vocab| {
+                resolve_names(
+                    store,
+                    text,
+                    5,
+                    Some(&NameLayer {
+                        book,
+                        vocab,
+                        ctx: &ctx,
+                        settings,
+                    }),
+                )
+            })
             .unwrap()
     }
 
@@ -300,7 +312,11 @@ mod names {
             // The fake model answers for whatever group is item 1..n in the prompt, by the name it sees.
             let mut items = Vec::new();
             for (i, line) in prompt.lines().filter(|l| l.contains(". [")).enumerate() {
-                let aliases = if line.to_lowercase().contains("graphicbuilder") { "[\"image editor\"]" } else { "[]" };
+                let aliases = if line.to_lowercase().contains("graphicbuilder") {
+                    "[\"image editor\"]"
+                } else {
+                    "[]"
+                };
                 items.push(format!("{{\"id\":{},\"name\":\"Thing {}\",\"aliases\":{aliases}}}", i + 1, i));
             }
             Ok(format!("{{\"items\":[{}]}}", items.join(",")))
@@ -331,7 +347,11 @@ mod names {
         let s = spelled();
         let names = Names::default();
         names.refresh(&s).unwrap();
-        let cfg = AliasJobConfig { min_count: 1, pause: std::time::Duration::ZERO, ..AliasJobConfig::default() };
+        let cfg = AliasJobConfig {
+            min_count: 1,
+            pause: std::time::Duration::ZERO,
+            ..AliasJobConfig::default()
+        };
         assert!(resolve(&s, &names, "image editor").values.is_empty());
         assert_eq!(names.run_alias_job(None, &cfg, &|| false).skipped, "no model");
         assert!(resolve(&s, &names, "image editor").values.is_empty());
@@ -341,7 +361,10 @@ mod names {
         assert_eq!(r.values[0].group.as_deref(), Some("executable|graphic builder"));
         assert!(r.values[0].why.starts_with("AI alias"));
         // Settings: AI aliases off.
-        names.set_settings(crate::names::NameSettings { ai_aliases: false, context: true });
+        names.set_settings(crate::names::NameSettings {
+            ai_aliases: false,
+            context: true,
+        });
         assert!(resolve(&s, &names, "image editor").values.is_empty());
     }
 
@@ -353,12 +376,28 @@ mod names {
         let ctx = names.context().clone();
         let layer_find = |names: &Names, ctx: &SearchContext| {
             names.read(|book, vocab| {
-                find_with(&s, "builder", 0, 5, Some(&NameLayer { book, vocab, ctx, settings: names.settings() })).unwrap()
+                find_with(
+                    &s,
+                    "builder",
+                    0,
+                    5,
+                    Some(&NameLayer {
+                        book,
+                        vocab,
+                        ctx,
+                        settings: names.settings(),
+                    }),
+                )
+                .unwrap()
             })
         };
         let r = layer_find(&names, &ctx);
         let q = r.clarify.as_ref().expect("two builders tie");
-        assert!(q.question.contains("Graphic Builder (process) or Report Builder (process)"), "{}", q.question);
+        assert!(
+            q.question.contains("Graphic Builder (process) or Report Builder (process)"),
+            "{}",
+            q.question
+        );
         assert!(r.note.contains(&q.question));
         names.context().inspected = Some("Started CompanyA.Report.Builder.exe".into());
         let ctx = names.context().clone();
@@ -374,7 +413,11 @@ mod names {
         let s = spelled();
         let names = Names::default();
         names.refresh(&s).unwrap();
-        let cfg = AliasJobConfig { min_count: 1, pause: std::time::Duration::ZERO, ..AliasJobConfig::default() };
+        let cfg = AliasJobConfig {
+            min_count: 1,
+            pause: std::time::Duration::ZERO,
+            ..AliasJobConfig::default()
+        };
         names.run_alias_job(Some(&Model), &cfg, &|| false);
         names.write(|b| b.accept("image editor", "executable|tray agent", false));
         let r = resolve(&s, &names, "image editor");

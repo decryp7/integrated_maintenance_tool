@@ -17,6 +17,7 @@ pub mod knowledge;
 pub mod llm;
 pub mod manual;
 pub mod models;
+pub mod names_model;
 pub mod net;
 pub mod recommend;
 pub mod runtime;

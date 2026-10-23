@@ -75,6 +75,21 @@ pub struct NameBook {
     next_id: u64,
     #[serde(skip)]
     view: Vec<NameGroup>,
+    #[serde(skip)]
+    prepared: Vec<Prepared>,
+}
+
+/// A group's matching keys, computed once per refresh so a search does no string building per group.
+#[derive(Debug, Clone, Default)]
+pub struct Prepared {
+    /// The group's id.
+    pub id: String,
+    /// The words of the key.
+    pub tokens: Vec<String>,
+    /// The words joined without separators.
+    pub joined: String,
+    /// Each spelling squashed to letters and digits.
+    pub spellings: Vec<String>,
 }
 
 impl Default for NameBook {
@@ -87,6 +102,7 @@ impl Default for NameBook {
             facts: Vec::new(),
             next_id: 1,
             view: Vec::new(),
+            prepared: Vec::new(),
         }
     }
 }
@@ -128,7 +144,9 @@ impl NameBook {
                     }
                 }
                 FactKind::Split { group, spelling } => {
-                    let Some(i) = v.iter().position(|g| &g.id() == group) else { continue };
+                    let Some(i) = v.iter().position(|g| &g.id() == group) else {
+                        continue;
+                    };
                     if v[i].spellings.len() < 2 {
                         continue;
                     }
@@ -150,7 +168,10 @@ impl NameBook {
                         first_ts: v[i].first_ts,
                         last_ts: v[i].last_ts,
                         seen_in: v[i].seen_in.clone(),
-                        spellings: vec![Spelling { name: s.name, count: s.count }],
+                        spellings: vec![Spelling {
+                            name: s.name,
+                            count: s.count,
+                        }],
                     };
                     v.push(g);
                 }
@@ -162,7 +183,21 @@ impl NameBook {
                 _ => {}
             }
         }
+        self.prepared = v
+            .iter()
+            .map(|g| Prepared {
+                id: g.id(),
+                tokens: g.key.split(' ').map(String::from).collect(),
+                joined: super::resolve::squash(&g.key),
+                spellings: g.spellings.iter().map(|s| super::resolve::squash(&s.name)).collect(),
+            })
+            .collect();
         self.view = v;
+    }
+
+    /// The matching keys of [`NameBook::groups`], in the same order.
+    pub fn prepared(&self) -> &[Prepared] {
+        &self.prepared
     }
 
     fn push(&mut self, kind: FactKind, global: bool) -> Option<u64> {
@@ -180,7 +215,8 @@ impl NameBook {
     pub fn accept(&mut self, term: &str, group: &str, global: bool) -> Option<u64> {
         let term = clean(term)?;
         let key = term.to_lowercase();
-        self.facts.retain(|f| !matches!(&f.kind, FactKind::Reject { group: g, term: t } if g == group && t.to_lowercase() == key));
+        self.facts
+            .retain(|f| !matches!(&f.kind, FactKind::Reject { group: g, term: t } if g == group && t.to_lowercase() == key));
         self.push(FactKind::Alias { group: group.into(), term }, global)
     }
 
@@ -188,19 +224,28 @@ impl NameBook {
     pub fn reject(&mut self, term: &str, group: &str, global: bool) -> Option<u64> {
         let term = clean(term)?;
         let key = term.to_lowercase();
-        self.facts.retain(|f| !matches!(&f.kind, FactKind::Alias { group: g, term: t } if g == group && t.to_lowercase() == key));
+        self.facts
+            .retain(|f| !matches!(&f.kind, FactKind::Alias { group: g, term: t } if g == group && t.to_lowercase() == key));
         self.push(FactKind::Reject { group: group.into(), term }, global)
     }
 
     /// The two groups are one thing.
     pub fn merge(&mut self, a: &str, b: &str, global: bool) -> Option<u64> {
-        (a != b).then(|| self.push(FactKind::Merge { a: a.into(), b: b.into() }, global)).flatten()
+        (a != b)
+            .then(|| self.push(FactKind::Merge { a: a.into(), b: b.into() }, global))
+            .flatten()
     }
 
     /// `spelling` is not part of `group`.
     pub fn split(&mut self, group: &str, spelling: &str, global: bool) -> Option<u64> {
         let spelling = clean(spelling)?;
-        self.push(FactKind::Split { group: group.into(), spelling }, global)
+        self.push(
+            FactKind::Split {
+                group: group.into(),
+                spelling,
+            },
+            global,
+        )
     }
 
     /// The group is called `name`.
@@ -243,6 +288,18 @@ impl NameBook {
             .collect()
     }
 
+    /// Whether any rejection exists (lets a search skip the per-group check).
+    pub fn has_rejections(&self) -> bool {
+        self.facts.iter().any(|f| matches!(f.kind, FactKind::Reject { .. }))
+    }
+
+    /// Whether any alias or rename exists.
+    pub fn has_user_terms(&self) -> bool {
+        self.facts
+            .iter()
+            .any(|f| matches!(f.kind, FactKind::Alias { .. } | FactKind::Rename { .. }))
+    }
+
     /// Whether the user said `term` does not mean `group`.
     pub fn is_rejected(&self, term: &str, group: &str) -> bool {
         let key = super::resolve::squash(term);
@@ -276,7 +333,9 @@ impl NameBook {
 
     /// Stores the model's entry for `group`, dropping aliases the user removed earlier.
     pub fn set_ai(&mut self, group: &str, mut entry: AiEntry) {
-        entry.aliases.retain(|a| !self.removed_ai.contains(&format!("{group}\t{}", a.to_lowercase())));
+        entry
+            .aliases
+            .retain(|a| !self.removed_ai.contains(&format!("{group}\t{}", a.to_lowercase())));
         self.ai.insert(group.to_string(), entry);
     }
 
@@ -316,14 +375,22 @@ impl NameBook {
 
     /// Reads a book; a missing, unreadable or newer-version file gives an empty book and, when the file exists, a note.
     pub fn load(path: &Path) -> (NameBook, Option<String>) {
-        let Ok(bytes) = std::fs::read(path) else { return (NameBook::default(), None) };
+        let Ok(bytes) = std::fs::read(path) else {
+            return (NameBook::default(), None);
+        };
         match serde_json::from_slice::<NameBook>(&bytes) {
             Ok(mut b) if b.version == BOOK_VERSION => {
                 b.refresh();
                 (b, None)
             }
-            Ok(_) => (NameBook::default(), Some("the name book was written by another version; starting empty".into())),
-            Err(e) => (NameBook::default(), Some(format!("the name book is unreadable ({e}); starting empty"))),
+            Ok(_) => (
+                NameBook::default(),
+                Some("the name book was written by another version; starting empty".into()),
+            ),
+            Err(e) => (
+                NameBook::default(),
+                Some(format!("the name book is unreadable ({e}); starting empty")),
+            ),
         }
     }
 
@@ -350,7 +417,13 @@ mod tests {
             scope: Scope::Entity(EntityKind::Executable),
             key: key.into(),
             display: key.into(),
-            spellings: spellings.iter().map(|(n, c)| Spelling { name: n.to_string(), count: *c }).collect(),
+            spellings: spellings
+                .iter()
+                .map(|(n, c)| Spelling {
+                    name: n.to_string(),
+                    count: *c,
+                })
+                .collect(),
             count: spellings.iter().map(|s| s.1).sum(),
             first_ts: None,
             last_ts: None,
@@ -425,14 +498,28 @@ mod tests {
     fn ai_entries_are_cached_by_model_and_removals_stick() {
         let mut b = book();
         assert!(!b.ai_current(A, "m1"));
-        b.set_ai(A, AiEntry { model: "m1".into(), human: "Alpha".into(), aliases: vec!["alp".into(), "Aleph".into()] });
+        b.set_ai(
+            A,
+            AiEntry {
+                model: "m1".into(),
+                human: "Alpha".into(),
+                aliases: vec!["alp".into(), "Aleph".into()],
+            },
+        );
         assert!(b.ai_current(A, "m1"));
         assert!(!b.ai_current(A, "m2"));
         assert!(b.remove_ai_alias(A, "ALP"));
         assert!(!b.remove_ai_alias(A, "ALP"));
         assert!(b.remove_ai_alias(A, "alpha"));
         assert!(!b.remove_ai_alias(B, "x"));
-        b.set_ai(A, AiEntry { model: "m2".into(), human: "Alpha".into(), aliases: vec!["alp".into(), "Aleph".into()] });
+        b.set_ai(
+            A,
+            AiEntry {
+                model: "m2".into(),
+                human: "Alpha".into(),
+                aliases: vec!["alp".into(), "Aleph".into()],
+            },
+        );
         assert_eq!(b.ai(A).unwrap().aliases, vec!["Aleph"]);
         assert_eq!(b.ai_len(), 1);
         b.clear_ai();
@@ -467,7 +554,15 @@ mod tests {
         std::fs::write(&p, b"{not json").unwrap();
         let (bad, note) = NameBook::load(&p);
         assert!(bad.groups().is_empty() && note.unwrap().contains("unreadable"));
-        std::fs::write(&p, serde_json::to_vec(&NameBook { version: 99, ..NameBook::default() }).unwrap()).unwrap();
+        std::fs::write(
+            &p,
+            serde_json::to_vec(&NameBook {
+                version: 99,
+                ..NameBook::default()
+            })
+            .unwrap(),
+        )
+        .unwrap();
         assert!(NameBook::load(&p).1.unwrap().contains("another version"));
         std::fs::remove_dir_all(&dir).ok();
         assert!(NameBook::wants_ai(&g("a", &[("a", 1)])));

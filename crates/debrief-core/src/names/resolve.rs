@@ -8,7 +8,7 @@
 //! for closeness to the user's anchors. Two different groups matching the same way with scores closer than
 //! [`TIE_GAP`] are a true tie: [`Resolution::clarify`] holds the question.
 
-use super::book::NameBook;
+use super::book::{NameBook, Prepared};
 use super::context::{relevance, Cooccurrence, SearchContext, MAX_ANCHORS};
 use super::group::{NameGroup, Spelling};
 use super::normalise::normalise;
@@ -94,7 +94,10 @@ pub struct NameSettings {
 
 impl Default for NameSettings {
     fn default() -> Self {
-        NameSettings { ai_aliases: true, context: true }
+        NameSettings {
+            ai_aliases: true,
+            context: true,
+        }
     }
 }
 
@@ -160,12 +163,15 @@ impl Resolver<'_> {
         let qjoined = qtokens.concat();
         let max_count = self.book.groups().iter().map(|g| g.count).max().unwrap_or(1).max(1);
         let mut found: Vec<NameMatch> = Vec::new();
-        for g in self.book.groups() {
-            let id = g.id();
-            if self.book.is_rejected(&text, &id) {
+        let rejected = self.book.has_rejections();
+        for (g, p) in self.book.groups().iter().zip(self.book.prepared()) {
+            let id = p.id.clone();
+            if rejected && self.book.is_rejected(&text, &id) {
                 continue;
             }
-            let Some((how, detail)) = self.how(g, &id, &text, &q, &qtokens, &qjoined) else { continue };
+            let Some((how, detail)) = self.how(g, p, &text, &q, &qtokens, &qjoined) else {
+                continue;
+            };
             let mut score = how.base() + POPULARITY_WEIGHT * ((1.0 + g.count as f64).ln() / (1.0 + max_count as f64).ln());
             let mut reasons: Vec<String> = vec![detail];
             if how != How::UserAlias && self.settings.context {
@@ -194,7 +200,12 @@ impl Resolver<'_> {
                 why: reasons.join("; "),
             });
         }
-        found.sort_by(|a, b| b.score.total_cmp(&a.score).then(b.count.cmp(&a.count)).then_with(|| a.id.cmp(&b.id)));
+        found.sort_by(|a, b| {
+            b.score
+                .total_cmp(&a.score)
+                .then(b.count.cmp(&a.count))
+                .then_with(|| a.id.cmp(&b.id))
+        });
         // Typos only when nothing matches better.
         if found.iter().any(|m| m.how != How::Typo) {
             found.retain(|m| m.how != How::Typo);
@@ -211,30 +222,33 @@ impl Resolver<'_> {
         tokens
             .into_iter()
             .map(|t| match t.strip_suffix('s') {
-                Some(one) if one.chars().count() >= 3 && !one.ends_with('s') && self.vocab.knows(one) && !self.vocab.knows(&t) => one.to_string(),
+                Some(one) if one.chars().count() >= 3 && !one.ends_with('s') && self.vocab.knows(one) && !self.vocab.knows(&t) => {
+                    one.to_string()
+                }
                 _ => t,
             })
             .collect()
     }
 
     /// How `g` matches, with the phrase saying so.
-    fn how(&self, g: &NameGroup, id: &str, text: &str, q: &str, qtokens: &[String], qjoined: &str) -> Option<(How, String)> {
-        if self.book.user_terms(id).iter().any(|(t, _)| squash(t) == q) {
+    fn how(&self, g: &NameGroup, p: &Prepared, text: &str, q: &str, qtokens: &[String], qjoined: &str) -> Option<(How, String)> {
+        let id = p.id.as_str();
+        if self.book.has_user_terms() && self.book.user_terms(id).iter().any(|(t, _)| squash(t) == q) {
             return Some((How::UserAlias, "you told Debrief this name".into()));
         }
-        if g.spellings.iter().any(|s| squash(&s.name) == q) {
+        if p.spellings.iter().any(|s| s == q) {
             return Some((How::Exact, "the name as written in the logs".into()));
         }
-        let gjoined = squash(&g.key);
+        let gjoined = p.joined.as_str();
         if !qjoined.is_empty() && gjoined == qjoined {
-            let phrase = if qtokens.len() != g.key.split(' ').count() {
+            let phrase = if qtokens.len() != p.tokens.len() {
                 "same name written as one word"
             } else {
                 "same name spelled differently (case, separators, version)"
             };
             return Some((How::Segmented, phrase.into()));
         }
-        let ktokens: Vec<&str> = g.key.split(' ').collect();
+        let ktokens: Vec<&str> = p.tokens.iter().map(String::as_str).collect();
         if !qtokens.is_empty()
             && qtokens.len() < ktokens.len()
             && ktokens.windows(qtokens.len()).any(|w| w.iter().zip(qtokens).all(|(a, b)| a == b))
@@ -245,15 +259,22 @@ impl Resolver<'_> {
             return Some((How::Parts, "your words are parts of this name".into()));
         }
         if !qtokens.is_empty()
-            && qtokens.iter().all(|t| t.chars().count() >= 2 && ktokens.iter().any(|k| k.starts_with(t.as_str())))
+            && qtokens
+                .iter()
+                .all(|t| t.chars().count() >= 2 && ktokens.iter().any(|k| k.starts_with(t.as_str())))
         {
             return Some((How::Prefix, "your words start the words of this name".into()));
         }
         if self.settings.ai_aliases {
             if let Some(e) = self.book.ai(id) {
-                let hit = std::iter::once(&e.human).chain(&e.aliases).find(|a| !a.is_empty() && squash(a) == q);
+                let hit = std::iter::once(&e.human)
+                    .chain(&e.aliases)
+                    .find(|a| !a.is_empty() && squash(a) == q);
                 if let Some(a) = hit {
-                    return Some((How::Alias, format!("AI alias: '{a}' (suggested by a local model; you can remove it)")));
+                    return Some((
+                        How::Alias,
+                        format!("AI alias: '{a}' (suggested by a local model; you can remove it)"),
+                    ));
                 }
             }
         }
@@ -267,10 +288,13 @@ impl Resolver<'_> {
                 .map(|(a, b)| edit_distance_capped(a, b, (b.chars().count() / 3).max(1)))
                 .sum::<Option<usize>>()
         } else {
-            edit_distance_capped(q, &gjoined, allowed_typos(gjoined.chars().count()))
+            edit_distance_capped(q, gjoined, allowed_typos(gjoined.chars().count()))
         };
         if let Some(d) = d.filter(|_| q.chars().count() >= 4 && misspelt) {
-            return Some((How::Typo, format!("close spelling ({d} letter{} off)", if d == 1 { "" } else { "s" })));
+            return Some((
+                How::Typo,
+                format!("close spelling ({d} letter{} off)", if d == 1 { "" } else { "s" }),
+            ));
         }
         if self.settings.ai_aliases && q.chars().count() >= 4 && misspelt {
             if let Some(e) = self.book.ai(id) {
@@ -324,7 +348,11 @@ fn clarification(found: &[NameMatch], text: &str) -> Option<Clarification> {
     if top.how == How::UserAlias {
         return None;
     }
-    let tied: Vec<&NameMatch> = found.iter().take_while(|m| m.how == top.how && top.score - m.score < TIE_GAP).take(MAX_OPTIONS).collect();
+    let tied: Vec<&NameMatch> = found
+        .iter()
+        .take_while(|m| m.how == top.how && top.score - m.score < TIE_GAP)
+        .take(MAX_OPTIONS)
+        .collect();
     if tied.len() < 2 {
         return None;
     }
@@ -363,8 +391,18 @@ mod tests {
         NameGroup {
             scope: Scope::Entity(EntityKind::Executable),
             key: key.into(),
-            display: key.split(' ').map(|w| w[..1].to_uppercase() + &w[1..]).collect::<Vec<_>>().join(" "),
-            spellings: spell.iter().map(|(n, c)| Spelling { name: n.to_string(), count: *c }).collect(),
+            display: key
+                .split(' ')
+                .map(|w| w[..1].to_uppercase() + &w[1..])
+                .collect::<Vec<_>>()
+                .join(" "),
+            spellings: spell
+                .iter()
+                .map(|(n, c)| Spelling {
+                    name: n.to_string(),
+                    count: *c,
+                })
+                .collect(),
             count: spell.iter().map(|s| s.1).sum(),
             first_ts: Some(ts.0),
             last_ts: Some(ts.1),
@@ -375,7 +413,16 @@ mod tests {
     fn book() -> NameBook {
         let mut b = NameBook::default();
         b.rebuild(vec![
-            grp("graphic builder", &[("graphicbuilder.exe", 12), ("CompanyA.Graphic.Builder.exe", 5), ("graphic-builder", 1)], "app.log", (10, 90)),
+            grp(
+                "graphic builder",
+                &[
+                    ("graphicbuilder.exe", 12),
+                    ("CompanyA.Graphic.Builder.exe", 5),
+                    ("graphic-builder", 1),
+                ],
+                "app.log",
+                (10, 90),
+            ),
             grp("graphic builder service", &[("GraphicBuilderService.exe", 30)], "svc.log", (10, 90)),
             grp("report builder", &[("reportbuilder.exe", 9)], "app.log", (10, 90)),
             grp("tray agent", &[("trayagent.exe", 40)], "app.log", (10, 90)),
@@ -384,7 +431,13 @@ mod tests {
     }
 
     fn resolve(b: &NameBook, ctx: &SearchContext, s: NameSettings, text: &str) -> Resolution {
-        Resolver { book: b, vocab: &Vocabulary::builtin(), ctx, settings: s }.resolve(text, 5, None)
+        Resolver {
+            book: b,
+            vocab: &Vocabulary::builtin(),
+            ctx,
+            settings: s,
+        }
+        .resolve(text, 5, None)
     }
 
     fn quick(b: &NameBook, text: &str) -> Resolution {
@@ -394,7 +447,13 @@ mod tests {
     #[test]
     fn the_graphic_builder_spellings_all_find_one_entity() {
         let b = book();
-        for q in ["graphic builder", "Graphic_Builder_v2", "graphicbuilder", "GraphicBuilder.exe", "Graphic.Builder.x64"] {
+        for q in [
+            "graphic builder",
+            "Graphic_Builder_v2",
+            "graphicbuilder",
+            "GraphicBuilder.exe",
+            "Graphic.Builder.x64",
+        ] {
             let r = quick(&b, q);
             assert_eq!(r.matches[0].id, "executable|graphic builder", "{q}");
             assert_eq!(r.matches[0].spellings.len(), 3);
@@ -430,7 +489,11 @@ mod tests {
         let r = quick(&b, "builder");
         assert_eq!(r.matches[0].how, How::Parts);
         let c = r.clarify.expect("two builders tie");
-        assert!(c.question.contains("Graphic Builder") && c.question.contains("(process)"), "{}", c.question);
+        assert!(
+            c.question.contains("Graphic Builder") && c.question.contains("(process)"),
+            "{}",
+            c.question
+        );
         assert_eq!(c.options.len(), 3);
         // The inspected event mentions the report builder: context decides, no question.
         let ctx = SearchContext {
@@ -442,7 +505,10 @@ mod tests {
         assert!(r.matches[0].why.contains("inspecting"), "{}", r.matches[0].why);
         assert!(r.clarify.is_none());
         // With the context switched off the tie is back.
-        let off = NameSettings { context: false, ..NameSettings::default() };
+        let off = NameSettings {
+            context: false,
+            ..NameSettings::default()
+        };
         assert!(resolve(&b, &ctx, off, "builder").clarify.is_some());
     }
 
@@ -467,12 +533,21 @@ mod tests {
     #[test]
     fn cooccurrence_with_an_anchor_breaks_a_tie() {
         let b = book();
-        let ctx = SearchContext { anchors: vec!["trayagent.exe".into()], ..SearchContext::default() };
+        let ctx = SearchContext {
+            anchors: vec!["trayagent.exe".into()],
+            ..SearchContext::default()
+        };
         let mut co = Cooccurrence::default();
         for _ in 0..3 {
             co.add_event(&["reportbuilder.exe".to_string(), "trayagent.exe".to_string()]);
         }
-        let r = Resolver { book: &b, vocab: &Vocabulary::builtin(), ctx: &ctx, settings: NameSettings::default() }.resolve("builder", 5, Some(&co));
+        let r = Resolver {
+            book: &b,
+            vocab: &Vocabulary::builtin(),
+            ctx: &ctx,
+            settings: NameSettings::default(),
+        }
+        .resolve("builder", 5, Some(&co));
         assert_eq!(r.matches[0].id, "executable|report builder");
         assert!(r.matches[0].why.contains("same events as trayagent.exe"));
         assert!(r.clarify.is_none());
@@ -481,19 +556,43 @@ mod tests {
     #[test]
     fn ai_aliases_match_and_can_be_switched_off() {
         let mut b = book();
-        b.set_ai("executable|graphic builder", AiEntry { model: "m".into(), human: "Graphic Builder".into(), aliases: vec!["image editor".into()] });
+        b.set_ai(
+            "executable|graphic builder",
+            AiEntry {
+                model: "m".into(),
+                human: "Graphic Builder".into(),
+                aliases: vec!["image editor".into()],
+            },
+        );
         let r = quick(&b, "Image Editor");
         assert_eq!(r.matches[0].how, How::Alias);
         assert!(r.matches[0].why.starts_with("AI alias"), "{}", r.matches[0].why);
-        let off = NameSettings { ai_aliases: false, ..NameSettings::default() };
+        let off = NameSettings {
+            ai_aliases: false,
+            ..NameSettings::default()
+        };
         assert!(resolve(&b, &SearchContext::default(), off, "image editor").matches.is_empty());
     }
 
     #[test]
     fn user_feedback_outranks_ai_and_rejections_hide() {
         let mut b = book();
-        b.set_ai("executable|graphic builder", AiEntry { model: "m".into(), human: "x".into(), aliases: vec!["editor".into()] });
-        b.set_ai("executable|report builder", AiEntry { model: "m".into(), human: "y".into(), aliases: vec!["editor".into()] });
+        b.set_ai(
+            "executable|graphic builder",
+            AiEntry {
+                model: "m".into(),
+                human: "x".into(),
+                aliases: vec!["editor".into()],
+            },
+        );
+        b.set_ai(
+            "executable|report builder",
+            AiEntry {
+                model: "m".into(),
+                human: "y".into(),
+                aliases: vec!["editor".into()],
+            },
+        );
         // The model gave the same alias to two groups: a tie.
         assert!(quick(&b, "editor").clarify.is_some());
         // The user accepts one: it wins, no question, and the AI alias of the other no longer competes.
@@ -534,7 +633,18 @@ mod tests {
         assert_eq!(kind_word(&Scope::Entity(EntityKind::File)), "file");
         assert_eq!(kind_word(&Scope::Entity(EntityKind::Exception)), "exception");
         assert_eq!(kind_word(&Scope::Entity(EntityKind::Host)), "host");
-        let ids: Vec<&str> = [How::UserAlias, How::Exact, How::Segmented, How::Parts, How::Prefix, How::Alias, How::Typo].iter().map(|h| h.id()).collect();
+        let ids: Vec<&str> = [
+            How::UserAlias,
+            How::Exact,
+            How::Segmented,
+            How::Parts,
+            How::Prefix,
+            How::Alias,
+            How::Typo,
+        ]
+        .iter()
+        .map(|h| h.id())
+        .collect();
         assert_eq!(ids.len(), 7);
     }
 }

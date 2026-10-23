@@ -6,11 +6,11 @@
 
 use debrief_core::catalogue::{Candidate, Scope};
 use debrief_core::entities::EntityKind;
+use debrief_core::names::book::AiEntry;
 use debrief_core::names::build::vocabulary_from;
 use debrief_core::names::group::group;
 use debrief_core::names::resolve::{NameSettings, Resolver};
 use debrief_core::names::{NameBook, SearchContext, Vocabulary};
-use debrief_core::names::book::AiEntry;
 use debrief_core::words::{phrase_in, WordQuery};
 use std::collections::HashSet;
 
@@ -23,50 +23,259 @@ struct Ent {
 }
 
 const ENTS: &[Ent] = &[
-    Ent { words: "graphic builder", spellings: &["CompanyA.Graphic.Builder.exe", "graphicbuilder.exe", "graphic-builder.exe"], typo: "grafic bilder", abbrev: "gfxbldr", synonym: "image editor" },
-    Ent { words: "tray agent", spellings: &["CompanyA.Tray.Agent.exe", "trayagent.exe"], typo: "trai agent", abbrev: "tryagnt", synonym: "system tray helper" },
-    Ent { words: "report builder", spellings: &["reportbuilder.exe", "CompanyA.Report.Builder.exe"], typo: "reprot builder", abbrev: "rptbldr", synonym: "pdf generator" },
-    Ent { words: "print spooler", spellings: &["printspooler.exe", "print_spooler.exe"], typo: "print spoller", abbrev: "prtspl", synonym: "printing service" },
-    Ent { words: "update helper", spellings: &["update-helper.exe", "updatehelper.exe"], typo: "updte helper", abbrev: "updhlp", synonym: "auto updater" },
-    Ent { words: "sync worker", spellings: &["syncworker.exe", "Sync.Worker.exe"], typo: "sync wroker", abbrev: "synwrk", synonym: "cloud sync" },
-    Ent { words: "crash reporter", spellings: &["crashreporter.exe", "CompanyA.Crash.Reporter.exe"], typo: "crash reportr", abbrev: "crshrpt", synonym: "error uploader" },
-    Ent { words: "media player", spellings: &["mediaplayer.exe", "media-player.exe"], typo: "meida player", abbrev: "mplayr", synonym: "video viewer" },
-    Ent { words: "backup agent", spellings: &["backupagent.exe", "Backup.Agent.exe"], typo: "bakup agent", abbrev: "bkpagt", synonym: "archive service" },
-    Ent { words: "license checker", spellings: &["licensechecker.exe", "license_checker.exe"], typo: "license chekcer", abbrev: "lickchk", synonym: "activation validator" },
-    Ent { words: "config loader", spellings: &["configloader.exe", "config-loader.exe"], typo: "confg loader", abbrev: "cfgldr", synonym: "settings reader" },
-    Ent { words: "network monitor", spellings: &["networkmonitor.exe", "NetworkMonitor.exe"], typo: "netwrok monitor", abbrev: "netmon", synonym: "traffic watcher" },
-    Ent { words: "disk indexer", spellings: &["diskindexer.exe", "disk-indexer.exe"], typo: "disk indxer", abbrev: "dskidx", synonym: "file crawler" },
-    Ent { words: "event collector", spellings: &["eventcollector.exe", "Event.Collector.exe"], typo: "event colector", abbrev: "evtcol", synonym: "log gatherer" },
-    Ent { words: "session broker", spellings: &["sessionbroker.exe", "session_broker.exe"], typo: "sesion broker", abbrev: "sessbrk", synonym: "login manager" },
-    Ent { words: "video encoder", spellings: &["videoencoder.exe", "Video.Encoder.exe"], typo: "vidio encoder", abbrev: "videnc", synonym: "movie converter" },
-    Ent { words: "search service", spellings: &["searchservice.exe", "search-service.exe"], typo: "serch service", abbrev: "srchsvc", synonym: "finder daemon" },
-    Ent { words: "font cache", spellings: &["fontcache.exe", "font_cache.exe"], typo: "font cahce", abbrev: "fntcache", synonym: "glyph store" },
-    Ent { words: "thumbnail host", spellings: &["thumbnailhost.exe", "Thumbnail.Host.exe"], typo: "thumbnial host", abbrev: "thumbhst", synonym: "preview renderer" },
-    Ent { words: "device watcher", spellings: &["devicewatcher.exe", "device-watcher.exe"], typo: "devise watcher", abbrev: "devwtch", synonym: "hardware sentinel" },
-    Ent { words: "spell checker", spellings: &["spellchecker.exe", "spell-checker.exe"], typo: "spel checker", abbrev: "splchk", synonym: "grammar tool" },
-    Ent { words: "cache cleaner", spellings: &["cachecleaner.exe", "Cache.Cleaner.exe"], typo: "cach cleaner", abbrev: "cchcln", synonym: "temp purger" },
-    Ent { words: "mail relay", spellings: &["mailrelay.exe", "mail_relay.exe"], typo: "mail rellay", abbrev: "mlrelay", synonym: "smtp forwarder" },
-    Ent { words: "window manager", spellings: &["windowmanager.exe", "Window.Manager.exe"], typo: "windo manager", abbrev: "wndmgr", synonym: "desktop compositor" },
+    Ent {
+        words: "graphic builder",
+        spellings: &["CompanyA.Graphic.Builder.exe", "graphicbuilder.exe", "graphic-builder.exe"],
+        typo: "grafic bilder",
+        abbrev: "gfxbldr",
+        synonym: "image editor",
+    },
+    Ent {
+        words: "tray agent",
+        spellings: &["CompanyA.Tray.Agent.exe", "trayagent.exe"],
+        typo: "trai agent",
+        abbrev: "tryagnt",
+        synonym: "system tray helper",
+    },
+    Ent {
+        words: "report builder",
+        spellings: &["reportbuilder.exe", "CompanyA.Report.Builder.exe"],
+        typo: "reprot builder",
+        abbrev: "rptbldr",
+        synonym: "pdf generator",
+    },
+    Ent {
+        words: "print spooler",
+        spellings: &["printspooler.exe", "print_spooler.exe"],
+        typo: "print spoller",
+        abbrev: "prtspl",
+        synonym: "printing service",
+    },
+    Ent {
+        words: "update helper",
+        spellings: &["update-helper.exe", "updatehelper.exe"],
+        typo: "updte helper",
+        abbrev: "updhlp",
+        synonym: "auto updater",
+    },
+    Ent {
+        words: "sync worker",
+        spellings: &["syncworker.exe", "Sync.Worker.exe"],
+        typo: "sync wroker",
+        abbrev: "synwrk",
+        synonym: "cloud sync",
+    },
+    Ent {
+        words: "crash reporter",
+        spellings: &["crashreporter.exe", "CompanyA.Crash.Reporter.exe"],
+        typo: "crash reportr",
+        abbrev: "crshrpt",
+        synonym: "error uploader",
+    },
+    Ent {
+        words: "media player",
+        spellings: &["mediaplayer.exe", "media-player.exe"],
+        typo: "meida player",
+        abbrev: "mplayr",
+        synonym: "video viewer",
+    },
+    Ent {
+        words: "backup agent",
+        spellings: &["backupagent.exe", "Backup.Agent.exe"],
+        typo: "bakup agent",
+        abbrev: "bkpagt",
+        synonym: "archive service",
+    },
+    Ent {
+        words: "license checker",
+        spellings: &["licensechecker.exe", "license_checker.exe"],
+        typo: "license chekcer",
+        abbrev: "lickchk",
+        synonym: "activation validator",
+    },
+    Ent {
+        words: "config loader",
+        spellings: &["configloader.exe", "config-loader.exe"],
+        typo: "confg loader",
+        abbrev: "cfgldr",
+        synonym: "settings reader",
+    },
+    Ent {
+        words: "network monitor",
+        spellings: &["networkmonitor.exe", "NetworkMonitor.exe"],
+        typo: "netwrok monitor",
+        abbrev: "netmon",
+        synonym: "traffic watcher",
+    },
+    Ent {
+        words: "disk indexer",
+        spellings: &["diskindexer.exe", "disk-indexer.exe"],
+        typo: "disk indxer",
+        abbrev: "dskidx",
+        synonym: "file crawler",
+    },
+    Ent {
+        words: "event collector",
+        spellings: &["eventcollector.exe", "Event.Collector.exe"],
+        typo: "event colector",
+        abbrev: "evtcol",
+        synonym: "log gatherer",
+    },
+    Ent {
+        words: "session broker",
+        spellings: &["sessionbroker.exe", "session_broker.exe"],
+        typo: "sesion broker",
+        abbrev: "sessbrk",
+        synonym: "login manager",
+    },
+    Ent {
+        words: "video encoder",
+        spellings: &["videoencoder.exe", "Video.Encoder.exe"],
+        typo: "vidio encoder",
+        abbrev: "videnc",
+        synonym: "movie converter",
+    },
+    Ent {
+        words: "search service",
+        spellings: &["searchservice.exe", "search-service.exe"],
+        typo: "serch service",
+        abbrev: "srchsvc",
+        synonym: "finder daemon",
+    },
+    Ent {
+        words: "font cache",
+        spellings: &["fontcache.exe", "font_cache.exe"],
+        typo: "font cahce",
+        abbrev: "fntcache",
+        synonym: "glyph store",
+    },
+    Ent {
+        words: "thumbnail host",
+        spellings: &["thumbnailhost.exe", "Thumbnail.Host.exe"],
+        typo: "thumbnial host",
+        abbrev: "thumbhst",
+        synonym: "preview renderer",
+    },
+    Ent {
+        words: "device watcher",
+        spellings: &["devicewatcher.exe", "device-watcher.exe"],
+        typo: "devise watcher",
+        abbrev: "devwtch",
+        synonym: "hardware sentinel",
+    },
+    Ent {
+        words: "spell checker",
+        spellings: &["spellchecker.exe", "spell-checker.exe"],
+        typo: "spel checker",
+        abbrev: "splchk",
+        synonym: "grammar tool",
+    },
+    Ent {
+        words: "cache cleaner",
+        spellings: &["cachecleaner.exe", "Cache.Cleaner.exe"],
+        typo: "cach cleaner",
+        abbrev: "cchcln",
+        synonym: "temp purger",
+    },
+    Ent {
+        words: "mail relay",
+        spellings: &["mailrelay.exe", "mail_relay.exe"],
+        typo: "mail rellay",
+        abbrev: "mlrelay",
+        synonym: "smtp forwarder",
+    },
+    Ent {
+        words: "window manager",
+        spellings: &["windowmanager.exe", "Window.Manager.exe"],
+        typo: "windo manager",
+        abbrev: "wndmgr",
+        synonym: "desktop compositor",
+    },
     // Distractors that make "builder", "agent", "player", "monitor", "manager" and "indexer" genuinely ambiguous.
-    Ent { words: "audio player", spellings: &["audioplayer.exe"], typo: "", abbrev: "", synonym: "" },
-    Ent { words: "event monitor", spellings: &["eventmonitor.exe"], typo: "", abbrev: "", synonym: "" },
-    Ent { words: "task manager", spellings: &["taskmanager.exe"], typo: "", abbrev: "", synonym: "" },
-    Ent { words: "search indexer", spellings: &["searchindexer.exe"], typo: "", abbrev: "", synonym: "" },
+    Ent {
+        words: "audio player",
+        spellings: &["audioplayer.exe"],
+        typo: "",
+        abbrev: "",
+        synonym: "",
+    },
+    Ent {
+        words: "event monitor",
+        spellings: &["eventmonitor.exe"],
+        typo: "",
+        abbrev: "",
+        synonym: "",
+    },
+    Ent {
+        words: "task manager",
+        spellings: &["taskmanager.exe"],
+        typo: "",
+        abbrev: "",
+        synonym: "",
+    },
+    Ent {
+        words: "search indexer",
+        spellings: &["searchindexer.exe"],
+        typo: "",
+        abbrev: "",
+        synonym: "",
+    },
 ];
 
 const NEGATIVES: &[&str] = &[
-    "quantum flux", "banana", "database", "zzzz", "red balloon", "xylophone", "kernel panic", "weather report", "coffee machine",
-    "blue sky", "lorem ipsum", "monkey", "violin", "hockey stick", "mountain", "tablecloth", "grape builder", "tree agent",
+    "quantum flux",
+    "banana",
+    "database",
+    "zzzz",
+    "red balloon",
+    "xylophone",
+    "kernel panic",
+    "weather report",
+    "coffee machine",
+    "blue sky",
+    "lorem ipsum",
+    "monkey",
+    "violin",
+    "hockey stick",
+    "mountain",
+    "tablecloth",
+    "grape builder",
+    "tree agent",
 ];
 
 /// (query, ids the user may mean when context is absent, inspected text, expected id when the context decides)
 const AMBIGUOUS: &[(&str, &[&str], &str, &str)] = &[
-    ("builder", &["graphic builder", "report builder"], "crash in reportbuilder.exe at 10:01", "report builder"),
+    (
+        "builder",
+        &["graphic builder", "report builder"],
+        "crash in reportbuilder.exe at 10:01",
+        "report builder",
+    ),
     ("agent", &["tray agent", "backup agent"], "backupagent.exe stopped", "backup agent"),
-    ("player", &["media player", "audio player"], "audioplayer.exe opened device", "audio player"),
-    ("monitor", &["network monitor", "event monitor"], "eventmonitor.exe lagging", "event monitor"),
-    ("manager", &["window manager", "task manager"], "taskmanager.exe not responding", "task manager"),
-    ("indexer", &["disk indexer", "search indexer"], "searchindexer.exe started", "search indexer"),
+    (
+        "player",
+        &["media player", "audio player"],
+        "audioplayer.exe opened device",
+        "audio player",
+    ),
+    (
+        "monitor",
+        &["network monitor", "event monitor"],
+        "eventmonitor.exe lagging",
+        "event monitor",
+    ),
+    (
+        "manager",
+        &["window manager", "task manager"],
+        "taskmanager.exe not responding",
+        "task manager",
+    ),
+    (
+        "indexer",
+        &["disk indexer", "search indexer"],
+        "searchindexer.exe started",
+        "search indexer",
+    ),
 ];
 
 /// Harder phrasings that no layer is built for: plurals, extra words, word order, partial abbreviations, a typo of
@@ -89,7 +298,11 @@ const HARD: &[(&str, Option<&str>)] = &[
 ];
 
 /// Feedback the user gave earlier: (term, entity words); queries by those terms must resolve to that entity.
-const TAUGHT: &[(&str, &str)] = &[("pix", "graphic builder"), ("pdf maker", "report builder"), ("tray thing", "tray agent")];
+const TAUGHT: &[(&str, &str)] = &[
+    ("pix", "graphic builder"),
+    ("pdf maker", "report builder"),
+    ("tray thing", "tray agent"),
+];
 
 fn cand(name: &str, count: u64) -> Candidate {
     Candidate {
@@ -119,7 +332,14 @@ fn book(with_ai: bool, taught: bool) -> NameBook {
     if with_ai {
         for e in ENTS.iter().filter(|e| !e.abbrev.is_empty()) {
             let id = format!("executable|{}", e.words);
-            b.set_ai(&id, AiEntry { model: "fixture".into(), human: title(e.words), aliases: vec![e.abbrev.into(), e.synonym.into()] });
+            b.set_ai(
+                &id,
+                AiEntry {
+                    model: "fixture".into(),
+                    human: title(e.words),
+                    aliases: vec![e.abbrev.into(), e.synonym.into()],
+                },
+            );
         }
     }
     if taught {
@@ -152,7 +372,12 @@ struct Q {
 fn queries() -> Vec<Q> {
     let mut v = Vec::new();
     for e in ENTS.iter().filter(|e| !e.abbrev.is_empty()) {
-        let mk = |t: &str, kind| Q { text: t.into(), expect: Expect::One(e.words), kind, inspected: None };
+        let mk = |t: &str, kind| Q {
+            text: t.into(),
+            expect: Expect::One(e.words),
+            kind,
+            inspected: None,
+        };
         v.push(mk(e.words, "spaced"));
         v.push(mk(&e.words.replace(' ', ""), "joined"));
         v.push(mk(e.typo, "typo"));
@@ -160,24 +385,54 @@ fn queries() -> Vec<Q> {
         v.push(mk(e.synonym, "synonym"));
     }
     for n in NEGATIVES {
-        v.push(Q { text: (*n).into(), expect: Expect::Nothing, kind: "negative", inspected: None });
+        v.push(Q {
+            text: (*n).into(),
+            expect: Expect::Nothing,
+            kind: "negative",
+            inspected: None,
+        });
     }
     for (t, ids, _, _) in AMBIGUOUS {
-        v.push(Q { text: (*t).into(), expect: Expect::Tie(ids), kind: "ambiguous", inspected: None });
+        v.push(Q {
+            text: (*t).into(),
+            expect: Expect::Tie(ids),
+            kind: "ambiguous",
+            inspected: None,
+        });
     }
     for (t, _, ins, id) in AMBIGUOUS {
-        v.push(Q { text: (*t).into(), expect: Expect::One(id), kind: "context", inspected: Some(ins) });
+        v.push(Q {
+            text: (*t).into(),
+            expect: Expect::One(id),
+            kind: "context",
+            inspected: Some(ins),
+        });
     }
     for (t, e) in HARD {
         let expect = match e {
             Some(id) => Expect::One(id),
             None => Expect::Nothing,
         };
-        v.push(Q { text: (*t).into(), expect, kind: "hard", inspected: None });
+        v.push(Q {
+            text: (*t).into(),
+            expect,
+            kind: "hard",
+            inspected: None,
+        });
     }
-    v.push(Q { text: "cache".into(), expect: Expect::Tie(&["font cache", "cache cleaner"]), kind: "ambiguous", inspected: None });
+    v.push(Q {
+        text: "cache".into(),
+        expect: Expect::Tie(&["font cache", "cache cleaner"]),
+        kind: "ambiguous",
+        inspected: None,
+    });
     for (t, id) in TAUGHT {
-        v.push(Q { text: (*t).into(), expect: Expect::One(id), kind: "taught", inspected: None });
+        v.push(Q {
+            text: (*t).into(),
+            expect: Expect::One(id),
+            kind: "taught",
+            inspected: None,
+        });
     }
     v
 }
@@ -194,7 +449,11 @@ struct Score {
 
 impl Score {
     fn pct(a: usize, b: usize) -> f64 {
-        if b == 0 { 0.0 } else { 100.0 * a as f64 / b as f64 }
+        if b == 0 {
+            0.0
+        } else {
+            100.0 * a as f64 / b as f64
+        }
     }
 }
 
@@ -249,11 +508,23 @@ fn layered(b: &NameBook, settings: NameSettings, use_context: bool) -> impl FnMu
     let vocab: Vocabulary = vocabulary_from(&all_cands());
     move |q| {
         let ctx = match (use_context, q.inspected) {
-            (true, Some(t)) => SearchContext { inspected: Some(t.into()), ..SearchContext::default() },
+            (true, Some(t)) => SearchContext {
+                inspected: Some(t.into()),
+                ..SearchContext::default()
+            },
             _ => SearchContext::default(),
         };
-        let r = Resolver { book: b, vocab: &vocab, ctx: &ctx, settings }.resolve(&q.text, 5, None);
-        Answer { ids: r.matches.iter().map(|m| entity_of(&m.id)).collect(), asked: r.clarify.is_some() }
+        let r = Resolver {
+            book: b,
+            vocab: &vocab,
+            ctx: &ctx,
+            settings,
+        }
+        .resolve(&q.text, 5, None);
+        Answer {
+            ids: r.matches.iter().map(|m| entity_of(&m.id)).collect(),
+            asked: r.clarify.is_some(),
+        }
     }
 }
 
@@ -261,7 +532,12 @@ fn layered(b: &NameBook, settings: NameSettings, use_context: bool) -> impl FnMu
 fn baseline(b: &NameBook) -> impl FnMut(&Q) -> Answer + '_ {
     move |q| {
         let words = WordQuery::parse(&q.text);
-        let squash = |s: &str| s.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect::<String>();
+        let squash = |s: &str| {
+            s.chars()
+                .filter(|c| c.is_alphanumeric())
+                .flat_map(char::to_lowercase)
+                .collect::<String>()
+        };
         let qs = squash(&q.text);
         let tri = |s: &str| -> HashSet<String> { s.chars().collect::<Vec<_>>().windows(3).map(|w| w.iter().collect()).collect() };
         let wanted = tri(&qs);
@@ -275,7 +551,8 @@ fn baseline(b: &NameBook) -> impl FnMut(&Q) -> Answer + '_ {
                     1
                 } else if words.matches(&[s.name.as_str()]) {
                     2
-                } else if wanted.len() >= 4 && (tri(&sq).iter().filter(|t| wanted.contains(*t)).count() as f64 / wanted.len() as f64) >= 0.5 {
+                } else if wanted.len() >= 4 && (tri(&sq).iter().filter(|t| wanted.contains(*t)).count() as f64 / wanted.len() as f64) >= 0.5
+                {
                     3
                 } else {
                     continue;
@@ -297,7 +574,18 @@ fn baseline(b: &NameBook) -> impl FnMut(&Q) -> Answer + '_ {
 }
 
 const ENTITY_KINDS: &[&str] = &["spaced", "joined", "typo", "abbreviation", "synonym", "taught", "context"];
-const ALL_KINDS: &[&str] = &["hard", "spaced", "joined", "typo", "abbreviation", "synonym", "taught", "context", "negative", "ambiguous"];
+const ALL_KINDS: &[&str] = &[
+    "hard",
+    "spaced",
+    "joined",
+    "typo",
+    "abbreviation",
+    "synonym",
+    "taught",
+    "context",
+    "negative",
+    "ambiguous",
+];
 
 fn report(name: &str, s: &Score) {
     println!(
@@ -315,8 +603,14 @@ fn report(name: &str, s: &Score) {
 fn evaluation() {
     let qs = queries();
     assert!(qs.len() >= 100, "{}", qs.len());
-    let no_ai = NameSettings { ai_aliases: false, context: false };
-    let ai = NameSettings { ai_aliases: true, context: false };
+    let no_ai = NameSettings {
+        ai_aliases: false,
+        context: false,
+    };
+    let ai = NameSettings {
+        ai_aliases: true,
+        context: false,
+    };
     let full = NameSettings::default();
     let plain = book(false, false);
     let with_ai = book(true, false);
@@ -333,7 +627,10 @@ fn evaluation() {
     report("combined (+ context + feedback)", &all);
     for kind in ALL_KINDS {
         let k = [*kind];
-        report(&format!("  by kind: {kind} (combined)"), &score(&qs, layered(&learned, full, true), &k));
+        report(
+            &format!("  by kind: {kind} (combined)"),
+            &score(&qs, layered(&learned, full, true), &k),
+        );
     }
     if std::env::var("NAMES_EVAL_MISSES").is_ok() {
         let mut f = layered(&learned, full, true);
@@ -367,7 +664,10 @@ fn evaluation() {
     assert!(Score::pct(with.top1, with.n) >= 95.0, "{with:?}");
     // The combined result is better than each step before it and its false suggestions stay low.
     assert!(l1.top1 >= base.top1, "layer 1 never answers fewer queries than the baseline");
-    assert!(l1.false_suggestions * 4 <= base.false_suggestions, "layer 1 cuts false suggestions to a quarter or less");
+    assert!(
+        l1.false_suggestions * 4 <= base.false_suggestions,
+        "layer 1 cuts false suggestions to a quarter or less"
+    );
     assert!(Score::pct(l12.top1, l12.n) > Score::pct(l1.top1, l1.n) + 15.0);
     assert!(all.top1 >= l12.top1);
     assert!(Score::pct(all.false_suggestions, all.n) <= 5.0, "{all:?}");

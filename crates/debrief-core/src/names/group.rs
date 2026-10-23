@@ -81,7 +81,8 @@ impl NameGroup {
     }
 
     fn finish(&mut self) {
-        self.spellings.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
+        self.spellings
+            .sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.name.cmp(&b.name)));
         self.spellings.truncate(MAX_SPELLINGS);
         self.seen_in.sort();
         self.seen_in.truncate(crate::catalogue::MAX_SEEN_IN);
@@ -105,7 +106,10 @@ fn max_opt(a: Option<i64>, b: Option<i64>) -> Option<i64> {
 /// Whether names of this scope are grouped (names for things; not addresses, URLs, ids or codes).
 pub fn groupable(scope: &Scope) -> bool {
     match scope {
-        Scope::Entity(k) => matches!(k, EntityKind::Executable | EntityKind::Library | EntityKind::File | EntityKind::Exception),
+        Scope::Entity(k) => matches!(
+            k,
+            EntityKind::Executable | EntityKind::Library | EntityKind::File | EntityKind::Exception
+        ),
         Scope::Field(_) => true,
     }
 }

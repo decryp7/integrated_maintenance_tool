@@ -131,7 +131,13 @@ impl Cooccurrence {
         }
         let key = if a < b { (a.clone(), b.clone()) } else { (b.clone(), a.clone()) };
         let both = f64::from(self.pairs.get(&key).copied().unwrap_or(0));
-        let rarer = f64::from(self.singles.get(&a).copied().unwrap_or(0).min(self.singles.get(&b).copied().unwrap_or(0)));
+        let rarer = f64::from(
+            self.singles
+                .get(&a)
+                .copied()
+                .unwrap_or(0)
+                .min(self.singles.get(&b).copied().unwrap_or(0)),
+        );
         if rarer == 0.0 {
             0.0
         } else {

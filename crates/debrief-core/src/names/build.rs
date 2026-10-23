@@ -25,7 +25,10 @@ pub fn vocabulary_from(candidates: &[Candidate]) -> Vocabulary {
         if pieces.len() < 2 {
             continue;
         }
-        for p in pieces.iter().filter(|p| p.chars().count() >= 3 && p.chars().all(char::is_alphabetic)) {
+        for p in pieces
+            .iter()
+            .filter(|p| p.chars().count() >= 3 && p.chars().all(char::is_alphabetic))
+        {
             v.add(p, c.count.clamp(1, 1000));
         }
     }
@@ -45,7 +48,10 @@ impl Names {
     /// Rebuilds the table from the store's catalogue (when it is built) and returns the number of groups. The
     /// store is read once, off the lock; AI aliases and user facts are kept.
     pub fn refresh(&self, store: &(impl SearchSource + ?Sized)) -> StoreResult<usize> {
-        let reply = store.catalogue(&CatalogueRequest { all: true, ..CatalogueRequest::default() })?;
+        let reply = store.catalogue(&CatalogueRequest {
+            all: true,
+            ..CatalogueRequest::default()
+        })?;
         if !reply.built {
             return Ok(self.read(|b, _| b.groups().len()));
         }
@@ -89,7 +95,10 @@ impl Names {
     /// Runs the alias job (see [`alias_job::run`]); the book is locked only while storing answers, never while the
     /// model thinks. Does nothing when the Settings switch is off.
     pub fn run_alias_job(&self, model: Option<&dyn AliasModel>, cfg: &AliasJobConfig, cancelled: &dyn Fn() -> bool) -> AliasJobReport {
-        let cfg = AliasJobConfig { enabled: cfg.enabled && self.settings().ai_aliases, ..cfg.clone() };
+        let cfg = AliasJobConfig {
+            enabled: cfg.enabled && self.settings().ai_aliases,
+            ..cfg.clone()
+        };
         let mut snapshot = self.read(|b, _| b.clone());
         let before: std::collections::BTreeSet<String> = snapshot.groups().iter().map(|g| g.id()).collect();
         let rep = alias_job::run(&mut snapshot, model, &cfg, cancelled);
@@ -113,7 +122,14 @@ mod tests {
     use crate::entities::EntityKind;
 
     fn cand(name: &str, n: u64) -> Candidate {
-        Candidate { scope: Scope::Entity(EntityKind::Executable), name: name.into(), count: n, first_ts: None, last_ts: None, seen_in: vec![] }
+        Candidate {
+            scope: Scope::Entity(EntityKind::Executable),
+            name: name.into(),
+            count: n,
+            first_ts: None,
+            last_ts: None,
+            seen_in: vec![],
+        }
     }
 
     #[test]
@@ -141,7 +157,11 @@ mod tests {
         }
         fn catalogue(&self, req: &CatalogueRequest) -> StoreResult<CatalogueReply> {
             assert!(req.all);
-            Ok(CatalogueReply { built: self.1, pending: 0, candidates: self.0.clone() })
+            Ok(CatalogueReply {
+                built: self.1,
+                pending: 0,
+                candidates: self.0.clone(),
+            })
         }
     }
 
@@ -158,7 +178,10 @@ mod tests {
         assert_eq!(names.refresh(&unbuilt).unwrap(), 1);
         names.context().remember("graphic");
         assert_eq!(names.context().recent.len(), 1);
-        names.set_settings(NameSettings { ai_aliases: false, context: true });
+        names.set_settings(NameSettings {
+            ai_aliases: false,
+            context: true,
+        });
         assert!(!names.settings().ai_aliases);
         names.set_book(NameBook::default());
         assert_eq!(names.read(|b, _| b.groups().len()), 0);
@@ -178,11 +201,20 @@ mod tests {
     fn alias_job_respects_the_settings_switch() {
         let names = Names::default();
         names.refresh(&Fixed(vec![cand("graphicbuilder.exe", 50)], true)).unwrap();
-        let cfg = AliasJobConfig { pause: std::time::Duration::ZERO, ..AliasJobConfig::default() };
-        names.set_settings(NameSettings { ai_aliases: false, context: true });
+        let cfg = AliasJobConfig {
+            pause: std::time::Duration::ZERO,
+            ..AliasJobConfig::default()
+        };
+        names.set_settings(NameSettings {
+            ai_aliases: false,
+            context: true,
+        });
         assert_eq!(names.run_alias_job(Some(&M), &cfg, &|| false).skipped, "off");
         names.set_settings(NameSettings::default());
         assert_eq!(names.run_alias_job(Some(&M), &cfg, &|| false).stored, 1);
-        assert_eq!(names.read(|b, _| b.ai("executable|graphic builder").map(|e| e.aliases.clone())), Some(vec!["image editor".to_string()]));
+        assert_eq!(
+            names.read(|b, _| b.ai("executable|graphic builder").map(|e| e.aliases.clone())),
+            Some(vec!["image editor".to_string()])
+        );
     }
 }
