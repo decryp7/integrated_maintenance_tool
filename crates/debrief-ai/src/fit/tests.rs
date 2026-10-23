@@ -1,7 +1,7 @@
 use super::*;
 use crate::gguf::parse;
 use crate::hardware::Gpu;
-use crate::testing::gguf::{Kv, build};
+use crate::testing::gguf::{build, Kv};
 use std::io::Cursor;
 
 const GB: u64 = 1024 * 1024 * 1024;
@@ -274,12 +274,10 @@ fn shorter_context_and_smaller_quant_are_suggested() {
     let huge = assess(&hw, &live, &subject(&qwen3_8b(), 40.0, 8192));
     assert_eq!(huge.fit, Fit::TooLarge);
     assert!(huge.advice.contains(&Advice::SmallerQuant));
-    assert!(
-        !huge
-            .advice
-            .iter()
-            .any(|x| matches!(x, Advice::ShorterContext { .. } | Advice::CloseApps { .. }))
-    );
+    assert!(!huge
+        .advice
+        .iter()
+        .any(|x| matches!(x, Advice::ShorterContext { .. } | Advice::CloseApps { .. })));
 }
 
 #[test]

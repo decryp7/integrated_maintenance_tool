@@ -1,4 +1,4 @@
-import { inject, Injectable, signal } from '@angular/core';
+import { DestroyRef, inject, Injectable, signal } from '@angular/core';
 import { DockContext } from './dock-context';
 import { LAYOUT_STORE, SavedLayout } from './layout-store';
 
@@ -11,6 +11,11 @@ export class DockPersistence {
   private readonly store = inject(LAYOUT_STORE);
   private timer: ReturnType<typeof setTimeout> | undefined;
   private readonly saved = signal<SavedLayout | null>(null);
+
+  constructor() {
+    // A save still waiting when the injector goes away (a window closing, a test ending) has nothing to read.
+    inject(DestroyRef).onDestroy(() => this.cancel());
+  }
 
   /** The layout as last saved (projects and sessions save it too). */
   readonly savedLayout = this.saved.asReadonly();

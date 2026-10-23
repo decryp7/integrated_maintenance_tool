@@ -625,12 +625,10 @@ mod tests {
         let p = dir.path().join("m.gguf");
         std::fs::write(&p, qwen_like()).unwrap();
         assert_eq!(inspect(&p).unwrap().architecture, "qwen3");
-        assert!(
-            inspect(&dir.path().join("none.gguf"))
-                .unwrap_err()
-                .to_string()
-                .contains("cannot read")
-        );
+        assert!(inspect(&dir.path().join("none.gguf"))
+            .unwrap_err()
+            .to_string()
+            .contains("cannot read"));
         assert!(inspect(dir.path()).unwrap_err().to_string().contains("not a file"));
     }
 
@@ -668,26 +666,20 @@ mod tests {
         assert!(other.check_fits(&model).unwrap_err().to_string().contains("another model"));
         // A model is not a projector; an audio-only projector has no image encoder.
         let m = qwen_like();
-        assert!(
-            parse_projector(Cursor::new(m.clone()), m.len() as u64)
-                .unwrap_err()
-                .to_string()
-                .contains("not an image projector")
-        );
+        assert!(parse_projector(Cursor::new(m.clone()), m.len() as u64)
+            .unwrap_err()
+            .to_string()
+            .contains("not an image projector"));
         let audio = build("clip", &[("clip.has_audio_encoder", Kv::Bool(true))], 1 << 17);
-        assert!(
-            parse_projector(Cursor::new(audio.clone()), audio.len() as u64)
-                .unwrap_err()
-                .to_string()
-                .contains("no image encoder")
-        );
+        assert!(parse_projector(Cursor::new(audio.clone()), audio.len() as u64)
+            .unwrap_err()
+            .to_string()
+            .contains("no image encoder"));
         let tiny = build("clip", &[("clip.has_vision_encoder", Kv::Bool(true))], 0);
-        assert!(
-            parse_projector(Cursor::new(tiny.clone()), tiny.len() as u64)
-                .unwrap_err()
-                .to_string()
-                .contains("too small")
-        );
+        assert!(parse_projector(Cursor::new(tiny.clone()), tiny.len() as u64)
+            .unwrap_err()
+            .to_string()
+            .contains("too small"));
         // Defaults when the header says little; the native size wins over a tiny token budget.
         let bare = ProjectorInfo {
             name: None,

@@ -2,11 +2,11 @@
 //! Intel with only the normal graphics driver installed.
 
 use crate::hardware::Gpu;
-use windows::Win32::Graphics::Dxgi::{
-    CreateDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, DXGI_QUERY_VIDEO_MEMORY_INFO, IDXGIAdapter3,
-    IDXGIFactory1,
-};
 use windows::core::Interface;
+use windows::Win32::Graphics::Dxgi::{
+    CreateDXGIFactory1, IDXGIAdapter3, IDXGIFactory1, DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+    DXGI_QUERY_VIDEO_MEMORY_INFO,
+};
 
 /// Free dedicated video memory of the adapter with the most dedicated memory (the discrete GPU of a laptop that
 /// also has an integrated one; budget the system grants this process minus what

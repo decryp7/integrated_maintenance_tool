@@ -30,7 +30,13 @@ pub fn progress_line(p: &ProgressSnapshot) -> String {
         ImportPhase::Idle => String::new(),
         ImportPhase::Finding => format!("Finding files: {} found ({})", p.done, size(p.bytes_total)),
         ImportPhase::Detecting => format!("Checking files: {} of {}", p.done, p.total),
-        ImportPhase::Importing => format!("Importing {} of {} files, {} of {}", p.done, p.total, size(p.bytes_done), size(p.bytes_total)),
+        ImportPhase::Importing => format!(
+            "Importing {} of {} files, {} of {}",
+            p.done,
+            p.total,
+            size(p.bytes_done),
+            size(p.bytes_total)
+        ),
         ImportPhase::Finishing => p.stage.clone().unwrap_or_else(|| "Finishing".into()),
     }
 }
@@ -101,7 +107,12 @@ mod tests {
     #[test]
     fn a_finished_import_returns_its_report_and_a_stop_cancels_it() {
         let mut out = Vec::new();
-        let done = session(|_| Ok(ImportReport { events: 7, ..ImportReport::default() }));
+        let done = session(|_| {
+            Ok(ImportReport {
+                events: 7,
+                ..ImportReport::default()
+            })
+        });
         let report = wait_until(done, false, &mut out, || false).unwrap().unwrap();
         assert_eq!(report.events, 7);
         let slow = session(|p| {

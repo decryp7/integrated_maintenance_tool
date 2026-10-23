@@ -1,7 +1,7 @@
 //! "Set up AI assistant": probe the hardware, recommend a model, download and verify it (and its image
 //! projector, ADR 0025), validate the file, load it (GPU first, CPU fallback), warm it up and remember the choice.
 
-use crate::catalog::{Catalog, CatalogModel, projector_file_name};
+use crate::catalog::{projector_file_name, Catalog, CatalogModel};
 use crate::error::{AiError, Result};
 use crate::fit::{Fit, KvShape, Live, ShapeCache};
 use crate::gguf;
@@ -11,8 +11,8 @@ use crate::models::header::read_remote_header;
 use crate::models::source::RemoteFile;
 use crate::models::source::{ModelSource, Phase, Progress};
 use crate::models::{DiskSpace, DownloadOptions, Downloader, ModelStore};
-use crate::recommend::{Recommendation, Recommendations, recommend_with};
-use crate::runtime::{LoadRequest, ModelRuntime, check_memory, effective_context, load_with_fallback, projector_bytes};
+use crate::recommend::{recommend_with, Recommendation, Recommendations};
+use crate::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
 use crate::settings::AiSettings;
 use serde::Serialize;
 use std::path::Path;
@@ -198,7 +198,11 @@ impl Setup<'_> {
         let installed = projector_file_name(&choice.file)
             .and_then(|n| std::fs::metadata(self.store.dir().join(n)).ok())
             .is_some_and(|m| m.len() == p.size_bytes);
-        if installed { 0 } else { p.size_bytes }
+        if installed {
+            0
+        } else {
+            p.size_bytes
+        }
     }
 
     /// Activates a model that is already in the models folder (also used for models the user added).

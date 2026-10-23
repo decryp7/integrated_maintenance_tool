@@ -2,7 +2,7 @@
 //! fast it will run, which catalog model to suggest, and how many layers to put on the GPU.
 
 use crate::catalog::{Catalog, CatalogModel};
-use crate::fit::{KvShape, Live, Subject, assess};
+use crate::fit::{assess, KvShape, Live, Subject};
 use crate::hardware::Hardware;
 use crate::settings::AiSettings;
 use serde::Serialize;

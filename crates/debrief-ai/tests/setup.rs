@@ -3,7 +3,6 @@
 
 mod common;
 use common::{blob, sha256_hex};
-use debrief_ai::AiError;
 use debrief_ai::catalog::{Catalog, CatalogModel};
 use debrief_ai::gguf;
 use debrief_ai::hardware::{Gpu, Hardware, HardwareProbe};
@@ -13,6 +12,7 @@ use debrief_ai::runtime::*;
 use debrief_ai::settings::{AiSettings, GpuOffload};
 use debrief_ai::setup::*;
 use debrief_ai::testing::gguf::{projector_like, qwen_like};
+use debrief_ai::AiError;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -309,7 +309,6 @@ fn set_up_runs_every_stage_and_remembers_the_model() {
             "probing",
             "recommending",
             "downloading",
-            "verifying",
             "validating",
             "loading",
             "warming",
@@ -321,11 +320,9 @@ fn set_up_runs_every_stage_and_remembers_the_model() {
         stages.iter().find(|s| matches!(s, SetupStage::Loading { .. })),
         Some(SetupStage::Loading { gpu: true })
     ));
-    assert!(
-        stages
-            .iter()
-            .any(|s| matches!(s, SetupStage::Downloading { total, .. } if *total == f.source.data.len() as u64))
-    );
+    assert!(stages
+        .iter()
+        .any(|s| matches!(s, SetupStage::Downloading { total, .. } if *total == f.source.data.len() as u64)));
     assert_eq!(out.backend, "Metal");
     assert!(out.notes.is_empty());
     assert!(f.store.dir().join("fake-4b.gguf").is_file() && !f.store.dir().join("fake-4b.gguf.part").exists());
@@ -414,14 +411,13 @@ fn failures_at_each_stage_are_clear_and_leave_nothing_half_done() {
     let f = fixture(Engine::Works);
     std::fs::create_dir_all(f.store.dir()).unwrap();
     std::fs::write(f.store.dir().join("junk.gguf"), b"<html>error page</html>").unwrap();
-    assert!(
-        f.setup()
-            .activate("junk.gguf", &Progress::new(), &mut |_| {})
-            .err()
-            .unwrap()
-            .to_string()
-            .contains("web page")
-    );
+    assert!(f
+        .setup()
+        .activate("junk.gguf", &Progress::new(), &mut |_| {})
+        .err()
+        .unwrap()
+        .to_string()
+        .contains("web page"));
     assert!(matches!(
         f.setup().activate("../x.gguf", &Progress::new(), &mut |_| {}),
         Err(AiError::Refused(_))
@@ -667,11 +663,9 @@ fn a_model_that_reads_images_is_installed_with_its_projector() {
     r.unwrap();
     // One install downloads both, each verified; the projector is kept next to the model under its own name.
     assert_eq!(f.source.fetches.load(Ordering::SeqCst), 2);
-    assert!(
-        stages
-            .iter()
-            .any(|s| matches!(s, SetupStage::Downloading { total, .. } if *total == f.source.projector.len() as u64))
-    );
+    assert!(stages
+        .iter()
+        .any(|s| matches!(s, SetupStage::Downloading { total, .. } if *total == f.source.projector.len() as u64)));
     let p = f.store.dir().join("fake-4b.mmproj.gguf");
     assert!(p.is_file() && !f.store.dir().join("mmproj-F16.gguf").exists());
     let list = f.store.list();
@@ -722,7 +716,7 @@ fn a_projector_that_differs_from_the_catalog_is_refused_and_the_model_kept() {
 
 #[test]
 fn refining_reads_the_header_once_and_matches_the_verdict_for_the_downloaded_file() {
-    use debrief_ai::fit::{Live, Subject, assess};
+    use debrief_ai::fit::{assess, Live, Subject};
     use debrief_ai::hardware::HardwareProbe;
     let f = fixture(Engine::Works);
     let s = f.setup();

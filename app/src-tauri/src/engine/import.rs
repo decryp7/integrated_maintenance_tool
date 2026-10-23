@@ -222,7 +222,10 @@ mod tests {
             ..ProgressSnapshot::stopped()
         };
         let j = job_progress(&p);
-        assert_eq!((j.phase, j.done, j.fraction), (Some(JobPhase::new("Finding files", PhaseScale::Indeterminate)), Some(12_345), None));
+        assert_eq!(
+            (j.phase, j.done, j.fraction),
+            (Some(JobPhase::new("Finding files", PhaseScale::Indeterminate)), Some(12_345), None)
+        );
         assert_eq!(j.current.as_deref(), Some("2026/march"), "the folder, not the whole path");
         assert_eq!(folder_name("/x"), "x");
     }

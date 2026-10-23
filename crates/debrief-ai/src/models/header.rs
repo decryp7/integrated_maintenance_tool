@@ -27,7 +27,11 @@ pub fn read_remote_header(source: &dyn ModelSource, remote: &RemoteFile) -> Resu
                     let room = target - buf.len();
                     buf.extend_from_slice(&bytes[..bytes.len().min(room)]);
                     // Enough: ending the transfer early is how a prefix is read.
-                    if buf.len() >= target { Err(AiError::Cancelled) } else { Ok(()) }
+                    if buf.len() >= target {
+                        Err(AiError::Cancelled)
+                    } else {
+                        Ok(())
+                    }
                 },
                 &cancel,
             );
@@ -47,9 +51,9 @@ pub fn read_remote_header(source: &dyn ModelSource, remote: &RemoteFile) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::gguf::{Kv, build, qwen_like};
-    use std::sync::Mutex;
+    use crate::testing::gguf::{build, qwen_like, Kv};
     use std::sync::atomic::Ordering;
+    use std::sync::Mutex;
 
     /// Serves a byte vector and records how much was requested.
     struct Fake {

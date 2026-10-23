@@ -2,7 +2,7 @@
 //! (`engine::LlamaRuntime`) wraps llama.cpp; tests use fakes.
 
 use crate::error::{AiError, Result};
-use crate::fit::{Advice, Fit, Live, Subject, assess};
+use crate::fit::{assess, Advice, Fit, Live, Subject};
 use crate::gguf::GgufInfo;
 use crate::hardware::Hardware;
 use crate::llm::{LlmProvider, ModelLoader};

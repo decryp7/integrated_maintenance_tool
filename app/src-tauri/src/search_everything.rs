@@ -190,7 +190,16 @@ mod tests {
     #[test]
     fn find_values_answers_with_the_values_the_words_refer_to() {
         let app = test_app(None);
-        let ask = |text: &str| block(find_values(app.handle().clone(), main_window(&app), FindValuesRequest { text: text.into(), limit: 0 }));
+        let ask = |text: &str| {
+            block(find_values(
+                app.handle().clone(),
+                main_window(&app),
+                FindValuesRequest {
+                    text: text.into(),
+                    limit: 0,
+                },
+            ))
+        };
         assert!(ask("timeout").unwrap().is_empty(), "nothing opened: no values, not an error");
         import(&main_window(&app), &[samples().join("serilog-clef")]);
         assert!(ask("--").unwrap().is_empty(), "no words: no values");

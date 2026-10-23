@@ -3,17 +3,17 @@
 //! the free memory the build reports, falls back to the next build when one does not start, restarts a
 //! server that died, and maps everything to the worker protocol's typed errors.
 
-use crate::capabilities::{Capabilities, file_stem, server_info};
-use crate::child::{ServerChild, StartError, run_briefly};
-use crate::completion::{Event, completion_body, parse_stream_line, server_error, token_count, tokenize_body, with_media_marker};
-use crate::devices::{Device, best_gpu, parse_list_devices};
+use crate::capabilities::{file_stem, server_info, Capabilities};
+use crate::child::{run_briefly, ServerChild, StartError};
+use crate::completion::{completion_body, parse_stream_line, server_error, token_count, tokenize_body, with_media_marker, Event};
+use crate::devices::{best_gpu, parse_list_devices, Device};
 use crate::http::{Call, HttpError};
 use crate::locate::LlamaConfig;
-use crate::variants::{BuildChoice, label, needs_gpu, try_order};
+use crate::variants::{label, needs_gpu, try_order, BuildChoice};
 use debrief_ai::gguf;
-use debrief_ai::recommend::{OffloadInput, plan_offload};
+use debrief_ai::recommend::{plan_offload, OffloadInput};
 use debrief_ai::worker::protocol::*;
-use debrief_ai::worker::{WorkerBackend, current_rss_bytes};
+use debrief_ai::worker::{current_rss_bytes, WorkerBackend};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

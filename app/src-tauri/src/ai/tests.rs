@@ -485,7 +485,7 @@ fn set_up_downloads_as_a_job_and_becomes_ready() {
     let s = stages(&events);
     assert_eq!(&s[..3], ["probing", "recommending", "downloading"], "{s:?}");
     assert!(
-        s.contains(&"verifying".to_string()) && s.contains(&"warmingUp".to_string()),
+        s.contains(&"warmingUp".to_string()),
         "{s:?}"
     );
     wait_until("the task to go", || {

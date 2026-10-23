@@ -8,7 +8,7 @@
 
 use crate::gguf::GgufInfo;
 use crate::hardware::Hardware;
-use crate::recommend::{MemoryClass, Speed, budget};
+use crate::recommend::{budget, MemoryClass, Speed};
 use serde::Serialize;
 
 const GIB: f64 = 1024.0 * 1024.0 * 1024.0;

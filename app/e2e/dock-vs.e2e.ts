@@ -145,7 +145,7 @@ test.describe('VS-style docking', () => {
     await expect(groupOf(page, 'Events').getByRole('button', { name: /^Auto-hide/ })).toHaveCount(0);
     const button = groupOf(page, 'Inspector').getByRole('button', { name: 'Auto-hide Inspector' });
     await expect(button).toHaveAttribute('aria-pressed', 'false');
-    await expect(button).toHaveAttribute('title', /Ctrl\+Alt\+H/);
+    await expect(button).toHaveAttribute('title', /Ctrl\+Alt\+H|⌃⌥H/);
 
     // Default: the edge the pane is nearest to (right).
     await button.click();

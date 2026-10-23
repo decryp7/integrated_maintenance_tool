@@ -4,10 +4,9 @@
 
 use super::error::{AiCmdError, AiErrorCode, AiResult};
 use super::runtimes::{RuntimeDeps, RuntimeJobs};
-use debrief_ai::AiError;
 use debrief_ai::assistant::{Assistant, AssistantConfig};
 use debrief_ai::catalog::Catalog;
-use debrief_ai::fit::{self, Assessment, Live, Subject, assess};
+use debrief_ai::fit::{self, assess, Assessment, Live, Subject};
 use debrief_ai::gguf::{self, GgufInfo};
 use debrief_ai::hardware::{Hardware, HardwareProbe, SystemProbe};
 use debrief_ai::knowledge::{KnowledgeFile, KnowledgeProvider};
@@ -16,12 +15,13 @@ use debrief_ai::models::source::{ModelSource, Progress};
 use debrief_ai::models::store::InstalledProjector;
 use debrief_ai::models::verify::verify_local;
 use debrief_ai::models::{AddMode, DiskSpace, HfConfig, HuggingFace, ModelStore, SystemDisk};
-use debrief_ai::recommend::{Recommendation, Recommendations, recommend_with};
-use debrief_ai::runtime::{LoadRequest, ModelRuntime, check_memory, effective_context, load_with_fallback, projector_bytes};
+use debrief_ai::recommend::{recommend_with, Recommendation, Recommendations};
+use debrief_ai::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
 use debrief_ai::settings::AiSettings;
 use debrief_ai::setup::{Setup, SetupPlan, SetupStage};
 use debrief_ai::worker::protocol::ServerInfo;
 use debrief_ai::worker::{FramesLauncher, Health, WorkerConfig, WorkerRuntime};
+use debrief_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
