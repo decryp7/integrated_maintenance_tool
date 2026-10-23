@@ -5,11 +5,7 @@ import { EMPTY_NOTICES, Notice, NoticeSource, NoticesEvent, NoticesSnapshot } fr
 
 /** Toasts shown at once (newest last). */
 export const MAX_TOASTS = 3;
-/** A toast goes away by itself after this long (the message stays in Notifications). */
-export const TOAST_MS = 8000;
 
-/** Errors and critical failures stay until resolved or dismissed (the host's display rule); the rest time out. */
-const staysUntilDismissed = (severity: Notice['severity']): boolean => severity === 'error' || severity === 'critical';
 
 export type ReadFilter = 'all' | 'unread';
 
@@ -90,7 +86,6 @@ export const NotificationsStore = signalStore(
   }),
   withMethods((store, backend = inject(NotificationsBackend)) => {
     let last: (() => Promise<unknown>) | null = null;
-    const timers = new Map<number, ReturnType<typeof setTimeout>>();
     let localIds = 0;
     const run = async <T>(f: () => Promise<T>): Promise<T | null> => {
       last = f;
@@ -105,8 +100,6 @@ export const NotificationsStore = signalStore(
     const markLocal = (id: number) => patchState(store, (s) => ({ local: s.local.map((l) => (l.notice.id === id ? { ...l, notice: { ...l.notice, read: true } } : l)) }));
     const removeLocal = (id: number) => patchState(store, (s) => ({ local: s.local.filter((l) => l.notice.id !== id) }));
     const dismissToast = (id: number) => {
-      clearTimeout(timers.get(id));
-      timers.delete(id);
       patchState(store, (s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
     };
     return {
@@ -115,9 +108,6 @@ export const NotificationsStore = signalStore(
         const p = e.posted;
         if (p && !p.read && !OWN_TOASTS.includes(p.source)) {
           patchState(store, (s) => ({ toasts: [...s.toasts.filter((t) => t.id !== p.id), p].slice(-MAX_TOASTS) }));
-          clearTimeout(timers.get(p.id));
-          timers.delete(p.id);
-          if (!staysUntilDismissed(p.severity)) timers.set(p.id, setTimeout(() => dismissToast(p.id), TOAST_MS));
         }
       },
 
@@ -210,24 +200,6 @@ export const NotificationsStore = signalStore(
           scope: 'project',
         };
         patchState(store, (s) => ({ toasts: [...s.toasts, toast].slice(-MAX_TOASTS) }));
-        if (!staysUntilDismissed(toast.severity)) timers.set(toast.id, setTimeout(() => dismissToast(toast.id), TOAST_MS));
-      },
-
-      /** Keeps the toast open while the pointer or focus is on it. */
-      holdToast(id: number): void {
-        clearTimeout(timers.get(id));
-        timers.delete(id);
-      },
-
-      /** The pointer and focus left the toast: it goes after the usual time again. */
-      releaseToast(id: number): void {
-        const toast = store.toasts().find((t) => t.id === id);
-        if (!toast || staysUntilDismissed(toast.severity)) return;
-        clearTimeout(timers.get(id));
-        timers.set(
-          id,
-          setTimeout(() => dismissToast(id), TOAST_MS),
-        );
       },
 
       toggleSource(source: NoticeSource): void {

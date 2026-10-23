@@ -1,8 +1,8 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { all, buttonByText, el, settle, text } from '../../testing/helpers';
-import { MAX_VISIBLE, HostNotification, NOTIFICATION_SOURCES, NotificationSource, persists, visibleNotifications } from './notification-host.model';
+import { MAX_VISIBLE, TOAST_MS, HostNotification, NOTIFICATION_SOURCES, NotificationSource, persists, visibleNotifications } from './notification-host.model';
 import { NotificationHost } from './notification-host';
 
 const n = (cause: string, extra: Partial<HostNotification> = {}): HostNotification => ({ cause, severity: 'info', title: cause, dismiss: () => undefined, ...extra });
@@ -27,7 +27,8 @@ describe('visibleNotifications (the one display rule)', () => {
   });
 
   it('errors and critical failures persist, the rest time out', () => {
-    expect((['info', 'success', 'warning', 'error', 'critical'] as const).map(persists)).toEqual([false, false, false, true, true]);
+    expect((['info', 'success', 'warning', 'error', 'critical'] as const).map((severity) => persists({ severity }))).toEqual([false, false, false, true, true]);
+    expect(persists({ severity: 'info', sticky: true })).toBe(true);
   });
 });
 
@@ -85,18 +86,12 @@ describe('NotificationHost', () => {
     expect(text(f)).toContain('nope');
   });
 
-  it('dismiss, hold and release go to the source', async () => {
+  it('the dismiss button goes to the source', async () => {
     const dismiss = vi.fn();
-    const hold = vi.fn();
-    const release = vi.fn();
-    const { f } = setup([n('a', { dismiss, hold, release })]);
+    const { f } = setup([n('a', { dismiss })]);
     await settle(f);
-    const toast = el(f, '[data-testid=notification]');
-    toast.dispatchEvent(new MouseEvent('mouseenter'));
-    toast.dispatchEvent(new MouseEvent('mouseleave'));
-    // Dismissing is in the spec below; here only the pointer.
     el<HTMLButtonElement>(f, '[data-testid=notification-dismiss]').click();
-    expect([hold.mock.calls.length, release.mock.calls.length, dismiss.mock.calls.length]).toEqual([1, 1, 1]);
+    expect(dismiss).toHaveBeenCalledTimes(1);
   });
 
   it('merges several sources by cause and hides health causes', async () => {
@@ -119,5 +114,80 @@ describe('NotificationHost', () => {
     const f = TestBed.createComponent(NotificationHost);
     await settle(f);
     expect(all(f, '[data-testid=notification]')).toHaveLength(0);
+  });
+
+  describe('time', () => {
+    afterEach(() => vi.useRealTimers());
+
+    async function timed(items: HostNotification[]) {
+      vi.useFakeTimers();
+      const r = setup(items);
+      r.f.detectChanges();
+      await vi.advanceTimersByTimeAsync(0);
+      r.f.detectChanges();
+      return r;
+    }
+
+    it('a toast that times out is dismissed in the source after TOAST_MS; errors, critical and sticky ones stay', async () => {
+      const gone: string[] = [];
+      const mk = (cause: string, extra: Partial<HostNotification> = {}) => n(cause, { dismiss: () => gone.push(cause), ...extra });
+      await timed([mk('e', { severity: 'error' }), mk('s', { sticky: true }), mk('w', { severity: 'warning' })]);
+      await vi.advanceTimersByTimeAsync(TOAST_MS - 1);
+      expect(gone).toEqual([]);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(gone).toEqual(['w']);
+      await vi.advanceTimersByTimeAsync(TOAST_MS * 10);
+      expect(gone).toEqual(['w']);
+    });
+
+    it('a toast can ask for its own time', async () => {
+      const gone: string[] = [];
+      await timed([n('a', { ttl: 10_000, dismiss: () => gone.push('a') })]);
+      await vi.advanceTimersByTimeAsync(TOAST_MS + 1);
+      expect(gone).toEqual([]);
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(gone).toEqual(['a']);
+    });
+
+    it('posting the cause again starts the time over', async () => {
+      const gone: string[] = [];
+      const dismiss = () => gone.push('a');
+      const { f, list } = await timed([n('a', { stamp: 1, dismiss })]);
+      await vi.advanceTimersByTimeAsync(TOAST_MS - 1000);
+      list.set([n('a', { stamp: 2, count: 2, dismiss })]);
+      f.detectChanges();
+      await vi.advanceTimersByTimeAsync(TOAST_MS - 1000);
+      expect(gone).toEqual([]);
+      await vi.advanceTimersByTimeAsync(1000);
+      expect(gone).toEqual(['a']);
+    });
+
+    it('holds a toast while the pointer or focus is on it and times it out once both have left', async () => {
+      const gone: string[] = [];
+      const { f } = await timed([n('a', { dismiss: () => gone.push('a'), actions: [{ label: 'Go', run: () => undefined }] })]);
+      const toast = el(f, '[data-testid=notification]');
+      toast.dispatchEvent(new MouseEvent('mouseenter'));
+      await vi.advanceTimersByTimeAsync(TOAST_MS * 5);
+      expect(gone).toEqual([]);
+      el<HTMLButtonElement>(f, '[data-testid=notification-action]').focus();
+      toast.dispatchEvent(new MouseEvent('mouseleave'));
+      await vi.advanceTimersByTimeAsync(TOAST_MS * 5);
+      expect(gone).toEqual([]); // focus is still inside
+      el<HTMLButtonElement>(f, '[data-testid=notification-action]').blur();
+      toast.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
+      await vi.advanceTimersByTimeAsync(TOAST_MS - 1);
+      expect(gone).toEqual([]);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(gone).toEqual(['a']);
+    });
+
+    it('a toast that went away loses its timer', async () => {
+      const gone: string[] = [];
+      const { f, list } = await timed([n('a', { dismiss: () => gone.push('a') })]);
+      list.set([]);
+      f.detectChanges();
+      await vi.advanceTimersByTimeAsync(TOAST_MS * 2);
+      expect(gone).toEqual([]);
+    });
   });
 });

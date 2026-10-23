@@ -21,8 +21,7 @@ describe('WorkspaceSource', () => {
     expect(source.items().map((i) => i.cause)).toEqual(['workspace.notice']);
   });
 
-  it('offers the notice action and pauses the notice under the pointer', () => {
-    vi.useFakeTimers();
+  it('offers the notice action, which dismisses the notice', () => {
     TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
     const store = TestBed.inject(WorkspaceStore);
     const source = TestBed.inject(WorkspaceSource);
@@ -30,12 +29,8 @@ describe('WorkspaceSource', () => {
     store.setNotice('Saved Case 7', { label: 'Undo', run });
     const [item] = source.items();
     expect(item?.actions?.map((a) => a.label)).toEqual(['Undo']);
-    item?.hold?.();
-    vi.advanceTimersByTime(60_000);
-    expect(source.items()).toHaveLength(1);
     item?.actions?.[0]?.run();
     expect(run).toHaveBeenCalled();
     expect(source.items()).toEqual([]);
-    vi.useRealTimers();
   });
 });

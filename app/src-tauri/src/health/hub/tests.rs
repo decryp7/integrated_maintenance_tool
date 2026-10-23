@@ -212,3 +212,65 @@ fn code_without_a_handle_reports_to_the_threads_health() {
         (Some(ServiceState::Ok), Some(ServiceState::Ok))
     );
 }
+
+fn stop(service: &'static str, plugin: Option<&str>, target: &str) -> crate::performance::watch::Stop {
+    crate::performance::watch::Stop {
+        service,
+        plugin: plugin.map(str::to_string),
+        cause: Cause::new("It was stopped: it used more than its cap")
+            .hint("Raise the cap")
+            .raise_cap(target, 3328),
+    }
+}
+
+#[test]
+fn the_store_worker_stopped_by_its_memory_cap_is_down_with_the_advice_and_keeps_it_through_its_symptoms() {
+    let (h, seen) = health();
+    h.memory_stopped(STORE, None, stop(STORE, None, "storeWorker").cause);
+    let s = h.registry.get(STORE).unwrap();
+    assert_eq!((s.state, s.repair), (ServiceState::Down, Some(RepairAction::Retry)));
+    let cap = s.cause.clone().unwrap().raise_cap.unwrap();
+    assert_eq!((cap.target.as_str(), cap.suggested_mb), ("storeWorker", 3328));
+    // The next command meets a dead worker: that is the same outage, not a new cause.
+    h.store_failed(StoreFailure::Crashed, "the store worker exited");
+    assert_eq!(
+        h.registry.get(STORE).unwrap().cause.unwrap().raise_cap.map(|c| c.suggested_mb),
+        Some(3328)
+    );
+    assert_eq!(lock(&seen).len(), 1);
+    // A failure of another kind (the library is missing) replaces it.
+    h.store_failed(StoreFailure::LibraryMissing, "image not found");
+    assert!(h.registry.get(STORE).unwrap().cause.unwrap().raise_cap.is_none());
+}
+
+#[test]
+fn trying_again_after_a_cap_stop_restarts_the_service_and_drops_the_advice() {
+    let (h, _) = health();
+    h.set_repair(STORE, Arc::new(|| Ok(())));
+    h.set_repair(AI, Arc::new(|| Ok(())));
+    for (service, target) in [(STORE, "storeWorker"), (AI, "ai")] {
+        h.memory_stopped(service, None, stop(service, None, target).cause);
+        if service == AI {
+            h.ai(AiHealth::Fine, None);
+            assert_eq!(h.state(AI), Some(ServiceState::Down), "the probe does not forget a cap stop");
+        }
+        let id = h.begin_repair(service).unwrap();
+        h.finish_repair(id);
+        assert_eq!(h.state(service), Some(ServiceState::Ok), "{service}");
+    }
+    h.memory_stopped(AI, None, stop(AI, None, "ai").cause);
+    h.clear_cap_stop(AI);
+    h.ai(AiHealth::Fine, None);
+    assert_eq!(h.state(AI), Some(ServiceState::Ok), "ai_reset clears it");
+}
+
+#[test]
+fn a_plugin_stopped_by_its_memory_cap_joins_the_plugins_service_with_the_advice_until_allowed_again() {
+    let (h, _) = health();
+    h.memory_stopped(PLUGINS, Some("net.x"), stop(PLUGINS, Some("net.x"), "plugin:net.x").cause);
+    let s = h.registry.get(PLUGINS).unwrap();
+    assert_eq!((s.state, s.repair), (ServiceState::Quarantined, Some(RepairAction::LiftQuarantine)));
+    assert_eq!(s.cause.unwrap().raise_cap.map(|c| c.target), Some("plugin:net.x".to_string()));
+    h.plugin_reset("net.x");
+    assert_eq!(h.state(PLUGINS), Some(ServiceState::Ok));
+}

@@ -161,8 +161,19 @@ the text above:
   message's Retry repairs through health.
 - **One host.** `NotificationHost` is fed by sources (`NOTIFICATION_SOURCES`): the notification centre, live alerts,
   updates, error snapshots and the workspace error and notice. The five toast components and `ui/toast-stack.ts` are
-  deleted. Sources still own their timers (errors persist, the rest time out); the host owns layout, cause dedupe, Details
-  and the rule that a `health:` cause is never toasted. Some test ids (`notice-toast`, `alert-toast`, `updates-toast`,
-  `snapshot-toast`) were kept on purpose.
-- **Not done.** No cross-process test with a real killed store worker (the worker binary is not built in unit tests); the
-  repair closures are covered through the registry, and the real `StoreWorker` path by the existing supervisor tests.
+  deleted. Sources only post, update and resolve; the host owns layout, cause dedupe, Details, the rule that a `health:`
+  cause is never toasted, and the time of every toast (8 s, 10 s for live alerts; held under the pointer or focus; started
+  over when the cause is posted again; errors, critical and `sticky` ones stay). Test ids are the host's:
+  `notification`, `notification-action-<id>`, `data-cause` to pick a toast.
+- **Memory caps.** A cap stop is not a separate message any more: the store worker and the AI worker are `down` with the
+  cap advice (`cause.raiseCap`: target and suggested MB) and the repair "Try again"; a plugin joins the plugins service.
+  The chip offers "Raise the cap…" (the app provides `RAISE_CAP`, which opens Settings ▸ Performance or the plugin's cap)
+  next to the repair. The cause is kept when the dead worker's next call fails, until the service is repaired. The
+  `raiseMemoryCap` and `retryProcess` notice actions and `RepairAction::RaiseCap` are gone.
+- **Errors name their service.** `CmdError.cause` is a `ServiceCause` (store, ai, plugins, browser, downloads), set on an
+  error only while service health says that service is not working (`in_outage_of`; from the state, not from the text).
+  `ErrorDetails` takes a `service` input; the chat panel, the browser bar and research dialog, the model manager and the
+  runtime panel wait for their service the same way.
+- **Tests with a real process.** `health::commands::tests` starts the built `debrief-store-worker` (from the test's own
+  target folder), kills it until the supervisor quarantines it, checks the engine's error mapping and the registry, repairs
+  it through the real `repair_store` and checks the new process answers and that nothing is left after shutdown.

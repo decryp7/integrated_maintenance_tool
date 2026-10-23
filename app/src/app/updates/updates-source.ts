@@ -17,7 +17,7 @@ export class UpdatesSource implements NotificationSource {
         cause: `update:${version}`,
         severity: 'info',
         title: $localize`:@@updates.toast.text:Debrief ${version}:version: is available`,
-        testId: 'updates-toast',
+        sticky: true,
         actions: [{ label: $localize`:@@updates.toast.view:View`, kind: 'primary', run: () => this.view() }],
         dismiss: () => this.store.dismissNotice(),
       },

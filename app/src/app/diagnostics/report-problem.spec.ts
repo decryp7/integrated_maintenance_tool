@@ -222,7 +222,7 @@ describe('snapshots with breadcrumbs', () => {
     const service = TestBed.inject(ErrorSnapshotService);
     service.toast.set({ kind: 'captured', id: 'a', firstTime: false });
     await flush(f);
-    (f.nativeElement.querySelector('[data-testid=toast-report-problem]') as HTMLButtonElement).click();
+    (f.nativeElement.querySelector('[data-testid=notification-action-report]') as HTMLButtonElement).click();
     expect(run).toHaveBeenCalledWith(REPORT_PROBLEM_COMMAND);
     expect(service.toast()).toBeNull();
   });

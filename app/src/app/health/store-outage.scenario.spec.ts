@@ -71,7 +71,7 @@ describe('the log store worker dies (ADR 0055)', () => {
     const notices = (await centre.list()).notices;
     expect(notices).toHaveLength(1);
     expect(notices[0]?.count).toBe(3);
-    expect(all(f, '[data-testid=notice-toast]')).toHaveLength(0);
+    expect(all(f, '[data-testid=notification]')).toHaveLength(0);
     expect(all(f, '[data-testid=notification]')).toHaveLength(0);
     // Both panels wait, calmly: no per-panel error.
     expect(all(f, '[data-testid=waiting-for-store]')).toHaveLength(2);

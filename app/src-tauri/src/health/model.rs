@@ -49,12 +49,20 @@ pub enum RepairAction {
     Reset,
     /// Let a quarantined part run again.
     LiftQuarantine,
-    /// Raise the memory cap that stopped it.
-    RaiseCap,
     /// Install what is missing.
     Install,
     /// Run the failed work again.
     Retry,
+}
+
+/// Advice to raise a memory cap that stopped a process: the UI offers "Raise the cap…" (it opens the setting with this value;
+/// the shell cannot change a user's setting by itself).
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RaiseCap {
+    /// Which process: the app's own id (`storeWorker`, `ai`, `plugin:<id>`).
+    pub target: String,
+    pub suggested_mb: u32,
 }
 
 /// Why a service is not ok, in words for the user.
@@ -67,6 +75,8 @@ pub struct Cause {
     pub hint: Option<String>,
     /// The technical chain, for Details and bug reports.
     pub detail: Option<String>,
+    /// Set when a memory cap stopped the process: the UI offers "Raise the cap…" next to the repair.
+    pub raise_cap: Option<RaiseCap>,
 }
 
 impl Cause {
@@ -75,7 +85,16 @@ impl Cause {
             message: message.into(),
             hint: None,
             detail: None,
+            raise_cap: None,
         }
+    }
+
+    pub fn raise_cap(mut self, target: impl Into<String>, suggested_mb: u32) -> Cause {
+        self.raise_cap = Some(RaiseCap {
+            target: target.into(),
+            suggested_mb,
+        });
+        self
     }
 
     pub fn hint(mut self, hint: impl Into<String>) -> Cause {

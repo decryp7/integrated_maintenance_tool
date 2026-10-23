@@ -122,17 +122,6 @@ pub enum NoticeAction {
     SkipAiUpdate {
         key: String,
     },
-    /// Opens the memory cap of `process` (Settings ▸ Performance, or the plugin's cap in the Plugins panel) with a
-    /// suggested value, to apply or change.
-    RaiseMemoryCap {
-        process: ProcessRef,
-        #[serde(rename = "suggestedMb")]
-        suggested_mb: u32,
-    },
-    /// Lets a process the memory watcher stopped start again (resets its crash count).
-    RetryProcess {
-        process: ProcessRef,
-    },
     /// Repairs a service from the shell (`health_repair`).
     RepairService {
         service: String,

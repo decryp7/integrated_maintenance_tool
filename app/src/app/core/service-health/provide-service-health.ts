@@ -1,6 +1,6 @@
-import { EnvironmentProviders, makeEnvironmentProviders } from '@angular/core';
-import { ServiceHealthBackend, SERVICE_HEALTH_BACKEND, Unlisten } from '../../health/service-health.backend';
-import { HealthSnapshot } from '../../health/service-health.types';
+import { EnvironmentProviders, inject, Injector, makeEnvironmentProviders } from '@angular/core';
+import { RAISE_CAP, ServiceHealthBackend, SERVICE_HEALTH_BACKEND, Unlisten } from '../../health/service-health.backend';
+import { HealthSnapshot, RaiseCap } from '../../health/service-health.types';
 import { isTauri } from '../platform';
 import { TauriServiceHealthBackend } from './tauri-service-health.backend';
 
@@ -25,5 +25,15 @@ class LazyMockServiceHealth implements ServiceHealthBackend {
 
 /** Service health for the window: the Tauri commands in the desktop app, the mock in the browser build. */
 export function provideServiceHealth(): EnvironmentProviders {
-  return makeEnvironmentProviders([{ provide: SERVICE_HEALTH_BACKEND, useFactory: () => (isTauri() ? new TauriServiceHealthBackend() : new LazyMockServiceHealth()) }]);
+  return makeEnvironmentProviders([
+    { provide: SERVICE_HEALTH_BACKEND, useFactory: () => (isTauri() ? new TauriServiceHealthBackend() : new LazyMockServiceHealth()) },
+    {
+      // "Raise the cap…" opens Settings ▸ Performance (or the plugin's cap) with the suggested value.
+      provide: RAISE_CAP,
+      useFactory: () => {
+        const injector = inject(Injector);
+        return async (cap: RaiseCap) => (await import('../../settings/performance/memory-actions')).raiseCapOfHealth(injector, cap);
+      },
+    },
+  ]);
 }

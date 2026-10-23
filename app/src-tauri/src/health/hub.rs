@@ -33,6 +33,10 @@ struct Extra {
     /// Download jobs that are not "downloads" (the browser install reports as the browser).
     other_jobs: HashSet<u64>,
     failed_download: Option<u64>,
+    /// Services whose process a memory cap stopped, with the cause (and "Raise the cap…" advice) to keep until it is repaired.
+    cap_stops: BTreeMap<&'static str, Cause>,
+    /// Plugins a memory cap stopped: id, then the advice.
+    plugin_caps: BTreeMap<String, u32>,
 }
 
 /// What the AI worker's state means for health, kept apart from the AI module's DTO so this stays testable.
@@ -105,7 +109,15 @@ impl Health {
 
     /// The store worker did not start or stopped (`detail` is the technical chain).
     pub fn store_failed(&self, failure: StoreFailure, detail: &str) {
-        lock(&self.extra).store_failure = Some(failure);
+        {
+            let mut x = lock(&self.extra);
+            // A worker the memory cap stopped keeps its own cause (and its advice): the later failures are its symptoms.
+            if x.cap_stops.contains_key(STORE) && matches!(failure, StoreFailure::Crashed | StoreFailure::Other) {
+                return;
+            }
+            x.cap_stops.remove(STORE);
+            x.store_failure = Some(failure);
+        }
         let cause = Cause::new(failure.message()).hint(failure.hint()).detail(detail);
         let state = if failure == StoreFailure::Quarantined {
             ServiceState::Quarantined
@@ -122,7 +134,11 @@ impl Health {
 
     /// The store worker runs.
     pub fn store_running(&self) {
-        lock(&self.extra).store_failure = None;
+        {
+            let mut x = lock(&self.extra);
+            x.store_failure = None;
+            x.cap_stops.remove(STORE);
+        }
         self.registry.ok(STORE);
     }
 
@@ -135,6 +151,10 @@ impl Health {
 
     pub fn ai(&self, health: AiHealth, reason: Option<&str>) {
         let reason = reason.unwrap_or("").trim();
+        // A worker the memory cap stopped stays down, with its advice, until it is repaired or reset.
+        if lock(&self.extra).cap_stops.contains_key(AI) {
+            return;
+        }
         match health {
             AiHealth::Fine => {
                 self.registry.ok(AI);
@@ -155,6 +175,34 @@ impl Health {
         }
     }
 
+    // ---- memory caps ----
+
+    /// The memory watcher stopped a process over its cap. `cause` carries the "Raise the cap…" advice. The store worker and the
+    /// AI worker are down until repaired (Try again); a plugin joins the plugins service with the advice.
+    pub fn memory_stopped(&self, service: &'static str, plugin: Option<&str>, cause: Cause) {
+        match (service, plugin) {
+            (PLUGINS, Some(id)) => {
+                let suggested = cause.raise_cap.as_ref().map_or(0, |c| c.suggested_mb);
+                {
+                    let mut x = lock(&self.extra);
+                    x.plugin_caps.insert(id.to_string(), suggested);
+                    x.plugins.insert(id.to_string(), cause.message.clone());
+                }
+                self.publish_plugins();
+            }
+            _ => {
+                lock(&self.extra).cap_stops.insert(service, cause.clone());
+                self.registry
+                    .set(service, ServiceState::Down, Some(cause), Some(RepairAction::Retry));
+            }
+        }
+    }
+
+    /// The user reset the process the cap stopped: its cause no longer applies.
+    pub fn clear_cap_stop(&self, service: &'static str) {
+        lock(&self.extra).cap_stops.remove(service);
+    }
+
     // ---- plugins ----
 
     /// Plugin `id` ("name") was switched off after repeated failures. One service for all plugins: the cause lists them.
@@ -165,7 +213,11 @@ impl Health {
 
     /// Plugin `id` may run again.
     pub fn plugin_reset(&self, id: &str) {
-        lock(&self.extra).plugins.remove(id);
+        {
+            let mut x = lock(&self.extra);
+            x.plugins.remove(id);
+            x.plugin_caps.remove(id);
+        }
         self.publish_plugins();
     }
 
@@ -175,7 +227,10 @@ impl Health {
     }
 
     fn publish_plugins(&self) {
-        let plugins = lock(&self.extra).plugins.clone();
+        let (plugins, caps) = {
+            let x = lock(&self.extra);
+            (x.plugins.clone(), x.plugin_caps.clone())
+        };
         if plugins.is_empty() {
             self.registry.ok(PLUGINS);
             return;
@@ -186,9 +241,12 @@ impl Health {
             n => format!("{n} plugins were switched off after they failed several times: {}.", ids.join(", ")),
         };
         let detail = plugins.values().cloned().collect::<Vec<_>>().join("\n");
-        let cause = Cause::new(message)
+        let mut cause = Cause::new(message)
             .hint("Choose Allow again to let them run. If they stop again, update or disable the plugin in Plugins.")
             .detail(detail);
+        if let Some((id, mb)) = caps.iter().next() {
+            cause = cause.raise_cap(format!("plugin:{id}"), *mb);
+        }
         self.registry
             .set(PLUGINS, ServiceState::Quarantined, Some(cause), Some(RepairAction::LiftQuarantine));
     }
@@ -294,8 +352,16 @@ impl Health {
         match result {
             Ok(()) => match id {
                 STORE => self.store_running(),
+                AI => {
+                    lock(&self.extra).cap_stops.remove(AI);
+                    self.registry.ok(AI);
+                }
                 PLUGINS => {
-                    lock(&self.extra).plugins.clear();
+                    {
+                        let mut x = lock(&self.extra);
+                        x.plugins.clear();
+                        x.plugin_caps.clear();
+                    }
                     self.registry.ok(PLUGINS);
                 }
                 DOWNLOADS => {
@@ -352,6 +418,18 @@ pub fn probe_store(running: bool, quarantined: bool, now: ServiceState, failure:
 mod tests;
 
 // ---- reporting for code without a handle on the Health value ----
+
+/// Whether `service` is not working now according to the app's health (false when there is none).
+pub fn is_in_outage(service: &str) -> bool {
+    current().and_then(|h| h.state(service)).is_some_and(|s| s.is_problem())
+}
+
+/// The memory watcher stopped `process` over its cap (`name`, `cap_mb` and `used_mb` for the message, `suggested_mb` to offer).
+pub fn report_memory_stopped(stop: &crate::performance::watch::Stop) {
+    if let Some(h) = current() {
+        h.memory_stopped(stop.service, stop.plugin.as_deref(), stop.cause.clone());
+    }
+}
 
 /// The store worker did not start or stopped.
 pub fn report_store_failed(failure: StoreFailure, detail: &str) {

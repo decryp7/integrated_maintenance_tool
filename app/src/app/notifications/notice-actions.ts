@@ -47,10 +47,6 @@ export function actionLabel(a: NoticeAction): string {
       return $localize`:@@notifications.action.laterAiUpdate:Later`;
     case 'skipAiUpdate':
       return $localize`:@@notifications.action.skipAiUpdate:Skip this version`;
-    case 'raiseMemoryCap':
-      return $localize`:@@notifications.action.raiseMemoryCap:Raise the cap…`;
-    case 'retryProcess':
-      return $localize`:@@notifications.action.retryProcess:Retry`;
     case 'repairService':
       return $localize`:@@notifications.action.repairService:Try again`;
   }
@@ -179,16 +175,6 @@ export class NoticeActions {
         const ok = a.type === 'updateAi' ? await updates.apply(a.key) : a.type === 'laterAiUpdate' ? await updates.later(a.key) : await updates.skip(a.key);
         if (a.type === 'updateAi' && ok) ctx.showView(JOBS_VIEW);
         return ok ? null : updates.error();
-      }
-      case 'raiseMemoryCap': {
-        const { raiseMemoryCap } = await import('../settings/performance/memory-actions');
-        await raiseMemoryCap(this.injector, a.process, a.suggestedMb);
-        return null;
-      }
-      case 'retryProcess': {
-        const { retryProcess } = await import('../settings/performance/memory-actions');
-        await retryProcess(this.injector, a.process);
-        return null;
       }
       case 'repairService':
         await this.injector.get(ServiceHealthStore).repair(a.service);

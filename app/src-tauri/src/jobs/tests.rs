@@ -265,6 +265,20 @@ fn a_failed_download_is_the_downloads_service_down_with_one_message_that_retries
     );
 }
 
+/// Regression: a command that only starts a job was judged by a 250 ms wall-clock bound, which a loaded machine broke.
+#[test]
+fn a_command_that_returns_its_job_id_passes_however_slowly_the_machine_runs() {
+    let app = test_app_with_commands(None);
+    let out = crate::test_support::returns_while_its_job_is_queued(&app, "main", JobKind::Import, "slow start", async {
+        tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+        7u64
+    });
+    assert_eq!(out, 7);
+    // The occupied queue is free again once the command returned.
+    let again = crate::test_support::returns_while_its_job_is_queued(&app, "main", JobKind::Import, "second", async { 8u64 });
+    assert_eq!(again, 8);
+}
+
 #[test]
 fn a_window_acts_only_on_its_own_and_app_wide_jobs() {
     let app = test_app_with_commands(None);

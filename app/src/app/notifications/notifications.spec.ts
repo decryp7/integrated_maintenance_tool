@@ -23,7 +23,7 @@ import { at, must } from '../../testing/must';
 import { actionLabel, NoticeActions } from './notice-actions';
 import { MockNotifications, mockNotifications, resetMockNotifications } from './mock-notifications';
 import { NotificationsBackend, TauriNotificationsBackend } from './notifications-backend';
-import { MAX_TOASTS, NotificationsStore, TOAST_MS } from './notifications.store';
+import { MAX_TOASTS, NotificationsStore } from './notifications.store';
 import { EMPTY_NOTICES, Notice, NoticeAction, NoticesEvent, NoticesRecord, NoticesSnapshot, NOTICE_SOURCES } from './notifications.types';
 import { sourceLabel, titleWithCount } from './notifications-text';
 import { NotificationsPanel } from './notifications-panel';
@@ -303,7 +303,7 @@ describe('NotificationsStore', () => {
     expect(at(store.toasts(), 2).count).toBe(2);
   });
 
-  it('shows a toast of its own (negative id, not in the centre) that goes away by itself', async () => {
+  it('shows a toast of its own (negative id, not in the centre) that stays until dismissed (the host times it out)', async () => {
     const { fake, store } = setupStore();
     await settle();
     vi.useFakeTimers();
@@ -315,80 +315,9 @@ describe('NotificationsStore', () => {
     expect([second?.severity, second?.body, second?.primary]).toEqual(['warning', 'queue is full', null]);
     expect(store.notices()).toEqual([]);
     expect(fake.markRead).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(TOAST_MS);
+    store.dismissToast(-1);
+    store.dismissToast(-2);
     expect(store.toasts()).toEqual([]);
-  });
-
-  it('dismisses a toast by itself after TOAST_MS', async () => {
-    const { fake, store } = setupStore();
-    await settle();
-    vi.useFakeTimers();
-    const a = notice({ id: 1 });
-    fake.push(event([a], a));
-    vi.advanceTimersByTime(TOAST_MS - 1);
-    expect(store.toasts()).toHaveLength(1);
-    vi.advanceTimersByTime(1);
-    expect(store.toasts()).toHaveLength(0);
-    expect(store.notices()).toHaveLength(1);
-  });
-
-  it('an error toast stays until it is resolved or dismissed; a warning goes by itself', async () => {
-    const { fake, store } = setupStore();
-    await settle();
-    vi.useFakeTimers();
-    const error = notice({ id: 1, severity: 'error', cause: 'e' });
-    const critical = notice({ id: 2, severity: 'critical', cause: 'c' });
-    const warning = notice({ id: 3, severity: 'warning', cause: 'w' });
-    for (const n of [error, critical, warning]) fake.push(event([n], n));
-    vi.advanceTimersByTime(TOAST_MS * 10);
-    expect(store.toasts().map((t) => t.id)).toEqual([1, 2]);
-    store.holdToast(1);
-    store.releaseToast(1);
-    vi.advanceTimersByTime(TOAST_MS * 10);
-    expect(store.toasts().map((t) => t.id)).toEqual([1, 2]);
-    store.dismissToast(1);
-    expect(store.toasts().map((t) => t.id)).toEqual([2]);
-  });
-
-  it('restarts the timer when a message is posted again and keeps a held toast open', async () => {
-    const { fake, store } = setupStore();
-    await settle();
-    vi.useFakeTimers();
-    const a = notice({ id: 1 });
-    fake.push(event([a], a));
-    vi.advanceTimersByTime(TOAST_MS - 1000);
-    fake.push(event([a], a));
-    vi.advanceTimersByTime(TOAST_MS - 1000);
-    expect(store.toasts()).toHaveLength(1);
-    vi.advanceTimersByTime(1000);
-    expect(store.toasts()).toHaveLength(0);
-
-    fake.push(event([a], a));
-    store.holdToast(1);
-    vi.advanceTimersByTime(TOAST_MS * 5);
-    expect(store.toasts()).toHaveLength(1);
-    store.dismissToast(1);
-    expect(store.toasts()).toHaveLength(0);
-    store.holdToast(99);
-  });
-
-  // Regression: a toast the pointer had passed over stayed until it was closed by hand.
-  it('a held toast goes after the usual time once released', async () => {
-    const { fake, store } = setupStore();
-    await settle();
-    vi.useFakeTimers();
-    const a = notice({ id: 1 });
-    fake.push(event([a], a));
-    store.holdToast(1);
-    vi.advanceTimersByTime(TOAST_MS * 3);
-    store.releaseToast(1);
-    vi.advanceTimersByTime(TOAST_MS - 1);
-    expect(store.toasts()).toHaveLength(1);
-    vi.advanceTimersByTime(1);
-    expect(store.toasts()).toHaveLength(0);
-    store.releaseToast(1); // gone already: nothing to restart
-    vi.advanceTimersByTime(TOAST_MS);
-    expect(store.toasts()).toHaveLength(0);
   });
 
   it('dismissing a message removes its toast and asks the engine', async () => {

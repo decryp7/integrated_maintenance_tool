@@ -1,7 +1,8 @@
 import { CdkConnectedOverlay, CdkOverlayOrigin, ConnectedPosition } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal } from '@angular/core';
+import { RAISE_CAP } from './service-health.backend';
 import { ServiceHealthStore } from './service-health.store';
-import { repairLabel, ServiceHealth, ServiceState } from './service-health.types';
+import { RaiseCap, repairLabel, ServiceHealth, ServiceState } from './service-health.types';
 
 /** "the log store" becomes "Log store". */
 export function shortName(label: string): string {
@@ -53,6 +54,11 @@ function stateWord(state: ServiceState): string {
               @if (s.cause?.hint; as hint) {
                 <span class="hint">{{ hint }}</span>
               }
+              @if (s.cause?.raiseCap; as cap) {
+                @if (canRaise) {
+                  <button type="button" class="btn" [attr.data-testid]="'service-health-raise-cap-' + s.service" (click)="raise(cap)" i18n="@@health.chip.raiseCap">Raise the cap…</button>
+                }
+              }
               @if (s.state === 'repairing') {
                 <span class="hint" role="status" i18n="@@health.chip.repairing">Repairing…</span>
               } @else if (s.repair; as action) {
@@ -82,6 +88,8 @@ function stateWord(state: ServiceState): string {
 })
 export class ServiceStatusChip {
   private readonly store = inject(ServiceHealthStore);
+  private readonly raiseCap = inject(RAISE_CAP, { optional: true });
+  protected readonly canRaise = !!this.raiseCap;
   protected readonly problems = this.store.problems;
   /** Opens by itself when a "Waiting for ..." link asks (`showDetails`). */
   protected readonly open = linkedSignal<number, boolean>({ source: () => this.store.detailsRequested(), computation: (_n, prev) => prev !== undefined });
@@ -97,6 +105,10 @@ export class ServiceStatusChip {
   });
 
   protected label = repairLabel;
+
+  protected raise(cap: RaiseCap): void {
+    void this.raiseCap?.(cap);
+  }
 
   protected repair(s: ServiceHealth): void {
     void this.store.repair(s.service);

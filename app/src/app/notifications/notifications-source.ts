@@ -23,11 +23,11 @@ export class NotificationsSource implements NotificationSource {
       if (err) throw new Error(err);
       this.store.dismissToast(t.id);
     };
-    const act = (a: NoticeAction | null, kind: HostAction['kind'], testId: string): HostAction[] => (a ? [{ label: actionLabel(a), kind, testId, run: () => run(a) }] : []);
-    const actions: HostAction[] = [...act(t.primary, 'primary', 'notice-toast-primary')];
+    const act = (a: NoticeAction | null, kind: HostAction['kind'], id: string): HostAction[] => (a ? [{ label: actionLabel(a), kind, id, run: () => run(a) }] : []);
+    const actions: HostAction[] = [...act(t.primary, 'primary', 'primary')];
     // A question with three answers ("Update", "Later", "Skip this version") shows all of them.
-    if (t.tertiary) actions.push(...act(t.secondary, 'default', 'notice-toast-secondary'), ...act(t.tertiary, 'default', 'notice-toast-tertiary'));
-    if (t.id > 0) actions.push({ label: $localize`:@@notifications.toasts.show:Show in Notifications`, kind: 'ghost', testId: 'notice-toast-show', run: () => this.show(t) });
+    if (t.tertiary) actions.push(...act(t.secondary, 'default', 'secondary'), ...act(t.tertiary, 'default', 'tertiary'));
+    if (t.id > 0) actions.push({ label: $localize`:@@notifications.toasts.show:Show in Notifications`, kind: 'ghost', id: 'show', run: () => this.show(t) });
     return {
       cause: t.cause,
       severity: t.severity,
@@ -35,10 +35,8 @@ export class NotificationsSource implements NotificationSource {
       body: t.body,
       count: t.count,
       actions,
-      testId: 'notice-toast',
       dismiss: () => this.store.dismissToast(t.id),
-      hold: () => this.store.holdToast(t.id),
-      release: () => this.store.releaseToast(t.id),
+      stamp: `${t.at}:${t.count}`,
     };
   }
 

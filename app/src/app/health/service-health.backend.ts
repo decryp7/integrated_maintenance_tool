@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import { HealthSnapshot } from './service-health.types';
+import { HealthSnapshot, RaiseCap } from './service-health.types';
 
 /** Stops listening. */
 export type Unlisten = () => void;
@@ -28,6 +28,12 @@ export class NoServices implements ServiceHealthBackend {
     return () => undefined;
   }
 }
+
+/**
+ * Raises the memory cap a process was stopped over (opens the setting with the suggested value). The app provides it; without
+ * one the chip offers no "Raise the cap…" button.
+ */
+export const RAISE_CAP = new InjectionToken<(cap: RaiseCap) => void | Promise<void>>('RAISE_CAP');
 
 export const SERVICE_HEALTH_BACKEND = new InjectionToken<ServiceHealthBackend>('SERVICE_HEALTH_BACKEND', {
   providedIn: 'root',

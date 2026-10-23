@@ -1,11 +1,13 @@
-import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { Icon } from '../shared/icon';
-import { HostAction, HostNotification, NOTIFICATION_SOURCES, persists, visibleNotifications } from './notification-host.model';
+import { HostAction, HostNotification, NOTIFICATION_SOURCES, persists, TOAST_MS, visibleNotifications } from './notification-host.model';
 
 /**
  * The one place notifications appear (ADR 0055), replacing a separate toast component per feature. One toast per cause,
  * details collapsed behind "Details", updated in place; errors and critical failures stay until resolved or dismissed;
- * a cause the status chip states (`health:...`) is never toasted. Mounted once per window.
+ * a cause the status chip states (`health:...`) is never toasted. The host owns the time of every toast (sources only post, update
+ * and resolve): a toast that times out stays `TOAST_MS`, is held while the pointer or focus is on it, and starts over when its
+ * cause is posted again. Mounted once per window.
  */
 @Component({
   selector: 'debrief-notification-host',
@@ -21,10 +23,10 @@ import { HostAction, HostNotification, NOTIFICATION_SOURCES, persists, visibleNo
           data-toast
           [attr.data-severity]="n.severity"
           [attr.data-cause]="n.cause"
-          [attr.data-testid]="n.testId ?? 'notification'"
+          data-testid="notification"
           [attr.role]="persistent(n) ? 'alert' : 'status'"
-          (mouseenter)="n.hold?.()"
-          (focusin)="n.hold?.()"
+          (mouseenter)="hold(n)"
+          (focusin)="hold(n)"
           (mouseleave)="leave(n, $event)"
           (focusout)="leave(n, $event)"
         >
@@ -38,7 +40,7 @@ import { HostAction, HostNotification, NOTIFICATION_SOURCES, persists, visibleNo
           @if (n.actions?.length || n.details) {
             <div class="actions">
               @for (a of n.actions; track $index) {
-                <button type="button" class="btn" [class.primary]="a.kind === 'primary'" [class.ghost]="a.kind === 'ghost'" [attr.data-testid]="a.testId ?? 'notification-action'" (click)="run(n, a)">{{ a.label }}</button>
+                <button type="button" class="btn" [class.primary]="a.kind === 'primary'" [class.ghost]="a.kind === 'ghost'" [attr.data-testid]="a.id ? 'notification-action-' + a.id : 'notification-action'" (click)="run(n, a)">{{ a.label }}</button>
               }
               @if (n.details) {
                 <button type="button" class="btn ghost" [attr.aria-expanded]="isOpen(n)" data-testid="notification-details-toggle" (click)="toggle(n)" i18n="@@health.host.details">Details</button>
@@ -83,7 +85,50 @@ export class NotificationHost {
   protected readonly failed = signal<Record<string, string>>({});
 
   protected persistent(n: HostNotification): boolean {
-    return persists(n.severity);
+    return persists(n);
+  }
+
+  /** Per cause: the occurrence the running timer belongs to, and the timer. */
+  private readonly timers = new Map<string, { key: string; handle: ReturnType<typeof setTimeout> | undefined }>();
+  /** Causes the pointer or focus is on. */
+  private readonly held = new Set<string>();
+
+  constructor() {
+    // Timers are outside the signal graph: one per toast that times out, started when it appears or is posted again.
+    effect(() => this.sync(this.items()));
+    inject(DestroyRef).onDestroy(() => this.timers.forEach((t) => clearTimeout(t.handle)));
+  }
+
+  private sync(items: readonly HostNotification[]): void {
+    const live = new Set(items.map((n) => n.cause));
+    for (const [cause, t] of this.timers) {
+      if (live.has(cause)) continue;
+      clearTimeout(t.handle);
+      this.timers.delete(cause);
+      this.held.delete(cause);
+    }
+    for (const n of items) {
+      if (persists(n)) continue;
+      const key = `${n.instance ?? ''}#${n.stamp ?? n.count ?? ''}`;
+      const current = this.timers.get(n.cause);
+      if (current?.key === key) continue;
+      clearTimeout(current?.handle);
+      this.timers.set(n.cause, { key, handle: this.held.has(n.cause) ? undefined : this.start(n) });
+    }
+  }
+
+  private start(n: HostNotification): ReturnType<typeof setTimeout> {
+    return setTimeout(() => n.dismiss(), n.ttl ?? TOAST_MS);
+  }
+
+  /** The pointer or focus is on a toast: its time stops. */
+  protected hold(n: HostNotification): void {
+    this.held.add(n.cause);
+    const t = this.timers.get(n.cause);
+    if (t) {
+      clearTimeout(t.handle);
+      t.handle = undefined;
+    }
   }
 
   protected icon(n: HostNotification): string {
@@ -112,7 +157,13 @@ export class NotificationHost {
     const toast = e.currentTarget as HTMLElement;
     const focusStays = e instanceof FocusEvent ? toast.contains(e.relatedTarget as Node | null) : toast.contains(document.activeElement);
     const pointerStays = e instanceof FocusEvent && toast.matches(':hover');
-    if (!focusStays && !pointerStays) n.release?.();
+    if (focusStays || pointerStays) return;
+    this.held.delete(n.cause);
+    const t = this.timers.get(n.cause);
+    if (t && !persists(n)) {
+      clearTimeout(t.handle);
+      t.handle = this.start(n);
+    }
   }
 
   /** Runs an action; the toast stays when it failed, with the reason. */

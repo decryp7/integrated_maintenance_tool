@@ -9,7 +9,8 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 
 - **Notifications:** One failure is now one notification. A repeated message updates the one already on screen (with a count) instead of adding another, errors stay until you dismiss them or the problem is gone, and technical details are folded behind Details. Job results, update offers, live alerts, error snapshots and errors all appear in the same place
 - **Services:** When the log store, the AI worker, a plugin, the research browser or a download stops, the status bar shows one chip with a plain explanation, the next step, the technical details and a Try again / Restart / Allow again / Install button. Every window shows the same state, including a window you open while a service is down
-- **Panels:** A panel that needs the log store shows "Waiting for the log store" instead of its own red error, and loads by itself when the store is back
+- **Memory limits:** When a memory limit stops the database worker, the AI worker or a plugin, the status chip says so once, with Try again and Raise the cap… (it opens the setting with a suggested value)
+- **Panels:** A panel that needs the log store shows "Waiting for the log store" instead of its own red error, and loads by itself when the store is back; the assistant, the research browser, models and runtimes wait for their own service the same way
 
 ## 1.0.2 (2026-10-23)
 

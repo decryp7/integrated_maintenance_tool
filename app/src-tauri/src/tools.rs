@@ -215,7 +215,8 @@ fn missing(error: ToolError, safe_mode: bool) -> crate::CmdError {
         )),
         ToolError::UnknownTool(tool) => CmdError::not_found(format!(
             "no installed plugin provides the tool \"{tool}\" (is the System tools plugin disabled in the Plugins panel?)"
-        )),
+        ))
+        .in_outage_of(crate::health::hub::PLUGINS),
         e @ ToolError::UnknownOp { .. } => CmdError::not_found(e.to_string()),
         e @ ToolError::InvalidArgs { .. } => CmdError::invalid(e.to_string()).field("args"),
         e @ ToolError::PathRefused { .. } => {
@@ -383,6 +384,11 @@ pub async fn tool_task_job<R: Runtime>(app: AppHandle<R>, task: String) -> CmdRe
 
 #[cfg(test)]
 pub(crate) mod tests {
+    /// The error a command returns for a tool no plugin provides.
+    pub(crate) fn missing_tool_error(tool: &str) -> crate::CmdError {
+        super::missing(super::ToolError::UnknownTool(tool.to_string()), false)
+    }
+
     use super::*;
     use crate::test_support::{test_app_with_commands, window};
     use serde_json::json;

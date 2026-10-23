@@ -25,7 +25,7 @@ export class SnapshotSource implements NotificationSource {
       dismiss();
     };
     if (t.kind !== 'captured') {
-      return [{ cause: 'diagnostics.snapshot', severity: 'warning', title: $localize`:@@diagnostics.toast.failed:The screenshot could not be captured.`, testId: 'snapshot-toast', dismiss }];
+      return [{ cause: 'diagnostics.snapshot', severity: 'warning', title: $localize`:@@diagnostics.toast.failed:The screenshot could not be captured.`, sticky: true, dismiss }];
     }
     if (t.manual) {
       return [
@@ -33,7 +33,7 @@ export class SnapshotSource implements NotificationSource {
           cause: 'diagnostics.snapshot',
           severity: 'success',
           title: $localize`:@@diagnostics.toast.manual:Diagnostic screenshot captured.`,
-          testId: 'snapshot-toast',
+          sticky: true,
           actions: [{ label: $localize`:Open the captured snapshot|Button@@diagnostics.toast.view:View`, run: run('diagnostics.snapshots.show') }],
           dismiss,
         },
@@ -46,9 +46,9 @@ export class SnapshotSource implements NotificationSource {
         title: t.where ? $localize`:@@diagnostics.toast.wrongIn:Something went wrong in ${t.where}:panel:.` : $localize`:@@diagnostics.toast.wrong:Something went wrong.`,
         instance: t.id ?? '',
         details: SNAPSHOT_NOTICE,
-        testId: 'snapshot-toast',
+        sticky: true,
         actions: [
-          { label: $localize`:@@diagnostics.toast.report:Report a problem…`, testId: 'toast-report-problem', run: run(REPORT_PROBLEM_COMMAND) },
+          { label: $localize`:@@diagnostics.toast.report:Report a problem…`, id: 'report', run: run(REPORT_PROBLEM_COMMAND) },
           { label: $localize`:@@diagnostics.toast.viewSnapshot:View snapshot`, kind: 'ghost', run: run('diagnostics.snapshots.show') },
           { label: $localize`:@@diagnostics.toast.openFolder:Open folder`, kind: 'ghost', run: () => void this.backend.openFolder().catch(() => undefined) },
           { label: $localize`:@@diagnostics.toast.settings:Settings…`, kind: 'ghost', run: () => void this.commands.run(SETTINGS_COMMAND) },

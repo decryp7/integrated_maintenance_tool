@@ -283,10 +283,10 @@ describe('UpdatesCommands and toast', () => {
     await store.check();
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('[data-testid=updates-toast]')?.textContent).toContain('Debrief 0.2.0 is available');
+    expect(el.querySelector('[data-testid=notification]')?.textContent).toContain('Debrief 0.2.0 is available');
     el.querySelector<HTMLButtonElement>('[data-testid=notification-action]')!.click();
     fixture.detectChanges();
     expect(TestBed.inject(DialogService).stack().some((d) => d.component === UpdatesDialog)).toBe(true);
-    expect(el.querySelector('[data-testid=updates-toast]')).toBeNull();
+    expect(el.querySelector('[data-testid=notification]')).toBeNull();
   });
 });

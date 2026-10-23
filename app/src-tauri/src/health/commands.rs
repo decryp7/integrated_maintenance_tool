@@ -78,6 +78,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 /// The AI worker's health after the user reset it (`ai_reset`), without waiting for the next probe.
 pub fn refresh_ai<R: Runtime>(app: &AppHandle<R>, state: EngineStateDto, reason: Option<&str>) {
     if let Some(h) = app.try_state::<Arc<Health>>() {
+        h.clear_cap_stop(AI);
         h.ai(ai_health(state), reason);
     }
 }
@@ -101,6 +102,12 @@ fn repair_store<R: Runtime>(app: &AppHandle<R>) -> Result<(), Cause> {
         .try_state::<AppState>()
         .and_then(|s| s.performance.worker())
         .ok_or_else(|| Cause::new("The log store is not set up in this run."))?;
+    restart_store_worker(&worker)
+}
+
+/// Forgets the worker's crash history and starts it, waiting for it to answer. The supervisor lives in the shell, so this does
+/// not need the store (or anything the broken worker held) to work.
+fn restart_store_worker(worker: &debrief_store_client::StoreWorker) -> Result<(), Cause> {
     worker.reset();
     worker.worker_status().map(|_| ()).map_err(|e| {
         let (failure, detail) = crate::engine::classify_worker_failure(&e.to_string());

@@ -15,7 +15,7 @@ test.describe('lifecycle banners and elevation', () => {
     // message reports the result.
     await banner.getByTestId('save-diagnostics').click();
     await expect(page.getByTestId('diagnostics-export-status')).toContainText(/Saving diagnostics to debrief-diagnostics-\d{8}-\d{6}\.zip/);
-    const saved = page.getByTestId('notice-toast').filter({ hasText: /Finished: .*debrief-diagnostics-\d{8}-\d{6}\.zip/ });
+    const saved = page.getByTestId('notification').filter({ hasText: /Finished: .*debrief-diagnostics-\d{8}-\d{6}\.zip/ });
     await expect(saved).toContainText('files zipped.', { timeout: 15_000 });
     await page.getByTestId('diagnostics-export-status').getByRole('button', { name: 'Dismiss' }).click();
     await banner.getByRole('button', { name: 'Restart normally' }).click();

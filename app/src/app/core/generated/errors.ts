@@ -3,7 +3,7 @@
 
 export type ErrorCode = "failed" | "invalid" | "notFound" | "notGranted" | "busy" | "cancelled" | "io" | "limit" | "unsupported" | "unavailable" | "fileExists" | "denied" | "missing" | "internal" | "noModel" | "noRuntime" | "noVision" | "engine" | "browser" | "contextOverflow" | "malformed" | "toolLoopLimit" | "modelFile" | "memory" | "network" | "tls" | "proxyAuth" | "proxy" | "offline" | "timeout" | "httpStatus" | "gated" | "integrity" | "disk" | "refused" | "selfTestFailed" | "notACapture" | "notAvailable" | "unreachable" | "noRelease" | "noPlatform" | "invalidManifest" | "signatureInvalid" | "tooLarge" | "diskFull" | "installFailed" | "untrusted" | "incompatible";
 
-export type ServiceCause = "health:store";
+export type ServiceCause = "health:store" | "health:ai" | "health:plugins" | "health:browser" | "health:downloads";
 
 export type CmdErrorDto = { code: ErrorCode, 
 /**

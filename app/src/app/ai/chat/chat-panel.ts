@@ -4,6 +4,8 @@ import { OverwriteGuard } from '../../ui/overwrite-guard';
 import { ConfirmDialog } from '../../ui/confirm-dialog';
 import { DialogService } from '../../ui/dialog.service';
 import { Icon } from '../../shared/icon';
+import { ServiceHealthStore } from '../../health/service-health.store';
+import { WaitingFor } from '../../health/waiting-for';
 import { CdkMenu, CdkMenuItem, CdkMenuTrigger } from '@angular/cdk/menu';
 import { AiBackend, toAiError } from '../ai-backend';
 import { AiChatPersistence } from '../ai-chat-persistence';
@@ -34,7 +36,7 @@ import { AiRichText } from './rich-text';
 @Component({
   selector: 'debrief-ai-chat-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [QueryChip, AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, ChatComposer, Icon, CdkMenu, CdkMenuItem, CdkMenuTrigger],
+  imports: [WaitingFor, QueryChip, AiRichText, AiProposalCard, AgentApprovalCard, LinkCard, AgentPaused, ChatBrowserBar, ResearchOfferCard, ChatComposer, Icon, CdkMenu, CdkMenuItem, CdkMenuTrigger],
   template: `
     <div class="bar" role="toolbar" aria-label="Chat" i18n-aria-label="@@ai.chat.toolbar.label">
       <label class="sr-only" for="ai-chat-session" i18n="@@ai.chat.session.label">Chat</label>
@@ -154,7 +156,11 @@ import { AiRichText } from './rich-text';
     </div>
 
     @if (store.error(); as e) {
-      <p class="err banner" role="alert">{{ e }} <button type="button" class="link" (click)="store.dismissError()" i18n="@@ai.chat.dismiss">Dismiss</button></p>
+      @if (health.isServing('ai')) {
+        <p class="err banner" role="alert">{{ e }} <button type="button" class="link" (click)="store.dismissError()" i18n="@@ai.chat.dismiss">Dismiss</button></p>
+      } @else {
+        <debrief-waiting-for service="ai" />
+      }
     }
     @if (notice() ?? store.notice(); as n) {
       <p class="ok banner" role="status">{{ n }}</p>
@@ -206,6 +212,7 @@ import { AiRichText } from './rich-text';
   `,
 })
 export class AiChatPanel {
+  protected readonly health = inject(ServiceHealthStore);
   protected readonly store = inject(ChatStore);
   private readonly jobs = inject(JobsStore);
   /** The active chat's turn while it waits in the AI queue behind other requests. */

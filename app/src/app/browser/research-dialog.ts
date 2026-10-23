@@ -3,6 +3,8 @@ import { AiBackend, toAiError } from '../ai/ai-backend';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { QuerySource, Segment } from './browser.types';
 import { Segments } from './chat-cards';
+import { ServiceHealthStore } from '../health/service-health.store';
+import { WaitingFor } from '../health/waiting-for';
 
 /**
  * Research the web: the question, the search text the AI drafted from it and the event (the engine's text without a
@@ -13,7 +15,7 @@ import { Segments } from './chat-cards';
 @Component({
   selector: 'debrief-research-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Segments],
+  imports: [Segments, WaitingFor],
   template: `
     <label for="research-question" i18n="@@browser.researchDialog.question">What should the AI find out?</label>
     <textarea id="research-question" class="input" rows="2" maxlength="1000" [value]="q()" (input)="q.set(asValue($event))" data-testid="research-question"></textarea>
@@ -35,7 +37,11 @@ import { Segments } from './chat-cards';
     </select>
     <p class="muted small" i18n="@@browser.researchDialog.note">The AI searches with your search engine in a real browser window next to the app and reads the result pages only (no logins, forms or typing). It runs as a job; the answer arrives in the chat with its sources.</p>
     @if (error(); as e) {
-      <p class="err" role="alert">{{ e }}</p>
+      @if (health.isServing('browser')) {
+        <p class="err" role="alert">{{ e }}</p>
+      } @else {
+        <debrief-waiting-for service="browser" />
+      }
     }
     <div class="foot">
       <button type="button" class="btn ghost" (click)="ref.close()" i18n="@@browser.researchDialog.cancel">Cancel</button>
@@ -54,6 +60,7 @@ import { Segments } from './chat-cards';
   `,
 })
 export class ResearchDialog {
+  protected readonly health = inject(ServiceHealthStore);
   static readonly dialogId = 'research';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(AiBackend);

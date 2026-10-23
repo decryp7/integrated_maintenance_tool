@@ -8,7 +8,8 @@ export interface HostAction {
   label: string;
   run: () => void | Promise<void>;
   kind?: 'primary' | 'default' | 'ghost';
-  testId?: string;
+  /** Names the action (`notification-action-<id>` is its test id). */
+  id?: string;
 }
 
 /**
@@ -28,13 +29,14 @@ export interface HostNotification {
   /** How many times the cause happened. */
   readonly count?: number;
   readonly actions?: readonly HostAction[];
-  /** Overrides `data-testid` of the toast (stable ids tests rely on). */
-  readonly testId?: string;
-  /** The user dismissed it (the source forgets it). */
+  /** Marks one occurrence of the cause (its latest time): a new stamp restarts the toast's time. */
+  readonly stamp?: string | number;
+  /** How long a toast that times out stays, ms (default `TOAST_MS`). */
+  readonly ttl?: number;
+  /** Stays until dismissed or resolved, whatever its severity (an offer, a result the user should read). */
+  readonly sticky?: boolean;
+  /** The user dismissed it, or its time ran out (the source forgets it). Sources only post, update and resolve. */
   readonly dismiss: () => void;
-  /** The pointer or focus is on it / left it (a source that times out pauses its timer). */
-  readonly hold?: () => void;
-  readonly release?: () => void;
 }
 
 /** A feature's notifications, as a signal the host reads. The source owns lifetimes: errors stay until resolved. */
@@ -43,6 +45,9 @@ export interface NotificationSource {
 }
 
 export const NOTIFICATION_SOURCES = new InjectionToken<readonly NotificationSource[]>('NOTIFICATION_SOURCES');
+
+/** How long a toast that times out stays (the message stays in Notifications). */
+export const TOAST_MS = 8000;
 
 /** The most toasts at once; older ones wait (hidden) until a newer one goes. */
 export const MAX_VISIBLE = 3;
@@ -62,7 +67,7 @@ export function visibleNotifications(items: readonly HostNotification[], max = M
   return [...byCause.values()].slice(-max);
 }
 
-/** Errors and critical failures stay until resolved or dismissed; the rest time out (in the source). */
-export function persists(severity: HostSeverity): boolean {
-  return severity === 'error' || severity === 'critical';
+/** Errors, critical failures and sticky notifications stay until resolved or dismissed; the rest time out. */
+export function persists(n: Pick<HostNotification, 'severity' | 'sticky'>): boolean {
+  return !!n.sticky || n.severity === 'error' || n.severity === 'critical';
 }

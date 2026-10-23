@@ -208,10 +208,10 @@ describe('the snapshot notification', () => {
     const f = TestBed.createComponent(Host);
     const service = TestBed.inject(ErrorSnapshotService);
     f.detectChanges();
-    expect(f.nativeElement.querySelector('[data-testid=snapshot-toast]')).toBeNull();
+    expect(f.nativeElement.querySelector('[data-testid=notification]')).toBeNull();
     service.toast.set({ kind: 'captured', id: 'a', firstTime: true, where: 'Timeline' });
     await flush(f);
-    const toast: HTMLElement = f.nativeElement.querySelector('[data-testid=snapshot-toast]');
+    const toast: HTMLElement = f.nativeElement.querySelector('[data-testid=notification]');
     expect(toast.textContent).toContain('Something went wrong in Timeline.');
     expect(toast.textContent).not.toContain('screenshot');
     expect(toast.querySelector('[data-testid=notification-details]')).toBeNull();
@@ -248,7 +248,7 @@ describe('the snapshot notification', () => {
     await flush(f);
     const notice: HTMLElement = f.nativeElement.querySelector('[data-testid=notification-details]');
     expect(notice.textContent).toContain(SNAPSHOT_NOTICE);
-    const links = [...(f.nativeElement.querySelector('[data-testid=snapshot-toast]') as HTMLElement).querySelectorAll('button')];
+    const links = [...(f.nativeElement.querySelector('[data-testid=notification]') as HTMLElement).querySelectorAll('button')];
     const link = (label: string) => links.find((b) => b.textContent === label) as HTMLButtonElement;
     link('Open folder').click();
     link('Settings…').click();
@@ -260,7 +260,7 @@ describe('the snapshot notification', () => {
     link('Open folder').click();
     (f.nativeElement.querySelector('.x') as HTMLButtonElement).click();
     await flush(f);
-    expect(f.nativeElement.querySelector('[data-testid=snapshot-toast]')).toBeNull();
+    expect(f.nativeElement.querySelector('[data-testid=notification]')).toBeNull();
   });
 
   it('reports a failed manual capture', async () => {

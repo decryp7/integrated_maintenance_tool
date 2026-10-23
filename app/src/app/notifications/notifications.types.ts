@@ -6,9 +6,6 @@ export type NoticeSource = 'job' | 'liveAlert' | 'import' | 'plugin' | 'ai' | 'u
 
 export const NOTICE_SOURCES: readonly NoticeSource[] = ['job', 'liveAlert', 'import', 'plugin', 'ai', 'update', 'session', 'performance', 'workspace', 'health'];
 
-/** One of Debrief's capped processes (Settings ▸ Performance, `performance.types.ts`). */
-export type NoticeProcess = { kind: 'storeWorker' } | { kind: 'ai' } | { kind: 'plugin'; pluginId: string };
-
 export type NoticeSeverity = 'info' | 'success' | 'warning' | 'error' | 'critical';
 
 export type NoticeScope = 'app' | 'project';
@@ -33,10 +30,6 @@ export type NoticeAction =
   | { type: 'updateAi'; key: string }
   | { type: 'laterAiUpdate'; key: string }
   | { type: 'skipAiUpdate'; key: string }
-  /** Opens the process' memory cap with a suggested value (Settings ▸ Performance, or the plugin's own cap). */
-  | { type: 'raiseMemoryCap'; process: NoticeProcess; suggestedMb: number }
-  /** Lets a process the memory watcher stopped start again. */
-  | { type: 'retryProcess'; process: NoticeProcess }
   /** Repairs a service from the shell (`health_repair`). */
   | { type: 'repairService'; service: string };
 

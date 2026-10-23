@@ -47,9 +47,9 @@ export async function runCommand(page: Page, title: string): Promise<void> {
 
 /** Waits for the toast of a background AI answer ("Explanation ready") and opens it with View. */
 export async function viewAnswer(page: Page, title: string): Promise<void> {
-  const toast = page.getByTestId('notice-toast').filter({ hasText: title });
+  const toast = page.getByTestId('notification').filter({ hasText: title });
   await expect(toast).toBeVisible({ timeout: 15_000 });
-  await toast.getByTestId('notice-toast-primary').click();
+  await toast.getByTestId('notification-action-primary').click();
 }
 
 /** The dialog that shows an AI answer (opened by View). */

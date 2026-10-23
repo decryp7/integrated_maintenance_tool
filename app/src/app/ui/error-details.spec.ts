@@ -62,3 +62,26 @@ describe('ErrorDetails with service health', () => {
     expect(text(f)).toContain('Could not load events.');
   });
 });
+
+describe('ErrorDetails for another service', () => {
+  @Component({ selector: 'debrief-host2', imports: [ErrorDetails], template: '<debrief-error-details service="ai" summary="The assistant failed." (retry)="retried()" />' })
+  class AiHost {
+    retried = vi.fn();
+  }
+
+  it('waits for that service only and loads again when it is back', async () => {
+    const mock = new MockServiceHealth();
+    TestBed.configureTestingModule({ providers: [{ provide: SERVICE_HEALTH_BACKEND, useValue: mock }] });
+    const f = TestBed.createComponent(AiHost);
+    await settle(f);
+    mock.fail('store', stopped);
+    await settle(f);
+    expect(text(f)).toContain('The assistant failed.');
+    mock.fail('ai', { message: 'The AI worker was switched off.', hint: null, detail: null }, 'reset', 'quarantined');
+    await settle(f);
+    expect(text(f)).toContain('Waiting for the AI worker');
+    mock.recover('ai');
+    await settle(f);
+    expect(f.componentInstance.retried).toHaveBeenCalledTimes(1);
+  });
+});

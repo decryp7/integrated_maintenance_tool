@@ -12,8 +12,8 @@ import { WaitingFor } from '../health/waiting-for';
   imports: [WaitingFor],
   template: `
     @if (waiting()) {
-      <!-- The log store is not working: one calm state in every panel; the status chip says why and repairs it. -->
-      <debrief-waiting-for service="store" />
+      <!-- The panel's service is not working: one calm state in every panel; the status chip says why and repairs it. -->
+      <debrief-waiting-for [service]="service()" />
     } @else {
     <strong class="summary">{{ summary() }}</strong>
     @if (retryable()) {
@@ -45,11 +45,13 @@ export class ErrorDetails {
   readonly detail = input<string | null>(null);
   readonly retryable = input(true);
   readonly retry = output<void>();
-  /** The log store is not working: the panel waits instead of showing an error of its own. */
-  protected readonly waiting = computed(() => !this.health.isServing('store'));
+  /** The service the panel's data comes from (default: the log store). */
+  readonly service = input('store');
+  /** That service is not working: the panel waits instead of showing an error of its own. */
+  protected readonly waiting = computed(() => !this.health.isServing(this.service()));
 
   constructor() {
-    // Loads again by itself when the store comes back after this panel waited for it (an output is outside the signal
+    // Loads again by itself when the service comes back after this panel waited for it (an output is outside the signal
     // graph). Waiting for the first snapshot of a new window does not count: nothing was lost then.
     let waited = false;
     effect(() => {

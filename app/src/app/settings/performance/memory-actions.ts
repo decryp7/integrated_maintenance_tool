@@ -1,7 +1,5 @@
 import { Injector } from '@angular/core';
-import { AiBackend } from '../../ai/ai-backend';
-import { LifecycleBackend } from '../../core/tools-backend';
-import { ServiceHealthStore } from '../../health/service-health.store';
+import { RaiseCap } from '../../health/service-health.types';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { EngineSettingsStore } from '../engine-settings.store';
 import { SettingsDialogService } from '../settings-dialog';
@@ -40,19 +38,15 @@ export async function raiseMemoryCap(injector: Injector, process: ProcessRef, su
   if (key) settings.edit(PERFORMANCE_SECTION, key, suggestedMb);
 }
 
-/** "Retry" of a memory message: lets the stopped process start again (its next use starts it). */
-export async function retryProcess(injector: Injector, process: ProcessRef): Promise<void> {
-  switch (process.kind) {
-    case 'storeWorker': {
-      // The shell restarts it (service health); a store that is not down starts again with its next use anyway.
-      const health = injector.get(ServiceHealthStore);
-      if (!health.isServing('store')) await health.repair('store');
-      return;
-    }
-    case 'ai':
-      await injector.get(AiBackend).reset();
-      return;
-    case 'plugin':
-      return injector.get(LifecycleBackend).pluginReset(process.pluginId);
-  }
+/** The process a health cause's `raiseCap.target` names (`storeWorker`, `ai`, `plugin:<id>`). */
+export function processOfTarget(target: string): ProcessRef | null {
+  if (target === 'storeWorker') return { kind: 'storeWorker' };
+  if (target === 'ai') return { kind: 'ai' };
+  return target.startsWith('plugin:') && target.length > 7 ? { kind: 'plugin', pluginId: target.slice(7) } : null;
+}
+
+/** "Raise the cap…" of a service health cause: opens the cap with the suggested value. */
+export async function raiseCapOfHealth(injector: Injector, cap: RaiseCap): Promise<void> {
+  const process = processOfTarget(cap.target);
+  if (process) await raiseMemoryCap(injector, process, cap.suggestedMb);
 }

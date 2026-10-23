@@ -7,7 +7,14 @@
 export type ServiceState = 'ok' | 'starting' | 'degraded' | 'down' | 'quarantined' | 'repairing';
 
 /** What the shell can do to bring a service back; it never goes through the service itself. */
-export type RepairAction = 'restart' | 'reset' | 'liftQuarantine' | 'raiseCap' | 'install' | 'retry';
+export type RepairAction = 'restart' | 'reset' | 'liftQuarantine' | 'install' | 'retry';
+
+/** A memory cap stopped the process: the user can raise it (the UI opens the setting with this value). */
+export interface RaiseCap {
+  /** Which process: `storeWorker`, `ai` or `plugin:<id>`. */
+  target: string;
+  suggestedMb: number;
+}
 
 export interface HealthCause {
   /** One plain sentence. */
@@ -16,6 +23,8 @@ export interface HealthCause {
   hint: string | null;
   /** The technical chain, for Details and bug reports. */
   detail: string | null;
+  /** Set when a memory cap stopped the process: "Raise the cap…" is offered next to the repair. */
+  raiseCap: RaiseCap | null;
 }
 
 export interface ServiceHealth {
@@ -64,8 +73,6 @@ export function repairLabel(action: RepairAction): string {
       return $localize`:@@health.repair.liftQuarantine:Allow again`;
     case 'install':
       return $localize`:@@health.repair.install:Install`;
-    case 'raiseCap':
-      return $localize`:@@health.repair.raiseCap:Raise the limit`;
     case 'reset':
     case 'retry':
       return $localize`:@@health.repair.tryAgain:Try again`;

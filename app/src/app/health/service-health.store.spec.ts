@@ -6,7 +6,7 @@ import { SERVICE_HEALTH_BACKEND, ServiceHealthBackend } from './service-health.b
 import { ServiceHealthStore } from './service-health.store';
 import { healthCause, isHealthCause, isServing, repairLabel } from './service-health.types';
 
-const cause = { message: "Debrief's log store stopped unexpectedly.", hint: 'Choose Try again.', detail: 'signal: 6' };
+const cause = { message: "Debrief's log store stopped unexpectedly.", hint: 'Choose Try again.', detail: 'signal: 6', raiseCap: null };
 
 function setup(backend: ServiceHealthBackend = new MockServiceHealth()) {
   TestBed.configureTestingModule({ providers: [{ provide: SERVICE_HEALTH_BACKEND, useValue: backend }] });
@@ -119,6 +119,6 @@ describe('service health types', () => {
   });
 
   it('every repair action has a button label', () => {
-    for (const a of ['restart', 'reset', 'liftQuarantine', 'raiseCap', 'install', 'retry'] as const) expect(repairLabel(a).length).toBeGreaterThan(0);
+    for (const a of ['restart', 'reset', 'liftQuarantine', 'install', 'retry'] as const) expect(repairLabel(a).length).toBeGreaterThan(0);
   });
 });

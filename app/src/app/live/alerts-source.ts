@@ -22,7 +22,7 @@ export class AlertsSource implements NotificationSource {
       severity,
       title: `${kindLabel(t.alert)}${where}`,
       body: `${severityLabel(t.alert.severity)} · ${formatTime(t.alert.to, this.ws.timezone()).slice(0, 8)} ${t.alert.message}`,
-      testId: 'alert-toast',
+      ttl: 10_000,
       actions: [
         { label: $localize`:@@live.alertToasts.show:Show`, kind: 'default', run: () => this.show(t) },
         { label: $localize`:@@live.alertToasts.mute:Mute this kind for 15 min`, kind: 'ghost', run: () => this.alerts.mute(t.alert) },

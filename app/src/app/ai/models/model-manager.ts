@@ -15,6 +15,8 @@ import { fitAdvice, fitFacts, fitLabel, fitNumbers, formatBytes, visionLabel } f
 import { AiStatusStore } from '../ai-status.store';
 import { InstalledModel, Recommendation, SetupEvent } from '../ai.types';
 import { AiRuntimePanel } from '../runtimes/runtime-panel';
+import { ServiceHealthStore } from '../../health/service-health.store';
+import { WaitingFor } from '../../health/waiting-for';
 import { AiSetupWizard } from '../setup/setup-wizard';
 import { stageLabel, RunningStage } from '../setup/setup-stage';
 import { JobFollow } from '../../jobs/job-follow';
@@ -32,7 +34,7 @@ const ENGINE_STATE: Record<string, string> = {
 /** The engine status, the inference runtimes, installed models, adding a local GGUF file and downloading other models. */
 @Component({
   selector: 'debrief-ai-model-manager',
-  imports: [AiRuntimePanel],
+  imports: [WaitingFor, AiRuntimePanel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="engine" aria-labelledby="ai-engine-title" data-testid="ai-engine-status">
@@ -91,10 +93,14 @@ const ENGINE_STATE: Record<string, string> = {
         <p class="muted" role="status" data-testid="ai-model-progress">{{ progress() }}</p>
       }
       @if (error()) {
-        <p class="err" role="alert" data-testid="ai-models-error">
-          {{ error() }}
-          <button type="button" class="btn ghost" (click)="load()" i18n="@@ai.models.retry">Retry</button>
-        </p>
+        @if (health.isServing('downloads')) {
+          <p class="err" role="alert" data-testid="ai-models-error">
+            {{ error() }}
+            <button type="button" class="btn ghost" (click)="load()" i18n="@@ai.models.retry">Retry</button>
+          </p>
+        } @else {
+          <debrief-waiting-for service="downloads" />
+        }
       }
       @if (models().length) {
         <ul class="list">
@@ -318,6 +324,7 @@ const ENGINE_STATE: Record<string, string> = {
   `,
 })
 export class AiModelManager implements OnInit {
+  protected readonly health = inject(ServiceHealthStore);
   static readonly dialogId = 'ai-models';
   private readonly backend = inject(AiBackend);
   private readonly dialogs = inject(DialogService);

@@ -1,9 +1,9 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { all, el, settle, text } from '../../testing/helpers';
 import { MockServiceHealth } from '../core/service-health/mock-service-health.backend';
-import { SERVICE_HEALTH_BACKEND } from './service-health.backend';
+import { RAISE_CAP, SERVICE_HEALTH_BACKEND } from './service-health.backend';
 import { ServiceHealthStore } from './service-health.store';
 import { ServiceStatusChip, shortName } from './service-status-chip';
 import { WaitingFor } from './waiting-for';
@@ -99,5 +99,36 @@ describe('WaitingFor', () => {
     expect(text(f)).not.toContain('Retry');
     el<HTMLButtonElement>(f, '[data-testid=waiting-for-details]').click();
     expect(store.detailsRequested()).toBe(1);
+  });
+});
+
+describe('ServiceStatusChip with a memory cap stop', () => {
+  async function capSetup(raise: ((cap: unknown) => void) | null) {
+    const mock = new MockServiceHealth();
+    TestBed.configureTestingModule({
+      providers: [{ provide: SERVICE_HEALTH_BACKEND, useValue: mock }, ...(raise ? [{ provide: RAISE_CAP, useValue: raise }] : [])],
+    });
+    const fixture = TestBed.createComponent(ServiceStatusChip);
+    await settle(fixture);
+    mock.fail('store', { message: 'The database worker was stopped: it used more than its 2048 MB memory cap', hint: 'Raise the cap or try again.', detail: null, raiseCap: { target: 'storeWorker', suggestedMb: 3328 } }, 'retry');
+    await settle(fixture);
+    el<HTMLButtonElement>(fixture, '[data-testid=service-health-chip]').click();
+    await settle(fixture);
+    return { fixture, mock };
+  }
+
+  it('offers Raise the cap… with the suggestion next to Try again', async () => {
+    const raise = vi.fn();
+    const { mock } = await capSetup(raise);
+    expect(document.querySelector('[data-testid=service-health-repair-store]')?.textContent?.trim()).toBe('Try again');
+    (document.querySelector('[data-testid=service-health-raise-cap-store]') as HTMLButtonElement).click();
+    expect(raise).toHaveBeenCalledWith({ target: 'storeWorker', suggestedMb: 3328 });
+    (document.querySelector('[data-testid=service-health-repair-store]') as HTMLButtonElement).click();
+    expect(mock.repairs).toEqual(['store']);
+  });
+
+  it('offers no Raise the cap… where the app cannot open the setting', async () => {
+    await capSetup(null);
+    expect(document.querySelector('[data-testid=service-health-raise-cap-store]')).toBeNull();
   });
 });

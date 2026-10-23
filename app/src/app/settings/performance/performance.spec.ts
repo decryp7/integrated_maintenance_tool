@@ -4,15 +4,12 @@ import { all, buttonByText, el, provideTinyBackend, settle, text } from '../../.
 import { AiBackend } from '../../ai/ai-backend';
 import { LifecycleBackend } from '../../core/tools-backend';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
-import { NoticeActions, actionLabel } from '../../notifications/notice-actions';
-import { Notice } from '../../notifications/notifications.types';
 import { PluginMemory } from '../../plugins-panel/plugin-memory';
 import { EngineSettingsStore } from '../engine-settings.store';
 import { MockSettingsBackend } from '../mock-settings-backend';
 import { SettingsBackend } from '../settings-backend';
 import { SettingsDialogService } from '../settings-dialog';
-import { ServiceHealthStore } from '../../health/service-health.store';
-import { capField, raiseMemoryCap, retryProcess } from './memory-actions';
+import { capField, processOfTarget, raiseCapOfHealth, raiseMemoryCap } from './memory-actions';
 import { MockPerformanceBackend } from './mock-performance';
 import { PerformanceBackend, TauriPerformanceBackend } from './performance-backend';
 import { PerformanceExtras } from './performance-extras';
@@ -97,50 +94,15 @@ describe('Settings ▸ Performance', () => {
     expect(TestBed.inject(PluginMemoryStore).requested()).toEqual({ pluginId: 'net.decryptology.windows', mb: 1536 });
   });
 
-  it('"Retry" lets the stopped process start again', async () => {
-    const { pluginReset, aiReset } = setup();
+  it('a health cause names the process its cap stopped, and "Raise the cap…" opens that cap with the suggestion', async () => {
+    const { showView } = setup();
+    expect([processOfTarget('storeWorker'), processOfTarget('ai'), processOfTarget('plugin:net.x')]).toEqual([{ kind: 'storeWorker' }, { kind: 'ai' }, { kind: 'plugin', pluginId: 'net.x' }]);
+    expect([processOfTarget('plugin:'), processOfTarget('nope')]).toEqual([null, null]);
     const injector = TestBed.inject(Injector);
-    const health = TestBed.inject(ServiceHealthStore);
-    const retry = vi.spyOn(health, 'repair').mockResolvedValue();
-    // A store that works needs no repair: it starts with its next use.
-    health.apply({ revision: 4, services: [] });
-    await retryProcess(injector, { kind: 'storeWorker' });
-    expect(retry).not.toHaveBeenCalled();
-    health.apply({ revision: 5, services: [{ service: 'store', label: 'the log store', state: 'down', cause: { message: 'x', hint: null, detail: null }, repair: 'restart' }] });
-    await retryProcess(injector, { kind: 'storeWorker' });
-    await retryProcess(injector, { kind: 'ai' });
-    await retryProcess(injector, { kind: 'plugin', pluginId: 'p' });
-    expect(retry).toHaveBeenCalledWith('store');
-    expect(aiReset).toHaveBeenCalled();
-    expect(pluginReset).toHaveBeenCalledWith('p');
-  });
-
-  it('memory messages run their actions from the notification centre', async () => {
-    const { pluginReset } = setup();
-    const notice: Notice = {
-      id: -1,
-      source: 'performance',
-      severity: 'warning',
-      title: "Plugin 'X' was stopped",
-      body: '',
-      at: 0,
-      firstAt: 0,
-      count: 1,
-      read: false,
-      primary: { type: 'raiseMemoryCap', process: { kind: 'plugin', pluginId: 'x' }, suggestedMb: 768 },
-      secondary: { type: 'retryProcess', process: { kind: 'plugin', pluginId: 'x' } },
-      tertiary: null,
-      link: { window: null, jobId: null, recordId: null, pluginId: 'x', path: null },
-      cause: 'fixture',
-      scope: 'app',
-    };
-    expect(actionLabel(notice.primary!)).toBe('Raise the cap…');
-    expect(actionLabel(notice.secondary!)).toBe('Retry');
-    const actions = TestBed.inject(NoticeActions);
-    expect(await actions.run(notice, notice.secondary!)).toBeNull();
-    expect(pluginReset).toHaveBeenCalledWith('x');
-    expect(await actions.run(notice, notice.primary!)).toBeNull();
+    await raiseCapOfHealth(injector, { target: 'plugin:net.decryptology.windows', suggestedMb: 768 });
+    expect(showView).toHaveBeenCalledWith('plugins');
     expect(TestBed.inject(PluginMemoryStore).requested()?.mb).toBe(768);
+    await raiseCapOfHealth(injector, { target: 'unknown', suggestedMb: 1 });
   });
 
   it("a plugin's memory shows its peak and cap, and its own cap is set, refused or removed", async () => {

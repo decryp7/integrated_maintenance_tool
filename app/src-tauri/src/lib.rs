@@ -908,6 +908,47 @@ pub(crate) mod test_support {
         out
     }
 
+    /// Runs a command that must only start a job, with the window's `kind` queue occupied by a job that cannot finish until the
+    /// command has returned. A command that waited for its job instead of returning its id would never return (the hang
+    /// detector, not a time bound, ends the test). Deterministic: no wall-clock threshold, so a loaded machine cannot fail it.
+    pub fn returns_while_its_job_is_queued<F: std::future::Future>(
+        app: &tauri::App<MockRuntime>,
+        window: &str,
+        kind: jobs::JobKind,
+        what: &str,
+        f: F,
+    ) -> F::Output {
+        let (release, gate) = std::sync::mpsc::channel::<()>();
+        let gate = std::sync::Mutex::new(gate);
+        let blocker = jobs::spawn(
+            app.handle(),
+            jobs::JobSpec::new(kind, "blocker").window(window),
+            jobs::Controls::default(),
+            move |ctx: &jobs::JobCtx| -> Result<jobs::Done<()>, String> {
+                loop {
+                    if ctx.is_cancelled() {
+                        return Err("cancelled".into());
+                    }
+                    match gate.lock().unwrap().recv_timeout(std::time::Duration::from_millis(5)) {
+                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                        _ => return Ok(jobs::Done::new(())),
+                    }
+                }
+            },
+        )
+        .expect("the blocking job is accepted");
+        jobs::wait_until("the blocking job to run", || {
+            app.state::<jobs::Jobs>().state_of(blocker) == Some(jobs::JobState::Running)
+        });
+        let out = block(async {
+            tokio::time::timeout(std::time::Duration::from_secs(120), f)
+                .await
+                .unwrap_or_else(|_| panic!("{what} waited for its job instead of returning its id"))
+        });
+        let _ = release.send(());
+        out
+    }
+
     /// The clock of the test app's jobs and notification centre.
     pub struct TestClock(pub std::sync::Arc<jobs::ManualClock>);
 

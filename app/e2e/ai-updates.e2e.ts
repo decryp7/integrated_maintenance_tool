@@ -19,16 +19,16 @@ async function openAiSettings(page: Page) {
 
 test('an update found by the check is announced with Update, Later and Skip this version', async ({ page }, testInfo) => {
   await openAppWith(page, '?mockAiUpdates=available&mockAiStepMs=5');
-  const toast = page.getByTestId('notice-toast').filter({ hasText: 'AI runtime update' });
+  const toast = page.getByTestId('notification').filter({ hasText: 'AI runtime update' });
   await expect(toast).toBeVisible();
   await expect(toast).toContainText('b11700 replaces b11669');
-  await expect(toast.getByTestId('notice-toast-primary')).toHaveText('Update');
-  await expect(toast.getByTestId('notice-toast-secondary')).toHaveText('Later');
-  await expect(toast.getByTestId('notice-toast-tertiary')).toHaveText('Skip this version');
-  await expectNoSeriousViolations(page, testInfo, 'ai-update-toast', '[data-testid=notice-toast]');
+  await expect(toast.getByTestId('notification-action-primary')).toHaveText('Update');
+  await expect(toast.getByTestId('notification-action-secondary')).toHaveText('Later');
+  await expect(toast.getByTestId('notification-action-tertiary')).toHaveText('Skip this version');
+  await expectNoSeriousViolations(page, testInfo, 'ai-update-toast', '[data-testid=notification]');
 
   // Update runs as a download job and the message goes.
-  await toast.getByTestId('notice-toast-primary').click();
+  await toast.getByTestId('notification-action-primary').click();
   await expect(page.locator('debrief-jobs-panel')).toContainText('Updating the Vulkan (any GPU vendor) inference runtime');
   await expect(toast).toHaveCount(0);
 
@@ -45,13 +45,13 @@ test('Settings lists updates with Check now and remembers Skip this version', as
   await expect(runtime).toContainText('Never checked');
   await expect(updates.getByTestId('ai-updates-policy-runtime')).toHaveText('Manual');
   await expect(runtime).toContainText('Checks only when you choose Check now');
-  await expect(page.getByTestId('notice-toast').filter({ hasText: 'AI runtime update' })).toHaveCount(0);
+  await expect(page.getByTestId('notification').filter({ hasText: 'AI runtime update' })).toHaveCount(0);
 
   await updates.getByTestId('ai-updates-check').click();
   const row = updates.getByTestId(`ai-update-${KEY}`);
   await expect(row).toContainText('b11669 → b11700');
   await expect(runtime).toContainText('Checked');
-  await expect(page.getByTestId('notice-toast').filter({ hasText: 'AI runtime update' })).toHaveCount(0);
+  await expect(page.getByTestId('notification').filter({ hasText: 'AI runtime update' })).toHaveCount(0);
   await expectNoSeriousViolations(page, testInfo, 'ai-updates-settings', '[role=dialog]');
 
   await row.getByRole('button', { name: 'Skip this version of Vulkan (any GPU vendor) (b11700)' }).click();
@@ -66,5 +66,5 @@ test('a check blocked by a TLS-inspecting proxy is quiet and offers the manual d
   const updates = await openAiSettings(page);
   await updates.getByTestId('ai-updates-check').click();
   await expect(updates.getByTestId('ai-updates-failed-runtime')).toContainText('Zscaler');
-  await expect(page.getByTestId('notice-toast').filter({ hasText: 'AI runtime update' })).toHaveCount(0);
+  await expect(page.getByTestId('notification').filter({ hasText: 'AI runtime update' })).toHaveCount(0);
 });

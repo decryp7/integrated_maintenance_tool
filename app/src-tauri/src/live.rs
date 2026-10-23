@@ -624,7 +624,10 @@ mod tests {
         crate::paths::allow_under(app.handle(), st().label(), &other.0);
         let summary = crate::test_support::finished(
             &app,
-            crate::test_support::returns_fast(
+            crate::test_support::returns_while_its_job_is_queued(
+                &app,
+                st().label(),
+                crate::jobs::JobKind::Import,
                 "open_paths_live",
                 open_paths_live(app.handle().clone(), st(), vec![other.0.to_string_lossy().into_owned()], Some(true)),
             ),

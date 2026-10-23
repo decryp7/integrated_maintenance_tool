@@ -35,7 +35,8 @@ export class MockServiceHealth implements ServiceHealthBackend {
   }
 
   /** The service stops (as the engine's supervisor would report). Saying the same again changes nothing. */
-  fail(service: string, cause: HealthCause, repair: RepairAction | null = 'restart', state: ServiceState = 'down'): void {
+  fail(service: string, given: Omit<HealthCause, 'raiseCap'> & Partial<Pick<HealthCause, 'raiseCap'>>, repair: RepairAction | null = 'restart', state: ServiceState = 'down'): void {
+    const cause: HealthCause = { raiseCap: null, ...given };
     const now = this.services.find((s) => s.service === service);
     if (!now || (now.state === state && JSON.stringify(now.cause) === JSON.stringify(cause) && now.repair === repair)) return;
     this.set(service, { state, cause, repair });
