@@ -167,6 +167,14 @@ jobs:
         shell: bash
         run: node scripts/ci/check-temp-leaks.mjs --snapshot "$RUNNER_TEMP/temp-leaks.json"
 
+      # The pinned Chrome for Testing build (the one the app may download, runtime.rs), never an installed browser: the
+      # real-browser tests skip without it, and DEBRIEF_REQUIRE_TEST_BROWSER makes a missing browser a failure instead.
+      - name: Pinned test browser
+        shell: bash
+        run: |
+          node scripts/ci/install-test-browser.mjs "$RUNNER_TEMP/debrief-test-browser"
+          echo "DEBRIEF_REQUIRE_TEST_BROWSER=1" >> "$GITHUB_ENV"
+
       - name: Tests
         run: cargo nextest run --workspace --no-fail-fast
 
@@ -283,7 +291,9 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/check-dialog-commands.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/check-dialog-commands.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs app/e2e/retried-reporter.test.mjs
+          node scripts/ci/check-quarantine.mjs
+          node scripts/ci/scan-fixtures.mjs
           node scripts/ci/check-icons.mjs
           scripts/notices/generate.sh
           git diff --exit-code -- app/src-tauri/resources app/src/app/about/generated
@@ -324,6 +334,10 @@ jobs:
 
       - name: Frontend build
         run: npx ng build
+
+      # No inline <style>/<script> (Tauri's CSP nonce would disable the app's styles) and the start-up splash is present.
+      - name: Built index.html (no inline elements, splash present)
+        run: node ../scripts/ci/check-index.mjs
 
       - name: Translations are extracted and the pseudo-locale builds
         run: |
@@ -372,6 +386,9 @@ jobs:
       - name: Frontend end-to-end tests
         env:
           CI: "true"
+          # Required by playwright.config.ts in CI (no default port, no reused server).
+          DEBRIEF_E2E_PORT: "4355"
+          DEBRIEF_E2E_PROD_PORT: "4356"
         run: npx playwright test --shard=${{ matrix.shard }}/2
 
       - name: Upload Playwright report
@@ -391,7 +408,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest]
+        # macOS has no WebDriver for WKWebView: its leg builds the .app, starts every sidecar from it and asserts that the
+        # app stays up and quits within 10 s (scripts/ci/macos-smoke.sh). The v1.0.1 store-worker abort reached users
+        # because no macOS job ever started the sidecars.
+        os: [ubuntu-latest, windows-latest, macos-latest]
     runs-on: ${{ matrix.os }}
     # Linux legs run in the act image (Node and the usual tools); Windows and macOS run on the host.
     container: ${{ matrix.os == 'ubuntu-latest' && 'dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5' || '' }}
@@ -506,6 +526,7 @@ jobs:
           esac
 
       - name: tauri-driver
+        if: runner.os != 'macOS'
         shell: bash
         run: command -v tauri-driver || cargo install tauri-driver --locked
 
@@ -545,11 +566,34 @@ jobs:
           rm -rf "$base"/node_modules-*
 
       - name: Debug app binary
+        if: runner.os != 'macOS'
         working-directory: app
         shell: bash
         run: |
           [ -d node_modules ] || npm ci
           npm run e2e:tauri:build
+
+      # macOS: a real debug .app (ad-hoc sealed by tauri.macos.conf.json) with the sidecars and libduckdb inside, the same
+      # layout the installer ships; then the signature/Team-ID/load checks and the launch-and-quit smoke.
+      - name: Debug .app (macOS)
+        if: runner.os == 'macOS'
+        working-directory: app
+        shell: bash
+        env:
+          DEBRIEF_CARGO_PROFILE: debug
+        run: |
+          npm ci
+          npx tauri build --debug --bundles app --config src-tauri/tauri.sidecars.conf.json
+
+      - name: Smoke test, sidecars and quit within 10 s (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          app=$(find "${CARGO_TARGET_DIR:-target}/debug/bundle/macos" -maxdepth 1 -name '*.app' | head -n 1)
+          [ -d "$app" ] || { echo "::error::no debug .app was built"; exit 1; }
+          node --test scripts/ci/macos-smoke.test.mjs
+          bash scripts/ci/macos-verify-bundle.sh "$app"
+          bash scripts/ci/macos-smoke.sh "$app"
 
       - name: Smoke tests (Windows)
         if: runner.os == 'Windows'
@@ -606,7 +650,7 @@ jobs:
       # DuckDuckGo in a real Chromium (the runner's Edge or Chrome). Nightly and manual runs only, never on pushes or
       # pull requests: engines rate-limit automated traffic and change their pages.
       - name: Live search test
-        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled()
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os != 'macOS'
         shell: bash
         env:
           DEBRIEF_LIVE_SEARCH: "1"
@@ -615,7 +659,7 @@ jobs:
 
       # The report and page screenshots, passed or not (a warning is worth a look too).
       - name: Live search test report
-        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled()
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os != 'macOS'
         uses: actions/upload-artifact@v3
         with:
           name: live-search-${{ runner.os }}
