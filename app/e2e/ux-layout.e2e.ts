@@ -42,3 +42,25 @@ for (const size of SIZES) {
     });
   });
 }
+
+// U4: the auto-hide Inspector slides out over the right edge; the selected row (its Message column) stays clear of it.
+test('the Inspector flyout does not cover the selected row', async ({ page }) => {
+  await page.addInitScript(() => localStorage.clear());
+  await openApp(page);
+  await page.locator('debrief-events-grid [role=row].row').nth(3).click();
+  const flyout = page.locator('#debrief-ah-flyout');
+  await expect(flyout).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const row = document.querySelector('debrief-events-grid [role=row].row[aria-selected=true]');
+        const fly = document.querySelector('#debrief-ah-flyout');
+        return row && fly ? Math.round(fly.getBoundingClientRect().left - row.getBoundingClientRect().right) : null;
+      }),
+    )
+    .toBeGreaterThanOrEqual(-1);
+  // Closing it gives the grid its width back.
+  await page.keyboard.press('Escape');
+  await expect(flyout).toHaveCount(0);
+  await expect.poll(() => page.locator('debrief-events-grid').evaluate((e) => (e as HTMLElement).style.getPropertyValue('--debrief-flyout-inset-right'))).toBe('');
+});
