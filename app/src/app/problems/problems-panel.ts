@@ -39,7 +39,7 @@ export function severityLabel(s: Severity): string {
     <div class="bar">
       <span class="summary" data-testid="problems-summary">{{ summary() }}</span>
       <span class="spacer"></span>
-      <button type="button" class="icon-btn" data-testid="problems-refresh" aria-label="Refresh problems" i18n-aria-label="@@problems.refresh" title="Refresh" i18n-title="@@problems.refreshTitle" [disabled]="store.loading()" (click)="store.load()">
+      <button type="button" class="icon-btn" data-testid="problems-refresh" aria-label="Refresh problems" i18n-aria-label="@@problems.refresh" title="Refresh" i18n-title="@@problems.refreshTitle" [disabled]="store.isLoading()" (click)="store.load()">
         <debrief-icon name="refresh" [size]="13" />
       </button>
     </div>
@@ -48,7 +48,7 @@ export function severityLabel(s: Severity): string {
         <div class="index" data-testid="problems-index" i18n="@@problems.index">Search index: {{ fmt(idx.indexed) }} of {{ fmt(idx.total) }} events indexed; search covers the indexed events.</div>
       }
     }
-    @if (store.loadError(); as error) {
+    @if (store.error(); as error) {
       <div class="error" role="alert">
         <span i18n="@@problems.loadError">The problems could not be listed: {{ error }}</span>
         <button type="button" class="btn" (click)="store.load()" i18n="@@problems.retry">Retry</button>
@@ -64,7 +64,7 @@ export function severityLabel(s: Severity): string {
       <div class="notice" role="status">{{ notice }}</div>
     }
     <debrief-known-issues />
-    @if (store.loaded() && rows().length === 0 && !store.loadError()) {
+    @if (store.isLoaded() && rows().length === 0 && !store.error()) {
       <debrief-panel-empty class="empty" data-testid="problems-empty" icon="check" title="No problems" i18n-title="@@problems.empty.title"><ng-container i18n="@@problems.empty">Every opened file was read completely.</ng-container></debrief-panel-empty>
     } @else {
       <div class="body">
@@ -265,7 +265,7 @@ export class ProblemsPanel {
 
   protected readonly summary = computed(() => {
     const c = this.store.counts();
-    if (!this.store.loaded()) return $localize`:@@problems.loading:Reading the problems…`;
+    if (!this.store.isLoaded()) return $localize`:@@problems.loading:Reading the problems…`;
     const warnings = formatCount(c.warning);
     const infos = formatCount(c.info);
     const errors = formatCount(c.critical);

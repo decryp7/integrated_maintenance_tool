@@ -12,7 +12,7 @@ import { ProblemsStore } from './problems.store';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [Icon],
   template: `
-    @if (store.loaded()) {
+    @if (store.isLoaded()) {
       <button type="button" class="pill" data-testid="status-problems" [class.on]="store.counts().total > 0" [title]="label()" [attr.aria-label]="label()" (click)="ctx.showView(view)">
         <debrief-icon name="alert" [size]="12" />{{ fmt(store.counts().total) }}
       </button>
