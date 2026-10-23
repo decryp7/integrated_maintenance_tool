@@ -105,7 +105,7 @@ fn events_stats_and_neighbours() {
 fn unknown_tools_and_helpers() {
     assert!(call("rm_rf", json!({})).text.contains("unknown tool"));
     let specs = EngineTools::tool_specs();
-    assert_eq!(specs.len(), 11);
+    assert_eq!(specs.len(), 12);
     assert!(specs
         .iter()
         .all(|s| s.input_schema["type"] == "object" && !s.description.is_empty()));
