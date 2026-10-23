@@ -56,7 +56,7 @@ export const DIALOG_DEFS: readonly DialogDef[] = [
   { id: 'add-tile', modality: 'modal', width: 520, load: () => import('../share/dashboard/add-tile-dialog').then((m) => m.AddTileDialog) },
   { id: 'redaction', modality: 'modal', width: 640, load: () => import('../share/redaction/redaction-dialog').then((m) => m.RedactionDialog) },
   { id: 'report-export', modality: 'modal', width: 520, load: () => import('../share/report/report-export-dialog').then((m) => m.ReportExportDialog) },
-  { id: 'redacted-copy', modality: 'modeless', width: 760, load: () => import('../share/redacted-copy/redacted-copy-dialog').then((m) => m.RedactedCopyDialog) },
+  { id: 'redacted-copy', modality: 'modeless', width: 760, height: 680, minWidth: 560, minHeight: 420, load: () => import('../share/redacted-copy/redacted-copy-dialog').then((m) => m.RedactedCopyDialog) },
 ];
 
 const BY_ID = new Map(DIALOG_DEFS.map((d) => [d.id, d]));

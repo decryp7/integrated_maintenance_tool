@@ -13,6 +13,7 @@ import { RedactionSummaryView } from '../share/redaction/redaction-summary';
 import { ShareBackend } from '../share/share-backend';
 import { OverwriteGuard } from '../ui/overwrite-guard';
 import { JobFollow } from '../jobs/job-follow';
+import { DebriefSelect } from '../settings/themed-select';
 
 /** What to export: the events matching the filters, the same without the time range, or everything. */
 export type ExportScope = 'filter' | 'filterAnyTime' | 'all';
@@ -32,15 +33,11 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
 @Component({
   selector: 'debrief-export-dialog',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [HelpHint, RedactionSummaryView],
+  imports: [HelpHint, RedactionSummaryView, DebriefSelect],
   template: `
     <div class="field">
-      <label for="exp-format" i18n="@@export.dialog.format">Format</label>
-      <select id="exp-format" class="select" [value]="format()" (change)="format.set($any($event.target).value)">
-        @for (e of exporters(); track e.id) {
-          <option [value]="e.id">{{ e.name }} (.{{ e.extension }})</option>
-        }
-      </select>
+      <span class="lbl" i18n="@@export.dialog.format">Format</span>
+      <debrief-select id="exp-format" data-testid="exp-format" ariaLabel="Format" i18n-ariaLabel="@@export.dialog.format" [options]="formatOptions()" [value]="format()" (valueChange)="format.set($any($event))" />
     </div>
 
     <fieldset class="field">
@@ -79,7 +76,7 @@ export function exportQuery(current: Query, scope: ExportScope): Query {
   styles: `
     :host { display: flex; flex-direction: column; gap: 12px; }
     .field { display: flex; flex-direction: column; gap: 6px; border: 0; margin: 0; padding: 0; min-width: 0; }
-    label, legend { font-size: var(--fs-sm); color: var(--muted); display: flex; align-items: center; gap: 6px; padding: 0; }
+    label, legend, .lbl { font-size: var(--fs-sm); color: var(--muted); display: flex; align-items: center; gap: 6px; padding: 0; }
     /* Stacked options stay 24px apart (WCAG 2.5.8 spacing for the 13px radios). */
     .opt { color: var(--text-2); font-size: var(--fs-md); min-height: 24px; }
     .count { margin: 0; color: var(--text-2); }
@@ -99,6 +96,7 @@ export class ExportDialog {
   private readonly redactionService = inject(RedactionService);
 
   protected readonly exporters = computed<ExporterInfo[]>(() => this.store.summary()?.exporters ?? []);
+  protected readonly formatOptions = computed(() => this.exporters().map((e) => ({ value: e.id, label: `${e.name} (.${e.extension})` })));
   protected readonly format = signal(this.exporters()[0]?.id ?? '');
   protected readonly scope = signal<ExportScope>('filter');
   protected readonly descending = signal(this.store.descending());

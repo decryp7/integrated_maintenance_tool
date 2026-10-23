@@ -56,6 +56,7 @@ export const PREVIEW_DEBOUNCE_MS = 200;
         <button type="button" class="btn primary" data-testid="rc-done" (click)="ref.close(true)" i18n="@@share.redactedCopy.done">Done</button>
       </div>
     } @else {
+      <div class="content">
       <div class="cols">
         <fieldset>
           <legend i18n="@@share.redactedCopy.detectors">What to redact</legend>
@@ -99,7 +100,7 @@ export const PREVIEW_DEBOUNCE_MS = 200;
           <table data-testid="rc-hits">
             <caption class="sr-only" i18n="@@share.redactedCopy.preview.hitsCaption">Values found per rule</caption>
             <tbody>
-              @for (h of p.summary.hits; track h.rule) {
+              @for (h of found(p.summary.hits); track h.rule) {
                 <tr [attr.data-rule-hit]="h.rule">
                   <th scope="row">{{ label(h.rule) }}</th>
                   <td>{{ count(h.count) }}</td>
@@ -107,6 +108,9 @@ export const PREVIEW_DEBOUNCE_MS = 200;
               }
             </tbody>
           </table>
+          @if (nothingFound(p.summary.hits); as n) {
+            <p class="hint" data-testid="rc-zero-hits" i18n="@@share.redactedCopy.preview.zero">{n, plural, =0 {} =1 {1 other rule found nothing.} other {{{ n }} other rules found nothing.}}</p>
+          }
           @if (p.summary.samples.length) {
             <ul class="samples" data-testid="rc-samples">
               @for (s of p.summary.samples; track s.recordId) {
@@ -143,6 +147,7 @@ export const PREVIEW_DEBOUNCE_MS = 200;
       @if (createError(); as e) {
         <p class="err" role="alert" data-testid="rc-create-error">{{ e }}</p>
       }
+      </div>
       <div class="foot">
         <button type="button" class="btn ghost" data-testid="rc-cancel" (click)="ref.close()" i18n="@@share.redactedCopy.cancel">Cancel</button>
         <button type="button" class="btn primary" data-testid="rc-create" [disabled]="!canCreate()" [attr.aria-busy]="busy()" (click)="create()">
@@ -158,7 +163,9 @@ export const PREVIEW_DEBOUNCE_MS = 200;
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 10px; }
+    :host { display: flex; flex-direction: column; gap: 10px; min-height: 0; flex: 1 1 auto; }
+    /* The choices and the preview scroll; the buttons stay in view at any window height. */
+    .content { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow: auto; flex: 1 1 auto; }
     p, h3 { margin: 0; }
     h3 { font-size: var(--fs-sm); }
     .hint { color: var(--muted); font-size: var(--fs-xs); }
@@ -184,13 +191,20 @@ export const PREVIEW_DEBOUNCE_MS = 200;
     .hits { list-style: none; padding: 0; }
     .hits li { display: flex; gap: 12px; }
     .err { color: var(--danger-text); }
-    .foot { display: flex; justify-content: flex-end; gap: 8px; }
+    .foot { flex: none; display: flex; justify-content: flex-end; gap: 8px; padding-top: 10px; border-top: 1px solid var(--border); }
     .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
   `,
 })
 export class RedactedCopyDialog implements OnInit {
   static readonly dialogId = 'redacted-copy';
   protected readonly count = formatCount;
+  /** The rules that found something; the rest are summarised in one line. */
+  protected found(hits: readonly { rule: string; count: number }[]) {
+    return hits.filter((h) => h.count > 0);
+  }
+  protected nothingFound(hits: readonly { rule: string; count: number }[]): number {
+    return hits.filter((h) => h.count <= 0).length;
+  }
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(ShareBackend);
   private readonly platform = inject(Platform);

@@ -170,6 +170,20 @@ describe('RedactedCopyDialog', () => {
     expect(createBtn(fixture).disabled).toBe(false);
   });
 
+  it('lists only the rules that found something and summarises the rest in one line', async () => {
+    const hits = [{ rule: 'email', count: 3 }, ...['ipv4', 'jwt', 'uuid'].map((rule) => ({ rule, count: 0 }))];
+    const { fixture } = await setup({ preview: vi.fn(async () => ({ ...preview(3), summary: { ...preview(3).summary, hits } })) });
+    expect(fixture.nativeElement.querySelectorAll('[data-testid=rc-hits] tr')).toHaveLength(1);
+    expect(el(fixture, '[data-testid=rc-zero-hits]').textContent).toContain('3 other rules found nothing');
+  });
+
+  it('keeps the buttons outside the scrolling content', async () => {
+    const { fixture } = await setup();
+    const foot = el(fixture, '.foot');
+    expect(foot.closest('.content')).toBeNull();
+    expect(el(fixture, '.content').contains(el(fixture, '[data-testid=rc-preview]'))).toBe(true);
+  });
+
   it('asks again (debounced, once) when picks change', async () => {
     const previewFn = vi.fn(async (o: { detectors?: string[] }) => preview(o.detectors?.length ?? 0));
     const { fixture } = await setup({ preview: previewFn });

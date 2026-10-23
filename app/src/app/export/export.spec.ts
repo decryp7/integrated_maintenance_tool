@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { all, buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
+import { buttonByText, el, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { ExporterInfo } from '../core/api.types';
 import { DebriefBackend } from '../core/backend';
 import { Platform } from '../core/platform';
@@ -56,7 +56,11 @@ describe('ExportDialog', () => {
 
   it('shows formats and the number of events, and recounts when the scope changes', async () => {
     const { fixture, store } = await setup();
-    expect(all(fixture, '#exp-format option').map((o) => o.textContent?.trim())).toEqual(['CSV (.csv)', 'Compact Log Event Format (.clef)']);
+    el<HTMLButtonElement>(fixture, '#exp-format button').click();
+    await settle(fixture);
+    expect(Array.from(document.querySelectorAll('[role=option]')).map((o) => o.textContent?.replace('✓', '').trim())).toEqual(['CSV (.csv)', 'Compact Log Event Format (.clef)']);
+    (document.querySelectorAll('[role=option]')[0] as HTMLElement).click();
+    await settle(fixture);
     expect(text(fixture)).toContain('11 events will be exported');
     store.setTextInput('boom');
     await new Promise((r) => setTimeout(r, 300));
@@ -77,8 +81,10 @@ describe('ExportDialog', () => {
     const spy = vi.spyOn(backend, 'exportEvents');
     pick.mockResolvedValue('/out/events.clef');
     el<HTMLInputElement>(fixture, 'input[value=desc]').click();
-    el<HTMLSelectElement>(fixture, '#exp-format').value = 'clef';
-    el<HTMLSelectElement>(fixture, '#exp-format').dispatchEvent(new Event('change'));
+    el<HTMLButtonElement>(fixture, '#exp-format button').click();
+    await settle(fixture);
+    (document.querySelectorAll('[role=option]')[1] as HTMLElement).click();
+    await settle(fixture);
     buttonByText(fixture, 'Export…').click();
     await settle(fixture);
     expect(at(pick.mock.calls, 0)[0]).toBe('events.clef');
