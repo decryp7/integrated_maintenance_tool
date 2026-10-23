@@ -84,6 +84,8 @@ export interface RowVm {
   untimed: boolean;
   levelVar: string;
   levelCode: string;
+  /** The level's name, for the dot's shape (a cue besides its colour). */
+  level: string;
   /** Information, debug and verbose rows show the dot only: the code appears where a level is notable. */
   quietLevel: boolean;
   /** The instance's name, then its host and process id, muted. */
@@ -197,7 +199,7 @@ export type GridRowVm = RowVm | PlaceholderVm;
               } @else {
                 <span class="mono time" role="gridcell">{{ v.time }}</span>
               }
-              <span class="lvl" role="gridcell" [title]="v.levelCode"><span class="dot" [style.background]="v.levelVar"></span><span [class]="v.quietLevel ? 'sr' : 'code'">{{ v.levelCode }}</span></span>
+              <span class="lvl" role="gridcell" [attr.data-level]="v.level" [title]="v.levelCode"><span class="dot" [style.background]="v.levelVar"></span><span [class]="v.quietLevel ? 'sr' : 'code'">{{ v.levelCode }}</span></span>
               <span class="inst ellipsis" role="gridcell" [title]="v.row.group"><span class="inst-name">{{ v.instName }}</span>@if (v.instRest) { <span class="inst-rest"> · {{ v.instRest }}</span> }</span>
               @for (c of v.cells; track c.column) {
                 <span class="mono extra ellipsis" role="gridcell" [title]="c.text">{{ c.text }}</span>
@@ -407,6 +409,7 @@ export class EventsGrid {
         untimed: row.tsState === 'untimed' || row.ts === null,
         levelVar: LEVEL_VARS[row.level],
         levelCode: LEVEL_CODES[row.level],
+        level: row.level,
         quietLevel: row.level === 'Information' || row.level === 'Debug' || row.level === 'Verbose',
         ...splitInstance(row.group),
         cells: columns.map((column) => ({ column, text: this.cell(row, column) })),
