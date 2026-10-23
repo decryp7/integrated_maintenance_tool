@@ -4,6 +4,7 @@ import { Timeline } from '../api.types';
 import { DebriefBackend } from '../backend';
 import { QueryStore } from './query.store';
 import { UiPrefsStore } from './ui-prefs.store';
+import { WORKSPACE_QUERIES } from './workspace-queries';
 import { errorText, WorkspaceDataStore } from './workspace-data.store';
 
 interface TimelineState {
@@ -35,6 +36,7 @@ export const TimelineStore = signalStore(
       const data = inject(WorkspaceDataStore);
       const query = inject(QueryStore);
       const prefs = inject(UiPrefsStore);
+      const enabled = inject(WORKSPACE_QUERIES);
       let seq = 0;
       // effect-state: IPC timeline request keyed on query and data version; the answer lands in the store
       effect(() => {
@@ -42,7 +44,7 @@ export const TimelineStore = signalStore(
         const request = { query: query.effectiveQuery(), buckets: store.buckets(), alwaysShowLifecycle: prefs.alwaysShowLifecycle() };
         data.dataVersion();
         store.retryNonce();
-        if (!summary) return;
+        if (!summary || !enabled) return;
         const mine = ++seq;
         untracked(() => patchState(store, { loading: true }));
         backend

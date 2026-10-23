@@ -9,6 +9,7 @@ import { SelectionStore } from './selection.store';
 import { WorkspaceStatusStore } from './status.store';
 import { ThemeService } from './theme.service';
 import { TimelineStore } from './timeline-data.store';
+import { WORKSPACE_QUERIES } from './workspace-queries';
 import { UiPrefsStore } from './ui-prefs.store';
 import { sameSources, WorkspaceDataStore } from './workspace-data.store';
 
@@ -169,5 +170,17 @@ describe('workspace stores', () => {
     expect(spy.mock.calls[0]?.[0].query.levels).toEqual(['Error']);
     expect(timeline.loading()).toBe(false);
     expect(timeline.error()).toBeNull();
+  });
+
+  it('a window without workspace queries (a dialog window) never fetches the timeline', async () => {
+    const backend = tinyBackend();
+    const spy = vi.spyOn(backend, 'queryTimeline');
+    TestBed.configureTestingModule({ providers: [...provideTinyBackendBare(backend), { provide: WORKSPACE_QUERIES, useValue: false }] });
+    const timeline = TestBed.inject(TimelineStore);
+    TestBed.inject(QueryStore).toggleLevel('Error');
+    await settle();
+    expect(TestBed.inject(WorkspaceDataStore).summary()).not.toBeNull();
+    expect(spy).not.toHaveBeenCalled();
+    expect(timeline.timeline()).toBeNull();
   });
 });

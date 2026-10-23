@@ -212,7 +212,7 @@ import { SettingField, SettingsSection } from './settings.types';
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 10px; height: min(640px, calc(100vh - 170px)); min-height: 0; }
+    :host { display: flex; flex-direction: column; gap: 10px; height: var(--dialog-window-height, min(640px, calc(100vh - 170px))); min-height: 0; }
     .top { display: flex; align-items: center; gap: 12px; }
     .search { flex: 1; }
     .parser-hits { margin: 0 0 8px; padding-left: 18px; }

@@ -187,7 +187,7 @@ type Step = 'survey' | 'proposals' | 'review' | 'apply';
     }
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 10px; max-height: min(78vh, 900px); overflow: auto; }
+    :host { display: flex; flex-direction: column; gap: 10px; max-height: var(--dialog-window-max-height, min(78vh, 900px)); overflow: auto; }
     .steps { display: flex; gap: 6px; list-style: none; margin: 0; padding: 0; font-size: var(--fs-sm); color: var(--muted); }
     .steps li { padding: 2px 8px; border-radius: 10px; border: 1px solid var(--border); }
     .steps li.current { color: var(--text); border-color: var(--accent); font-weight: 600; }

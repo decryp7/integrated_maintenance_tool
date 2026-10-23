@@ -12,6 +12,8 @@ export const APPEARANCE_ID = '@appearance';
 
 /** Navigation id of Updates: app updates, AI runtime and model updates (UI-only; the engine owns the updater). */
 export const UPDATES_ID = '@updates';
+/** The engine's section behind the Updates page (src-tauri updater/section.rs). */
+const ENGINE_UPDATES_SECTION = 'updates';
 /** The engine section that holds the live tail delay; the Live tail page shows it with the rest of live tail. */
 export const LIVE_TAIL_SECTION = 'workspace';
 
@@ -47,7 +49,8 @@ export function navLayout(sections: readonly SettingsSection[]): NavGroup[] {
   };
   const item = (s: SettingsSection): NavItem => ({ id: s.id, title: s.id === LIVE_TAIL_SECTION ? titles.liveTail : s.title, section: s });
   const by = (pred: (s: SettingsSection) => boolean) => sections.filter(pred).map(item);
-  const inGroup = (...g: SectionGroup[]) => (s: SettingsSection) => g.includes(s.group) && s.id !== LIVE_TAIL_SECTION;
+  // The engine's "updates" section (automatic checks, channel) is shown by the UI Updates page: one entry, not two.
+  const inGroup = (...g: SectionGroup[]) => (s: SettingsSection) => g.includes(s.group) && s.id !== LIVE_TAIL_SECTION && s.id !== ENGINE_UPDATES_SECTION;
   const groups: NavGroup[] = [
     {
       id: 'application',

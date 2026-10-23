@@ -29,6 +29,8 @@ import { DIALOG_ROUTE } from './dialog-route';
 
 /** The dialog window starts syncing once its workspace loaded, or after this long anyway. */
 const SYNC_START_TIMEOUT_MS = 5000;
+/** The shell body's padding (see the styles): the window is this much taller than its content. */
+const BODY_PADDING_PX = 16;
 
 /**
  * The small app a dialog window boots into (ADR 0050): the dialog's content under the OS title bar. It takes its input
@@ -53,8 +55,10 @@ const SYNC_START_TIMEOUT_MS = 5000;
     </main>
   `,
   styles: `
-    :host { display: block; height: 100vh; background: var(--bg-2); color: var(--text); }
-    .body { box-sizing: border-box; height: 100%; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    /* A dialog window is a full-height column: the content fills it and scrolls inside (no sizes of the in-page overlay). */
+    :host { --dialog-window-height: 100%; --dialog-window-max-height: none; display: block; height: 100vh; background: var(--bg-2); color: var(--text); }
+    .body { box-sizing: border-box; height: 100%; min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+    .body > :not(.loading):not(.error):not(.foot) { flex: 1 1 auto; min-height: 0; }
     .loading { margin: auto; color: var(--muted); font-size: var(--fs-md); }
     .error { color: var(--lvl-error); margin: 0; }
     .foot { display: flex; justify-content: flex-end; }
@@ -102,10 +106,32 @@ export class DialogShell {
       document.title = start.title;
       this.inputs.set(isRecord(start.input) ? start.input : {});
       this.component.set(component);
+      if (def.height === undefined) this.fitToContent();
     } catch (e) {
       this.logger.error('ui.dialog', 'Dialog window failed to start', { Dialog: this.route.id, Error: errorMessage(e) });
       this.error.set(errorMessage(e));
     }
+  }
+
+  /**
+   * The window opens at a default size; unless the dialog names a height in the registry, it is sized to what its content
+   * needs (once, after the first render: the user's own resizing afterwards stretches the content, which fills the window).
+   */
+  private fitToContent(): void {
+    afterNextRender(
+      () => {
+        const content = this.body().nativeElement.firstElementChild;
+        if (!content) return;
+        // Measure at its natural height: the content normally stretches to fill the window.
+        const el = content as HTMLElement;
+        const flex = el.style.flex;
+        el.style.flex = 'none';
+        const h = el.getBoundingClientRect().height;
+        el.style.flex = flex;
+        if (h > 0) void this.io.fitHeight(h + 2 * BODY_PADDING_PX).catch(() => undefined);
+      },
+      { injector: this.injector },
+    );
   }
 
   /** Closes this dialog with `result` (none: dismissed), unless the content refuses (unsaved edits). */

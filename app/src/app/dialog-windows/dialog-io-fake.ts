@@ -50,6 +50,11 @@ export class FakeDialogIo implements DialogIo {
   async workAreas() {
     return this.areas;
   }
+  /** The heights the shell asked for. */
+  readonly fitted: number[] = [];
+  async fitHeight(px: number) {
+    this.fitted.push(px);
+  }
   async windowLabel() {
     return this.label;
   }

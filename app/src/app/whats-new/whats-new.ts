@@ -52,7 +52,7 @@ export const WHATS_NEW_SEEN_KEY = 'debrief.whatsnew.seen';
   `,
   imports: [NgTemplateOutlet],
   styles: `
-    :host { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; max-height: 70vh; overflow: auto; }
+    :host { display: flex; flex-direction: column; gap: var(--s-3); min-width: 0; max-height: var(--dialog-window-max-height, 70vh); overflow: auto; }
     h3 { margin: 0 0 var(--s-2); font-size: var(--fs-md); display: flex; gap: var(--s-2); align-items: baseline; }
     h4 { margin: var(--s-3) 0 var(--s-1); font-size: var(--fs-sm); color: var(--text-2); }
     .date { font-size: var(--fs-xs); color: var(--muted); font-weight: 400; }

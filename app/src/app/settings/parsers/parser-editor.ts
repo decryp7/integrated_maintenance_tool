@@ -80,7 +80,7 @@ const PREVIEW_DEBOUNCE_MS = 300;
     </div>
   `,
   styles: `
-    :host { display: flex; flex-direction: column; gap: 8px; height: min(720px, calc(100vh - 140px)); min-height: 0; }
+    :host { display: flex; flex-direction: column; gap: 8px; height: var(--dialog-window-height, min(720px, calc(100vh - 140px))); min-height: 0; }
     :host(.embedded) { height: 100%; }
     .note { margin: 0; padding: 6px 8px; border-inline-start: 2px solid var(--accent); color: var(--text-2); }
     .toml { flex: 1 1 280px; min-height: 160px; display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }

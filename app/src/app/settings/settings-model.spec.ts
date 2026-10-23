@@ -1,5 +1,5 @@
 import { mockSections } from './mock-settings-backend';
-import { displayValue, editUnit, fieldMatches, formatBytes, formatMs, parseList, parseNumber, precheck, rangeHint, sameValue, statusLabel } from './settings-model';
+import { displayValue, navLayout, editUnit, fieldMatches, formatBytes, formatMs, parseList, parseNumber, precheck, rangeHint, sameValue, statusLabel } from './settings-model';
 import { FieldKind, SettingField, SettingsSection } from './settings.types';
 import { at } from '../../testing/must';
 
@@ -101,5 +101,14 @@ describe('settings model', () => {
     const first = at(sections, 0);
     const as = (status: SettingsSection['status']) => statusLabel({ ...first, status });
     expect([as('active'), as('disabled'), as('quarantined'), as('notInstalled'), as('safeMode')]).toEqual([null, 'disabled', 'stopped', 'not installed', 'safe mode']);
+  });
+
+  it('lists every navigation entry once, the engine updates section included', () => {
+    const engineUpdates = { ...mockSections()[0]!, id: 'updates', title: 'Updates', group: 'app' } as SettingsSection;
+    const items = navLayout([...mockSections(), engineUpdates]).flatMap((g) => g.items);
+    const ids = items.map((i) => i.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(items.filter((i) => i.title === 'Updates')).toHaveLength(1);
+    expect(ids).toContain('@updates');
   });
 });

@@ -40,3 +40,21 @@ for (const [id, title] of IDS) {
     expect(errors.filter((e) => /NG0\d+|No provider|NullInjector/.test(e))).toEqual([]);
   });
 }
+
+// A dialog window is a full-height column: the footer sits at the bottom of the window and the body fills the space
+// between, at any window size (no sizes left over from the in-page overlay).
+for (const size of [{ width: 1021, height: 727 }, { width: 760, height: 560 }]) {
+  test(`the settings dialog window fills a ${size.width}x${size.height} window with its footer at the bottom`, async ({ page }) => {
+    await page.setViewportSize(size);
+    await page.goto('/#/dialog?id=settings&host=main&label=d-main-1&title=Settings&dialogInput=%7B%7D');
+    const shell = page.locator('debrief-dialog-shell');
+    await expect(shell.locator('[data-testid=dialog-loading]')).toHaveCount(0, { timeout: 15_000 });
+    const footer = shell.locator('.footer');
+    await expect(footer).toBeVisible();
+    const fb = (await footer.boundingBox())!;
+    const host = (await shell.locator('debrief-settings-screen').boundingBox())!;
+    // The footer ends within the shell's padding of the window bottom; the content spans the window height.
+    expect(size.height - (fb.y + fb.height)).toBeLessThanOrEqual(24);
+    expect(host.height).toBeGreaterThan(size.height - 48);
+  });
+}

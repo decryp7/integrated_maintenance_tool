@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { WORKSPACE_QUERIES } from '../core/workspace/workspace-queries';
 import { UiSync } from '../popout/ui-sync';
 import { dialogAppConfig, dialogBaseProviders } from './dialog-bootstrap';
 import { DIALOG_DEFS } from './dialog-registry';
@@ -14,6 +15,14 @@ describe('dialog window bootstrap', () => {
     expect(base.providers.length).toBeGreaterThan(none.providers.length);
     expect(ai.providers.length).toBeGreaterThan(none.providers.length);
     expect((await dialogAppConfig('no-such-dialog')).providers.length).toBe(none.providers.length);
+  });
+
+  it('keeps the workspace queries off unless the dialog names the workspace feature', async () => {
+    const flag = (c: { providers: unknown[] }) =>
+      c.providers.filter((p) => (p as { provide?: unknown }).provide === WORKSPACE_QUERIES).map((p) => (p as { useValue: boolean }).useValue).at(-1);
+    expect(flag(await dialogAppConfig('settings'))).toBe(false);
+    expect(flag(await dialogAppConfig('no-such-dialog'))).toBe(false);
+    for (const d of DIALOG_DEFS) expect(flag(await dialogAppConfig(d.id))).toBe(d.features?.includes('workspace') ? true : false);
   });
 
   it('only names features that exist', async () => {

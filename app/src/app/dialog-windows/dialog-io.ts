@@ -56,6 +56,8 @@ export interface DialogIo {
   ask(question: ConfirmQuestion): Promise<boolean>;
   workAreas(): Promise<WorkArea[]>;
   windowLabel(): Promise<string>;
+  /** Sizes this dialog window's height to `contentPx` px of content (the engine bounds it); the width stays. */
+  fitHeight(contentPx: number): Promise<void>;
 }
 
 export const DIALOG_IO = new InjectionToken<DialogIo>('DIALOG_IO', { providedIn: 'root', factory: createDialogIo });
@@ -84,6 +86,7 @@ export function tauriDialogIo(): DialogIo {
       });
     },
     windowLabel: currentWindowLabel,
+    fitHeight: (content) => invoke<void>('dialog_fit_height', { content }),
   };
 }
 
@@ -128,5 +131,6 @@ export function browserDialogIo(): DialogIo {
     ask: async (q) => window.confirm(q.message),
     workAreas: async () => [],
     windowLabel: async () => route().get('label') ?? '',
+    fitHeight: async () => undefined,
   };
 }

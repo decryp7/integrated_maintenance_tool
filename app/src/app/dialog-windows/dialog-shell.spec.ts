@@ -49,6 +49,19 @@ async function setup(over: { lookup?: (id: string) => DialogDef | undefined; fai
 const key = (target: Element, k: string, init: KeyboardEventInit = {}) => target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
 
 describe('DialogShell', () => {
+  it('sizes the window to the content unless the dialog names a height', async () => {
+    const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ height: 120 } as DOMRect);
+    try {
+      const { io } = await setup();
+      expect(io.fitted).toEqual([152]);
+      TestBed.resetTestingModule();
+      const { io: fixed } = await setup({ lookup: () => ({ ...def, height: 600 }) });
+      expect(fixed.fitted).toEqual([]);
+    } finally {
+      rect.mockRestore();
+    }
+  });
+
   it('shows the dialog with the input it was opened with and the window title', async () => {
     const { fixture } = await setup();
     expect(el(fixture, '#name').textContent).toBe('Ada');
