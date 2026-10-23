@@ -1,7 +1,7 @@
 import { inject, Injectable, Injector } from '@angular/core';
 import { KnowledgeBackend } from '../ai/knowledge/knowledge-backend';
 import { invoke } from '../core/activity/ipc';
-import { SearchAllReply, SearchAllRequest } from '../core/api.types';
+import { FindValuesRequest, SearchAllReply, SearchAllRequest, ValueMatch } from '../core/api.types';
 import { AnalysisBackend } from '../core/analysis-backend';
 import { DebriefBackend } from '../core/backend';
 import { reportBackendFailures } from '../core/failure-reporter';
@@ -20,6 +20,8 @@ import { NotesBackend } from '../notes/notes-backend';
 export abstract class SearchEverythingBackend {
   /** The results for `request`; null when the text has no words or a newer search of the window replaced this one. */
   abstract searchEverything(request: SearchAllRequest): Promise<SearchAllReply | null>;
+  /** The values the logs hold that the words refer to, best first (the "Did you mean" line); a query, nothing changes. */
+  abstract findValues(request: FindValuesRequest): Promise<ValueMatch[]>;
 }
 
 /** Talks to the `search_everything` command. */
@@ -30,6 +32,9 @@ export class TauriSearchEverythingBackend extends SearchEverythingBackend {
   }
   searchEverything(request: SearchAllRequest) {
     return this.call<SearchAllReply | null>('search_everything', { request });
+  }
+  findValues(request: FindValuesRequest) {
+    return this.call<ValueMatch[]>('find_values', { request });
   }
 }
 

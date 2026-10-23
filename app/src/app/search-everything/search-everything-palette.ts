@@ -46,6 +46,13 @@ let nextId = 0;
         <span class="muted" data-testid="search-everything-empty" i18n="@@search.status.none">Nothing matches “{{ store.searched() //i18n(ph="text") }}”.</span>
       }
     </div>
+    @if (store.suggestion(); as s) {
+      <div class="status" data-testid="search-everything-suggestion">
+        <span class="muted" i18n="@@search.suggestion.prefix">Did you mean</span>
+        <button type="button" class="btn ghost" (click)="store.acceptSuggestion()">{{ s.value }}</button>
+        <span class="muted">({{ fieldName(s.field) }})?</span>
+      </div>
+    }
     <div class="list" role="listbox" [id]="listId" i18n-aria-label="@@search.list.label" aria-label="Results">
       @for (g of store.groups(); track g.kind) {
         <div class="group" role="group" [attr.aria-labelledby]="listId + '-' + g.kind" [attr.data-testid]="'search-group-' + g.kind">
@@ -117,6 +124,11 @@ export class SearchEverythingPalette {
 
   constructor() {
     this.store.reset();
+  }
+
+  /** A field as shown: the pseudo field of a source's name reads "source". */
+  protected fieldName(field: string): string {
+    return field === '@source' ? $localize`:@@search.suggestion.source:source` : field;
   }
 
   protected optionId(r: ResultRow): string {

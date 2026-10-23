@@ -2,6 +2,8 @@ import { ApplicationRef, computed, EnvironmentInjector, inject, Injectable, Inje
 import type { DockviewApi, DockviewGroupPanel } from 'dockview';
 import { dockview, loadDockview } from './dockview-loader';
 import { Logger } from '../core/logger';
+import { CommandRegistry } from '../extensions/command-registry';
+import { formatKeybinding } from '../extensions/keybinding';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
 import { AutoHideEvent, EMPTY_AUTO_HIDE } from './auto-hide';
@@ -96,6 +98,12 @@ export class DockService {
   /** Ticks on every layout change of the dock (panels that keep native content in place follow it). */
   readonly layoutChanged = this.ctx.layoutVersion.asReadonly();
 
+  /** The user's current binding of the auto-hide command as shown on this platform; empty when it has none. */
+  autoHideShortcut(): string {
+    const binding = this.lazy.get(CommandRegistry).find('window.autoHide')?.keybinding;
+    return binding ? formatKeybinding(binding) : '';
+  }
+
   constructor() {
     inject(DockPolicy).start({
       ready: this.ctx.apiReady,
@@ -186,6 +194,7 @@ export class DockService {
             available: (g) => !!g.activePanel && this.canAutoHide(g.activePanel.id),
             run: (g) => g.activePanel && this.unpin(g.activePanel.id),
             chooseSide: (g, anchor, at) => g.activePanel && this.openAutoHideSideMenu(g.activePanel.id, anchor, at),
+            shortcut: () => this.autoHideShortcut(),
           },
         }),
     });

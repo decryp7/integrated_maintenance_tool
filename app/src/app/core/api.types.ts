@@ -473,6 +473,26 @@ export interface SearchAllRequest {
   limit?: number;
 }
 
+/** What the search box asks for its "Did you mean" line (`find_values({ request })` → `ValueMatch[]`, Rust `debrief_core::find`). */
+export interface FindValuesRequest {
+  text: string;
+  /** Most values; 0/absent = a few. */
+  limit?: number;
+}
+
+/** How a value matched the words, best first. */
+export type ValueVia = 'exact' | 'parts' | 'prefix' | 'fuzzy';
+
+/** A value the logs hold that the words refer to (`CompanyA.Graphic.Builder.exe` of the field `ProcessName` for "graphic builder"). */
+export interface ValueMatch {
+  /** The field (`@source` for a source's name). */
+  field: string;
+  value: string;
+  /** Events with the value. */
+  count: number;
+  via: ValueVia;
+}
+
 /** A run of a snippet: a matched word (`mark`) or the text around it. */
 export interface SnippetPart {
   text: string;

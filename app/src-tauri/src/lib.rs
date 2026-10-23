@@ -184,6 +184,7 @@ command_table! {
     Query [WINDOW] => query_cancel::run_query_stream,
     Query [WINDOW] => smart_search::search_partial,
     Query [WINDOW] => search_everything::search_everything,
+    Query [WINDOW] => search_everything::find_values,
     Query [WINDOW] => insights::check_query,
     Query [WINDOW] => insights::complete_query,
     Query [WINDOW] limit MIB => insights::classify_search,

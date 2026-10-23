@@ -78,8 +78,8 @@ export const HOVER_HIDE_MS = 300;
         >
           <header class="debrief-ah-head">
             <span class="debrief-ah-title">{{ item.title }}</span>
-            <button type="button" class="debrief-dock-action debrief-ah-pin" [attr.aria-label]="pinLabel(item.title)" aria-pressed="true" title="Pin (dock it again, Ctrl+Alt+H)" i18n-title="@@dock.host.pinTitle" (click)="dock.pin(item.id)">
-              <debrief-icon name="unpin" [size]="13" [stroke]="2" />
+            <button type="button" class="debrief-dock-action debrief-ah-pin" [attr.aria-label]="pinLabel(item.title)" aria-pressed="true" [attr.title]="pinTitle()" (click)="dock.pin(item.id)">
+              <debrief-icon name="unpin" [size]="16" [stroke]="2" />
             </button>
             <button type="button" class="debrief-dock-action" [attr.aria-label]="hideLabel(item.title)" title="Hide (Esc)" i18n-title="@@dock.host.hideTitle" (click)="escape()">
               <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>
@@ -238,6 +238,12 @@ export class DockHost implements OnDestroy {
       default:
         return $localize`:@@dock.host.barBottom:Auto-hidden tool windows (bottom)`;
     }
+  }
+
+  /** The Pin tooltip with the user's current binding of the auto-hide command. */
+  protected pinTitle(): string {
+    const keys = this.dock.autoHideShortcut();
+    return keys ? $localize`:@@dock.host.pinTitleKeys:Pin (dock it again, ${keys}:keys:)` : $localize`:@@dock.host.pinTitle:Pin (dock it again)`;
   }
 
   protected pinLabel(title: string): string {

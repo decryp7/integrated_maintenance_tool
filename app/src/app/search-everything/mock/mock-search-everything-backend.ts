@@ -1,6 +1,6 @@
 import type { KnowledgeBackend } from '../../ai/knowledge/knowledge-backend';
 import type { AnalysisBackend } from '../../core/analysis-backend';
-import { DocHit, DocScope, FieldHit, KindHits, LEVELS, Query, SearchAllReply, SearchAllRequest, SnippetPart } from '../../core/api.types';
+import { DocHit, FindValuesRequest, ValueMatch, DocScope, FieldHit, KindHits, LEVELS, Query, SearchAllReply, SearchAllRequest, SnippetPart } from '../../core/api.types';
 import type { DebriefBackend } from '../../core/backend';
 import type { NotesBackend } from '../../notes/notes-backend';
 import { CmdError } from '../../core/cmd-error';
@@ -90,6 +90,19 @@ export class MockSearchEverythingBackend implements SearchEverythingBackend {
       if (holds(f.name, text)) hits.push({ id: f.id, scope: f.scope, title: f.name, event: null, snippet: mockSnippet(text, needles) });
     }
     return hits;
+  }
+
+  /** Source names whose letters and digits hold the words' (separators and case ignored), then field values the same way. */
+  async findValues(request: FindValuesRequest): Promise<ValueMatch[]> {
+    const squash = (t: string) => words(t).join('');
+    const wanted = squash(request.text);
+    if (!wanted) return [];
+    const limit = request.limit || 5;
+    const summary = await this.workspace.workspaceSummary();
+    const out: ValueMatch[] = summary.sources
+      .filter((s) => squash(s.name).includes(wanted))
+      .map((s) => ({ field: '@source', value: s.name, count: s.records, via: squash(s.name) === wanted ? ('exact' as const) : ('parts' as const) }));
+    return out.slice(0, limit);
   }
 
   async searchEverything(request: SearchAllRequest): Promise<SearchAllReply | null> {

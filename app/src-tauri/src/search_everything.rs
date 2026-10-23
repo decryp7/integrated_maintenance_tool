@@ -9,6 +9,7 @@ use crate::error::{CmdError, ErrorCode};
 use crate::windows::{CurrentWindow, WindowState};
 use crate::CmdResult;
 use debrief_core::batch::EventId;
+use debrief_core::find::{self, FindValuesRequest, ValueMatch};
 use debrief_core::search_all::{self, Control, Corpus, DocScope, SearchAllError, SearchAllReply, SearchAllRequest, SearchDoc};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -121,6 +122,24 @@ pub async fn search_everything<R: Runtime>(
     out
 }
 
+/// The values the logs hold that the search box's words refer to (`CompanyA.Graphic.Builder.exe` for "graphic
+/// builder"), best first, for a "Did you mean" line. A query: nothing changes.
+#[tauri::command]
+pub async fn find_values<R: Runtime>(_app: AppHandle<R>, state: CurrentWindow, request: FindValuesRequest) -> CmdResult<Vec<ValueMatch>> {
+    if request.text.chars().count() > search_all::MAX_TEXT_CHARS {
+        return Err(CmdError::new(
+            ErrorCode::Invalid,
+            format!("search for at most {} characters", search_all::MAX_TEXT_CHARS),
+        ));
+    }
+    let store = state.engine.store()?;
+    crate::sync::blocking("find values", move || {
+        find::resolve_terms(store.as_ref(), &request.text, request.limit)
+            .map_err(|e| CmdError::new(ErrorCode::Internal, format!("the values cannot be looked up: {e}")))
+    })
+    .await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -166,6 +185,17 @@ mod tests {
         let too_long = search(&app, &"x".repeat(search_all::MAX_TEXT_CHARS + 1)).unwrap_err();
         assert_eq!(too_long.code, ErrorCode::Invalid);
         assert!(with_newest(|m| m.get("main").is_none()), "a finished search is forgotten");
+    }
+
+    #[test]
+    fn find_values_answers_with_the_values_the_words_refer_to() {
+        let app = test_app(None);
+        let ask = |text: &str| block(find_values(app.handle().clone(), main_window(&app), FindValuesRequest { text: text.into(), limit: 0 }));
+        assert!(ask("timeout").unwrap().is_empty(), "nothing opened: no values, not an error");
+        import(&main_window(&app), &[samples().join("serilog-clef")]);
+        assert!(ask("--").unwrap().is_empty(), "no words: no values");
+        let too_long = ask(&"x".repeat(search_all::MAX_TEXT_CHARS + 1)).unwrap_err();
+        assert_eq!(too_long.code, ErrorCode::Invalid);
     }
 
     #[test]

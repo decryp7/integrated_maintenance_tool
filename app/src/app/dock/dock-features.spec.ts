@@ -675,7 +675,14 @@ describe('auto-hide button and sides', () => {
     const b = buttons.find((x) => !x.hidden && x.getAttribute('aria-label') === 'Auto-hide Inspector')!;
     expect(b).toBeTruthy();
     expect(b.getAttribute('aria-pressed')).toBe('false');
-    expect(b.title).toContain('Ctrl+Alt+H');
+    // The tooltip names the user's current binding, read when the pointer arrives (it may have been changed).
+    const shortcut = vi.spyOn(dock, 'autoHideShortcut').mockReturnValue('⌃⌥H');
+    b.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(b.title).toContain('(⌃⌥H)');
+    shortcut.mockReturnValue('');
+    b.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(b.title).not.toContain('(');
+    expect(b.title).toContain('Right-click');
     // Groups of documents carry the button hidden, not disabled.
     expect(buttons.some((x) => x.hidden && !x.disabled)).toBe(true);
     const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open');
