@@ -59,6 +59,10 @@ pub struct ImportProgress {
     bytes_total: std::sync::atomic::AtomicU64,
     /// [`ImportPhase`] as a number (an atomic, so the counters and the phase are read without a lock).
     phase: std::sync::atomic::AtomicU8,
+    /// Files are still being found while others are read (the streaming import): `total` is the count found so far.
+    finding: std::sync::atomic::AtomicBool,
+    /// Files whose reading has begun (a streaming import reports "finding" until the first).
+    started: std::sync::atomic::AtomicUsize,
     /// The file being read now, and when the import started (behind a lock: rarely contended).
     detail: Mutex<ProgressDetail>,
 }
@@ -124,6 +128,9 @@ pub struct ProgressSnapshot {
     /// The step of the `Finishing` phase ("Compacting segments"); `None` in every other phase.
     #[serde(default)]
     pub stage: Option<String>,
+    /// Files are still being found while others are read: `total` only counts what was found so far and grows.
+    #[serde(default)]
+    pub finding: bool,
 }
 
 impl ProgressSnapshot {
@@ -141,6 +148,7 @@ impl ProgressSnapshot {
             elapsed_ms: 0,
             eta_ms: None,
             stage: None,
+            finding: false,
         }
     }
 }
@@ -172,22 +180,36 @@ impl ImportProgress {
             (d.current.clone(), d.stage.clone(), elapsed)
         };
         let (bytes_done, bytes_total) = (self.bytes_done.load(SeqCst), self.bytes_total.load(SeqCst));
+        let finding = running && stage.is_none() && self.finding.load(SeqCst);
+        let (mut done, mut total) = (self.done.load(SeqCst), self.total.load(SeqCst));
+        let mut phase = match (running, stage.is_some()) {
+            (false, _) => ImportPhase::Idle,
+            (true, true) => ImportPhase::Finishing,
+            (true, false) => ImportPhase::from_u8(self.phase.load(SeqCst)),
+        };
+        if finding && self.started.load(SeqCst) == 0 {
+            // Nothing is read yet: the files found so far are the count of the finding phase.
+            phase = ImportPhase::Finding;
+            (done, total) = (total, 0);
+        }
         ProgressSnapshot {
             running,
-            done: self.done.load(SeqCst),
-            total: self.total.load(SeqCst),
+            done,
+            total,
             cancelled: self.cancel.load(SeqCst),
             bytes_done,
             bytes_total,
-            phase: match (running, stage.is_some()) {
-                (false, _) => ImportPhase::Idle,
-                (true, true) => ImportPhase::Finishing,
-                (true, false) => ImportPhase::from_u8(self.phase.load(SeqCst)),
-            },
+            phase,
             current: if running { current } else { None },
             elapsed_ms,
-            eta_ms: if running { eta(elapsed_ms, bytes_done, bytes_total) } else { None },
+            // The total still grows while files are being found: no estimate until it settles.
+            eta_ms: if running && !finding {
+                eta(elapsed_ms, bytes_done, bytes_total)
+            } else {
+                None
+            },
             stage: if running { stage } else { None },
+            finding,
         }
     }
 
@@ -219,6 +241,35 @@ impl ImportProgress {
         self.total.store(0, SeqCst);
         self.bytes_done.store(0, SeqCst);
         self.bytes_total.store(0, SeqCst);
+        self.started.store(0, SeqCst);
+        self.finding.store(false, SeqCst);
+    }
+
+    /// The streaming import begins: files are found and read at the same time. The snapshot reads "finding" with a
+    /// growing count until the first file is read, then "importing" of the files found so far (`finding` set).
+    pub(crate) fn stream_begin(&self) {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.reset_counts();
+        self.finding.store(true, SeqCst);
+        self.phase.store(ImportPhase::Importing as u8, SeqCst);
+        self.running.store(true, SeqCst);
+    }
+
+    /// `files` and `bytes` more files were found (streaming import), in `folder`.
+    pub(crate) fn discovered(&self, files: usize, bytes: u64, folder: &Path) {
+        use std::sync::atomic::Ordering::SeqCst;
+        self.total.fetch_add(files, SeqCst);
+        self.bytes_total.fetch_add(bytes, SeqCst);
+        if self.started.load(SeqCst) == 0 {
+            if let Ok(mut d) = self.detail.try_lock() {
+                d.current = Some(folder.to_string_lossy().into_owned());
+            }
+        }
+    }
+
+    /// Every file is found: `total` is final.
+    pub(crate) fn discovery_done(&self) {
+        self.finding.store(false, std::sync::atomic::Ordering::SeqCst);
     }
 
     /// `files` and `bytes` more files were found, in `folder`.
@@ -283,6 +334,7 @@ impl ImportProgress {
     }
 
     pub(crate) fn reading(&self, path: &Path) {
+        self.started.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         self.detail().current = Some(path.to_string_lossy().into_owned());
     }
 
@@ -298,6 +350,7 @@ impl ImportProgress {
         d.stage = None;
         d.finished_ms = Some(d.started.map_or(0, |t| t.elapsed().as_millis() as u64));
         drop(d);
+        self.finding.store(false, std::sync::atomic::Ordering::SeqCst);
         self.phase.store(ImportPhase::Idle as u8, std::sync::atomic::Ordering::SeqCst);
         self.running.store(false, std::sync::atomic::Ordering::SeqCst);
     }

@@ -60,6 +60,12 @@ pub trait DocumentImporter: Send + Sync {
     /// Reads the file; returns the encoded result (document or typed error) for the host. `options` are the
     /// host's import options as JSON.
     fn import_encoded(&self, file_name: &str, file: &dyn RangeRead, options: &serde_json::Value) -> Vec<u8>;
+    /// Names again what an open document lacks, from the symbols there are now: `document` is the encoded document
+    /// the host holds (as [`import_encoded`](Self::import_encoded) returned it); answers the encoded result, or
+    /// `None` when the format cannot do this (the host then reads the file again).
+    fn resymbolise_encoded(&self, _document: &[u8], _options: &serde_json::Value) -> Option<Vec<u8>> {
+        None
+    }
 }
 
 /// What a transform does with a record.

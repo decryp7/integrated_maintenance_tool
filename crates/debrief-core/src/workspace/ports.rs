@@ -62,6 +62,7 @@ impl WorkspaceStore {
             unrecognized: s.unrecognized,
             bytes: 0,
             elapsed_ms,
+            notices: Vec::new(),
         }
     }
 

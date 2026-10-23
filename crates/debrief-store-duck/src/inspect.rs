@@ -411,8 +411,13 @@ impl Maintain for DuckStore {
                 let c = {
                     let _writing = lock(&self.inner.write_lock);
                     let conn = self.inner.conn()?;
-                    let c = crate::compact::compact_with(&conn, &self.inner.dir, &self.inner.schema, true)
-                        .map_err(|e| engine(format!("{e:#}")))?;
+                    let c = crate::compact::compact_with(&conn, &self.inner.dir, &self.inner.schema, true).map_err(|e| {
+                        if e.is::<crate::compact::CompactCancelled>() {
+                            StoreError::Cancelled
+                        } else {
+                            engine(format!("{e:#}"))
+                        }
+                    })?;
                     if c.replaced > 0 {
                         crate::pos::rebuild(&conn).map_err(engine)?;
                         conn.execute_batch("CHECKPOINT").map_err(engine)?;

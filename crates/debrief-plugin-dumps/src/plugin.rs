@@ -85,6 +85,13 @@ impl DocumentImporter for MinidumpImporter {
         let o = self::options(options);
         debrief_dump::wire::encode_result(&import_dump(&Ranges(file), &o, &self.folders.get()))
     }
+
+    fn resymbolise_encoded(&self, document: &[u8], options: &Value) -> Option<Vec<u8>> {
+        let o = self::options(options);
+        let result =
+            debrief_dump::wire::decode_result(document, &o.limits).map(|doc| crate::import::resymbolise_dump(doc, &o, &self.folders.get()));
+        Some(debrief_dump::wire::encode_result(&result))
+    }
 }
 
 /// Reads UMDH snapshots and diff logs.

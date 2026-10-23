@@ -1,44 +1,97 @@
-//! Finding the files of an import: a parallel walk of the folders that reports what it has found as it goes.
+//! Finding the files of an import, as a stream in sorted order.
 //!
 //! The walk lists many folders at once (listing and `stat` wait on the disk or the network, so more walkers
-//! than cores help), counts files and bytes into the [`ImportProgress`] so the UI shows a growing number from
-//! the first moments, and stops at the next folder after a cancel. The result is sorted and de-duplicated, so
-//! it is the same list whatever the threads did: source ids follow this order (ADR 0014), which is why the
-//! import needs the whole list before it reads the first file.
+//! than cores help): when a folder's listing is consumed, the listings of its next sub-folders are already being
+//! made on the walkers. The files are *emitted* in one deterministic order, the sorted order of their paths
+//! (a depth-first walk that visits each folder's entries by name, which is exactly how `PathBuf` sorts), whatever
+//! the walkers did. That order is what source ids follow (ADR 0014, ADR 0050), so the import can start reading the
+//! first file while the walk goes on: no list has to be complete first. [`discover`] collects the stream into the
+//! sorted list for callers that want one.
+//!
+//! Several opened roots stream one after another when none contains another (every file of one root then sorts
+//! before every file of the next); roots inside one another are merged and sorted before they are emitted.
 
 use crate::profile::CompiledProfile;
 use crate::workspace::ImportProgress;
-use std::collections::HashSet;
+use rayon::prelude::*;
+use std::collections::{HashSet, VecDeque};
+use std::ffi::OsString;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Arc, Condvar, Mutex};
+use std::time::Duration;
 
 /// Entries of one folder counted into the progress at once, so a single huge folder still shows a growing number.
 const FLUSH_EVERY: usize = 256;
+
+/// Folders listed ahead of the one being emitted (bounds what the walkers hold in memory).
+const LOOKAHEAD: usize = 64;
+
+/// Files of one folder probed in parallel above this count.
+const PROBE_PARALLEL: usize = 64;
+
+/// A file the walk found, with what the import needs to number its sources before reading it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Found {
+    pub path: PathBuf,
+    pub size: u64,
+    /// Sources the file can become (see the probe given to [`discover_stream`]).
+    pub slots: u32,
+}
+
+enum Entry {
+    File(Found),
+    Dir(PathBuf),
+}
+
+/// The listing of one folder, made on a walker and consumed by the emitter.
+#[derive(Default)]
+struct Slot {
+    cell: Mutex<Option<Vec<Entry>>>,
+    ready: Condvar,
+}
+
+impl Slot {
+    fn set(&self, entries: Vec<Entry>) {
+        *self.cell.lock().unwrap_or_else(|p| p.into_inner()) = Some(entries);
+        self.ready.notify_all();
+    }
+
+    /// The listing once it is made; `None` when the import was cancelled meanwhile.
+    fn wait(&self, progress: &ImportProgress) -> Option<Vec<Entry>> {
+        let mut cell = self.cell.lock().unwrap_or_else(|p| p.into_inner());
+        loop {
+            if let Some(entries) = cell.take() {
+                return Some(entries);
+            }
+            if progress.is_cancelled() {
+                return None;
+            }
+            cell = self
+                .ready
+                .wait_timeout(cell, Duration::from_millis(25))
+                .unwrap_or_else(|p| p.into_inner())
+                .0;
+        }
+    }
+}
 
 struct Walk<'a> {
     root: &'a Path,
     profile: &'a CompiledProfile,
     removed: &'a HashSet<PathBuf>,
     known: &'a HashSet<String>,
+    probe: &'a (dyn Fn(&Path) -> u32 + Sync),
     progress: &'a ImportProgress,
-    out: Mutex<Vec<PathBuf>>,
 }
 
-impl Walk<'_> {
-    fn add(&self, files: &mut Vec<PathBuf>, bytes: &mut u64, dir: &Path) {
-        if files.is_empty() {
-            return;
-        }
-        self.progress.found(files.len(), std::mem::take(bytes), dir);
-        self.out.lock().unwrap_or_else(|p| p.into_inner()).append(files);
-    }
+type Emit<'e> = &'e mut (dyn FnMut(Found) -> bool + Send);
 
-    fn folder<'s>(&'s self, dir: PathBuf, scope: &rayon::Scope<'s>) {
-        if self.progress.is_cancelled() {
-            return;
-        }
-        let Ok(entries) = std::fs::read_dir(&dir) else { return };
-        let (mut files, mut bytes) = (Vec::new(), 0u64);
+impl<'a> Walk<'a> {
+    /// The entries of `dir` that the profile selects, sorted by name (files probed on the calling walker).
+    fn list(&self, dir: &Path) -> Vec<Entry> {
+        let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
+        let mut named: Vec<(OsString, Entry)> = Vec::new();
+        let mut files: Vec<(OsString, PathBuf, u64)> = Vec::new();
         for entry in entries.flatten() {
             let p = entry.path();
             let rel = p.strip_prefix(self.root).unwrap_or(&p);
@@ -46,21 +99,182 @@ impl Walk<'_> {
                 continue;
             }
             match entry.file_type() {
-                Ok(t) if t.is_dir() => scope.spawn(move |s| self.folder(p, s)),
+                Ok(t) if t.is_dir() => named.push((entry.file_name(), Entry::Dir(p))),
                 Ok(t) if t.is_file() && self.profile.include.is_match(rel) && !self.known.contains(p.to_string_lossy().as_ref()) => {
-                    bytes += entry.metadata().map_or(0, |m| m.len());
-                    files.push(p);
+                    files.push((entry.file_name(), p, entry.metadata().map_or(0, |m| m.len())));
                 }
                 _ => {}
             }
-            if files.len() >= FLUSH_EVERY {
-                self.add(&mut files, &mut bytes, &dir);
-                if self.progress.is_cancelled() {
-                    return;
+        }
+        let probe = |(name, path, size): (OsString, PathBuf, u64)| {
+            let slots = (self.probe)(&path);
+            (name, Entry::File(Found { path, size, slots }))
+        };
+        if files.len() > PROBE_PARALLEL {
+            named.par_extend(files.into_par_iter().map(probe));
+        } else {
+            named.extend(files.into_iter().map(probe));
+        }
+        named.sort_by(|a, b| a.0.cmp(&b.0));
+        named.into_iter().map(|(_, e)| e).collect()
+    }
+
+    fn spawn_list<'s>(&'s self, scope: &rayon::Scope<'s>, dir: PathBuf) -> Arc<Slot> {
+        let slot = Arc::new(Slot::default());
+        let mine = slot.clone();
+        scope.spawn(move |_| {
+            mine.set(if self.progress.is_cancelled() {
+                Vec::new()
+            } else {
+                self.list(&dir)
+            });
+        });
+        slot
+    }
+
+    /// Emits the entries of a listed folder in order, descending into sub-folders at their place. `false` once the
+    /// consumer stopped or the import was cancelled.
+    fn visit<'s>(&'s self, scope: &rayon::Scope<'s>, slot: &Slot, emit: Emit<'_>) -> bool {
+        let Some(entries) = slot.wait(self.progress) else { return false };
+        let dirs: Vec<PathBuf> = entries
+            .iter()
+            .filter_map(|e| if let Entry::Dir(d) = e { Some(d.clone()) } else { None })
+            .collect();
+        let mut next = 0;
+        let mut ahead: VecDeque<Arc<Slot>> = VecDeque::new();
+        let mut top_up = |ahead: &mut VecDeque<Arc<Slot>>| {
+            while ahead.len() < LOOKAHEAD && next < dirs.len() {
+                ahead.push_back(self.spawn_list(scope, dirs[next].clone()));
+                next += 1;
+            }
+        };
+        top_up(&mut ahead);
+        for entry in entries {
+            if self.progress.is_cancelled() {
+                return false;
+            }
+            match entry {
+                Entry::File(f) => {
+                    if !emit(f) {
+                        return false;
+                    }
+                }
+                Entry::Dir(_) => {
+                    let Some(child) = ahead.pop_front() else { return true };
+                    top_up(&mut ahead);
+                    if !self.visit(scope, &child, emit) {
+                        return false;
+                    }
                 }
             }
         }
-        self.add(&mut files, &mut bytes, &dir);
+        true
+    }
+}
+
+/// Whether some root of `roots` (sorted) lies inside another, so their files interleave in sorted order.
+fn nested(roots: &[PathBuf]) -> bool {
+    roots
+        .iter()
+        .enumerate()
+        .any(|(i, a)| roots.iter().enumerate().any(|(j, b)| i != j && a.starts_with(b)))
+}
+
+/// Streams the files under `paths` (a file counts itself) that the profile's include/exclude globs select (relative
+/// to the folder), minus `removed` and `known` ones, to `emit` in sorted order and without duplicates, while `threads`
+/// walkers list folders ahead of it. `probe` tells how many sources a file can become (run on the walkers). `emit`
+/// returns `false` to stop; a cancel in `progress` stops the walk at the next entry.
+#[allow(clippy::too_many_arguments)] // the walk's inputs, as for `discover`, plus the probe and the sink
+pub fn discover_stream(
+    paths: &[PathBuf],
+    profile: &CompiledProfile,
+    removed: &HashSet<PathBuf>,
+    known: &HashSet<String>,
+    progress: &ImportProgress,
+    threads: usize,
+    probe: &(dyn Fn(&Path) -> u32 + Sync),
+    emit: Emit<'_>,
+) {
+    let mut roots: Vec<PathBuf> = paths.to_vec();
+    roots.sort();
+    roots.dedup();
+    if nested(&roots) {
+        // Files of one root sort among those of another: gather, sort, then emit.
+        let mut all: Vec<Found> = Vec::new();
+        for root in &roots {
+            stream_root(root, profile, removed, known, progress, threads, probe, &mut |f| {
+                all.push(f);
+                true
+            });
+        }
+        all.sort_by(|a, b| a.path.cmp(&b.path));
+        all.dedup_by(|a, b| a.path == b.path);
+        for f in all {
+            if progress.is_cancelled() || !emit(f) {
+                return;
+            }
+        }
+        return;
+    }
+    for root in &roots {
+        let mut go = true;
+        stream_root(root, profile, removed, known, progress, threads, probe, &mut |f| {
+            go = emit(f);
+            go
+        });
+        if !go || progress.is_cancelled() {
+            return;
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn stream_root(
+    root: &Path,
+    profile: &CompiledProfile,
+    removed: &HashSet<PathBuf>,
+    known: &HashSet<String>,
+    progress: &ImportProgress,
+    threads: usize,
+    probe: &(dyn Fn(&Path) -> u32 + Sync),
+    emit: Emit<'_>,
+) {
+    if root.is_file() {
+        if !known.contains(root.to_string_lossy().as_ref()) {
+            let size = std::fs::metadata(root).map_or(0, |m| m.len());
+            emit(Found {
+                path: root.to_path_buf(),
+                size,
+                slots: probe(root),
+            });
+        }
+        return;
+    }
+    let walk = Walk {
+        root,
+        profile,
+        removed,
+        known,
+        probe,
+        progress,
+    };
+    // One thread more than the walkers: the emitter runs on the pool too and mostly waits for listings.
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(threads.max(1) + 1)
+        .thread_name(|i| format!("debrief-walk-{i}"))
+        .build();
+    let run = |emit: Emit<'_>| {
+        rayon::scope(|s| {
+            let first = walk.spawn_list(s, root.to_path_buf());
+            walk.visit(s, &first, emit);
+        })
+    };
+    match pool {
+        Ok(pool) => pool.install(|| run(emit)),
+        Err(e) => {
+            log::warn!("parallel folder walk unavailable ({e}); walking on the shared threads");
+            run(emit)
+        }
     }
 }
 
@@ -76,38 +290,22 @@ pub fn discover(
     threads: usize,
 ) -> Vec<PathBuf> {
     let mut all = Vec::new();
-    for root in paths {
-        if root.is_file() {
-            let size = std::fs::metadata(root).map_or(0, |m| m.len());
-            if !known.contains(root.to_string_lossy().as_ref()) {
-                progress.found(1, size, root.parent().unwrap_or(root));
-                all.push(root.clone());
-            }
-            continue;
+    let (mut files, mut bytes) = (0usize, 0u64);
+    discover_stream(paths, profile, removed, known, progress, threads, &|_| 1, &mut |f| {
+        files += 1;
+        bytes += f.size;
+        if files >= FLUSH_EVERY {
+            progress.found(
+                std::mem::take(&mut files),
+                std::mem::take(&mut bytes),
+                f.path.parent().unwrap_or(&f.path),
+            );
         }
-        let walk = Walk {
-            root,
-            profile,
-            removed,
-            known,
-            progress,
-            out: Mutex::new(Vec::new()),
-        };
-        let run = || rayon::scope(|s| walk.folder(root.clone(), s));
-        match rayon::ThreadPoolBuilder::new()
-            .num_threads(threads.max(1))
-            .thread_name(|i| format!("debrief-walk-{i}"))
-            .build()
-        {
-            Ok(pool) => pool.install(run),
-            Err(e) => {
-                log::warn!("parallel folder walk unavailable ({e}); walking on the shared threads");
-                run()
-            }
-        }
-        all.append(&mut walk.out.into_inner().unwrap_or_else(|p| p.into_inner()));
+        all.push(f.path);
+        true
+    });
+    if files > 0 {
+        progress.found(files, bytes, all.last().and_then(|p| p.parent()).unwrap_or(Path::new("")));
     }
-    all.sort();
-    all.dedup();
     all
 }

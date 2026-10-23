@@ -100,6 +100,45 @@ impl DumpImporter for RemoteDocumentImporter {
         }
         debrief_dump::wire::decode_result(&encoded, &options.limits)
     }
+
+    fn resymbolise(&self, doc: Document, options: &ImportOptions) -> debrief_dump::Result<Document> {
+        let cap = options.limits.max_encoded_bytes;
+        let options_json = serde_json::to_value(options).map_err(|e| DumpError::invalid(e.to_string()))?;
+        let body = debrief_dump::wire::encode_result(&Ok(doc));
+        let lent = Lent {
+            files: vec![body.as_slice()],
+            ..Lent::default()
+        };
+        let budget = self.health.budgets().get(CallKind::Import).map(crate::remote::deadline_for);
+        let importer = self.cap.id.clone();
+        let mut encoded: Vec<u8> = Vec::new();
+        let done: DocumentDone = self
+            .process
+            .call_lending(
+                |refs, _| PluginRequest::ResymboliseDocument {
+                    importer,
+                    document: refs[0],
+                    options: Json(options_json),
+                },
+                &lent,
+                budget,
+                |piece| {
+                    if encoded.len() as u64 + piece.len() as u64 > cap {
+                        return Err(IpcError::Protocol(format!("the document is larger than {cap} bytes")));
+                    }
+                    encoded.extend_from_slice(&piece);
+                    Ok(())
+                },
+            )
+            .map_err(|e| self.failed(e))?;
+        if done.bytes == 0 {
+            return Err(DumpError::unsupported("this reader cannot name the frames of an open dump again"));
+        }
+        if done.bytes != encoded.len() as u64 {
+            return Err(DumpError::invalid("the document arrived incomplete"));
+        }
+        debrief_dump::wire::decode_result(&encoded, &options.limits)
+    }
 }
 
 /// What a manifest's `produces` names, if the engine knows it.

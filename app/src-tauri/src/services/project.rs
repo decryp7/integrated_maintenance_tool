@@ -21,7 +21,7 @@ pub const UI_FILE: &str = "ui.json";
 const MAX_UI_BYTES: u64 = 64 << 20;
 
 /// What `save_project` answers.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SavedProject {
     pub path: String,

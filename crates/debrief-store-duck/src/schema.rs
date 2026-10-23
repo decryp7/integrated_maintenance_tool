@@ -35,7 +35,8 @@ CREATE TABLE IF NOT EXISTS catalogue (
   first_ts BIGINT, last_ts BIGINT, first_id UBIGINT NOT NULL, last_id UBIGINT NOT NULL);
 CREATE TABLE IF NOT EXISTS catalogue_trigrams (source UINTEGER NOT NULL, tri VARCHAR NOT NULL, scope VARCHAR NOT NULL, name VARCHAR NOT NULL);
 CREATE TABLE IF NOT EXISTS catalogue_sources (
-  source UINTEGER PRIMARY KEY, names UBIGINT NOT NULL, dropped UBIGINT NOT NULL, guids UBIGINT NOT NULL, version UINTEGER NOT NULL);";
+  source UINTEGER PRIMARY KEY, names UBIGINT NOT NULL, dropped UBIGINT NOT NULL, guids UBIGINT NOT NULL, version UINTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS source_fingerprints (source UINTEGER PRIMARY KEY, size UBIGINT NOT NULL, hash UBIGINT NOT NULL);";
 
 /// The DuckDB type of a declared column.
 fn sql_type(t: ColumnType) -> &'static str {

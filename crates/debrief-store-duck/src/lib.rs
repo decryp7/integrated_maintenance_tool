@@ -26,6 +26,7 @@ pub mod promote;
 mod qlang;
 mod read;
 mod redaction;
+mod reuse;
 mod schema;
 pub mod segments;
 mod skew;
@@ -41,7 +42,7 @@ pub use schema::FORMAT_VERSION;
 
 use debrief_core::api::{UnrecognizedFile, WorkspaceState};
 use debrief_core::batch::{EventId, EventSchema, SourceId};
-use debrief_core::ingest::{self, ImportEnv, Outcome, ParallelOptions};
+use debrief_core::ingest::{self, ImportEnv, Outcome, StreamOptions, StreamSpec};
 use debrief_core::parser::{ParserSet, ParserSetup};
 use debrief_core::ports::{
     ImportReport, ImportSession, IndexStatus, Ingest, Search, SearchReply, SearchRequest, StoreError, StoreResult, TailAppend,
@@ -226,10 +227,12 @@ pub(crate) struct Inner {
     /// From this many events on, timelines use the pre-aggregated histogram (approximate at bucket edges)
     /// instead of grouping the events.
     pub(crate) preaggregate_above: AtomicU64,
+    /// Tests: seed of the streaming import's random delays (0 = none), see `StreamOptions::jitter`.
+    pub(crate) import_jitter: AtomicU64,
 }
 
 /// The catalog tables that hold the imported data; a reload keeps their rows aside until it completes.
-const ASIDE_TABLES: [&str; 8] = [
+const ASIDE_TABLES: [&str; 9] = [
     "segments",
     "segment_fields",
     "histogram",
@@ -237,6 +240,7 @@ const ASIDE_TABLES: [&str; 8] = [
     "diagnostics",
     "tail_offsets",
     "source_encodings",
+    "source_fingerprints",
     "sources",
 ];
 
@@ -460,7 +464,7 @@ impl Inner {
         let _writing = lock(&self.write_lock);
         let files = writer::segment_files(&conn, &self.dir).map_err(|e| engine(format!("{e:#}")))?;
         conn.execute_batch(
-            "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM segment_fields; DELETE FROM histogram; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM tail_offsets; DELETE FROM source_encodings; DELETE FROM sources; COMMIT;",
+            "BEGIN TRANSACTION; DELETE FROM segments; DELETE FROM segment_fields; DELETE FROM histogram; DELETE FROM ord; DELETE FROM diagnostics; DELETE FROM tail_offsets; DELETE FROM source_encodings; DELETE FROM source_fingerprints; DELETE FROM sources; COMMIT;",
         )
         .map_err(engine)?;
         catalogue::forget(&conn, None).map_err(engine)?;
@@ -482,6 +486,16 @@ impl Inner {
 
     /// Reads `paths` (canonical) into the database.
     pub(crate) fn import(&self, paths: &[PathBuf], progress: &ImportProgress) -> StoreResult<ImportReport> {
+        self.import_keeping(paths, progress, std::collections::HashMap::new())
+    }
+
+    /// [`Inner::import`] where the sources at the paths of `keep` keep the given ids (a reload, see `reuse`).
+    pub(crate) fn import_keeping(
+        &self,
+        paths: &[PathBuf],
+        progress: &ImportProgress,
+        keep: std::collections::HashMap<String, u32>,
+    ) -> StoreResult<ImportReport> {
         let started = std::time::Instant::now();
         // From here the progress reads "finding files" with live counts; it ends with this function, however.
         let _run = progress.begin();
@@ -500,9 +514,6 @@ impl Inner {
             }
         }
         known.extend(self.unrecognized().into_iter().map(|u| u.path));
-        let threads = read_lock(&self.options).parse_threads.max(1);
-        // Walkers mostly wait for the disk or the network, so they may outnumber the parse threads.
-        let files = ingest::find_files(paths, &roots, &profile, &removed, &known, progress, (threads * 2).clamp(4, 16));
         let encodings = self.encoding_policy(&conn);
         let env = ImportEnv {
             importers: self.registry.importers(),
@@ -515,9 +526,14 @@ impl Inner {
                 (w.from.is_some() || w.to.is_some()).then_some(w)
             },
         };
-        let opts = ParallelOptions {
-            threads: read_lock(&self.options).parse_threads.max(1),
-            ..ParallelOptions::default()
+        // Parsing is CPU bound (the parse threads); the folder walkers mostly wait for the disk or the network, so
+        // they may outnumber them.
+        let threads = read_lock(&self.options).parse_threads.max(1);
+        let opts = StreamOptions {
+            threads,
+            walkers: (threads * 2).clamp(4, 16),
+            jitter: Some(self.import_jitter.load(Ordering::Relaxed)).filter(|s| *s != 0),
+            ..StreamOptions::default()
         };
         let _writing = lock(&self.write_lock);
         let sink = writer::SegmentSink::new(
@@ -529,13 +545,23 @@ impl Inner {
             None,
         )
         .map_err(|e| engine(format!("{e:#}")))?;
+        sink.keep_ids(keep);
         let t0 = std::time::Instant::now();
-        let outcomes = ingest::import_files_parallel(&env, &files, &removed, progress, &opts, &sink);
+        let spec = StreamSpec {
+            paths,
+            roots: &roots,
+            profile: &profile,
+            removed: &removed,
+            known: &known,
+        };
+        let outcomes = ingest::import_stream(&env, &spec, &removed, progress, &opts, &sink);
         let t1 = t0.elapsed();
         progress.set_stage(Some("Writing the last segments"));
+        let fingerprints = sink.take_fingerprints();
         sink.finish().map_err(|e| engine(format!("{e:#}")))?;
         // Each source recorded its parser; the catalog keeps a copy of every parser's TOML (ADR 0026).
         parsers::record(&conn, &parser_set).map_err(engine)?;
+        record_fingerprints(&conn, &fingerprints);
         let t2 = t0.elapsed();
         self.maintain(&conn, Some(progress));
         self.bump_version(&conn)?;
@@ -561,6 +587,19 @@ impl Inner {
         report.elapsed_ms = started.elapsed().as_millis() as u64;
         inspect::record_import(&conn, &report);
         Ok(report)
+    }
+}
+
+/// Keeps the content fingerprints of the files read (best effort: a rename is then only not recognised).
+fn record_fingerprints(conn: &Connection, fingerprints: &[(u32, debrief_core::ingest::Fingerprint)]) {
+    for (id, fp) in fingerprints {
+        if let Err(e) = conn.execute(
+            "INSERT OR REPLACE INTO source_fingerprints VALUES (?, ?, ?)",
+            params![id, fp.size, fp.hash],
+        ) {
+            log::warn!("could not keep the fingerprint of source {id}: {e}");
+            return;
+        }
     }
 }
 
@@ -785,6 +824,7 @@ impl DuckStore {
                 derived: Mutex::new(None),
                 flights: Mutex::new(std::collections::HashMap::new()),
                 preaggregate_above: AtomicU64::new(PREAGGREGATE_ABOVE),
+                import_jitter: AtomicU64::new(0),
             }),
         }
     }
@@ -815,6 +855,12 @@ impl DuckStore {
     }
 
     /// From how many events on timelines are answered from the histogram (tests lower it).
+    /// Tests: makes the streaming import sleep random times (derived from `seed`, 0 = off) while listing and reading files.
+    #[doc(hidden)]
+    pub fn set_import_jitter(&self, seed: u64) {
+        self.inner.import_jitter.store(seed, Ordering::Relaxed);
+    }
+
     pub fn set_preaggregate_above(&self, events: u64) {
         self.inner.preaggregate_above.store(events, Ordering::Relaxed);
     }
@@ -1152,6 +1198,9 @@ impl Search for DuckStore {
         })
     }
 }
+
+#[cfg(test)]
+mod maintain_tests;
 
 #[cfg(test)]
 mod tests {

@@ -10,6 +10,21 @@ use std::path::PathBuf;
 /// Most folders the host may add ([`ImportOptions::symbol_folders`]).
 pub const MAX_HOST_FOLDERS: usize = 4;
 
+/// Names the frames of an open `doc` that still lack a name, from the symbol folders and the host's folders as they
+/// are now. Only the unnamed frames (and the modules they are in) are looked at, so the result equals
+/// [`import_dump`] of the same file with those symbols; a UMDH log has no PDB identities and is returned as it is.
+pub fn resymbolise_dump(doc: Document, options: &ImportOptions, folders: &[PathBuf]) -> Document {
+    match doc {
+        Document::Dump(mut dump) => {
+            let host = options.symbol_folders.iter().take(MAX_HOST_FOLDERS).map(PathBuf::from);
+            let symbols = crate::pdb_symbols::PdbSymbols::new(folders.iter().cloned().chain(host));
+            debrief_dump::symbols::symbolise_dump(&mut dump, &symbols, options.limits.max_text);
+            Document::Dump(dump)
+        }
+        other => other,
+    }
+}
+
 /// Reads a minidump and names its frames from the symbol folders (the user's, then the host's), recording each
 /// module's symbol status (also when there are no folders: the host downloads what is missing).
 pub fn import_dump(src: &dyn Source, options: &ImportOptions, folders: &[PathBuf]) -> debrief_dump::Result<Document> {

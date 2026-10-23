@@ -219,38 +219,43 @@ pub async fn browser_runtime_status<R: Runtime>(app: AppHandle<R>) -> CmdResult<
     Ok(status(&app))
 }
 
-/// Downloads the pinned Chromium (only when the user asks). Returns the new status.
+/// Downloads the pinned Chromium (only when the user asks). A download job does the work (the command returns its id at
+/// once); its value (`jobs_wait`) is the new status.
 #[tauri::command]
-pub async fn browser_runtime_install<R: Runtime>(app: AppHandle<R>, _win: CurrentWindow) -> CmdResult<RuntimeStatus> {
+pub async fn browser_runtime_install<R: Runtime>(app: AppHandle<R>, _win: CurrentWindow) -> CmdResult<u64> {
     use crate::jobs::{Done, JobCtx, JobKind, JobSpec, PhaseScale};
     let root = root(&app).ok_or("Debrief's data folder is not available")?;
     // A download job: Jobs shows each phase with its bytes, and Cancel works in every phase.
     let spec = JobSpec::new(JobKind::Download, "Install Chromium");
-    let version = crate::jobs::run(&app, spec, Default::default(), move |ctx: &JobCtx| -> CmdResult<Done<String>> {
-        let v = install_blocking(&root, &mut |phase, done, total| {
-            let scale = if phase == "Self-test" {
-                PhaseScale::Indeterminate
-            } else {
-                PhaseScale::Bytes
-            };
-            ctx.phase(phase, scale, done, total);
-            !ctx.is_cancelled()
-        })
-        .map_err(|e| {
-            if ctx.is_cancelled() {
-                crate::CmdError::new(crate::ErrorCode::Cancelled, "cancelled")
-            } else {
-                crate::CmdError::from(e)
+    let handle = app.clone();
+    crate::jobs::start_value(
+        &app,
+        spec,
+        Default::default(),
+        move |ctx: &JobCtx| -> CmdResult<Done<RuntimeStatus>> {
+            let v = install_blocking(&root, &mut |phase, done, total| {
+                let scale = if phase == "Self-test" {
+                    PhaseScale::Indeterminate
+                } else {
+                    PhaseScale::Bytes
+                };
+                ctx.phase(phase, scale, done, total);
+                !ctx.is_cancelled()
+            })
+            .map_err(|e| {
+                if ctx.is_cancelled() {
+                    crate::CmdError::new(crate::ErrorCode::Cancelled, "cancelled")
+                } else {
+                    crate::CmdError::from(e)
+                }
+            })?;
+            log::info!(Version = v.as_str(); "Chromium installed");
+            if let Some(h) = handle.try_state::<super::BrowserState>() {
+                refresh_sources(&handle, &h.0);
             }
-        })?;
-        Ok(Done::new(v))
-    })
-    .await?;
-    log::info!(Version = version.as_str(); "Chromium installed");
-    if let Some(h) = app.try_state::<super::BrowserState>() {
-        refresh_sources(&app, &h.0);
-    }
-    Ok(status(&app))
+            Ok(Done::new(status(&handle)))
+        },
+    )
 }
 
 /// Removes the downloaded Chromium (the machine's own browsers are never touched).

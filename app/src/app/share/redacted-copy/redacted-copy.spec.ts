@@ -30,17 +30,19 @@ function mockShare(): { debrief: MockBackend; share: MockShareBackend } {
 
 describe('TauriShareBackend redacted copy', () => {
   it('maps the three commands with their arguments', async () => {
-    const call = vi.fn(async (..._a: unknown[]) => null);
+    const call = vi.fn(async (...a: unknown[]) => (a[0] === 'jobs_wait' ? { state: 'done', result: { type: 'file', path: '/c.debriefz', detail: { sources: 1 } } } : a[0] === 'export_redacted_copy' ? 9 : null));
     const b = new TauriShareBackend(call as never);
     await b.redactedCopyChoices();
     await b.redactedCopyPreview({ detectors: ['email'], mode: 'hash' });
-    await b.exportRedactedCopy({ path: '/c.debriefz', name: 'c', options: { rules: [] }, ui: { a: 1 } });
+    expect(await b.exportRedactedCopy({ path: '/c.debriefz', name: 'c', options: { rules: [] }, ui: { a: 1 } })).toEqual({ sources: 1 });
     await b.exportRedactedCopy({ path: '/c.debriefz', name: 'c', options: {}, ui: null, reports: [], overwrite: true });
     expect(call.mock.calls).toEqual([
       ['redacted_copy_choices'],
       ['redacted_copy_preview', { options: { detectors: ['email'], mode: 'hash' } }],
       ['export_redacted_copy', { path: '/c.debriefz', name: 'c', options: { rules: [] }, ui: { a: 1 } }],
+      ['jobs_wait', { id: 9 }],
       ['export_redacted_copy', { path: '/c.debriefz', name: 'c', options: {}, ui: null, reports: [], overwrite: true }],
+      ['jobs_wait', { id: 9 }],
     ]);
   });
 });
