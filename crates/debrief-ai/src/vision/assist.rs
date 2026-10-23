@@ -254,6 +254,7 @@ impl<P: LlmProvider> Assistant<P> {
             evidence: Evidence {
                 record_ids: ids,
                 queries: vec![],
+                sql: vec![],
             },
             usage: r.usage.unwrap_or_default(),
         })

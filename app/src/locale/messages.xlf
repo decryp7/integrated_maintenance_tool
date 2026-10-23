@@ -733,21 +733,21 @@
         <source>Selected events (<x id="count" equiv-text="selected"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">186</context>
+          <context context-type="linenumber">190</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.contextMode.view" datatype="html">
         <source>Current view</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">188</context>
+          <context context-type="linenumber">192</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.contextMode.none" datatype="html">
         <source>None</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">190</context>
+          <context context-type="linenumber">194</context>
         </context-group>
         <note priority="1" from="description">Context mode that sends only the question</note>
       </trans-unit>
@@ -755,506 +755,513 @@
         <source>Selected: <x id="count" equiv-text="n"/> event (<x id="ids" equiv-text="list"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">218</context>
+          <context context-type="linenumber">222</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.selected.other" datatype="html">
         <source>Selected: <x id="count" equiv-text="n"/> events (<x id="ids" equiv-text="list"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">219</context>
+          <context context-type="linenumber">223</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.filter" datatype="html">
         <source>Filter: <x id="query" equiv-text="src.ql.trim()"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">229</context>
+          <context context-type="linenumber">233</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.filterNone" datatype="html">
         <source>Filter: none</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">229</context>
+          <context context-type="linenumber">233</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.time" datatype="html">
         <source>Time: <x id="from" equiv-text="fmt(src.range.from)"/> – <x id="to" equiv-text="fmt(src.range.to)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">235</context>
+          <context context-type="linenumber">239</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.timeAll" datatype="html">
         <source>Time: whole workspace</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">236</context>
+          <context context-type="linenumber">240</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.selectedNone" datatype="html">
         <source>Selected: none</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">239</context>
+          <context context-type="linenumber">243</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.instance" datatype="html">
         <source>Instance: <x id="name" equiv-text="src.instance"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">242</context>
+          <context context-type="linenumber">246</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.instanceAll" datatype="html">
         <source>Instance: all</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">242</context>
+          <context context-type="linenumber">246</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.view" datatype="html">
         <source>View: <x id="name" equiv-text="src.view"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">245</context>
+          <context context-type="linenumber">249</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.context.viewNone" datatype="html">
         <source>View: none</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">245</context>
+          <context context-type="linenumber">249</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.runQuery" datatype="html">
         <source>Query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">252</context>
+          <context context-type="linenumber">256</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.chatModel.tool.runSql" datatype="html">
+        <source>SQL</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
+          <context context-type="linenumber">257</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.getEvents" datatype="html">
         <source>Read events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">253</context>
+          <context context-type="linenumber">258</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.neighbours" datatype="html">
         <source>Surrounding lines</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">254</context>
+          <context context-type="linenumber">259</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.fieldStats" datatype="html">
         <source>Field statistics</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">255</context>
+          <context context-type="linenumber">260</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.checkQuery" datatype="html">
         <source>Check query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">256</context>
+          <context context-type="linenumber">261</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.overview" datatype="html">
         <source>Health check</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">257</context>
+          <context context-type="linenumber">262</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.exceptionGroups" datatype="html">
         <source>Exceptions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">258</context>
+          <context context-type="linenumber">263</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.patterns" datatype="html">
         <source>Patterns</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">259</context>
+          <context context-type="linenumber">264</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.moment" datatype="html">
         <source>Moment</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">260</context>
+          <context context-type="linenumber">265</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.anomalies" datatype="html">
         <source>Anomalies</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">261</context>
+          <context context-type="linenumber">266</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.suggestLink" datatype="html">
         <source>Suggest a link</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">262</context>
+          <context context-type="linenumber">267</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.browserRead" datatype="html">
         <source>Read the browser page</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">263</context>
+          <context context-type="linenumber">268</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.browserSearch" datatype="html">
         <source>Search in the browser</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">264</context>
+          <context context-type="linenumber">269</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.browserNavigate" datatype="html">
         <source>Open a page</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">265</context>
+          <context context-type="linenumber">270</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.browserClick" datatype="html">
         <source>Click</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">266</context>
+          <context context-type="linenumber">271</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.browserType" datatype="html">
         <source>Type</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">267</context>
+          <context context-type="linenumber">272</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.browserScroll" datatype="html">
         <source>Scroll</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">268</context>
+          <context context-type="linenumber">273</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.browserBack" datatype="html">
         <source>Go back</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">269</context>
+          <context context-type="linenumber">274</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.proposeRegex" datatype="html">
         <source>Propose regex</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">270</context>
+          <context context-type="linenumber">275</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.proposeQuery" datatype="html">
         <source>Propose query</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">271</context>
+          <context context-type="linenumber">276</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.proposeParser" datatype="html">
         <source>Propose parser</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">272</context>
+          <context context-type="linenumber">277</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.proposePipeline" datatype="html">
         <source>Propose pipeline</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">273</context>
+          <context context-type="linenumber">278</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.proposeMarkers" datatype="html">
         <source>Propose markers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">274</context>
+          <context context-type="linenumber">279</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chatModel.tool.proposeExtractors" datatype="html">
         <source>Propose extractors</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-model.ts</context>
-          <context context-type="linenumber">275</context>
+          <context context-type="linenumber">280</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.toolbar.label" datatype="html">
         <source>Chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">36</context>
+          <context context-type="linenumber">37</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.session.label" datatype="html">
         <source>Chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">37,38</context>
+          <context context-type="linenumber">38,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.newChat" datatype="html">
         <source>New chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">44</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.actions" datatype="html">
         <source>Chat actions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">45</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">45</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">49</context>
+          <context context-type="linenumber">50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.export" datatype="html">
         <source>Export…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">50,51</context>
+          <context context-type="linenumber">51,52</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.deleteChat" datatype="html">
         <source>Delete chat…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">51,53</context>
+          <context context-type="linenumber">52,54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.setup.note" datatype="html">
         <source>The assistant needs a local model first. It runs fully on this computer; only the model file is downloaded.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">57,58</context>
+          <context context-type="linenumber">58,59</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.setup.button" datatype="html">
         <source>Set up AI assistant…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">58,62</context>
+          <context context-type="linenumber">59,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.log.label" datatype="html">
         <source>Conversation</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">62</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.empty" datatype="html">
         <source>Ask about the loaded logs. Answers cite events and queries you can open.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">65,66</context>
+          <context context-type="linenumber">66,67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.starters.label" datatype="html">
         <source>Suggested questions</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">67</context>
+          <context context-type="linenumber">68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.you" datatype="html">
         <source>You: </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">77,78</context>
+          <context context-type="linenumber">78,79</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.vision.chat.turnImages" datatype="html">
         <source>Images with this question</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">80</context>
+          <context context-type="linenumber">81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.tools.label" datatype="html">
         <source>Assistant activity</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">88</context>
+          <context context-type="linenumber">89</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.thinking.label" datatype="html">
         <source>Thinking</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">117</context>
+          <context context-type="linenumber">126</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.thinking" datatype="html">
         <source>Thinking…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">117,119</context>
+          <context context-type="linenumber">126,128</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.sources" datatype="html">
         <source>Web sources: </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">125,126</context>
+          <context context-type="linenumber">134,135</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.stopped" datatype="html">
         <source>Stopped.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">133,135</context>
+          <context context-type="linenumber">142,144</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.askAgain" datatype="html">
         <source>Ask again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">136,138</context>
+          <context context-type="linenumber">145,147</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">144,146</context>
+          <context context-type="linenumber">153,155</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.queuedHint" datatype="html">
         <source>the AI answers one request at a time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">205</context>
+          <context context-type="linenumber">214</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.engine.unavailable" datatype="html">
         <source>AI unavailable</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">222</context>
+          <context context-type="linenumber">231</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.engine.noModel" datatype="html">
         <source>no model</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">223</context>
+          <context context-type="linenumber">232</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.session.untitled" datatype="html">
         <source>New chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">251</context>
+          <context context-type="linenumber">260</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">338</context>
+          <context context-type="linenumber">347</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.session.answering" datatype="html">
         <source><x id="title" equiv-text="title"/> (answering…)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">252</context>
+          <context context-type="linenumber">261</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.agentStep" datatype="html">
         <source>Step <x id="step" equiv-text="step"/> of <x id="limit" equiv-text="limit"/>: <x id="action" equiv-text="toolLabel(&apos;browser_&apos; + action)"/> <x id="site" equiv-text="where"/>…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">273</context>
+          <context context-type="linenumber">282</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.continueTask" datatype="html">
         <source>Continue.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">311</context>
+          <context context-type="linenumber">320</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.notice.notApplied" datatype="html">
         <source>Not applied: <x id="error" equiv-text="err"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">325</context>
+          <context context-type="linenumber">334</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.notice.applied" datatype="html">
         <source>Applied <x id="query" equiv-text="ql"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">325</context>
+          <context context-type="linenumber">334</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.delete.title" datatype="html">
         <source>Delete this chat?</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">340</context>
+          <context context-type="linenumber">349</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.delete.message" datatype="html">
         <source>&quot;<x id="title" equiv-text="title"/>&quot; and its answers are deleted. This cannot be undone.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">343</context>
+          <context context-type="linenumber">352</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.delete.confirm" datatype="html">
         <source>Delete chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">344</context>
+          <context context-type="linenumber">353</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.export.dialogTitle" datatype="html">
         <source>Export chat</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">355</context>
+          <context context-type="linenumber">364</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.notice.exported" datatype="html">
         <source>Exported to <x id="path" equiv-text="written"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">359</context>
+          <context context-type="linenumber">368</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.chat.notice.notExported" datatype="html">
         <source>Not exported: <x id="error" equiv-text="toAiError(e).message"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/chat-panel.ts</context>
-          <context context-type="linenumber">361</context>
+          <context context-type="linenumber">370</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.vision.chat.relatedQuestion" datatype="html">
@@ -1290,6 +1297,48 @@
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/chat/citation-actions.ts</context>
           <context context-type="linenumber">38</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.queryChip.editLabel" datatype="html">
+        <source>Edit the query</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/chat/query-chip.ts</context>
+          <context context-type="linenumber">23,24</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.queryChip.openEdited" datatype="html">
+        <source>Open in Events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/chat/query-chip.ts</context>
+          <context context-type="linenumber">27,28</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.queryChip.cancel" datatype="html">
+        <source>Cancel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/chat/query-chip.ts</context>
+          <context context-type="linenumber">28,30</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.queryChip.sqlTag" datatype="html">
+        <source>SQL</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/chat/query-chip.ts</context>
+          <context context-type="linenumber">31,33</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.queryChip.open" datatype="html">
+        <source>Open in Events</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/chat/query-chip.ts</context>
+          <context context-type="linenumber">35,36</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.queryChip.edit" datatype="html">
+        <source>Edit</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/chat/query-chip.ts</context>
+          <context context-type="linenumber">36,39</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.richText.record.show" datatype="html">

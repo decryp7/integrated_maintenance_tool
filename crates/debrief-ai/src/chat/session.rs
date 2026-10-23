@@ -330,6 +330,7 @@ impl ChatSession {
                 let evidence = Evidence {
                     record_ids: o.explanation.evidence.record_ids.clone(),
                     queries: vec![],
+                    sql: vec![],
                 };
                 em.emit(ChatEvent::ToolFinished {
                     name: "find_related_logs".into(),

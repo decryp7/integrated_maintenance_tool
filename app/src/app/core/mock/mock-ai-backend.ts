@@ -946,6 +946,7 @@ export class MockAiBackend extends AiBackend {
       recordIds: number[] = [],
       queries: string[] = [],
       error = false,
+      sql: string[] = [],
     ) => {
       this.emitChat(c, { type: 'toolStarted', name, args });
       await this.clock.sleep(this.stepMs * 2);
@@ -954,7 +955,7 @@ export class MockAiBackend extends AiBackend {
         name,
         summary,
         error,
-        evidence: { recordIds, queries },
+        evidence: { recordIds, queries, sql },
       });
     };
     const finish = (ok: boolean, partial: string) => {
@@ -1085,6 +1086,17 @@ export class MockAiBackend extends AiBackend {
         this.emitChat(c, { type: 'proposal', proposal: p });
         answer = 'Here is a query for errors on WEB02: `MachineName = WEB02 and level >= error`.';
         citations.push({ kind: 'query', ql: p.ql });
+      } else if (q.includes('percentile')) {
+        // The query language cannot say "95th percentile of the gap between events": the fallback is SQL, shown in the chat.
+        const sql = 'SELECT quantile_cont(gap, 0.95) AS p95 FROM (SELECT epoch(ts) - epoch(lag(ts) OVER (ORDER BY ts)) AS gap FROM events) WHERE gap IS NOT NULL';
+        await tool('run_sql', JSON.stringify({ sql }), 'SQL: 1 rows', [], [], false, [sql]);
+        answer = 'I used SQL: the 95th percentile of the gap between events is 17 seconds.';
+      } else if (q.includes('graphic builder')) {
+        const ql = 'level >= error and ProcessName = "CompanyA.Graphic.Builder.exe"';
+        await tool('find_values', '{"text":"graphic builder"}', '1 matching values');
+        await tool('run_query', JSON.stringify({ ql }), '2 events', [ids.error, ids.fatal], [ql]);
+        answer = `CompanyA.Graphic.Builder.exe logged 2 errors (events ${ids.error} and ${ids.fatal}).`;
+        citations.push({ kind: 'record', id: ids.error, verified: true }, { kind: 'record', id: ids.fatal, verified: true });
       } else if (q.includes('unknown') || q.includes('kubernetes')) {
         await tool(
           'run_query',

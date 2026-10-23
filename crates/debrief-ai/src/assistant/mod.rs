@@ -11,6 +11,7 @@ mod pipeline;
 mod proposals;
 mod query;
 mod regex;
+pub mod sql_tool;
 mod structured;
 mod tools;
 

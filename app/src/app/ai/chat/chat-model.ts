@@ -9,6 +9,10 @@ export interface ToolChip {
   running: boolean;
   summary: string | null;
   error: boolean;
+  /** The exact query-language queries the tool ran (editable chips in the chat). */
+  queries: string[];
+  /** The SQL the tool ran, when the assistant used its SQL fallback. */
+  sql: string[];
 }
 
 export interface ProposalView {
@@ -109,10 +113,10 @@ export function reduceTurn(t: TurnView, e: ChatEvent): TurnView {
       return { ...t, text: t.text + e.text };
     case 'toolStarted':
       // The model's text before a tool call is a preamble, replaced by what it writes after the tools.
-      return { ...t, text: '', tools: [...t.tools, { name: e.name, args: e.args, running: true, summary: null, error: false }] };
+      return { ...t, text: '', tools: [...t.tools, { name: e.name, args: e.args, running: true, summary: null, error: false, queries: [], sql: [] }] };
     case 'toolFinished': {
       const i = t.tools.map((c) => c.running && c.name === e.name).lastIndexOf(true);
-      const done: ToolChip = { name: e.name, args: t.tools[i]?.args ?? '', running: false, summary: e.summary, error: e.error };
+      const done: ToolChip = { name: e.name, args: t.tools[i]?.args ?? '', running: false, summary: e.summary, error: e.error, queries: e.evidence.queries, sql: e.evidence.sql ?? [] };
       const tools = i >= 0 ? t.tools.map((c, j) => (j === i ? done : c)) : [...t.tools, done];
       return { ...t, tools };
     }
@@ -250,6 +254,7 @@ export function describeContext(src: ContextSources, fmt: (ms: number) => string
 export function toolLabel(name: string): string {
   const known: Record<string, string> = {
     run_query: $localize`:@@ai.chatModel.tool.runQuery:Query`,
+    run_sql: $localize`:@@ai.chatModel.tool.runSql:SQL`,
     get_events: $localize`:@@ai.chatModel.tool.getEvents:Read events`,
     neighbours: $localize`:@@ai.chatModel.tool.neighbours:Surrounding lines`,
     field_stats: $localize`:@@ai.chatModel.tool.fieldStats:Field statistics`,

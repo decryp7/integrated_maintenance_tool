@@ -551,7 +551,10 @@ export type Citation =
 
 export interface Evidence {
   recordIds: number[];
+  /** The query-language queries the tools ran, exactly as run (the chat shows each as an editable chip). */
   queries: string[];
+  /** The SQL texts the assistant's `run_sql` fallback ran (shown read-only in the same chip). */
+  sql?: string[];
 }
 
 export interface Usage {

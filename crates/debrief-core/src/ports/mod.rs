@@ -12,6 +12,7 @@
 //! [`Store`] is all of them together (plus [`Projects`]): what one window of the app holds.
 
 mod console;
+mod console_views;
 mod dto;
 mod inspect;
 mod live;
@@ -22,6 +23,7 @@ pub use console::{
     SQL_MAX_NOTES, SQL_MAX_RESULT_BYTES, SQL_MAX_ROWS, SQL_MEMORY_LIMIT, SQL_NOTE_CHARS, SQL_PAGE_ROWS, SQL_THREADS, SQL_TIME_LIMIT,
     SQL_VIEWS_VERSION,
 };
+pub use console_views::{ai_views_text, sql_views, Columns, AI_VIEWS, SQL_VIEW_TABLE};
 pub use console::{
     SqlExportRequest, SqlExportResult, SqlIds, SqlIdsRequest, SQL_EXPORT_MAX_BYTES, SQL_EXPORT_MAX_ROWS, SQL_EXPORT_TIME_LIMIT,
 };
