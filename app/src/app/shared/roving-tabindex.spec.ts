@@ -69,4 +69,13 @@ describe('RovingTabindex', () => {
     expect(e.defaultPrevented).toBe(false);
     expect(document.activeElement?.id).toBe('a');
   });
+
+  it('leaves a key an item already handled (default prevented) alone', async () => {
+    const root = await setup();
+    const a = root.querySelector<HTMLElement>('#a')!;
+    a.addEventListener('keydown', (e) => e.preventDefault());
+    a.focus();
+    a.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(document.activeElement).toBe(a);
+  });
 });

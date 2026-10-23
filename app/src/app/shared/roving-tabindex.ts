@@ -72,6 +72,7 @@ export class RovingTabindex {
   }
 
   protected onKeydown(event: KeyboardEvent): void {
+    if (event.defaultPrevented) return;
     if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return;
     const items = this.items();
     const index = items.indexOf(event.target as HTMLElement);
