@@ -1,3 +1,4 @@
+import { withLongNames } from './mock-long-names';
 import { parse, TomlError } from 'smol-toml';
 import {
   AlertTarget,
@@ -96,6 +97,8 @@ export interface MockBackendOptions {
   exposeLiveCalls?: boolean;
   /** Marker kinds contributed by (mock) plugins (default: the Windows plugin's; `[]` = none, like safe mode). */
   pluginMarkerKinds?: readonly MockPluginKind[];
+  /** The demo dataset also has files with very long paths and names (UI overflow tests). */
+  longNames?: boolean;
   /** Opening paths is slow and cancellable: each path stands for a folder of files read this many ms apart. */
   slowImportMs?: number;
   /** The clock of every simulated delay, live tick and import step (default: the page's timers). */
@@ -151,7 +154,7 @@ export class MockBackend implements DebriefBackend {
     this.clock = options.clock ?? systemMockClock;
     this.failuresLeft = { ...options.fail };
     this.latency = options.latency ?? true;
-    this.makeDataset = options.dataset ?? (() => generateDemo());
+    this.makeDataset = options.dataset ?? (() => (options.longNames ? withLongNames(generateDemo()) : generateDemo()));
     this.engine = new MockEngine(options.pluginMarkerKinds ?? MOCK_PLUGIN_KINDS);
     this.dataset = this.makeDataset();
     this.profile = parse(this.profileToml) as ProfileModel;

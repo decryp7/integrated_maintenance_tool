@@ -1,3 +1,4 @@
+import { PathText } from '../shared/path-text';
 import { Tabs } from '../shared/tabs';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AiBackend } from '../ai/ai-backend';
@@ -21,7 +22,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
 @Component({
   selector: 'debrief-jobs-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KindFilter, PanelEmpty, Tabs],
+  imports: [PathText, Icon, KindFilter, PanelEmpty, Tabs],
   template: `
     <div class="bar" role="toolbar" aria-label="Job filters" i18n-aria-label="@@jobs.panel.filters">
       <debrief-tabs kind="filter" label="Show" i18n-label="@@jobs.panel.show" idPrefix="jobs-view-" data-testid="jobs-view" [items]="viewItems()" [selected]="store.view()" (selectedChange)="store.setView($any($event))" />
@@ -59,7 +60,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
           @for (j of section.jobs; track j.id) {
             <li role="listitem" class="job" [class.unseen]="j.unseen" [attr.data-state]="j.state" [class.viewable]="viewable(j)" [attr.tabindex]="viewable(j) ? 0 : null" [attr.data-testid]="'job-' + j.id" [attr.aria-label]="rowLabel(j)" (click)="rowClick($event, j)" (keydown.enter)="rowKey($event, j)">
               <div class="row">
-                <span class="title" [title]="j.title">{{ j.title }}</span>
+                <debrief-path-text class="title" [value]="j.title" />
                 <span class="kind" [attr.data-kind]="j.kind">{{ kindLabel(j.kind) }}</span>
                 <span class="state" [attr.data-testid]="'job-state-' + j.id">{{ j.state === 'queued' ? queuedLabel(j.position) : stateLabel(j.state) }}</span>
                 <span class="actions">
@@ -95,7 +96,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
                   <span [attr.data-testid]="'job-progress-' + j.id">{{ p }}</span>
                 }
                 @if (j.message) {
-                  <span class="msg">{{ j.message }}</span>
+                  <span class="msg" [title]="j.message">{{ j.message }}</span>
                 }
                 @if (linkLabel(j.source.link); as l) {
                   <button type="button" class="link" (click)="openSource(j)" [attr.aria-label]="sourceLabel(l)">{{ l }}</button>

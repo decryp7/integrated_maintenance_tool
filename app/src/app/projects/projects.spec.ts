@@ -299,7 +299,7 @@ describe('ProjectCommands, SavedQueryCommands and the recent dialog', () => {
     const f = TestBed.createComponent(RecentProjectsDialog);
     await settle(f);
     expect(text(f)).toContain('saved');
-    expect(all(f, '.item .ellipsis')[0]?.textContent).toBe('/p/');
+    expect(all(f, '.item debrief-path-text')[0]?.textContent?.trim()).toBe('/p/');
     // J1: the item says when the project was last opened or saved.
     expect(all(f, '.item [data-testid=recent-when]')[0]?.textContent?.trim()).not.toBe('');
     tools.calls.length = 0;
