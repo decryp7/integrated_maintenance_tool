@@ -22,7 +22,7 @@ import { ParsersStore } from './parsers/parsers.store';
 import { VideoSettings } from '../video/video-settings';
 import { VIDEO_SETTINGS_ID } from '../video/video-settings.types';
 import { searchParsers } from './parsers/parser-search';
-import { APPEARANCE_ID, fieldMatches, GENERAL_ID, LIVE_TAIL_SECTION, navLayout, statusLabel, UPDATES_ID } from './settings-model';
+import { APPEARANCE_ID, ENGINE_UPDATES_SECTION, fieldMatches, GENERAL_ID, LIVE_TAIL_SECTION, navLayout, statusLabel, UPDATES_ID } from './settings-model';
 import { plural } from '../i18n/locale';
 import { SettingField, SettingsSection } from './settings.types';
 
@@ -135,6 +135,19 @@ import { SettingField, SettingsSection } from './settings.types';
           <debrief-appearance-settings />
         } @else if (isSelected(updates)) {
           <debrief-updates-settings />
+          <!-- The engine's own "updates" section (automatic checks, channel) is part of this page, not a second entry. -->
+          @if (engineUpdates(); as u) {
+            @for (f of u.fields; track f.key) {
+              <debrief-setting-field
+                [field]="f"
+                [value]="store.valueOf(u.id, f.key)"
+                [error]="store.errorFor(u.id, f.key)"
+                [readOnly]="u.readOnly"
+                (changed)="store.edit(u.id, f.key, $event)"
+                (resetToDefault)="store.resetField(u.id, f.key)"
+              />
+            }
+          }
         } @else if (isSelected(storage)) {
           <debrief-storage-settings />
         } @else if (isSelected(parsers)) {
@@ -262,6 +275,7 @@ export class SettingsScreen {
   protected readonly video = VIDEO_SETTINGS_ID;
   protected readonly appearance = APPEARANCE_ID;
 
+  protected readonly engineUpdates = computed(() => this.store.sections().find((s) => s.id === ENGINE_UPDATES_SECTION) ?? null);
   protected readonly navGroups = computed(() => navLayout(this.store.sections()));
 
   /** The restart bar: how many restart-only settings were changed, or the general reminder. */

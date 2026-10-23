@@ -13,7 +13,7 @@ export const APPEARANCE_ID = '@appearance';
 /** Navigation id of Updates: app updates, AI runtime and model updates (UI-only; the engine owns the updater). */
 export const UPDATES_ID = '@updates';
 /** The engine's section behind the Updates page (src-tauri updater/section.rs). */
-const ENGINE_UPDATES_SECTION = 'updates';
+export const ENGINE_UPDATES_SECTION = 'updates';
 /** The engine section that holds the live tail delay; the Live tail page shows it with the rest of live tail. */
 export const LIVE_TAIL_SECTION = 'workspace';
 

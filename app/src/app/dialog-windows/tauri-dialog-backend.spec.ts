@@ -80,6 +80,27 @@ describe('TauriDialogBackend', () => {
     expect(b.x + b.width).toBeLessThanOrEqual(1920);
   });
 
+  it('keeps a position on another display and pulls one on a display that is gone back onto a visible screen', async () => {
+    const { io, backend } = setup();
+    const both = [
+      { name: 'A', primary: true, x: 0, y: 0, width: 1920, height: 1080 },
+      { name: 'B', primary: false, x: 1920, y: 0, width: 1920, height: 1080 },
+    ];
+    io.areas = both;
+    rememberDialogBounds('settings', { x: 2400, y: 100, width: 800, height: 600 });
+    backend.show(request());
+    await tick();
+    expect(io.opened[0]!.bounds).toEqual({ x: 2400, y: 100, width: 800, height: 600 });
+    // The second display was unplugged: the remembered place is clamped onto the one left.
+    io.areas = [both[0]!];
+    rememberDialogBounds('about', { x: -1800, y: 200, width: 800, height: 600 });
+    backend.show(request('about'));
+    await tick();
+    const b = io.opened[1]!.bounds!;
+    expect(b.x).toBeGreaterThanOrEqual(0);
+    expect(b.x + b.width).toBeLessThanOrEqual(1920);
+  });
+
   it('uses a remembered size even before a monitor list is known', async () => {
     const { io, backend } = setup();
     rememberDialogBounds('settings', { x: 10, y: 10, width: 700, height: 500 });

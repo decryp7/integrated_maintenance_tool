@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
+import { StoreHealth } from '../core/store-health';
 import { Icon } from '../shared/icon';
 
 /** The workspace's error and notice ("Saved Case 7"), as toasts in the toast stack (`ui/toast-stack.ts`). */
@@ -10,11 +11,13 @@ import { Icon } from '../shared/icon';
   host: { style: 'display: contents' },
   template: `
     @if (store.error(); as error) {
+     @if (!storeDownText(error)) {
       <div class="toast" data-debrief-overlay data-toast role="alert">
         <debrief-icon name="alert" [size]="15" />
         <span class="ellipsis">{{ error }}</span>
         <button class="icon-btn" aria-label="Dismiss" title="Dismiss" i18n-aria-label="@@app.toast.dismissError" i18n-title="@@app.toast.dismissErrorTitle" (click)="store.dismissError()"><debrief-icon name="close" [size]="14" /></button>
       </div>
+     }
     }
     @if (store.notice(); as notice) {
       <div class="toast info" data-debrief-overlay data-toast role="status" (mouseenter)="store.holdNotice()" (focusin)="store.holdNotice()" (mouseleave)="store.releaseNotice()" (focusout)="store.releaseNotice()">
@@ -41,4 +44,11 @@ import { Icon } from '../shared/icon';
 })
 export class WorkspaceToasts {
   protected readonly store = inject(WorkspaceStore);
+  private readonly health = inject(StoreHealth);
+
+  /** The banner repeats what the status bar already says once: the store is down. */
+  protected storeDownText(error: string): boolean {
+    const d = this.health.down();
+    return !!d && error.includes(d.message);
+  }
 }

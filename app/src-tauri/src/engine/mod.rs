@@ -372,25 +372,34 @@ pub(crate) fn scratch_pid(path: &Path) -> Option<u32> {
 
 /// A store that cannot be started: the worker is missing or failed to start (e.g. libduckdb missing).
 fn unavailable(e: &StoreError) -> CmdError {
-    let mut err = store_error(e.clone());
-    if matches!(e, StoreError::Engine(_)) {
-        // The raw chain is the technical detail; the message and the next step follow from the classified cause.
-        let raw = e.to_string();
-        let stderr = debrief_ipc::child_log::find("store-worker")
-            .map(|l| l.tail_text())
-            .unwrap_or_default();
-        let cause = store_failure::StoreFailure::classify(&raw, &stderr);
-        let detail = if stderr.trim().is_empty() {
-            raw
-        } else {
-            format!("{raw}\n\n{}", stderr.trim_end())
-        };
-        err = CmdError::new(ErrorCode::Unavailable, cause.message())
-            .hint(cause.hint())
-            .detail(Some(detail));
-        err.retryable = true;
+    match e {
+        StoreError::Engine(raw) => worker_failure(raw),
+        other => store_error(other.clone()),
     }
+}
+
+/// The error of a store worker that cannot start or stopped: a plain message and next step by cause, the raw chain and
+/// the worker's recent standard error as the technical detail, and retryable (opening a store lifts a quarantine).
+fn worker_failure(raw: &str) -> CmdError {
+    let stderr = debrief_ipc::child_log::find("store-worker")
+        .map(|l| l.tail_text())
+        .unwrap_or_default();
+    let cause = store_failure::StoreFailure::classify(raw, &stderr);
+    let detail = if stderr.trim().is_empty() {
+        raw.to_string()
+    } else {
+        format!("{raw}\n\n{}", stderr.trim_end())
+    };
+    let mut err = CmdError::new(ErrorCode::Unavailable, cause.message())
+        .hint(cause.hint())
+        .detail(Some(detail));
+    err.retryable = true;
     err
+}
+
+/// Whether an engine error is the store worker's own failure (it did not start, stopped or was quarantined).
+fn is_worker_failure(m: &str) -> bool {
+    m.starts_with(debrief_store_client::client::CRASHED) || m.contains("store worker")
 }
 
 /// A store error as a command error (typed: the UI shows the message and offers Retry when retryable).
@@ -411,6 +420,8 @@ pub(crate) fn store_error(e: StoreError) -> CmdError {
         StoreError::Busy(m) => CmdError::busy(m),
         StoreError::Cancelled => CmdError::new(ErrorCode::Cancelled, "cancelled"),
         StoreError::Io(m) => CmdError::new(ErrorCode::Io, m),
+        // The store worker failing is one condition however a call met it: one message, details folded away.
+        StoreError::Engine(m) if is_worker_failure(&m) => worker_failure(&m),
         StoreError::Engine(m) => CmdError::new(ErrorCode::Failed, m),
         StoreError::Damaged(m) => {
             // Retrying reads the same damaged file.
@@ -538,6 +549,13 @@ mod tests {
         assert!(e.message.starts_with("Debrief's log store"), "{}", e.message);
         assert!(e.retryable && e.hint.is_some());
         assert!(e.detail.unwrap().contains("cannot load duckdb.dll"));
+        // Every route to the same failure gives the same single, plain error (no nested "try again; try again").
+        let chain = "the store worker stopped (the store worker failed 3 times in 5 minutes (last: signal: 6 (SIGABRT)) and was stopped; reset it to try again); try again";
+        let via_command = store_error(StoreError::Engine(chain.into()));
+        assert_eq!((via_command.code, via_command.retryable), (ErrorCode::Unavailable, true));
+        assert!(!via_command.message.contains("SIGABRT") && !via_command.hint.clone().unwrap().contains("try again;"));
+        assert!(via_command.detail.unwrap().contains("SIGABRT"));
+        assert_eq!(store_error(StoreError::Engine("disk exploded".into())).code, ErrorCode::Failed);
         assert_eq!(unavailable(&StoreError::Io("disk".into())).code, ErrorCode::Io);
     }
 
