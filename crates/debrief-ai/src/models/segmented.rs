@@ -471,13 +471,16 @@ impl Shared<'_> {
                 failures = 0;
             }
             if let Some(after) = err.throttle() {
-                throttles += 1;
-                if throttles > MAX_THROTTLES {
-                    self.fail(err);
-                    return;
+                // Giving ground (fewer connections) is not a failure; being refused on the last one is.
+                if self.limit.load(Ordering::Acquire) <= 1 {
+                    throttles += 1;
+                    if throttles > MAX_THROTTLES {
+                        self.fail(err);
+                        return;
+                    }
                 }
                 self.lower_limit();
-                let wait = after.unwrap_or(self.tuning.backoff).min(MAX_THROTTLE_WAIT);
+                let wait = after.unwrap_or(self.tuning.backoff).max(self.tuning.backoff).min(MAX_THROTTLE_WAIT);
                 if !self.nap(wait) {
                     return;
                 }
