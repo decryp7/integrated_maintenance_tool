@@ -381,7 +381,7 @@ jobs:
         os: [ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     # Linux legs run in the act image (Node and the usual tools); Windows and macOS run on the host.
-    container: ${{ matrix.os == 'ubuntu-latest' && 'dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023' || '' }}
+    container: ${{ matrix.os == 'ubuntu-latest' && 'dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5' || '' }}
     timeout-minutes: 60
     # Windows runners usually run as administrator, where WebView2 ignores WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS (how
     # msedgedriver enables remote debugging); the debug build hands those arguments to WebView2 itself, so both legs
@@ -634,7 +634,7 @@ jobs:
             bundles: dmg
     runs-on: ${{ matrix.os }}
     # Linux legs run in the act image (Node and the usual tools); Windows and macOS run on the host.
-    container: ${{ matrix.os == 'ubuntu-latest' && 'dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023' || '' }}
+    container: ${{ matrix.os == 'ubuntu-latest' && 'dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5' || '' }}
     steps:
       - uses: actions/checkout@v4
 
