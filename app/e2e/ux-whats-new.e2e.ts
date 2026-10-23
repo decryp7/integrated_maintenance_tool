@@ -2,9 +2,12 @@ import { expect, test } from '@playwright/test';
 import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
 import { chooseMenu } from './menu-support';
+import { CHANGELOG } from '../src/app/whats-new/changelog.generated';
 
 // What's new: shown once after an update (never on a first run), and always under Help.
 
+// The mock reports the newest changelog entry as the running version.
+const APP_VERSION = CHANGELOG[0]?.version ?? '';
 const SEEN = 'debrief.whatsnew.seen';
 
 test.describe("What's new", () => {
@@ -18,7 +21,7 @@ test.describe("What's new", () => {
     await openApp(page);
     const dialog = page.getByRole('dialog', { name: "What's new" });
     await expect(dialog).toBeVisible();
-    await expect(dialog.getByTestId('whats-new-current')).toContainText('Version 0.1.0');
+    await expect(dialog.getByTestId('whats-new-current')).toContainText(`Version ${APP_VERSION}`);
     await expect(dialog.getByTestId('whats-new-current').locator('li').first()).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'whats-new', 'debrief-whats-new');
     await dialog.getByTestId('whats-new-close').click();
@@ -27,14 +30,14 @@ test.describe("What's new", () => {
     await page.reload();
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
     await expect(dialog).toHaveCount(0);
-    expect(await page.evaluate((key) => localStorage.getItem(key), SEEN)).toBe('0.1.0');
+    expect(await page.evaluate((key) => localStorage.getItem(key), SEEN)).toBe(APP_VERSION);
   });
 
   test('a first run only records the version, and Help › What\'s new opens it on demand', async ({ page }) => {
     await openApp(page);
     await expect(page.getByRole('dialog', { name: "What's new" })).toHaveCount(0);
-    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), SEEN)).toBe('0.1.0');
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), SEEN)).toBe(APP_VERSION);
     await chooseMenu(page, 'Help', "What's new");
-    await expect(page.getByRole('dialog', { name: "What's new" })).toContainText('Version 0.1.0');
+    await expect(page.getByRole('dialog', { name: "What's new" })).toContainText(`Version ${APP_VERSION}`);
   });
 });

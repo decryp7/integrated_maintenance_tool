@@ -1,3 +1,4 @@
+import { CHANGELOG } from '../../whats-new/changelog.generated';
 import {
   Manifest,
   AppStatus,
@@ -599,7 +600,7 @@ export class MockToolsBackend implements ToolsBackend {
 
   async appStatus(): Promise<AppStatus> {
     return {
-      version: '0.1.0',
+      version: CHANGELOG[0]?.version ?? '0.0.0',
       safeMode: this.options.safeMode,
       previousCrash: this.options.previousCrash,
       sessionAvailable: this.session !== null || this.options.previousCrash,
