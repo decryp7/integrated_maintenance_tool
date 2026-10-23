@@ -767,13 +767,7 @@ impl Inner {
     /// The SQL condition that selects exactly the events matching a compiled filter: the filter's own SQL when
     /// it is exact, else the ids of the events that pass the scan's check, written to a file (no limit, bounded
     /// memory). The returned files must be kept while the condition is used.
-    fn exact_selection(
-        &self,
-        conn: &Connection,
-        ctx: &Ctx,
-        sf: &SqlFilter,
-        cq: &CompiledQuery,
-    ) -> StoreResult<Selection> {
+    fn exact_selection(&self, conn: &Connection, ctx: &Ctx, sf: &SqlFilter, cq: &CompiledQuery) -> StoreResult<Selection> {
         if sf.exact {
             return Ok(Selection {
                 condition: sf.all_sql(),
@@ -821,7 +815,11 @@ impl Inner {
             .map(|f| text_expr(f, &ctx.fields))
             .collect::<Option<_>>()
             .ok_or_else(ungroupable)?;
-        let Selection { condition: filter, keep: _keep, matched } = self.exact_selection(&conn, &ctx, &sf, &cq)?;
+        let Selection {
+            condition: filter,
+            keep: _keep,
+            matched,
+        } = self.exact_selection(&conn, &ctx, &sf, &cq)?;
         let matched = self.matched_or_count(&conn, &filter, matched)?;
         let mut inputs = crate::anomalies::SqlInputs::new(&conn, &filter, &key, parts, &ctx.fields);
         let result = analysis::detect_with(&mut inputs, cfg)?;
@@ -929,7 +927,11 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
-        let Selection { condition: filter, keep: _keep, matched: known } = self.exact_selection(&conn, &ctx, &sf, &cq)?;
+        let Selection {
+            condition: filter,
+            keep: _keep,
+            matched: known,
+        } = self.exact_selection(&conn, &ctx, &sf, &cq)?;
         let unreadable = |f: &str| StoreError::Invalid(format!("the field name {f:?} cannot be read"));
         let text = |f: &str| text_expr(f, &ctx.fields).ok_or_else(|| unreadable(f));
         let number = |f: &str| number_expr(f, &ctx.fields).ok_or_else(|| unreadable(f));

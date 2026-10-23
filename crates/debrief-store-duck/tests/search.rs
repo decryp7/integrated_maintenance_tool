@@ -174,9 +174,19 @@ fn indexing_many_segments_in_batches_is_complete_and_repeatable() {
     for f in 0..files {
         let mut text = String::new();
         for i in 0..per_file {
-            text.push_str(&format!("2026-10-14 10:{:02}:{:02} INFO shard{c} request {i} handled\n", f, i % 60, c = letter(f)));
+            text.push_str(&format!(
+                "2026-10-14 10:{:02}:{:02} INFO shard{c} request {i} handled\n",
+                f,
+                i % 60,
+                c = letter(f)
+            ));
             if i % 100 == 0 {
-                text.push_str(&format!("2026-10-14 10:{:02}:{:02} ERROR needle{c} failed\n", f, i % 60, c = letter(f)));
+                text.push_str(&format!(
+                    "2026-10-14 10:{:02}:{:02} ERROR needle{c} failed\n",
+                    f,
+                    i % 60,
+                    c = letter(f)
+                ));
             }
         }
         std::fs::write(logs.0.join(format!("f{f:02}.log")), text).unwrap();
@@ -198,7 +208,10 @@ fn indexing_many_segments_in_batches_is_complete_and_repeatable() {
     store.open(std::slice::from_ref(&logs.0)).unwrap().wait().unwrap();
     let status = store.wait_for_index(Duration::from_secs(120)).unwrap();
     assert!(status.ready && status.indexed == status.total && status.total >= 1, "{status:?}");
-    let first: Vec<_> = ["handled", "needled failed", "sharde", "failed"].iter().map(|t| ids(&store, t)).collect();
+    let first: Vec<_> = ["handled", "needled failed", "sharde", "failed"]
+        .iter()
+        .map(|t| ids(&store, t))
+        .collect();
     assert_eq!(first[0].0, (files * per_file) as u64);
     assert_eq!(first[1].0, 4);
     assert_eq!(first[2].0, per_file as u64);
@@ -207,6 +220,9 @@ fn indexing_many_segments_in_batches_is_complete_and_repeatable() {
     std::fs::remove_dir_all(dir.0.join("index")).unwrap();
     let store = DuckStore::open(&dir.0, Profile::default_profile(), PluginRegistry::new()).unwrap();
     assert!(store.wait_for_index(Duration::from_secs(120)).unwrap().ready);
-    let again: Vec<_> = ["handled", "needled failed", "sharde", "failed"].iter().map(|t| ids(&store, t)).collect();
+    let again: Vec<_> = ["handled", "needled failed", "sharde", "failed"]
+        .iter()
+        .map(|t| ids(&store, t))
+        .collect();
     assert_eq!(first, again, "the rebuilt index holds the same documents");
 }

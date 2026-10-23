@@ -352,7 +352,7 @@ impl Fts {
         let completed = stages.run(
             input,
             |(file, rb)| match rb {
-                Ok(rb) => self.documents(&rb, keys[*file], ts_field, ready),
+                Ok(rb) => self.documents(rb, keys[*file], ts_field, ready),
                 Err(e) => Err(anyhow::anyhow!("{e:#}")),
             },
             |(file, _), docs, _| {
@@ -667,9 +667,9 @@ fn step(s: &FtsShared, seg_dir: &Path, conn: &Connection, write_lock: &Mutex<()>
         None => slot.insert(s.fts.writer()?),
     };
     let total = files.len() as u64;
-    let result = s
-        .fts
-        .index_files(w, seg_dir, batch, &ready, &stages(&s.stop), |n| s.pending.store(total - n as u64, Ordering::SeqCst));
+    let result = s.fts.index_files(w, seg_dir, batch, &ready, &stages(&s.stop), |n| {
+        s.pending.store(total - n as u64, Ordering::SeqCst)
+    });
     if let Err(e) = result {
         let _ = w.rollback();
         if s.stop.load(Ordering::SeqCst) {

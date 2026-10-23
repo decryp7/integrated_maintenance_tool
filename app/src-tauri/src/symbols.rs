@@ -650,7 +650,9 @@ mod tests {
         let (docs, id) = opened(&missing_dump(), &dl);
         let cancel = AtomicBool::new(false);
         // Cancel after the first PDB is settled.
-        let update = dl.run(&cancel, &|_, _| cancel.store(true, Ordering::SeqCst), &|_| {}, || panic!("nothing arrived"));
+        let update = dl.run(&cancel, &|_, _| cancel.store(true, Ordering::SeqCst), &|_| {}, || {
+            panic!("nothing arrived")
+        });
         assert_eq!(fetcher.asked.load(Ordering::SeqCst), 1);
         assert!(update.apply(&docs, id, 120));
         let d = stored(&docs, id);

@@ -183,7 +183,8 @@ struct Node {
 }
 
 /// A message's tokens, made ahead of time by [`PatternMiner::prepare`] (none for Serilog events).
-pub struct Prepared(Option<Vec<(Box<str>, Option<(usize, usize)>)>>);
+type OwnedToken = (Box<str>, Option<(usize, usize)>);
+pub struct Prepared(Option<Vec<OwnedToken>>);
 
 /// Mines `records` with the tokenizing done on `stages`' pool and the clustering in record order on one thread: the
 /// same patterns as adding them one by one. The flag is false when cancelled.
@@ -192,9 +193,13 @@ pub fn mine_pipelined<R: RowRef + Send + Sync>(
     miner: &mut PatternMiner,
     stages: &crate::stages::Stages<'_>,
 ) -> bool {
-    stages.run(records, |r| PatternMiner::prepare(r), |r, prepared, _| {
-        miner.add_prepared(&r, prepared);
-    })
+    stages.run(
+        records,
+        |r| PatternMiner::prepare(r),
+        |r, prepared, _| {
+            miner.add_prepared(&r, prepared);
+        },
+    )
 }
 
 /// Incremental template miner.

@@ -234,10 +234,7 @@ impl Store {
         ctl: &RunControl<'_>,
     ) -> Vec<(String, String)> {
         use rayon::prelude::*;
-        let due: Vec<&Registered> = annotators
-            .iter()
-            .filter(|a| a.guard.is_none() || available(&a.owner))
-            .collect();
+        let due: Vec<&Registered> = annotators.iter().filter(|a| a.guard.is_none() || available(&a.owner)).collect();
         let total = due.len();
         let events = AtomicU64::new(0);
         let finished = AtomicUsize::new(0);
@@ -266,9 +263,17 @@ impl Store {
             report(finished.fetch_add(1, Ordering::Relaxed) + 1);
             Some(result)
         };
-        let threads = crate::threads::threads(crate::threads::WorkKind::Cpu, None).min(MAX_PARALLEL_ANNOTATORS).min(total.max(1));
+        let threads = crate::threads::threads(crate::threads::WorkKind::Cpu, None)
+            .min(MAX_PARALLEL_ANNOTATORS)
+            .min(total.max(1));
         let results: Vec<Option<Result<Vec<Annotation>>>> = match (threads > 1 && total > 1)
-            .then(|| rayon::ThreadPoolBuilder::new().num_threads(threads).thread_name(|i| format!("debrief-annotate-{i}")).build().ok())
+            .then(|| {
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(threads)
+                    .thread_name(|i| format!("debrief-annotate-{i}"))
+                    .build()
+                    .ok()
+            })
             .flatten()
         {
             Some(pool) => pool.install(|| due.par_iter().map(run_one).collect()),

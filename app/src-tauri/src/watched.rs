@@ -234,8 +234,9 @@ fn step<R: Runtime>(app: &AppHandle<R>, win: &CurrentWindow, dir: &Path, state: 
         // More files may still be settling: they go together in one job.
         let waiting = ready.new.len() + ready.changed.len();
         if waiting > 0 {
-            win.watched
-                .note(dir, |f| f.message = format!("{waiting} file{} ready, waiting for more", if waiting == 1 { "" } else { "s" }));
+            win.watched.note(dir, |f| {
+                f.message = format!("{waiting} file{} ready, waiting for more", if waiting == 1 { "" } else { "s" })
+            });
         }
         return;
     }
@@ -287,6 +288,10 @@ fn file_name(p: &Path) -> String {
         .map_or_else(|| p.display().to_string(), |n| n.to_string_lossy().into_owned())
 }
 
+/// The batches imported so far, as (folder, files), for tests.
+#[cfg(test)]
+static BATCHES: Mutex<Vec<(PathBuf, usize)>> = Mutex::new(Vec::new());
+
 /// Imports `files` of the watched folder `dir` as ONE import job of the window (opening them, or refreshing them
 /// when they changed). The job shows the files' progress and has Cancel like any import. Returns the files that were
 /// not recognised with the reason (the rest were imported).
@@ -297,6 +302,11 @@ fn import_batch<R: Runtime>(
     files: &[PathBuf],
     refresh: bool,
 ) -> CmdResult<Vec<(PathBuf, String)>> {
+    #[cfg(test)]
+    BATCHES
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .push((dir.to_path_buf(), files.len()));
     let before = crate::engine_errors::HealthSnapshot::new(&win.host.registry.plugins(), &[]);
     let paths = files.to_vec();
     let spec = JobSpec::new(JobKind::Import, batch_title(dir, files)).window(win.label());
@@ -495,7 +505,11 @@ mod tests {
         let dir = TempDir::new("watched-batch");
         crate::paths::allow_under(app.handle(), crate::windows::MAIN, &dir.0);
         for n in 0..6 {
-            std::fs::write(dir.0.join(format!("f{n}.log")), format!("2026-10-14 0{n}:00:00.000 +00:00 [INF] tick {n}\n")).unwrap();
+            std::fs::write(
+                dir.0.join(format!("f{n}.log")),
+                format!("2026-10-14 0{n}:00:00.000 +00:00 [INF] tick {n}\n"),
+            )
+            .unwrap();
         }
         ipc(&main, "add_watched_folder", json!({ "path": dir.0.to_string_lossy() })).unwrap();
         let started = Instant::now();
@@ -507,16 +521,14 @@ mod tests {
             }
             std::thread::sleep(Duration::from_millis(300));
         }
-        let jobs = ipc(&main, "jobs_list", json!({})).unwrap();
-        let titles: Vec<String> = jobs["jobs"]
-            .as_array()
+        let mine: Vec<usize> = BATCHES
+            .lock()
             .unwrap()
             .iter()
-            .filter_map(|j| j["title"].as_str().map(String::from))
-            .filter(|t| t.contains("watched folder"))
+            .filter(|(d, _)| d.file_name() == dir.0.file_name())
+            .map(|(_, n)| *n)
             .collect();
-        assert_eq!(titles.len(), 1, "{titles:?} of {jobs}");
-        assert!(titles[0].starts_with("Import 6 files from "), "{titles:?}");
+        assert_eq!(mine, [6], "one import job for the six files");
         assert_eq!(ipc(&main, "workspace_summary", json!({})).unwrap()["total"], 6);
     }
 

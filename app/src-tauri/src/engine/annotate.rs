@@ -34,10 +34,14 @@ fn run_controlled(win: &WindowState, store: &dyn Store, told: &(dyn Fn(&str) + S
     let progress = |p: AnnotateProgress| told(&progress_text(&p));
     let started = Instant::now();
     match PortView::new(store) {
-        Ok(view) => win
-            .host
-            .registry
-            .run_annotators_with(&view, None, &RunControl { cancelled, progress: &progress }),
+        Ok(view) => win.host.registry.run_annotators_with(
+            &view,
+            None,
+            &RunControl {
+                cancelled,
+                progress: &progress,
+            },
+        ),
         Err(e) => log::warn!("The annotators did not run: the store did not answer ({e})"),
     }
     log::info!(ElapsedMs = started.elapsed().as_millis() as u64, Cancelled = cancelled(); "Annotators ran");
@@ -126,7 +130,11 @@ pub(crate) mod tests {
         };
         assert_eq!(progress_text(&p(0, 5, 0)), "Annotators 1 of 5");
         assert_eq!(progress_text(&p(1, 5, 1200)), "Annotators 2 of 5 - 1200 events read");
-        assert_eq!(progress_text(&p(5, 5, 9)), "Annotators 5 of 5 - 9 events read", "never past the total");
+        assert_eq!(
+            progress_text(&p(5, 5, 9)),
+            "Annotators 5 of 5 - 9 events read",
+            "never past the total"
+        );
     }
     use debrief_core::plugin::annotate::{AnnotationView, Annotator};
     use std::sync::{Arc, Mutex};

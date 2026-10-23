@@ -304,6 +304,44 @@ mod tests {
         assert_eq!(server.requests().len(), 3);
     }
 
+    /// A cancel reaches a download that is running: its PDB is cancelled (not failed) and the bytes were counted.
+    #[test]
+    fn a_cancel_stops_a_running_download_and_the_bytes_are_reported() {
+        struct Chunky;
+        impl Fetcher for Chunky {
+            fn fetch(&self, k: &PdbKey, _: &Path) -> Result<PathBuf, FetchError> {
+                Err(FetchError::NotFound(k.name().to_string()))
+            }
+            fn fetch_watched(&self, _: &PdbKey, _: &Path, watch: &DownloadWatch<'_>) -> Result<PathBuf, FetchError> {
+                for _ in 0..100 {
+                    if watch.cancel.load(Ordering::Relaxed) {
+                        return Err(FetchError::Cancelled);
+                    }
+                    (watch.bytes)(1000);
+                }
+                Ok(PathBuf::from("done"))
+            }
+        }
+        let cancel = AtomicBool::new(false);
+        let bytes = AtomicUsize::new(0);
+        let cache = tempfile::tempdir().unwrap();
+        let got = get_all_watched(
+            Some(&Chunky),
+            &[key("m.pdb", 1)],
+            cache.path(),
+            &Gate::new(1),
+            &cancel,
+            &|_, _| {},
+            &|n| {
+                if bytes.fetch_add(n as usize, Ordering::SeqCst) >= 4000 {
+                    cancel.store(true, Ordering::SeqCst);
+                }
+            },
+        );
+        assert_eq!(got[0].1, Outcome::Cancelled);
+        assert_eq!(bytes.load(Ordering::SeqCst), 5000, "stopped at the next chunk after the cancel");
+    }
+
     #[test]
     fn the_gate_bounds_concurrent_downloads() {
         struct Slow {

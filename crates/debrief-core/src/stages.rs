@@ -147,7 +147,11 @@ mod tests {
         let mut seen = Vec::new();
         let done = stages.run(input, |i| *i, |i, _, _| seen.push(i));
         assert!(!done);
-        assert!(seen.len() >= 50 && seen.len() < 1000, "bounded read-ahead after cancel: {}", seen.len());
+        assert!(
+            seen.len() >= 50 && seen.len() < 1000,
+            "bounded read-ahead after cancel: {}",
+            seen.len()
+        );
         assert!(seen.windows(2).all(|w| w[1] == w[0] + 1), "in order, no gaps");
     }
 }

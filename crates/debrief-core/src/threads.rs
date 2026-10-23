@@ -63,7 +63,10 @@ pub fn threads_for(kind: WorkKind, hw: Hardware, setting: Option<usize>) -> usiz
         WorkKind::SsdIo => cores.clamp(4, MAX_SSD_THREADS),
         WorkKind::HddIo => cores.min(2),
         WorkKind::Network => cores.min(4),
-        WorkKind::Memory => usize::try_from(hw.ram_mb.saturating_sub(1024) / 1024).unwrap_or(usize::MAX).min(8).min(cores),
+        WorkKind::Memory => usize::try_from(hw.ram_mb.saturating_sub(1024) / 1024)
+            .unwrap_or(usize::MAX)
+            .min(8)
+            .min(cores),
     };
     n.max(1)
 }

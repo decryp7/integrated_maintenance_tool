@@ -505,7 +505,6 @@ struct Acc {
     instances: HashMap<String, usize>,
 }
 
-
 /// Groups the exceptions of `records` by fingerprint. Each item pairs a record with an instance key
 /// (such as its source file). Records without an exception are skipped. Result is ordered by count, most frequent first.
 pub fn group<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>) -> Vec<ExceptionGroup> {

@@ -180,7 +180,14 @@ impl HttpFetcher {
 
 impl Fetcher for HttpFetcher {
     fn fetch(&self, key: &PdbKey, cache: &Path) -> Result<PathBuf, FetchError> {
-        self.fetch_watched(key, cache, &DownloadWatch { cancel: &AtomicBool::new(false), bytes: &|_| {} })
+        self.fetch_watched(
+            key,
+            cache,
+            &DownloadWatch {
+                cancel: &AtomicBool::new(false),
+                bytes: &|_| {},
+            },
+        )
     }
 
     fn fetch_watched(&self, key: &PdbKey, cache: &Path, watch: &DownloadWatch<'_>) -> Result<PathBuf, FetchError> {
@@ -222,7 +229,14 @@ impl ServerList {
 impl Fetcher for ServerList {
     /// `NotFound` when no server has it; otherwise the first other failure.
     fn fetch(&self, key: &PdbKey, cache: &Path) -> Result<PathBuf, FetchError> {
-        self.fetch_watched(key, cache, &DownloadWatch { cancel: &AtomicBool::new(false), bytes: &|_| {} })
+        self.fetch_watched(
+            key,
+            cache,
+            &DownloadWatch {
+                cancel: &AtomicBool::new(false),
+                bytes: &|_| {},
+            },
+        )
     }
 
     fn fetch_watched(&self, key: &PdbKey, cache: &Path, watch: &DownloadWatch<'_>) -> Result<PathBuf, FetchError> {
@@ -320,7 +334,14 @@ mod tests {
             received.fetch_add(n, Ordering::Relaxed);
             cancel.store(true, Ordering::Relaxed);
         };
-        let r = f.fetch_watched(&key("big.pdb"), cache.path(), &DownloadWatch { cancel: &cancel, bytes: &count });
+        let r = f.fetch_watched(
+            &key("big.pdb"),
+            cache.path(),
+            &DownloadWatch {
+                cancel: &cancel,
+                bytes: &count,
+            },
+        );
         assert_eq!(r, Err(FetchError::Cancelled));
         let got = received.load(Ordering::Relaxed);
         assert!(got > 0 && got < 900_000, "stopped part way: {got}");
