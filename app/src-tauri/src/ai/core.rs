@@ -4,8 +4,10 @@
 
 use super::error::{AiCmdError, AiErrorCode, AiResult};
 use super::runtimes::{RuntimeDeps, RuntimeJobs};
+use debrief_ai::AiError;
 use debrief_ai::assistant::{Assistant, AssistantConfig};
 use debrief_ai::catalog::Catalog;
+use debrief_ai::fit::{self, Assessment, Live, Subject, assess};
 use debrief_ai::gguf::{self, GgufInfo};
 use debrief_ai::hardware::{Hardware, HardwareProbe, SystemProbe};
 use debrief_ai::knowledge::{KnowledgeFile, KnowledgeProvider};
@@ -14,13 +16,12 @@ use debrief_ai::models::source::{ModelSource, Progress};
 use debrief_ai::models::store::InstalledProjector;
 use debrief_ai::models::verify::verify_local;
 use debrief_ai::models::{AddMode, DiskSpace, HfConfig, HuggingFace, ModelStore, SystemDisk};
-use debrief_ai::recommend::{assess, recommend, Assessment, Recommendation, Recommendations};
-use debrief_ai::runtime::{check_memory, effective_context, load_with_fallback, projector_bytes, LoadRequest, ModelRuntime};
+use debrief_ai::recommend::{Recommendation, Recommendations, recommend_with};
+use debrief_ai::runtime::{LoadRequest, ModelRuntime, check_memory, effective_context, load_with_fallback, projector_bytes};
 use debrief_ai::settings::AiSettings;
 use debrief_ai::setup::{Setup, SetupPlan, SetupStage};
 use debrief_ai::worker::protocol::ServerInfo;
 use debrief_ai::worker::{FramesLauncher, Health, WorkerConfig, WorkerRuntime};
-use debrief_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -279,7 +280,12 @@ impl ModelLoader for AppLoader {
             return Ok(p);
         }
         let req = load_request(&self.store, &self.file, &self.settings)?;
-        check_memory(&self.probe.probe(), &req.info, projector_bytes(req.projector.as_deref()))?;
+        check_memory(
+            &self.probe.probe(),
+            &req.info,
+            projector_bytes(req.projector.as_deref()),
+            req.context,
+        )?;
         let (loaded, note) = load_with_fallback(self.runtime.as_ref(), req)?;
         *lock(&self.info) = EngineInfo {
             backend: Some(loaded.backend),
@@ -322,6 +328,8 @@ pub struct AiCore {
     pub(super) jobs: RuntimeJobs,
     /// The global knowledge files (`<dir>/knowledge`, ADR 0029).
     knowledge: super::knowledge::GlobalKnowledge,
+    /// Header-derived KV shapes of catalog models (see `Setup::refine`).
+    shapes: debrief_ai::fit::ShapeCache,
 }
 
 impl AiCore {
@@ -355,6 +363,7 @@ impl AiCore {
             info: Arc::default(),
             setup: Mutex::default(),
             jobs: RuntimeJobs::default(),
+            shapes: debrief_ai::fit::ShapeCache::default(),
         };
         core.install_active(None);
         core
@@ -425,8 +434,47 @@ impl AiCore {
         self.store().list().into_iter().map(|m| m.file_name).collect()
     }
 
+    /// Memory (GB) that unloading Debrief's own loaded model would give back: its file plus the context.
+    pub(super) fn reclaim_gb(&self) -> f64 {
+        let file = match &*lock(&self.active) {
+            Active::Lazy { lazy, file } if lazy.state() == LoadState::Ready => file.clone(),
+            _ => return 0.0,
+        };
+        let settings = self.settings();
+        self.store()
+            .list()
+            .into_iter()
+            .find(|m| m.file_name == file)
+            .and_then(|m| m.info)
+            .map_or(0.0, |i| {
+                let ctx = effective_context(&settings, &i);
+                fit::need(&fit::Subject::from_gguf(&i, 0, ctx)).total_gb
+            })
+    }
+
+    fn live(&self) -> Live {
+        Live {
+            reclaim_gb: self.reclaim_gb(),
+            ..self.deps.probe.live()
+        }
+    }
+
     pub fn recommendations(&self) -> Recommendations {
-        recommend(&self.hardware(), &self.catalog, &self.installed_files())
+        recommend_with(
+            &self.hardware(),
+            &self.live(),
+            &self.catalog,
+            &self.installed_files(),
+            self.settings().context_length,
+            &self.shapes.snapshot(),
+        )
+    }
+
+    /// As [`recommendations`](Self::recommendations), after reading the headers of the models that could fit
+    /// (first bytes only, nothing is downloaded) so that the verdicts use their real architecture.
+    pub fn refine_fit(&self) -> AiResult<Recommendations> {
+        self.availability()?;
+        self.with_setup(|s| Ok(s.refine()))
     }
 
     /// Makes the active model the one named in the settings (or `primed`, already loaded by the set-up).
@@ -681,6 +729,8 @@ impl AiCore {
             settings_path: &settings_path,
             settings,
             backoff: self.deps.download_backoff,
+            shapes: &self.shapes,
+            reclaim_gb: self.reclaim_gb(),
         };
         Ok(f(&setup)?)
     }
@@ -741,6 +791,8 @@ impl AiCore {
 
     pub fn models(&self) -> Vec<ModelDto> {
         let hw = self.hardware();
+        let live = self.live();
+        let settings = self.settings();
         let active = match &*lock(&self.active) {
             Active::Lazy { file, .. } => Some(file.clone()),
             _ => None,
@@ -759,7 +811,7 @@ impl AiCore {
                     // Its projector loads with it (ADR 0025).
                     assessment: m.info.as_ref().map(|i| {
                         let extra = m.projector.as_ref().filter(|p| p.problem.is_none()).map_or(0, |p| p.size_bytes);
-                        assess(&hw, i.file_size + extra, i.params_b, i.is_moe(), 0.0)
+                        assess(&hw, &live, &Subject::from_gguf(i, extra, effective_context(&settings, i)))
                     }),
                     catalog_id: cat.map(|c| c.id.clone()),
                     name: cat

@@ -4,7 +4,7 @@
  * verify, validate, load, warm up) → ready | failed | cancelled. The engine decides everything (fit,
  * speed, stages); this only tracks where the user is.
  */
-import { AiErrorCode, Recommendation, SetupEvent, SetupPlan } from '../ai.types';
+import { AiErrorCode, Recommendation, Recommendations, SetupEvent, SetupPlan } from '../ai.types';
 
 export type RunningStage = Exclude<
   SetupEvent,
@@ -31,6 +31,8 @@ export type WizardEvent =
   | { type: 'planLoaded'; plan: SetupPlan; preferred?: string | null; needsRuntime?: boolean }
   /** A runtime is installed now: go on to the model. */
   | { type: 'runtimeReady' }
+  /** The engine read the model headers: the same models with exact memory figures (the selection stays). */
+  | { type: 'fitRefined'; recommendations: Recommendations }
   | { type: 'failed'; code: AiErrorCode; message: string }
   | { type: 'select'; modelId: string }
   | { type: 'start' }
@@ -73,6 +75,9 @@ export function next(state: WizardState, e: WizardEvent): WizardState {
       return e.needsRuntime
         ? { kind: 'runtime', plan: e.plan, preferred: e.preferred ?? null }
         : toPlan(e.plan, e.preferred ?? null);
+    case 'fitRefined':
+      if (state.kind !== 'plan' && state.kind !== 'runtime') return state;
+      return { ...state, plan: { ...state.plan, recommendations: e.recommendations } };
     case 'runtimeReady':
       return state.kind === 'runtime' ? toPlan(state.plan, state.preferred) : state;
     case 'select':

@@ -2,11 +2,11 @@
 //! (`engine::LlamaRuntime`) wraps llama.cpp; tests use fakes.
 
 use crate::error::{AiError, Result};
+use crate::fit::{Advice, Fit, Live, Subject, assess};
 use crate::gguf::GgufInfo;
 use crate::hardware::Hardware;
 use crate::llm::{LlmProvider, ModelLoader};
 use crate::models::ModelStore;
-use crate::recommend::{assess, Fit};
 use crate::settings::{AiSettings, GpuOffload};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -71,14 +71,27 @@ pub fn projector_bytes(projector: Option<&Path>) -> u64 {
     projector.and_then(|p| std::fs::metadata(p).ok()).map_or(0, |m| m.len())
 }
 
-/// Refuses a model (with `extra_bytes` loaded alongside it, its projector) that cannot fit this machine, with
-/// advice.
-pub fn check_memory(hw: &Hardware, info: &GgufInfo, extra_bytes: u64) -> Result<()> {
-    let a = assess(hw, info.file_size.saturating_add(extra_bytes), info.params_b, info.is_moe(), 0.0);
+/// Refuses a model (with `extra_bytes` loaded alongside it, its projector) that cannot fit this machine at the
+/// `context` it will be started with, with advice. This is the same decision as the one shown before the
+/// download (`crate::fit::assess`); only a model too large for the machine is refused: when memory is merely busy
+/// right now the model is still loaded (the advice was shown at download time).
+pub fn check_memory(hw: &Hardware, info: &GgufInfo, extra_bytes: u64, context: usize) -> Result<()> {
+    let a = assess(hw, &Live::default(), &Subject::from_gguf(info, extra_bytes, context));
     if a.fit == Fit::TooLarge {
+        let tip = a
+            .advice
+            .iter()
+            .find_map(|x| match x {
+                Advice::ShorterContext { tokens } => Some(format!("a shorter context ({tokens} tokens) or ")),
+                _ => None,
+            })
+            .unwrap_or_default();
         return Err(AiError::Memory(format!(
-            "this model needs about {:.1} GB but this machine can offer less ({}). Choose a smaller model or a lower quantisation.",
+            "this model needs about {:.1} GB (weights {:.1} + context {:.1}) but this machine can offer {:.1} GB ({}). Choose {tip}a smaller model or a lower quantisation.",
             a.need_gb,
+            a.weights_gb,
+            a.context_gb,
+            a.capacity_gb,
             hw.summary()
         )));
     }
@@ -115,7 +128,12 @@ impl ModelLoader for InstalledModelLoader {
         let path = self.store.path_of(&self.file_name)?;
         let info = crate::gguf::inspect(&path)?;
         let projector = self.store.projector_path(&self.file_name)?;
-        check_memory(&self.hardware, &info, projector_bytes(projector.as_deref()))?;
+        check_memory(
+            &self.hardware,
+            &info,
+            projector_bytes(projector.as_deref()),
+            effective_context(&self.settings, &info),
+        )?;
         let req = LoadRequest {
             context: effective_context(&self.settings, &info),
             path,

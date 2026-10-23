@@ -74,6 +74,7 @@ describe('MockAiBackend', () => {
     const calls = [
       () => b.hardware(),
       () => b.recommend(),
+      () => b.refineFit(),
       () => b.catalog(),
       () => b.setupPlan(),
       () => b.setupRun('x'),

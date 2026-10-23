@@ -63,6 +63,12 @@ describe('AiSetupWizard', () => {
     expect(q('ai-model-gemma3-12b-q4km')!.textContent).toContain('No tool calling');
     expect(q('ai-model-qwen3.5-32b-q4km')!.textContent).toContain('Too large');
     expect(q('ai-plan-summary')!.textContent).toContain('will be downloaded');
+    // The numbers behind the verdict, and what to change when it is not comfortable.
+    expect(q('ai-fit-qwen3.5-9b-q4km')!.textContent).toMatch(/Needs (about|roughly) \d+\.\d GB \(model \d+\.\d \+ context \d+\.\d/);
+    expect(q('ai-fit-qwen3.5-9b-q4km')!.textContent).toContain('available now');
+    expect(q('ai-fit-advice-qwen3.5-9b-q4km')).toBeNull();
+    expect(q('ai-fit-advice-qwen3.5-32b-q4km')!.textContent).toContain('Fits this computer');
+    expect(q('ai-fit-advice-qwen3.5-32b-q4km')!.textContent).toContain('smaller model');
     // A model that is too large cannot be set up.
     q('ai-model-qwen3.5-32b-q4km')!.querySelector('input')!.dispatchEvent(new Event('change'));
     fixture.detectChanges();

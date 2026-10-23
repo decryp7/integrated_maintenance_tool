@@ -395,6 +395,7 @@ command_table! {
     Query [WINDOW] => ai::commands::ai_status,
     Query [WINDOW] => ai::commands::ai_hardware,
     Query [WINDOW] => ai::commands::ai_recommend,
+    Query [WINDOW] => ai::commands::ai_refine_fit,
     Query [WINDOW] => ai::commands::ai_catalog,
     Query [WINDOW] => ai::commands::ai_setup_plan,
     Mutation [WINDOW] => ai::commands::ai_setup_run,

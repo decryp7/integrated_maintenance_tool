@@ -72,6 +72,9 @@ export class TauriAiBackend extends AiBackend {
   recommend() {
     return this.run<Recommendations>('ai_recommend');
   }
+  refineFit() {
+    return this.run<Recommendations>('ai_refine_fit');
+  }
   catalog() {
     return this.run<Recommendation[]>('ai_catalog');
   }
