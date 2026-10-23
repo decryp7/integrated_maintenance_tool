@@ -1,3 +1,4 @@
+import { plural } from '../i18n/locale';
 import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
 import { AnnotationDto, MarkerKind } from '../core/api.types';
@@ -113,7 +114,7 @@ let legendSeq = 0;
           </div>
         }
         @if (hidden() > 0 || expanded()) {
-          <button type="button" class="lg more" data-testid="legend-more" [attr.aria-expanded]="expanded()" [attr.aria-controls]="listId" (click)="expanded.set(!expanded())">
+          <button type="button" class="lg more" data-testid="legend-more" [attr.aria-label]="moreTitle(hidden())" [title]="moreTitle(hidden())" [attr.aria-expanded]="expanded()" [attr.aria-controls]="listId" (click)="expanded.set(!expanded())">
             <span class="pill">{{ expanded() ? fewerLabel : moreLabel(hidden()) }}</span>
           </button>
         }
@@ -217,6 +218,16 @@ export class TimelineLegend {
       (this.ann.runsShown() ? this.ann.runKinds().length - this.shownRunKinds().length : 0) +
       (this.ann.kinds().length - this.shownAnnKinds().length),
   );
+
+  /** What the "+N more" button does, for its tooltip and screen readers. */
+  protected moreTitle(n: number): string {
+    return this.expanded()
+      ? $localize`:@@timeline.legend.fewerTitle:Show fewer legend entries`
+      : plural(n, {
+          one: $localize`:@@timeline.legend.moreTitleOne:Show ${n}:count: more legend entry`,
+          other: $localize`:@@timeline.legend.moreTitleMany:Show ${n}:count: more legend entries`,
+        });
+  }
 
   protected moreLabel(n: number): string {
     return $localize`:@@timeline.legend.more:+${n}:count: more`;
