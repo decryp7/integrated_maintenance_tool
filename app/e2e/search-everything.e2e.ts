@@ -37,4 +37,20 @@ test.describe('search everything', () => {
     await input.fill('zzqqxx');
     await expect(dialog.getByTestId('search-everything-empty')).toContainText('zzqqxx');
   });
+
+  test('offers the name the words refer to and takes it on accept', async ({ page }) => {
+    await page.locator('debrief-events-grid').first().click();
+    await page.keyboard.press('ControlOrMeta+Shift+F');
+    const dialog = page.getByRole('dialog', { name: 'Search everything' });
+    const input = dialog.getByRole('combobox', { name: 'Search everything' });
+    await input.fill('worker01');
+    const line = dialog.getByTestId('search-everything-suggestion');
+    await expect(line).toContainText('Did you mean');
+    await expect(line).toContainText('(source)?');
+    const suggested = (await line.getByRole('button').innerText()).trim();
+    expect(suggested.toLowerCase()).toContain('worker01');
+    await line.getByRole('button').click();
+    await expect(input).toHaveValue(suggested);
+    await expect(line).toHaveCount(0);
+  });
 });

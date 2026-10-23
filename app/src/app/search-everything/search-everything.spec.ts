@@ -329,6 +329,18 @@ describe('search everything suggestion', () => {
     expect(line).toContain('CompanyA.Graphic.Builder.exe');
     expect(line).toContain('(ProcessName)?');
   });
+
+  it('names what an entity found in event text is instead of the pseudo field', async () => {
+    const { backend } = provide();
+    (backend as FakeBackend).values = [{ field: '@entity', value: 'CompanyA.Graphic.Builder.exe', count: 3, via: 'fuzzy', kind: 'executable' }];
+    TestBed.overrideProvider(DialogRef, { useValue: { close: vi.fn() } });
+    const f = TestBed.createComponent(SearchEverythingPalette);
+    f.detectChanges();
+    typeInto(el<HTMLInputElement>(f, '[data-testid=search-everything-input]'), 'grafic bilder');
+    await TestBed.inject(SearchEverythingStore).searchNow();
+    f.detectChanges();
+    expect(el(f, '[data-testid=search-everything-suggestion]').textContent).toContain('(executable)?');
+  });
 });
 
 describe('search everything palette', () => {

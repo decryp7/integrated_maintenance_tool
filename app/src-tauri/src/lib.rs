@@ -187,7 +187,6 @@ command_table! {
     Query [WINDOW] => search_everything::find_values,
     Query [WINDOW] => insights::check_query,
     Query [WINDOW] => insights::complete_query,
-    Query [WINDOW] => insights::did_you_mean,
     Query [WINDOW] limit MIB => insights::classify_search,
     Query [WINDOW] => insights::query_patterns,
     Query [WINDOW] => insights::query_exceptions,

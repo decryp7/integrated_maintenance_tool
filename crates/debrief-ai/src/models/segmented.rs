@@ -581,6 +581,7 @@ pub(super) fn run(
         for id in 0..n {
             let (sh, alive) = (&sh, &alive);
             s.spawn(move || {
+                super::priority::lower_current_thread();
                 sh.worker(id);
                 alive.fetch_sub(1, Ordering::AcqRel);
             });

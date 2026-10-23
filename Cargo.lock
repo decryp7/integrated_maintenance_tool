@@ -1552,6 +1552,7 @@ dependencies = [
  "flate2",
  "getrandom 0.4.3",
  "image",
+ "libc",
  "log",
  "percent-encoding",
  "proptest",

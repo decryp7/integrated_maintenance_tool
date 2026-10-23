@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { all, buttonByText, el, settle, text, typeInto } from '../../testing/helpers';
 import { CmdError } from '../core/cmd-error';
+import { WorkspaceStore } from '../core/workspace.store';
 import { SettingsDialogService } from '../settings/settings-dialog';
 import { DialogService } from '../ui/dialog.service';
 import { MOCK_VIDEO_PATHS, MockVideoBackend } from './mock/mock-video-backend';
@@ -200,6 +201,8 @@ describe('VideoView with videos', () => {
 
   it('shows the alignment with its evidence and changes it', async () => {
     const { fixture, store } = await mount({ open: both.slice(0, 1) });
+    TestBed.inject(WorkspaceStore).setTimezone('utc'); // the expected wall-clock text must not depend on the host's zone
+    await settle(fixture);
     expect(testId(fixture, 'video-align-start').textContent).toContain('14 Oct 10:40:00.000');
     expect(testId(fixture, 'video-align-by').textContent).toContain("the video's own creation time");
     expect(testId(fixture, 'video-align-confidence').textContent).toBe('medium');

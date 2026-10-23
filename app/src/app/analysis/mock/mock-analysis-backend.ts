@@ -112,19 +112,6 @@ export class MockAnalysisBackend extends AnalysisBackend {
     const names = [...new Set(all.slice(0, 500).flatMap((r) => Object.keys(r.fields)))].sort();
     return mockCompletions(text, cursor, names);
   }
-  async didYouMean(text: string) {
-    // Plausible data for the browser build: the distinct values of the first records' fields that contain the text.
-    const needle = text.trim().toLowerCase();
-    if (!needle) return [];
-    const all = await this.records();
-    const counts = new Map<string, number>();
-    for (const r of all.slice(0, 500)) {
-      for (const v of Object.values(r.fields)) {
-        if (typeof v === 'string' && v.toLowerCase().includes(needle)) counts.set(v, (counts.get(v) ?? 0) + 1);
-      }
-    }
-    return [...counts].slice(0, 5).map(([value, count]) => ({ field: 'Service', value, count, via: 'prefix' as const }));
-  }
   async queryPatterns(query: QlQuery) {
     const m = await this.matched(query);
     return analysed(mockPatterns(m), m.length);

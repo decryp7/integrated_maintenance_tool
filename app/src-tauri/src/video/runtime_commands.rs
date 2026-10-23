@@ -5,7 +5,7 @@
 use super::{cmd, state, VideoState};
 use crate::error::{CmdError, CmdResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobKind, JobProgress, JobSpec};
-use debrief_ai::models::{Progress, SystemDisk};
+use debrief_ai::models::{DownloadOptions, Progress, SystemDisk};
 use debrief_ai::runtimes::{GithubReleases, ReleaseConfig};
 use debrief_video::api::VideoRuntimeView;
 use debrief_video::run::Tools;
@@ -63,7 +63,12 @@ pub async fn video_runtime_install<R: Runtime>(app: AppHandle<R>) -> CmdResult<V
             .hint("Install FFmpeg yourself (on macOS: brew install ffmpeg) and choose it in Settings ▸ Video."));
         }
     }
-    let proxy = crate::ai::commands::core(&app).ok().and_then(|c| c.settings().download_proxy);
+    let (proxy, connections) = crate::ai::commands::core(&app)
+        .ok()
+        .map(|c| c.settings())
+        .map_or((None, DownloadOptions::default().connections), |s| {
+            (s.download_proxy, s.download_connections as usize)
+        });
     let progress = Arc::new(Progress::new());
     let (p, q) = (progress.clone(), progress.clone());
     let controls = Controls::cancel(move || p.cancel()).with_probe(move || {
@@ -85,8 +90,16 @@ pub async fn video_runtime_install<R: Runtime>(app: AppHandle<R>) -> CmdResult<V
         let result = std::thread::scope(|scope| {
             let worker = scope.spawn(|| {
                 let test = check(&st, &cancel);
-                st.ffmpeg
-                    .install(&st.catalog, &platform, &source, &SystemDisk, &progress, &mut |_| {}, &test)
+                st.ffmpeg.install(
+                    &st.catalog,
+                    &platform,
+                    &source,
+                    &SystemDisk,
+                    connections,
+                    &progress,
+                    &mut |_| {},
+                    &test,
+                )
             });
             while !worker.is_finished() {
                 std::thread::sleep(TICK);

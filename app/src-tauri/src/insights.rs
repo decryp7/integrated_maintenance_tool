@@ -87,16 +87,6 @@ pub async fn classify_search(text: String, fields: Vec<String>) -> InputKind {
     classify_input(&text, &fields)
 }
 
-/// "Did you mean ...": the names (field values and entities found in event text) the search box's words refer to,
-/// from the store's catalogue, best first; at most `SUGGESTIONS`.
-#[tauri::command]
-pub async fn did_you_mean(state: CurrentWindow, text: String) -> CmdResult<Vec<debrief_core::find::ValueMatch>> {
-    with_store(&state, move |s| debrief_core::find::resolve_terms(s, &text, SUGGESTIONS)).await
-}
-
-/// Most suggestions of [`did_you_mean`].
-const SUGGESTIONS: usize = 5;
-
 #[tauri::command]
 pub async fn complete_query(state: CurrentWindow, request: CompletionRequest) -> CmdResult<Vec<Completion>> {
     with_store(&state, move |s| s.complete_query(&request)).await
@@ -245,18 +235,6 @@ mod tests {
         assert!(infer_regex(vec![]).now().is_err());
         assert!(explain_regex(r"\d+".into()).now().unwrap().len() >= 2);
         assert!(explain_regex("(".into()).now().is_err());
-    }
-
-    #[test]
-    fn did_you_mean_suggests_names_of_the_window() {
-        use crate::test_support::{block, main_window, samples, test_app};
-        let app = test_app(None);
-        // Nothing opened: no suggestions, not an error.
-        assert!(block(did_you_mean(main_window(&app), "timeout".into())).unwrap().is_empty());
-        crate::test_support::import(&main_window(&app), &[samples().join("serilog-clef")]);
-        let found = block(did_you_mean(main_window(&app), "timeout".into())).unwrap();
-        assert!(found.len() <= SUGGESTIONS);
-        assert!(block(did_you_mean(main_window(&app), "  ".into())).unwrap().is_empty());
     }
 
     #[test]

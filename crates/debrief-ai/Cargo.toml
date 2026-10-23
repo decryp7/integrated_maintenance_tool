@@ -42,6 +42,9 @@ ureq = { version = "3", default-features = false, features = ["rustls", "gzip", 
 # The TLS stack ureq already uses; named here only to recognise certificate errors (`net::classify`).
 rustls = { version = "0.23", default-features = false, features = ["std"] }
 
+[target.'cfg(unix)'.dependencies]
+libc.workspace = true
+
 [target.'cfg(windows)'.dependencies]
 windows = { workspace = true, features = ["Win32_Graphics_Dxgi", "Win32_System_JobObjects", "Win32_Security_Authorization", "Win32_System_Memory"] }
 
