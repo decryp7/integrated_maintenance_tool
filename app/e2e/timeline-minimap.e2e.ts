@@ -38,7 +38,16 @@ test.describe('timeline minimap', () => {
     await expect(gridTotal(page)).not.toHaveText(all);
     const range = rangeButton(page);
     const zoomed = (await range.innerText()).trim();
-    const box = (await strip(page).boundingBox())!;
+    // The header rows above the strip (legend) can still settle after the first zoom: measure once it stops moving.
+    let box = (await strip(page).boundingBox())!;
+    await expect
+      .poll(async () => {
+        const now = (await strip(page).boundingBox())!;
+        const settled = now.y === box.y && now.x === box.x && now.width === box.width;
+        box = now;
+        return settled;
+      })
+      .toBe(true);
     const y = box.y + box.height / 2;
 
     // Drag the window to the right: the range changes (applied on release).
