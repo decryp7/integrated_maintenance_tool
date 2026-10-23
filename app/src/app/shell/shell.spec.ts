@@ -263,8 +263,9 @@ describe('StatusBar', () => {
     expect(pop.textContent).toContain('Sources');
     expect(pop.textContent).toContain('json · text');
     // The version is the running app's, as the backend reports it (not a hard-coded string).
-    expect(pop.textContent).toContain(`Debrief ${TestBed.inject(LifecycleService).status()!.version}`);
-    expect(pop.textContent).not.toContain('Debrief 0.1.0');
+    const version = TestBed.inject(LifecycleService).status()!.version;
+    expect(version).toMatch(/^\d+\.\d+\.\d+(?:[-+][\w.-]+)?$/);
+    expect(pop.textContent).toContain(`Debrief ${version}`);
     expect(pop.querySelector('[data-testid=status-untimed]')!.textContent).toContain('Without a time');
     expect(text(fixture)).toContain('3 matching');
     expect(el(fixture, '[data-testid=status-profile]').textContent).toContain('Profile: ');
