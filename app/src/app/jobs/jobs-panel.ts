@@ -1,3 +1,4 @@
+import { PathText } from '../shared/path-text';
 import { Tabs } from '../shared/tabs';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { AiBackend } from '../ai/ai-backend';
@@ -11,7 +12,7 @@ import { JobViewer } from './job-viewer';
 import { KindFilter, KindOption } from '../ui/kind-filter';
 import { JobsStore, JobsView } from './jobs.store';
 import { JOB_KINDS, JobInfo, JobKind, JobState } from './jobs.types';
-import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
+import { kindLabel, linkLabel, phaseText, queuedLabel, stateLabel } from './jobs-text';
 
 /**
  * The Jobs pane: running, queued and finished work of this window (and app-wide downloads), with progress, ETA,
@@ -21,7 +22,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
 @Component({
   selector: 'debrief-jobs-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KindFilter, PanelEmpty, Tabs],
+  imports: [PathText, Icon, KindFilter, PanelEmpty, Tabs],
   template: `
     <div class="bar" role="toolbar" aria-label="Job filters" i18n-aria-label="@@jobs.panel.filters">
       <debrief-tabs kind="filter" label="Show" i18n-label="@@jobs.panel.show" idPrefix="jobs-view-" data-testid="jobs-view" [items]="viewItems()" [selected]="store.view()" (selectedChange)="store.setView($any($event))" />
@@ -59,7 +60,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
           @for (j of section.jobs; track j.id) {
             <li role="listitem" class="job" [class.unseen]="j.unseen" [attr.data-state]="j.state" [class.viewable]="viewable(j)" [attr.tabindex]="viewable(j) ? 0 : null" [attr.data-testid]="'job-' + j.id" [attr.aria-label]="rowLabel(j)" (click)="rowClick($event, j)" (keydown.enter)="rowKey($event, j)">
               <div class="row">
-                <span class="title" [title]="j.title">{{ j.title }}</span>
+                <debrief-path-text class="title" [value]="j.title" />
                 <span class="kind" [attr.data-kind]="j.kind">{{ kindLabel(j.kind) }}</span>
                 <span class="state" [attr.data-testid]="'job-state-' + j.id">{{ j.state === 'queued' ? queuedLabel(j.position) : stateLabel(j.state) }}</span>
                 <span class="actions">
@@ -91,11 +92,14 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
                 @if (j.state !== 'queued') {
                   <span>{{ elapsedText(j) }}</span>
                 }
+                @if (j.state === 'running' && phaseOf(j); as ph) {
+                  <span class="phase" [attr.data-testid]="'job-phase-' + j.id">{{ ph }}</span>
+                }
                 @if (progressText(j); as p) {
                   <span [attr.data-testid]="'job-progress-' + j.id">{{ p }}</span>
                 }
                 @if (j.message) {
-                  <span class="msg">{{ j.message }}</span>
+                  <span class="msg" [title]="j.message">{{ j.message }}</span>
                 }
                 @if (linkLabel(j.source.link); as l) {
                   <button type="button" class="link" (click)="openSource(j)" [attr.aria-label]="sourceLabel(l)">{{ l }}</button>
@@ -126,6 +130,7 @@ import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
     .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text); }
     .state { font-size: var(--fs-xs); color: var(--text-2); white-space: nowrap; }
     [data-state='failed'] .state, .error { color: var(--danger-text, var(--lvl-error)); }
+    .phase { font-weight: 600; color: var(--text-2); }
     .error { margin: 0; overflow-wrap: anywhere; }
     progress { width: 100%; height: 6px; accent-color: var(--accent); }
     .meta { display: flex; flex-wrap: wrap; gap: 10px; }
@@ -219,6 +224,10 @@ export class JobsPanel {
    * "1.2 GB of 4 GB · 12 MB/s · about 3 min left" for byte progress (speed and time left from the job's meter),
    * "3 / 12 · about 2 min left" for counted items; '' when there is nothing to say.
    */
+  protected phaseOf(j: JobInfo): string {
+    return phaseText(j.progress);
+  }
+
   protected progressText(j: JobInfo): string {
     const { done, total, unit } = j.progress;
     if (unit === 'bytes' && done !== null) {

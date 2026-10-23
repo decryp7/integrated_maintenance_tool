@@ -12,6 +12,7 @@
 
 mod batcher;
 mod chunk;
+mod discover;
 mod encoding;
 mod json;
 mod legacy;
@@ -26,6 +27,7 @@ mod window;
 
 pub use batcher::{column_type, schema_for, BatchedSource, RecordBatcher};
 pub use chunk::{Chunk, ChunkSource, Encoding, Line, LineReader, LineSpan, OwnedLine, ReaderChunks, TextChunks, CHUNK_BYTES};
+pub use discover::discover;
 pub use encoding::{
     detect as detect_text_encoding, options as encoding_options, EncodingChoice, EncodingInfo, EncodingOption, EncodingOrigin,
     EncodingPolicy, EncodingRequest, SNIFF_BYTES,
@@ -54,26 +56,14 @@ pub const MAX_EVENT_BYTES: usize = 8 << 20;
 /// Adds the files under `path` (itself if it is a file) that the profile's include/exclude globs
 /// select (relative to `path`) and that were not removed.
 pub fn collect_files(path: &Path, profile: &CompiledProfile, removed: &HashSet<PathBuf>, out: &mut Vec<PathBuf>) {
-    if path.is_file() {
-        out.push(path.to_path_buf());
-        return;
-    }
-    let mut stack = vec![path.to_path_buf()];
-    while let Some(dir) = stack.pop() {
-        let Ok(entries) = std::fs::read_dir(&dir) else { continue };
-        for entry in entries.flatten() {
-            let p = entry.path();
-            let rel = p.strip_prefix(path).unwrap_or(&p);
-            if profile.exclude.is_match(rel) || removed.contains(&p) {
-                continue;
-            }
-            match entry.file_type() {
-                Ok(t) if t.is_dir() => stack.push(p),
-                Ok(t) if t.is_file() && profile.include.is_match(rel) => out.push(p),
-                _ => {}
-            }
-        }
-    }
+    out.extend(discover(
+        std::slice::from_ref(&path.to_path_buf()),
+        profile,
+        removed,
+        &HashSet::new(),
+        &ImportProgress::default(),
+        default_threads(),
+    ));
 }
 
 /// The files under `paths` (canonical) to read, sorted, each with its display name (relative to the
@@ -85,15 +75,23 @@ pub fn files_to_read(
     removed: &HashSet<PathBuf>,
     known: &HashSet<String>,
 ) -> Vec<(PathBuf, String)> {
-    let mut files = Vec::new();
-    for path in paths {
-        collect_files(path, profile, removed, &mut files);
-    }
-    files.retain(|f| !known.contains(f.to_string_lossy().as_ref()));
-    files.sort();
-    files.dedup();
-    files
-        .into_iter()
+    find_files(paths, roots, profile, removed, known, &ImportProgress::default(), default_threads())
+}
+
+/// [`files_to_read`] reporting the files and bytes found so far to `progress` (the "finding" phase of an
+/// import) while walking on `threads` walkers.
+pub fn find_files(
+    paths: &[PathBuf],
+    roots: &[PathBuf],
+    profile: &CompiledProfile,
+    removed: &HashSet<PathBuf>,
+    known: &HashSet<String>,
+    progress: &ImportProgress,
+    threads: usize,
+) -> Vec<(PathBuf, String)> {
+    use rayon::prelude::*;
+    discover(paths, profile, removed, known, progress, threads)
+        .into_par_iter()
         .map(|f| {
             let name = crate::workspace::display_name(&f, roots);
             (f, name)

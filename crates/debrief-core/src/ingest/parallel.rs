@@ -157,14 +157,34 @@ pub fn import_files_parallel(
     opts: &ParallelOptions,
     sink: &dyn SharedSink,
 ) -> Vec<Outcome> {
-    let sizes: Vec<u64> = files.iter().map(|(p, _)| std::fs::metadata(p).map_or(0, |m| m.len())).collect();
+    let pool = rayon::ThreadPoolBuilder::new()
+        .num_threads(opts.threads.max(1))
+        .thread_name(|i| format!("debrief-parse-{i}"))
+        .build();
+    // Every file's size and archive entries are needed before the first is read (source ids follow the file
+    // order): looked at on the pool, counted into the progress ("detecting").
+    progress.detecting(files.len());
+    let look = |(p, _): &(PathBuf, String)| -> (u64, u32) {
+        let looked = if progress.is_cancelled() {
+            (0, 1)
+        } else {
+            (std::fs::metadata(p).map_or(0, |m| m.len()), source_slots(p))
+        };
+        progress.detected(1);
+        looked
+    };
+    let looked: Vec<(u64, u32)> = match &pool {
+        Ok(pool) => pool.install(|| files.par_iter().map(look).collect()),
+        Err(_) => files.iter().map(look).collect(),
+    };
+    let sizes: Vec<u64> = looked.iter().map(|l| l.0).collect();
+    let slots: Vec<u32> = looked.iter().map(|l| l.1).collect();
     progress.start(files.len(), sizes.iter().sum());
     let split = Split {
         sink,
         target: opts.chunk_target.max(1),
     };
     // Source ids in file order: each file gets its slots before any is read.
-    let slots: Vec<u32> = files.iter().map(|(p, _)| source_slots(p)).collect();
     let total: u32 = slots.iter().fold(0u32, |a, s| a.saturating_add(*s));
     let base = match sink.reserve_sources(total) {
         Ok(b) => Some(b.0),
@@ -198,10 +218,6 @@ pub fn import_files_parallel(
     };
     let mut order: Vec<usize> = (0..files.len()).collect();
     order.sort_by_key(|&i| std::cmp::Reverse(sizes[i]));
-    let pool = rayon::ThreadPoolBuilder::new()
-        .num_threads(opts.threads.max(1))
-        .thread_name(|i| format!("debrief-parse-{i}"))
-        .build();
     let mut results: Vec<(usize, Vec<Outcome>)> = match pool {
         Ok(pool) => pool.install(|| order.par_iter().map(|&i| (i, one(i))).collect()),
         // No threads to be had: read one file after another.

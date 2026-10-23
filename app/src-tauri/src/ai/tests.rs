@@ -484,10 +484,7 @@ fn set_up_downloads_as_a_job_and_becomes_ready() {
     wait_until("ready", || stages(&events).last().is_some_and(|s| s == "ready"));
     let s = stages(&events);
     assert_eq!(&s[..3], ["probing", "recommending", "downloading"], "{s:?}");
-    assert!(
-        s.contains(&"verifying".to_string()) && s.contains(&"warmingUp".to_string()),
-        "{s:?}"
-    );
+    assert!(s.contains(&"warmingUp".to_string()), "{s:?}");
     wait_until("the task to go", || {
         ipc(&main, "background_tasks", json!({})).unwrap().as_array().unwrap().is_empty() && !core.setup_running()
     });
@@ -2009,3 +2006,12 @@ fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
 mod knowledge;
 mod update_checks;
 mod vision;
+
+#[test]
+fn job_progress_labels_the_phase_so_a_check_is_not_a_second_download() {
+    use super::runtime_commands::phase_progress;
+    let d = phase_progress(false, 5, 10);
+    let v = phase_progress(true, 10, 10);
+    assert_eq!((d.current.as_deref(), d.done, d.total), (Some("Downloading"), Some(5), Some(10)));
+    assert_eq!((v.current.as_deref(), v.done, v.total), (Some("Checking"), Some(10), Some(10)));
+}

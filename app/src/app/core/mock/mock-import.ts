@@ -18,6 +18,7 @@ export function isMockDemoPath(path: string): boolean {
 
 export const IDLE_PROGRESS: ImportProgress = {
   running: false,
+  phase: 'idle',
   done: 0,
   total: 0,
   cancelled: false,
@@ -39,6 +40,8 @@ export class MockImportSim {
   constructor(
     private readonly msPerFile: number,
     private readonly clock: MockClock = systemMockClock,
+    /** Pretend finding the files and detecting their formats take this many ms per step (0: skipped). */
+    private readonly discoveryMs = 0,
   ) {}
 
   progress(): ImportProgress {
@@ -49,6 +52,22 @@ export class MockImportSim {
     if (this.state.running) this.cancelRequested = true;
   }
 
+  /** The phases before reading: the found count grows step by step, then each file is looked at; Cancel ends either. */
+  private async discover(total: number, started: number, onProgress: (p: ImportProgress) => void): Promise<void> {
+    const steps = 5;
+    const perStep = 1_234;
+    for (let i = 1; i <= steps && !this.cancelRequested; i++) {
+      this.state = { ...IDLE_PROGRESS, running: true, phase: 'finding', done: i * perStep, bytesTotal: i * perStep * 250_000, current: `/demo/folder-${i}`, elapsedMs: this.clock.now() - started };
+      onProgress(this.progress());
+      await this.clock.sleep(this.discoveryMs);
+    }
+    for (let i = 1; i <= steps && !this.cancelRequested; i++) {
+      this.state = { ...IDLE_PROGRESS, running: true, phase: 'detecting', done: Math.round((i * total) / steps), total, elapsedMs: this.clock.now() - started };
+      onProgress(this.progress());
+      await this.clock.sleep(this.discoveryMs);
+    }
+  }
+
   /**
    * Reads `files` one after the other, telling `onProgress` (the import job's progress) after each step; resolves with
    * the files read and the ones skipped by a cancel.
@@ -57,7 +76,12 @@ export class MockImportSim {
     const started = this.clock.now();
     this.cancelRequested = false;
     const total = files.length;
-    this.state = { ...IDLE_PROGRESS, running: true, total, bytesTotal: total * SLOW_FILE_BYTES };
+    if (this.discoveryMs > 0) await this.discover(total, started, onProgress);
+    if (this.cancelRequested) {
+      this.state = { ...IDLE_PROGRESS, total, cancelled: true, elapsedMs: this.clock.now() - started };
+      return { read: [], skipped: files };
+    }
+    this.state = { ...IDLE_PROGRESS, running: true, phase: 'importing', total, bytesTotal: total * SLOW_FILE_BYTES };
     const done: string[] = [];
     for (const file of files) {
       if (this.cancelRequested) break;

@@ -666,7 +666,7 @@ impl Inner {
                 save_tracked(&conn, id, &t).map_err(engine)?;
             }
             crate::parsers::record(&conn, &parser_set).map_err(engine)?;
-            self.maintain(&conn);
+            self.maintain(&conn, None);
             self.bump_version(&conn)?;
         }
         if !rest.is_empty() {

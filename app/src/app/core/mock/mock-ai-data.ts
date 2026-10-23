@@ -72,10 +72,38 @@ export function catalogModel(index: number): CatalogModel {
 
 export function mockRecommendations(installed: string[]): Recommendations {
   const assess = (m: CatalogModel): Recommendation => {
-    const need = m.sizeBytes / GB + 1;
-    const fit = need <= 8 * 0.88 ? 'comfortable' : need <= 8 + 0.4 * MOCK_HARDWARE.availableRamGb ? 'tight' : 'tooLarge';
+    const weightsGb = m.sizeBytes / GB;
+    const contextGb = 0.9;
+    const need = weightsGb + contextGb;
+    const capacityGb = 7.75;
+    const availableNowGb = 7.5;
+    const fitOf = (cap: number) => (need <= cap * 0.88 ? 'comfortable' : need <= cap + 0.4 * MOCK_HARDWARE.availableRamGb ? 'tight' : 'tooLarge');
+    const fitsMachine = fitOf(capacityGb);
+    const fitsNow = fitOf(availableNowGb);
+    const fit = fitsMachine === 'tooLarge' ? 'tooLarge' : fitsNow === 'tooLarge' ? 'tight' : fitsMachine === 'tight' || fitsNow === 'tight' ? 'tight' : 'comfortable';
     const speed = fit === 'comfortable' ? 'fast' : fit === 'tight' ? 'moderate' : 'slow';
-    return { model: m, assessment: { needGb: Math.round(need * 10) / 10, fit, speed }, installed: installed.includes(m.file), context: fit === 'comfortable' ? 8192 : 4096 };
+    const round = (n: number) => Math.round(n * 10) / 10;
+    return {
+      model: m,
+      assessment: {
+        needGb: round(need),
+        weightsGb: round(weightsGb),
+        contextGb,
+        context: 8192,
+        rough: true,
+        fit,
+        speed,
+        fitsMachine,
+        fitsNow,
+        capacityGb,
+        availableNowGb,
+        inUseGb: 0.25,
+        spills: false,
+        advice: fit === 'comfortable' ? [] : [{ kind: 'shorterContext', tokens: 4096 }, { kind: 'smallerQuant' }],
+      },
+      installed: installed.includes(m.file),
+      context: 8192,
+    };
   };
   const ranked = MOCK_CATALOG.map(assess);
   return {

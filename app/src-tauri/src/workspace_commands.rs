@@ -544,12 +544,41 @@ pub(crate) async fn save_project<R: Runtime>(
         ..ProjectManifest::default()
     };
     let (n, out) = (name.clone(), file.clone());
-    crate::sync::blocking("saving the project", move || {
-        crate::services::project::write_ui(&store.store_dir(), &ui, &reports)?;
-        let bytes = store.export_project(&manifest, &out).map_err(CmdError::from)?;
-        log::info!(Bytes = bytes; "Project saved");
-        Ok::<_, CmdError>(())
+    // A file job: the Jobs pane shows the phases and the bytes written, and Cancel stops the copy of the store.
+    let spec = crate::jobs::export_spec("Saving", Some(state.label()), &file);
+    let control = debrief_core::ql::QueryControl::new();
+    let probe_path = file.clone();
+    let controls = crate::jobs::Controls::cancel({
+        let c = control.clone();
+        move || c.cancel()
     })
+    .with_probe(move || {
+        let written = std::fs::metadata(&probe_path).map(|m| m.len()).unwrap_or(0);
+        Some(crate::jobs::JobProgress::in_phase(
+            "Writing the project file",
+            crate::jobs::PhaseScale::Bytes,
+            written,
+            0,
+        ))
+    });
+    crate::jobs::run(
+        &app,
+        spec,
+        controls,
+        move |ctx: &crate::jobs::JobCtx| -> CmdResult<crate::jobs::Done<()>> {
+            ctx.phase("Saving the notes and reports", crate::jobs::PhaseScale::Indeterminate, 0, 0);
+            crate::services::project::write_ui(&store.store_dir(), &ui, &reports)?;
+            if ctx.is_cancelled() {
+                return Err(CmdError::from("saving the project was cancelled".to_string()));
+            }
+            ctx.phase("Preparing the store", crate::jobs::PhaseScale::Indeterminate, 0, 0);
+            let bytes = control.scope(|| store.export_project(&manifest, &out)).map_err(CmdError::from)?;
+            log::info!(Bytes = bytes; "Project saved");
+            Ok(crate::jobs::Done::new(()).with_result(crate::jobs::JobResult::File {
+                path: out.display().to_string(),
+            }))
+        },
+    )
     .await?;
     // "Save" writes here again without a dialog.
     grants.grant(target.path(), crate::paths::Access::Write, crate::paths::GrantSource::Project)?;

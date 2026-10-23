@@ -17,6 +17,9 @@ export const ICON_PATHS: Readonly<Record<string, string>> = {
   profile: 'M5 4h10l4 4v12H5zM9 11h6M9 15h6',
   settings: 'M12 9a3 3 0 1 0 0 6a3 3 0 1 0 0-6M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1',
   plus: 'M12 5v14M5 12h14',
+  /** Docked tool window (upright pin) and auto-hidden one (the pin lying down), as in Visual Studio. */
+  pin: 'M12 17v5M8 3h8l-1 7 3 3H6l3-3z',
+  unpin: 'M17 12h5M3 16V8l7 1l3-3V18l-3-3z',
   minus: 'M5 12h14',
   close: 'M6 6l12 12M18 6L6 18',
   refresh: 'M19 12a7 7 0 1 1-2.1-5M19 4v4h-4',

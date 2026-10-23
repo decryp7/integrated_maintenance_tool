@@ -63,6 +63,12 @@ describe('AiSetupWizard', () => {
     expect(q('ai-model-gemma3-12b-q4km')!.textContent).toContain('No tool calling');
     expect(q('ai-model-qwen3.5-32b-q4km')!.textContent).toContain('Too large');
     expect(q('ai-plan-summary')!.textContent).toContain('will be downloaded');
+    // The numbers behind the verdict, and what to change when it is not comfortable.
+    expect(q('ai-fit-qwen3.5-9b-q4km')!.textContent).toMatch(/Needs (about|roughly) \d+\.\d GB \(model \d+\.\d \+ context \d+\.\d/);
+    expect(q('ai-fit-qwen3.5-9b-q4km')!.textContent).toContain('available now');
+    expect(q('ai-fit-advice-qwen3.5-9b-q4km')).toBeNull();
+    expect(q('ai-fit-advice-qwen3.5-32b-q4km')!.textContent).toContain('Fits this computer');
+    expect(q('ai-fit-advice-qwen3.5-32b-q4km')!.textContent).toContain('smaller model');
     // A model that is too large cannot be set up.
     q('ai-model-qwen3.5-32b-q4km')!.querySelector('input')!.dispatchEvent(new Event('change'));
     fixture.detectChanges();
@@ -90,6 +96,26 @@ describe('AiSetupWizard', () => {
     q('ai-open-chat')!.click();
     expect(ctx.showView).toHaveBeenCalledWith('ai-chat');
     expect(ref.close).toHaveBeenCalled();
+  });
+
+  it('one download is one progress entry: phases are labelled and the bar never restarts under the same label', async () => {
+    const { fixture, q, backend } = setup();
+    const seen: { stage: string; bytes: number; total: number }[] = [];
+    void backend.onSetup((e) => {
+      if (e.stage === 'downloading' || e.stage === 'verifying') seen.push({ stage: e.stage, bytes: e.bytes, total: e.total });
+    });
+    await until(fixture, () => !!q('ai-setup-start'));
+    q('ai-setup-start')!.click();
+    await until(fixture, () => !!q('ai-setup-ready'));
+    const stages = seen.map((s) => s.stage);
+    expect(stages.indexOf('verifying')).toBeGreaterThan(stages.lastIndexOf('downloading'));
+    for (let i = 1; i < seen.length; i++) {
+      const [a, b] = [seen[i - 1]!, seen[i]!];
+      if (a.stage === b.stage) expect(b.bytes).toBeGreaterThanOrEqual(a.bytes);
+    }
+    // The check starts where the download ended: it does not look like a second download from zero.
+    const check = seen.find((s) => s.stage === 'verifying')!;
+    expect(check.bytes).toBe(check.total);
   });
 
   it('sets up an installed or preselected model without downloading', async () => {

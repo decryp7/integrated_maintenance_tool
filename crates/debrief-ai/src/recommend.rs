@@ -2,8 +2,11 @@
 //! fast it will run, which catalog model to suggest, and how many layers to put on the GPU.
 
 use crate::catalog::{Catalog, CatalogModel};
+use crate::fit::{assess, KvShape, Live, Subject};
 use crate::hardware::Hardware;
+use crate::settings::AiSettings;
 use serde::Serialize;
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum Quant {
@@ -53,22 +56,6 @@ impl Quant {
     }
 }
 
-/// Memory for the context and compute buffers on top of the weights.
-fn overhead_gb(params_b: f64) -> f64 {
-    if params_b <= 10.0 {
-        1.0
-    } else if params_b <= 16.0 {
-        1.5
-    } else {
-        2.0
-    }
-}
-
-/// Rough memory need from the parameter count: params x bytes-per-parameter + overhead.
-pub fn estimate_memory_gb(params_b: f64, quant: Quant) -> f64 {
-    params_b * quant.gb_per_b() + overhead_gb(params_b)
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MemoryClass {
@@ -87,6 +74,12 @@ pub struct Budget {
 /// GPUs with less than this are not worth offloading to.
 const MIN_USEFUL_VRAM_GB: f64 = 2.0;
 
+/// The default GPU working-set limit of Apple silicon (Metal's `recommendedMaxWorkingSetSize`): two thirds of the
+/// memory up to 36 GB, three quarters above. (llama.cpp lists 21845 MiB for a 32 GB Mac.)
+pub fn unified_working_set_gb(total_ram_gb: f64) -> f64 {
+    total_ram_gb * if total_ram_gb <= 36.0 { 2.0 / 3.0 } else { 0.75 }
+}
+
 pub fn budget(hw: &Hardware) -> Budget {
     let discrete = hw
         .gpus
@@ -96,7 +89,7 @@ pub fn budget(hw: &Hardware) -> Budget {
         .filter(|v| *v >= MIN_USEFUL_VRAM_GB)
         .fold(0.0, f64::max);
     let unified = if hw.gpus.iter().any(|g| g.unified) {
-        hw.total_ram_gb * 0.65
+        unified_working_set_gb(hw.total_ram_gb)
     } else {
         0.0
     };
@@ -118,15 +111,7 @@ pub fn budget(hw: &Hardware) -> Budget {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum Fit {
-    /// Fits with room to spare.
-    Comfortable,
-    /// Fits, or runs with part of the model in system RAM (slower).
-    Tight,
-    TooLarge,
-}
+pub use crate::fit::{Assessment, Fit};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -134,61 +119,6 @@ pub enum Speed {
     Fast,
     Moderate,
     Slow,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Assessment {
-    pub need_gb: f64,
-    pub fit: Fit,
-    pub speed: Speed,
-}
-
-const COMFORT: f64 = 0.88;
-/// Share of free system RAM that spill-over layers may use.
-const SPILL_SHARE: f64 = 0.4;
-const MOE_RAM_SHARE: f64 = 0.8;
-
-/// Does a model of `size_bytes` / `params_b` fit this machine?
-pub fn assess(hw: &Hardware, size_bytes: u64, params_b: f64, moe: bool, min_ram_gb: f64) -> Assessment {
-    let b = budget(hw);
-    let need = size_bytes as f64 / (1024.0 * 1024.0 * 1024.0) + overhead_gb(params_b);
-    let gpu = b.class != MemoryClass::CpuOnly;
-    let small = params_b <= 4.5;
-    let ram_ok = hw.total_ram_gb + 0.5 >= min_ram_gb;
-    let (fit, speed) = if moe {
-        let pool = if b.class == MemoryClass::Unified {
-            b.usable_gb
-        } else {
-            (if gpu { b.usable_gb } else { 0.0 }) + MOE_RAM_SHARE * hw.available_ram_gb
-        };
-        if !ram_ok || need > pool {
-            (Fit::TooLarge, Speed::Slow)
-        } else {
-            (
-                if need <= pool * COMFORT { Fit::Comfortable } else { Fit::Tight },
-                if gpu { Speed::Moderate } else { Speed::Slow },
-            )
-        }
-    } else if need <= b.usable_gb * COMFORT {
-        (
-            Fit::Comfortable,
-            if gpu {
-                Speed::Fast
-            } else if small {
-                Speed::Moderate
-            } else {
-                Speed::Slow
-            },
-        )
-    } else if need <= b.usable_gb {
-        (Fit::Tight, if gpu { Speed::Fast } else { Speed::Slow })
-    } else if b.class == MemoryClass::DiscreteGpu && need <= b.usable_gb + SPILL_SHARE * hw.available_ram_gb {
-        (Fit::Tight, Speed::Moderate)
-    } else {
-        (Fit::TooLarge, Speed::Slow)
-    };
-    Assessment { need_gb: need, fit, speed }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -224,8 +154,29 @@ fn fit_rank(f: Fit) -> u8 {
     }
 }
 
-/// `installed_files` are file names already in the models folder.
+/// `installed_files` are file names already in the models folder. Uses the default context and no header
+/// information (rough KV estimates); see [`recommend_with`].
 pub fn recommend(hw: &Hardware, catalog: &Catalog, installed_files: &[String]) -> Recommendations {
+    recommend_with(
+        hw,
+        &Live::default(),
+        catalog,
+        installed_files,
+        AiSettings::default().context_length,
+        &HashMap::new(),
+    )
+}
+
+/// As [`recommend`], with the live state of the machine, the context Debrief will start the server with, and the
+/// KV shapes read from model headers (keyed by catalog file name; others get a rough estimate).
+pub fn recommend_with(
+    hw: &Hardware,
+    live: &Live,
+    catalog: &Catalog,
+    installed_files: &[String],
+    context: usize,
+    shapes: &HashMap<String, KvShape>,
+) -> Recommendations {
     let b = budget(hw);
     let mut ranked: Vec<Recommendation> = catalog
         .models
@@ -233,17 +184,21 @@ pub fn recommend(hw: &Hardware, catalog: &Catalog, installed_files: &[String]) -
         .map(|m| {
             // A projector (ADR 0025) goes to the GPU only when the whole model does, else it stays in system RAM:
             // the fit on the GPU is the model's.
-            let a = assess(hw, m.size_bytes, m.params_b, m.moe, m.min_ram_gb);
-            let context = if a.fit == Fit::Comfortable {
-                m.context_default
-            } else {
-                m.context_default.min(4096)
+            let subject = Subject {
+                weights_bytes: m.size_bytes,
+                projector_bytes: 0,
+                shape: shapes.get(&m.file).copied().unwrap_or_else(|| KvShape::from_params(m.params_b)),
+                params_b: m.params_b,
+                moe: m.moe,
+                min_ram_gb: m.min_ram_gb,
+                context,
             };
+            let a = assess(hw, live, &subject);
             Recommendation {
                 model: m.clone(),
-                assessment: a,
                 installed: installed_files.iter().any(|f| f == &m.file),
-                context,
+                context: a.context,
+                assessment: a,
             }
         })
         .collect();
@@ -312,7 +267,8 @@ pub struct OffloadPlan {
 pub struct OffloadInput {
     pub file_bytes: u64,
     pub block_count: u32,
-    pub kv_bytes_per_token: u64,
+    /// KV cache bytes for `context` (see `fit::KvShape::bytes`).
+    pub kv_bytes: u64,
     pub context: usize,
     /// Free video memory (or the shared-memory budget on Apple Silicon); `None` = no usable GPU.
     pub free_gpu_gb: Option<f64>,
@@ -331,8 +287,8 @@ pub fn plan_offload(i: &OffloadInput) -> OffloadPlan {
         return cpu("no usable GPU memory: running on the CPU");
     };
     let file_gb = i.file_bytes as f64 / GB;
-    let kv_gb = i.kv_bytes_per_token as f64 * i.context as f64 / GB;
-    let room = free - kv_gb - 0.5;
+    let kv_gb = i.kv_bytes as f64 / GB;
+    let room = free - kv_gb - crate::fit::compute_buffer_gb(i.context);
     if room >= file_gb {
         return OffloadPlan {
             gpu_layers: u32::MAX,
@@ -410,9 +366,6 @@ mod tests {
         assert_eq!(Quant::parse("weird"), None);
         assert_eq!(Quant::parse("Q9"), None);
         assert_eq!(Quant::parse(""), None);
-        assert!((estimate_memory_gb(8.0, Quant::Q4) - 5.8).abs() < 1e-9);
-        assert!((estimate_memory_gb(13.0, Quant::Q8) - 15.8).abs() < 1e-9);
-        assert!((estimate_memory_gb(70.0, Quant::F16) - 142.0).abs() < 1e-9);
     }
 
     #[test]
@@ -429,7 +382,8 @@ mod tests {
             }],
         ));
         assert_eq!(apple.class, MemoryClass::Unified);
-        assert!((apple.usable_gb - 20.8).abs() < 1e-9);
+        assert!((apple.usable_gb - 32.0 * 2.0 / 3.0).abs() < 1e-9);
+        assert!((unified_working_set_gb(64.0) - 48.0).abs() < 1e-9);
         let cpu = budget(&hw(
             8.0,
             6.0,
@@ -455,7 +409,9 @@ mod tests {
     fn eight_gb_cpu_only_machine_gets_the_small_model() {
         let r = rec(&hw(8.0, 6.0, vec![]));
         assert_eq!(r.best.as_ref().unwrap().model.id, "qwen3.5-2b-q4km");
-        assert_eq!(r.best.as_ref().unwrap().assessment.speed, Speed::Moderate);
+        // with its context the 2B model only just fits 3 GB of free memory
+        assert_eq!(r.best.as_ref().unwrap().assessment.fit, Fit::Tight);
+        assert_eq!(r.best.as_ref().unwrap().assessment.speed, Speed::Slow);
         assert_eq!(fit_of(&r, "qwen3.5-9b-q4km"), Fit::TooLarge);
         assert!(r.message.contains("CPU"));
     }
@@ -472,8 +428,10 @@ mod tests {
     #[test]
     fn eight_gb_gpu_with_16_gb_ram() {
         let r = rec(&hw(16.0, 11.0, vec![discrete(8.0)]));
+        // the 9B model (5.3 GB + its 8k context) is no longer called comfortable on an 8 GB card
+        assert_eq!(fit_of(&r, "qwen3.5-9b-q4km"), Fit::Tight);
         let best = r.best.as_ref().unwrap();
-        assert_eq!(best.model.id, "qwen3.5-9b-q4km");
+        assert_eq!(best.model.id, "qwen3.5-4b-q4km");
         assert_eq!(best.assessment.fit, Fit::Comfortable);
         assert_eq!(best.assessment.speed, Speed::Fast);
         assert_eq!(best.context, 8192);
@@ -481,9 +439,21 @@ mod tests {
         // a 12B model just fits: tight, with a smaller context
         let gemma = r.ranked.iter().find(|x| x.model.id == "gemma-4-12b-qat-q4_0").unwrap();
         assert_eq!(gemma.assessment.fit, Fit::Tight);
-        assert_eq!(gemma.context, 4096);
+        assert!(gemma.assessment.rough && !gemma.assessment.advice.is_empty());
         // a larger 12-14B file spills into system RAM: tight and slower
-        let spill = assess(&hw(16.0, 11.0, vec![discrete(8.0)]), 8_500_000_000, 12.0, false, 0.0);
+        let spill = assess(
+            &hw(16.0, 11.0, vec![discrete(8.0)]),
+            &Live::default(),
+            &Subject {
+                weights_bytes: 8_500_000_000,
+                projector_bytes: 0,
+                shape: KvShape::from_params(12.0),
+                params_b: 12.0,
+                moe: false,
+                min_ram_gb: 0.0,
+                context: 4096,
+            },
+        );
         assert_eq!((spill.fit, spill.speed), (Fit::Tight, Speed::Moderate));
         assert_eq!(fit_of(&r, "qwen3.5-27b-q4km"), Fit::TooLarge);
         assert_eq!(fit_of(&r, "qwen3.6-35b-a3b-ud-q4km"), Fit::TooLarge);
@@ -496,7 +466,7 @@ mod tests {
     #[test]
     fn eight_gb_gpu_with_32_gb_ram_adds_the_moe_option() {
         let r = rec(&hw(32.0, 24.0, vec![discrete(8.0)]));
-        assert_eq!(r.best.as_ref().unwrap().model.id, "qwen3.5-9b-q4km");
+        assert_eq!(r.best.as_ref().unwrap().model.id, "qwen3.5-4b-q4km");
         let moe = r.ranked.iter().find(|x| x.model.moe).unwrap();
         assert_ne!(moe.assessment.fit, Fit::TooLarge);
         assert_eq!(moe.assessment.speed, Speed::Moderate);
@@ -516,9 +486,11 @@ mod tests {
                 unified: true,
             }],
         ));
-        // 0.65 * 32 = 20.8 GB: both the 9B and the 27B (15.6 + 2) are comfortable
-        assert_eq!(r.best.as_ref().unwrap().model.id, "qwen3.5-27b-q4km");
-        assert_eq!(fit_of(&r, "qwen3.5-27b-q4km"), Fit::Comfortable);
+        // the working set is 21.3 GB but only 20 GB are free (minus a margin): the 27B file (15.6 GB + context)
+        // fits the machine yet not comfortably right now
+        assert_eq!(r.best.as_ref().unwrap().model.id, "qwen3.5-9b-q4km");
+        let big = &r.ranked.iter().find(|x| x.model.id == "qwen3.5-27b-q4km").unwrap().assessment;
+        assert_eq!(big.fit, Fit::Tight);
         assert_eq!(fit_of(&r, "qwen3.5-9b-q4km"), Fit::Comfortable);
         assert_eq!(r.budget.class, MemoryClass::Unified);
     }
@@ -535,7 +507,9 @@ mod tests {
     #[test]
     fn six_gb_gpu_gets_the_4b_and_no_gpu_info_means_cpu() {
         let r = rec(&hw(16.0, 12.0, vec![discrete(6.0)]));
-        assert_eq!(r.best.as_ref().unwrap().model.id, "qwen3.5-4b-q4km");
+        // 6 GB card, an unknown free figure assumes the desktop uses 1 GB: the 4B model is tight, the 2B comfortable
+        assert_eq!(r.best.as_ref().unwrap().model.id, "qwen3.5-2b-q4km");
+        assert_eq!(fit_of(&r, "qwen3.5-4b-q4km"), Fit::Tight);
         let unknown = rec(&hw(
             16.0,
             12.0,
@@ -571,20 +545,35 @@ mod tests {
     #[test]
     fn cpu_speed_classes() {
         let h = hw(32.0, 24.0, vec![]);
-        assert_eq!(assess(&h, 3 << 30, 4.0, false, 0.0).speed, Speed::Moderate);
-        assert_eq!(assess(&h, 5 << 30, 9.0, false, 0.0).speed, Speed::Slow);
-        let tight = assess(&hw(16.0, 6.0, vec![]), 2 << 30, 9.0, false, 0.0);
+        let a = |h: &Hardware, gb: u64, params: f64, moe: bool, min_ram: f64| {
+            assess(
+                h,
+                &Live::default(),
+                &Subject {
+                    weights_bytes: gb << 30,
+                    projector_bytes: 0,
+                    shape: KvShape::from_params(params),
+                    params_b: params,
+                    moe,
+                    min_ram_gb: min_ram,
+                    context: 4096,
+                },
+            )
+        };
+        assert_eq!(a(&h, 3, 4.0, false, 0.0).speed, Speed::Moderate);
+        assert_eq!(a(&h, 5, 9.0, false, 0.0).speed, Speed::Slow);
+        let tight = a(&hw(16.0, 5.0, vec![]), 1, 9.0, false, 0.0);
         assert_eq!((tight.fit, tight.speed), (Fit::Tight, Speed::Slow));
-        let moe_cpu = assess(&h, 22 << 30, 35.0, true, 32.0);
+        let moe_cpu = a(&h, 22, 35.0, true, 32.0);
         assert_eq!(moe_cpu.speed, Speed::Slow);
-        assert_eq!(assess(&hw(16.0, 12.0, vec![]), 22 << 30, 35.0, true, 32.0).fit, Fit::TooLarge);
+        assert_eq!(a(&hw(16.0, 12.0, vec![]), 22, 35.0, true, 32.0).fit, Fit::TooLarge);
     }
 
     fn plan(free: Option<f64>, moe: bool, file_gb: f64) -> OffloadPlan {
         plan_offload(&OffloadInput {
             file_bytes: (file_gb * 1024.0 * 1024.0 * 1024.0) as u64,
             block_count: 32,
-            kv_bytes_per_token: 131072,
+            kv_bytes: 131072 * 8192,
             context: 8192,
             free_gpu_gb: free,
             moe,

@@ -1,7 +1,7 @@
 import { inject, Injectable } from '@angular/core';
-import { AutoHideEvent, AutoHideItem, autoHideReduce } from './auto-hide';
+import { AutoHideEvent, AutoHideItem, autoHideReduce, chooseSide } from './auto-hide';
 import { DockContext, PANEL, rectOf } from './dock-context';
-import { nearestSide } from './dock-geometry';
+import { nearestSide, Side } from './dock-geometry';
 import { DockPersistence } from './dock-persistence';
 import { DockPlacement } from './dock-placement';
 
@@ -18,22 +18,34 @@ export class DockAutoHide {
   /** Auto-hidden tool windows and which one is slid out. */
   readonly state = this.ctx.autoHide.asReadonly();
 
-  /** Collapses a docked tool window into a tab on the nearest side bar ("Auto hide"). */
-  unpin(id: string): void {
+  /** Is this panel a docked tool window that can be auto-hidden (never a document or a floating window)? */
+  canAutoHide(id: string): boolean {
+    const panel = this.ctx.api?.getPanel(id);
+    return !!panel && this.ctx.kindOf(id) === 'tool' && panel.group.api.location.type === 'grid';
+  }
+
+  /**
+   * Collapses a docked tool window into a tab on a side bar ("Auto hide"): the side asked for (left, right or bottom,
+   * never the top), else the one it went to last time, else the edge it is nearest to.
+   */
+  unpin(id: string, asked?: Side): void {
     const api = this.ctx.api;
     const panel = api?.getPanel(id);
     if (!api || !panel || this.ctx.kindOf(id) !== 'tool' || panel.group.api.location.type !== 'grid') return;
     const rect = rectOf(panel.group.element);
     const root = this.ctx.rootRect();
-    const side = rect && root ? nearestSide(rect, root) : 'right';
+    const nearest = rect && root ? nearestSide(rect, root) : 'right';
+    const side = chooseSide(asked, this.ctx.autoHideSides()[id], nearest);
     const item: AutoHideItem = {
       id,
       title: this.ctx.views.find(id)?.title ?? id,
       side,
       slot: this.placement.captureSlot(id) ?? { referencePanel: null, direction: 'within' },
-      size: rect ? (side === 'bottom' ? rect.height : rect.width) : 320,
+      // The pane's own size only carries over to the edge it already sits on; another edge gets the default.
+      size: rect && side === nearest ? (side === 'bottom' ? rect.height : rect.width) : 320,
     };
     api.removePanel(panel);
+    this.ctx.autoHideSides.update((m) => ({ ...m, [id]: side }));
     this.ctx.autoHide.update((s) => autoHideReduce(s, { type: 'unpin', item }));
     this.ctx.refreshOpen();
     this.persistence.schedule();

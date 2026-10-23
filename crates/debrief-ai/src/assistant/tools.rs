@@ -195,6 +195,15 @@ struct OptQl {
 }
 
 #[derive(Deserialize)]
+struct FindArg {
+    text: String,
+    #[serde(default)]
+    offset: Option<usize>,
+    #[serde(default)]
+    limit: Option<usize>,
+}
+
+#[derive(Deserialize)]
 struct MomentArg {
     from: i64,
     to: i64,
@@ -244,10 +253,23 @@ impl<'a> EngineTools<'a> {
 
     pub fn tool_specs() -> Vec<ToolSpec> {
         let ql = json!({"type": "string", "description": "Debrief query language, NOT SQL. Examples: level >= error | MachineName = WEB02 and message contains \"timeout\" | level >= warning | stats count() as n by MachineName | sort n desc"});
+        let text = json!({"type": "string", "description": "The words the user used, as they wrote them (names, products, programs, hosts). Do not add quotes, wildcards or operators."});
         vec![
             spec(
+                "find_events",
+                "FIRST CHOICE for a name, product, program, file or any words from the user (\"graphic builder\", \"payment service\"). Case, separators (. _ - / \\ ::) and camelCase are ignored, so it finds `CompanyA.Graphic.Builder.exe`, `GraphicBuilder` and `graphic_builder`. Searches message, exception, template, field values and source names; when nothing matches it widens by itself (any order, parts of words, field values) and the result's `note` says which step found what: relay the note. Results are paged (`offset`, `limit` at most 50). Prefer this over `contains` in run_query.",
+                json!({"text": text, "offset": {"type": "integer"}, "limit": {"type": "integer"}}),
+                &["text"],
+            ),
+            spec(
+                "find_values",
+                "Turns the user's words into the exact values the logs hold: field values and source names with their field, event count and how they matched (exact, parts, prefix, fuzzy for typos). Use it to get the precise value (e.g. ProcessName = CompanyA.Graphic.Builder.exe) before writing a run_query with `field = \"value\"`.",
+                json!({"text": text, "limit": {"type": "integer"}}),
+                &["text"],
+            ),
+            spec(
                 "run_query",
-                "Run a query-language query over the logs. Returns matching event ids (and a few events) or a table for `stats` queries.",
+                "Run a query-language query over the logs (for levels, fields, counts and stats; to look up a name use find_events instead of `contains`). Returns matching event ids (and a few events) or a table for `stats` queries.",
                 json!({"ql": ql, "limit": {"type": "integer"}}),
                 &["ql"],
             ),
@@ -419,6 +441,32 @@ impl<'a> EngineTools<'a> {
         }
     }
 
+    fn find_events(&self, s: &dyn Store, a: FindArg) -> ToolOutcome {
+        match debrief_core::find::find(s, &a.text, a.offset.unwrap_or(0), a.limit.unwrap_or(0)) {
+            Ok(r) => {
+                // Remember what the model saw, to re-check its citations at the end of the turn.
+                for h in r.hits.iter().take(10) {
+                    if let Ok(id) = u32::try_from(h.id) {
+                        self.event_in(s, id);
+                    }
+                }
+                let summary = format!("{} events: {}", r.total, truncate_chars(&r.note, 120));
+                self.finish(serde_json::to_value(&r).unwrap_or(Value::Null), summary, vec![])
+            }
+            Err(e) => ToolOutcome::err(format!("the search cannot run: {e}")),
+        }
+    }
+
+    fn find_values(&self, s: &dyn Store, a: FindArg) -> ToolOutcome {
+        match debrief_core::find::resolve_terms(s, &a.text, a.limit.unwrap_or(0)) {
+            Ok(v) => {
+                let n = v.len();
+                self.finish(json!({"text": a.text, "values": v}), format!("{n} matching values"), vec![])
+            }
+            Err(e) => ToolOutcome::err(format!("the values cannot be looked up: {e}")),
+        }
+    }
+
     fn get_events(&self, s: &dyn Store, a: IdsArg) -> ToolOutcome {
         let mut ids = a.ids;
         ids.dedup();
@@ -474,6 +522,8 @@ impl EngineTools<'_> {
             };
         }
         match name {
+            "find_events" => self.find_events(s, parse!(FindArg)),
+            "find_values" => self.find_values(s, parse!(FindArg)),
             "run_query" => self.run_query(s, parse!(QlArg)),
             "check_query" => {
                 let a = parse!(QlArg);

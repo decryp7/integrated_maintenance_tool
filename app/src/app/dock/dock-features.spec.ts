@@ -628,3 +628,67 @@ describe('DockKeys', () => {
     expect(matchesByCode('Ctrl+Alt+1', e({ code: 'Digit1', altKey: true }), true)).toBe(false);
   });
 });
+
+describe('auto-hide button and sides', () => {
+  function dockWithInspector() {
+    TestBed.configureTestingModule({ providers: [provideDockTesting()] });
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const dock = TestBed.inject(DockService);
+    dock.attach(container);
+    dock.pin(PANEL.inspector);
+    return { dock, container };
+  }
+
+  it('applies to docked tool windows only, not to documents', () => {
+    const { dock } = dockWithInspector();
+    expect(dock.canAutoHide('inspector')).toBe(true);
+    expect(dock.canAutoHide('timeline')).toBe(false);
+    expect(dock.canAutoHide('nope')).toBe(false);
+  });
+
+  it('auto-hides to the chosen side and remembers it for the next time', () => {
+    const { dock } = dockWithInspector();
+    dock.unpin('inspector', 'bottom');
+    expect(at(dock.autoHide().items, 0).side).toBe('bottom');
+    dock.pin('inspector');
+    dock.unpin('inspector');
+    expect(at(dock.autoHide().items, 0).side).toBe('bottom');
+    dock.pin('inspector');
+    dock.unpin('inspector', 'left');
+    expect(at(dock.autoHide().items, 0).side).toBe('left');
+  });
+
+  it('offers left, right and bottom, never the top', () => {
+    const { dock } = dockWithInspector();
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open');
+    dock.openAutoHideSideMenu('inspector', null);
+    const items = open.mock.calls[0]![2];
+    expect(items.map((i) => i.label)).toEqual(['Auto-hide to the left', 'Auto-hide to the right', 'Auto-hide to the bottom']);
+    items[2]!.run();
+    expect(at(dock.autoHide().items, 0).side).toBe('bottom');
+  });
+
+  it('shows the header button only for a tool window, named after it, and chooses the side with the context menu', () => {
+    const { dock, container } = dockWithInspector();
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>('.debrief-dock-autohide')];
+    const b = buttons.find((x) => !x.hidden && x.getAttribute('aria-label') === 'Auto-hide Inspector')!;
+    expect(b).toBeTruthy();
+    expect(b.getAttribute('aria-pressed')).toBe('false');
+    // The tooltip names the user's current binding, read when the pointer arrives (it may have been changed).
+    const shortcut = vi.spyOn(dock, 'autoHideShortcut').mockReturnValue('⌃⌥H');
+    b.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(b.title).toContain('(⌃⌥H)');
+    shortcut.mockReturnValue('');
+    b.dispatchEvent(new MouseEvent('mouseenter'));
+    expect(b.title).not.toContain('(');
+    expect(b.title).toContain('Right-click');
+    // Groups of documents carry the button hidden, not disabled.
+    expect(buttons.some((x) => x.hidden && !x.disabled)).toBe(true);
+    const open = vi.spyOn(TestBed.inject(ContextMenuService), 'open');
+    b.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    expect(open).toHaveBeenCalled();
+    b.click();
+    expect(dock.autoHide().items.map((i) => i.id)).toEqual(['inspector']);
+  });
+});

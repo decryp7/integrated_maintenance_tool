@@ -729,13 +729,14 @@ describe('DockService with dockview', () => {
     menus.close();
   }
 
-  it('has only the panel menu and Maximize on a group header', () => {
+  it('has the panel menu and Maximize on a group header, and the auto-hide button only on tool windows', () => {
     const { dock } = setup();
     dock.attach(container);
     withPanels(dock);
     const header = container.querySelector('.debrief-dock-actions')!;
-    expect([...header.querySelectorAll('button')].map((b) => b.getAttribute('aria-label'))).toEqual(['Panel menu', 'Maximize panel']);
-    expect(header.querySelector('button')!.getAttribute('aria-haspopup')).toBe('menu');
+    expect([...header.querySelectorAll('button:not([hidden])')].map((b) => b.getAttribute('aria-label'))).toEqual(['Panel menu', 'Maximize panel']);
+    expect(header.querySelector('button:not([hidden])')!.getAttribute('aria-haspopup')).toBe('menu');
+    expect(header.querySelector('.debrief-dock-autohide')!.hasAttribute('hidden')).toBe(true);
   });
 
   it('floats a group from its panel menu and docks it back', () => {

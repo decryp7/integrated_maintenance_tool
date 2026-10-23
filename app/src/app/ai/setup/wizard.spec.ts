@@ -151,4 +151,18 @@ describe('setup wizard state machine', () => {
       expect(stageLabel(stage)).toContain(text);
     }
   });
+
+  it('swaps in exact fit figures when the engine has read the headers, keeping the selection', () => {
+    const planned = next(INITIAL, { type: 'planLoaded', plan: plan(), preferred: 'llama3.2-3b-q4km' });
+    const refined = mockRecommendations([]);
+    const first = refined.ranked[0]!;
+    first.assessment = { ...first.assessment, rough: false, needGb: 3.3 };
+    const s = next(planned, { type: 'fitRefined', recommendations: refined });
+    expect(s.kind === 'plan' && s.plan.recommendations.ranked[0]?.assessment.rough).toBe(false);
+    expect(selected(s)?.model.id).toBe('llama3.2-3b-q4km');
+    // not while running, or before there is a plan
+    expect(next(INITIAL, { type: 'fitRefined', recommendations: refined })).toBe(INITIAL);
+    const needsRuntime = next(INITIAL, { type: 'planLoaded', plan: plan(), needsRuntime: true });
+    expect(next(needsRuntime, { type: 'fitRefined', recommendations: refined }).kind).toBe('runtime');
+  });
 });

@@ -1,4 +1,5 @@
-import { JobKind, JobLink, JobState } from './jobs.types';
+import { formatCount } from '../shared/format/units';
+import { JobKind, JobLink, JobProgress, JobState } from './jobs.types';
 
 /** Display names of the job kinds (filters, badges). */
 export function kindLabel(kind: JobKind): string {
@@ -63,4 +64,11 @@ export function linkLabel(link: JobLink | null): string | null {
 /** "Queued (position 2)". */
 export function queuedLabel(position: number | null): string {
   return position === null ? $localize`:@@jobs.queued.plain:Queued` : $localize`:@@jobs.queued.position:Queued (position ${position}:position:)`;
+}
+
+/** The phase label to show next to a job's bar ("Unpacking", "Finding files: 1,234"); empty when the job has no stages. */
+export function phaseText(p: JobProgress): string {
+  const phase = p.phase;
+  if (!phase) return '';
+  return phase.scale === 'indeterminate' && p.done !== null ? `${phase.label}: ${formatCount(p.done)}` : phase.label;
 }

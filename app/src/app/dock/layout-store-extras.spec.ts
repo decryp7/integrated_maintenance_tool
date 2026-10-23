@@ -77,3 +77,10 @@ describe('toEnvelope', () => {
     expect(readLayout(JSON.parse(JSON.stringify(env)))).toEqual(saved);
   });
 });
+
+describe('sanitizeExtras auto-hide sides', () => {
+  it('keeps the remembered side per pane, and loads layouts saved without it', () => {
+    expect(sanitizeExtras({ autoHideSides: { inspector: 'bottom', x: 'top' } }).autoHideSides).toEqual({ inspector: 'bottom' });
+    expect(sanitizeExtras({ autoHidden: [], pinnedTabs: [], poppedOut: [] }).autoHideSides).toBeUndefined();
+  });
+});

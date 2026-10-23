@@ -67,6 +67,8 @@ export abstract class AiBackend {
   abstract status(): Promise<AiStatus>;
   abstract hardware(): Promise<Hardware>;
   abstract recommend(): Promise<Recommendations>;
+  /** As `recommend`, after the engine has read the model headers (slow, network): exact context sizes. */
+  abstract refineFit(): Promise<Recommendations>;
   abstract catalog(): Promise<Recommendation[]>;
   abstract setupPlan(modelId?: string | null): Promise<SetupPlan>;
   /** Starts a set-up; progress arrives through `onSetup`. */

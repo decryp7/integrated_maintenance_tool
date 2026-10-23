@@ -43,7 +43,7 @@ export function runtimePercent(e: RuntimeRunning | null): number | null {
 export function runtimeProgressText(e: RuntimeRunning | null, speed?: TransferSpeed): string {
   if (e?.stage !== 'progress') return '';
   const base = $localize`:@@ai.runtime.progress.of:${formatBytes(e.bytes)}:done: of ${formatBytes(e.total)}:total:`;
-  if (e.verifying) return base;
+  if (e.verifying) return $localize`:@@ai.runtime.progress.checking:Checking the download: ${base}:progress:`;
   const { rate, etaSecs } = speed ?? { rate: e.bytesPerSec, etaSecs: e.etaSecs };
   return [base, formatRate(rate), formatEta(etaSecs)].filter(Boolean).join(' · ');
 }

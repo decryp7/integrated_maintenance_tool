@@ -1,3 +1,4 @@
+import { PathText } from '../shared/path-text';
 import { ChangeDetectionStrategy, Component, computed, ElementRef, inject, Injector, linkedSignal, signal, viewChildren } from '@angular/core';
 import { Severity } from '../core/api.types';
 import { formatCount } from '../core/format';
@@ -33,7 +34,7 @@ export function severityLabel(s: Severity): string {
 @Component({
   selector: 'debrief-problems-panel',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [Icon, KnownIssues, PanelEmpty],
+  imports: [PathText, Icon, KnownIssues, PanelEmpty],
   template: `
     <div class="bar">
       <span class="summary" data-testid="problems-summary">{{ summary() }}</span>
@@ -86,7 +87,7 @@ export function severityLabel(s: Severity): string {
               >
                 <debrief-icon class="twisty" [name]="r.expanded ? 'chevronDown' : 'chevronRight'" [size]="12" />
                 <debrief-icon [class]="'sev ' + r.group.severity" name="alert" [size]="13" />
-                <span class="name ellipsis">{{ r.group.name }}</span>
+                <debrief-path-text class="name" [value]="r.group.name" [full]="r.group.path" />
                 <span class="count">{{ r.group.items.length }}</span>
               </div>
             } @else {
@@ -122,7 +123,7 @@ export function severityLabel(s: Severity): string {
               <span>{{ kind(sel.row.kind) }}</span>
               <span class="count">{{ count(sel) }}</span>
             </h3>
-            <div class="path mono ellipsis" [title]="sel.row.path">{{ sel.row.path }}</div>
+            <debrief-path-text class="path mono" [value]="sel.row.path" [copy]="true" />
             <p class="hint">{{ hint(sel.row.kind) }}</p>
             @if (sel.row.detail) {
               <p class="detail">{{ sel.row.detail }}</p>

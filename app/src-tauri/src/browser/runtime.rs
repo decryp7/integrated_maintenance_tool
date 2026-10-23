@@ -96,7 +96,7 @@ pub fn status<R: Runtime>(app: &AppHandle<R>) -> RuntimeStatus {
         ("configured", Some(p))
     } else if let Some(p) = installed {
         ("installed", Some(p))
-    } else if let Some(b) = chromium_driver::find() {
+    } else if let Some(b) = super::renderer::fallback_browser() {
         ("found", Some(b.path))
     } else {
         ("none", None)
@@ -112,7 +112,10 @@ pub fn status<R: Runtime>(app: &AppHandle<R>) -> RuntimeStatus {
 }
 
 /// Downloads, verifies, unpacks and self-tests the pinned build; the previous install is removed only after the switch.
-pub fn install_blocking(root: &Path) -> Result<String, String> {
+///
+/// `report(phase, done, total)` is told the phase ("Downloading", "Unpacking", "Self-test"; bytes for the first two)
+/// and returns false when the user cancelled: the install stops, removes what it wrote and keeps the previous version.
+pub fn install_blocking(root: &Path, report: &mut dyn FnMut(&'static str, u64, u64) -> bool) -> Result<String, String> {
     let platform = platform().ok_or("there is no pinned Chromium for this system; install Edge, Chrome or Chromium instead")?;
     let (url, sum) = pinned(platform).ok_or("no pinned Chromium for this system")?;
     let old = installed_version(root);
@@ -123,9 +126,14 @@ pub fn install_blocking(root: &Path) -> Result<String, String> {
     let zip = root.join(format!("download-{PINNED_VERSION}.zip"));
     let dest = root.join(PINNED_VERSION);
     let result = (|| {
-        download(&url, &zip)?;
+        // The archive is hashed while it is written: no second pass over the file.
+        let got = download(&url, &zip, &mut |done, total| report("Downloading", done, total))?;
         let _ = std::fs::remove_dir_all(&dest);
-        chromium_driver::install::extract_verified(&zip, sum, &dest).map_err(|e| e.to_string())?;
+        chromium_driver::install::extract_checked(&zip, &got, sum, &dest, &mut |done, total| report("Unpacking", done, total))
+            .map_err(|e| e.to_string())?;
+        if !report("Self-test", 0, 0) {
+            return Err("the installation was cancelled".into());
+        }
         let exe = chromium_driver::install::locate_executable(&dest, Os::CURRENT)
             .ok_or("the download does not contain a browser for this system")?;
         mark_runnable(&exe.path);
@@ -157,7 +165,8 @@ fn mark_runnable(p: &Path) {
 #[cfg(not(unix))]
 fn mark_runnable(_: &Path) {}
 
-fn download(url: &str, to: &Path) -> Result<(), String> {
+/// Downloads `url` into `to` and returns the SHA-256 of what was written; `report(done, total)` returning false cancels.
+fn download(url: &str, to: &Path, report: &mut dyn FnMut(u64, u64) -> bool) -> Result<String, String> {
     let agent = debrief_ai::net::agent(&debrief_ai::net::HttpConfig {
         proxy: None,
         connect_timeout: std::time::Duration::from_secs(15),
@@ -168,13 +177,41 @@ fn download(url: &str, to: &Path) -> Result<(), String> {
     if resp.status().as_u16() != 200 {
         return Err(format!("the download server answered {}", resp.status().as_u16()));
     }
-    let mut body = resp.into_body().into_reader().take(MAX_DOWNLOAD + 1);
-    let mut out = std::fs::File::create(to).map_err(|e| e.to_string())?;
-    let n = std::io::copy(&mut body, &mut out).map_err(|e| format!("the download was interrupted: {e}"))?;
-    if n > MAX_DOWNLOAD {
-        return Err("the download is larger than expected and was refused".into());
+    let total = resp
+        .headers()
+        .get("content-length")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.parse::<u64>().ok())
+        .unwrap_or(0);
+    copy_hashed(resp.into_body().into_reader(), to, total, report)
+}
+
+/// Copies `body` to `to`, hashing while writing and reporting bytes; refuses more than [`MAX_DOWNLOAD`].
+fn copy_hashed(mut body: impl Read, to: &Path, total: u64, report: &mut dyn FnMut(u64, u64) -> bool) -> Result<String, String> {
+    let mut out = chromium_driver::install::HashingWriter::new(std::fs::File::create(to).map_err(|e| e.to_string())?);
+    let mut buf = vec![0u8; 1 << 16];
+    let mut done = 0u64;
+    let mut last = 0u64;
+    report(0, total);
+    loop {
+        let n = body.read(&mut buf).map_err(|e| format!("the download was interrupted: {e}"))?;
+        if n == 0 {
+            break;
+        }
+        std::io::Write::write_all(&mut out, &buf[..n]).map_err(|e| e.to_string())?;
+        done += n as u64;
+        if done > MAX_DOWNLOAD {
+            return Err("the download is larger than expected and was refused".into());
+        }
+        if done - last >= 256 << 10 {
+            last = done;
+            if !report(done, total) {
+                return Err("the installation was cancelled".into());
+            }
+        }
     }
-    Ok(())
+    report(done, total);
+    Ok(out.finish().1)
 }
 
 #[tauri::command]
@@ -185,9 +222,28 @@ pub async fn browser_runtime_status<R: Runtime>(app: AppHandle<R>) -> CmdResult<
 /// Downloads the pinned Chromium (only when the user asks). Returns the new status.
 #[tauri::command]
 pub async fn browser_runtime_install<R: Runtime>(app: AppHandle<R>, _win: CurrentWindow) -> CmdResult<RuntimeStatus> {
+    use crate::jobs::{Done, JobCtx, JobKind, JobSpec, PhaseScale};
     let root = root(&app).ok_or("Debrief's data folder is not available")?;
-    let version = crate::sync::blocking("the Chromium download", move || {
-        install_blocking(&root).map_err(crate::CmdError::from)
+    // A download job: Jobs shows each phase with its bytes, and Cancel works in every phase.
+    let spec = JobSpec::new(JobKind::Download, "Install Chromium");
+    let version = crate::jobs::run(&app, spec, Default::default(), move |ctx: &JobCtx| -> CmdResult<Done<String>> {
+        let v = install_blocking(&root, &mut |phase, done, total| {
+            let scale = if phase == "Self-test" {
+                PhaseScale::Indeterminate
+            } else {
+                PhaseScale::Bytes
+            };
+            ctx.phase(phase, scale, done, total);
+            !ctx.is_cancelled()
+        })
+        .map_err(|e| {
+            if ctx.is_cancelled() {
+                crate::CmdError::new(crate::ErrorCode::Cancelled, "cancelled")
+            } else {
+                crate::CmdError::from(e)
+            }
+        })?;
+        Ok(Done::new(v))
     })
     .await?;
     log::info!(Version = version.as_str(); "Chromium installed");
@@ -235,6 +291,36 @@ mod tests {
             assert_eq!(sum.len(), 64);
         }
         assert!(platform_of("freebsd", "x86_64").is_none());
+    }
+
+    #[test]
+    fn a_download_is_hashed_while_written_and_reports_growing_bytes() {
+        let d = tempfile::tempdir().unwrap();
+        let data: Vec<u8> = (0..700_000u32).map(|i| (i % 251) as u8).collect();
+        let to = d.path().join("a.zip");
+        let mut seen = Vec::new();
+        let sum = copy_hashed(&data[..], &to, data.len() as u64, &mut |done, total| {
+            seen.push((done, total));
+            true
+        })
+        .unwrap();
+        assert_eq!(sum, chromium_driver::install::sha256_file(&to).unwrap());
+        assert_eq!(seen.first(), Some(&(0, 700_000)), "progress starts at once");
+        assert_eq!(seen.last(), Some(&(700_000, 700_000)));
+        assert!(seen.windows(2).all(|w| w[0].0 <= w[1].0));
+    }
+
+    #[test]
+    fn cancelling_a_download_stops_it() {
+        let d = tempfile::tempdir().unwrap();
+        let data = vec![1u8; 2 << 20];
+        let mut calls = 0;
+        let e = copy_hashed(&data[..], &d.path().join("a.zip"), 0, &mut |_, _| {
+            calls += 1;
+            calls < 3
+        })
+        .unwrap_err();
+        assert!(e.contains("cancelled"));
     }
 
     #[test]

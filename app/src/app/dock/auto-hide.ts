@@ -85,7 +85,29 @@ export function itemsOn(state: AutoHideState, side: Side): AutoHideItem[] {
   return state.items.filter((i) => i.side === side);
 }
 
-const SIDES: ReadonlySet<string> = new Set(['left', 'right', 'bottom']);
+/** The only edges a tool window can auto-hide to (never the top: that is the menu and document area). */
+export const AUTO_HIDE_SIDES: readonly Side[] = ['left', 'right', 'bottom'];
+
+const SIDES: ReadonlySet<string> = new Set(AUTO_HIDE_SIDES);
+
+/** Is this value one of the sides a tool window can auto-hide to? */
+export function isAutoHideSide(v: unknown): v is Side {
+  return typeof v === 'string' && SIDES.has(v);
+}
+
+/** The side to auto-hide to: the one asked for, else the one remembered for the pane, else its nearest edge. */
+export function chooseSide(asked: unknown, remembered: unknown, nearest: Side): Side {
+  if (isAutoHideSide(asked)) return asked;
+  return isAutoHideSide(remembered) ? remembered : nearest;
+}
+
+/** Parses the remembered auto-hide side per pane (absent in layouts saved before it existed); drops anything malformed. */
+export function sanitizeSides(raw: unknown): Record<string, Side> {
+  const out: Record<string, Side> = {};
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return out;
+  for (const [id, side] of Object.entries(raw)) if (id && isAutoHideSide(side)) out[id] = side;
+  return out;
+}
 const DIRECTIONS: ReadonlySet<string> = new Set(['left', 'right', 'above', 'below', 'within']);
 
 /** Parses saved auto-hide items (from a layout, project or session); drops anything malformed. */

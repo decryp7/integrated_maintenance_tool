@@ -31,6 +31,24 @@ impl Default for DownloadOptions {
     }
 }
 
+/// SHA-256 computed over the bytes as they are written, with how many it has seen.
+#[derive(Default)]
+struct StreamHash {
+    sha: Sha256,
+    len: u64,
+}
+
+impl StreamHash {
+    fn update(&mut self, b: &[u8]) {
+        self.sha.update(b);
+        self.len += b.len() as u64;
+    }
+
+    fn finish(self) -> String {
+        hex(&self.sha.finalize())
+    }
+}
+
 pub struct Downloader<'a> {
     pub source: &'a dyn ModelSource,
     pub disk: &'a dyn DiskSpace,
@@ -138,9 +156,15 @@ impl Downloader<'_> {
             }
         }
         progress.begin(Phase::Downloading, remote.size, have);
+        // A download that starts from nothing is hashed as it is written, so there is no second pass over the file
+        // (a resumed one has to re-read what was already on disk, as before).
+        let mut hasher = (have == 0).then(StreamHash::default);
         let mut failures = 0u32;
         while have < remote.size {
-            let result = self.fetch_into(remote, &part, have, progress);
+            if hasher.as_ref().is_some_and(|h| h.len != have) {
+                hasher = None;
+            }
+            let result = self.fetch_into(remote, &part, have, progress, hasher.as_mut());
             have = std::fs::metadata(&part).map(|m| m.len()).unwrap_or(0);
             if have > remote.size {
                 let _ = std::fs::remove_file(&part);
@@ -167,8 +191,13 @@ impl Downloader<'_> {
                 std::thread::sleep(self.opts.backoff * 2u32.saturating_pow(failures.saturating_sub(1)));
             }
         }
-        progress.begin(Phase::Verifying, remote.size, 0);
-        let got = sha256_file(&part, progress)?;
+        let got = match hasher.filter(|h| h.len == remote.size) {
+            Some(h) => h.finish(),
+            None => {
+                progress.begin(Phase::Verifying, remote.size, 0);
+                sha256_file(&part, progress)?
+            }
+        };
         if got != remote.sha256 {
             let _ = std::fs::remove_file(&part);
             return Err(AiError::Integrity(format!(
@@ -181,7 +210,14 @@ impl Downloader<'_> {
         Ok(dest)
     }
 
-    fn fetch_into(&self, remote: &RemoteFile, part: &Path, have: u64, progress: &Progress) -> Result<()> {
+    fn fetch_into(
+        &self,
+        remote: &RemoteFile,
+        part: &Path,
+        have: u64,
+        progress: &Progress,
+        mut hash: Option<&mut StreamHash>,
+    ) -> Result<()> {
         let mut f = std::fs::OpenOptions::new()
             .create(true)
             .truncate(false)
@@ -193,6 +229,9 @@ impl Downloader<'_> {
         let cancel = progress.cancel_flag();
         let mut sink = |b: &[u8]| -> Result<()> {
             f.write_all(b).map_err(io_err)?;
+            if let Some(h) = hash.as_deref_mut() {
+                h.update(b);
+            }
             progress.add(b.len() as u64);
             Ok(())
         };

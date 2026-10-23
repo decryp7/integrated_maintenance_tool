@@ -108,6 +108,7 @@ describe('TauriAiBackend', () => {
       [() => b.status(), 'ai_status', undefined],
       [() => b.hardware(), 'ai_hardware', undefined],
       [() => b.recommend(), 'ai_recommend', undefined],
+      [() => b.refineFit(), 'ai_refine_fit', undefined],
       [() => b.catalog(), 'ai_catalog', undefined],
       [() => b.setupPlan(), 'ai_setup_plan', { modelId: null }],
       [() => b.setupPlan('m'), 'ai_setup_plan', { modelId: 'm' }],

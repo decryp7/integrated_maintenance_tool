@@ -7,7 +7,7 @@
 //! job (with the reason), and the next one starts. A ticker samples progress probes and tells listeners
 //! about changes at most every [`TICK`], so producers never flood the UI.
 
-use super::model::{Job, JobId, JobKind, JobProgress, JobResult, JobSpec, JobState};
+use super::model::{Job, JobId, JobKind, JobProgress, JobResult, JobSpec, JobState, PhaseScale};
 use super::persist::JobsRecord;
 use super::queue::{Cancel, Finished, JobEnd, JobInfo, JobQueue, JobsSnapshot, QueueError, Refusal};
 use serde_json::Value;
@@ -108,6 +108,11 @@ impl JobCtx {
         if let Some(j) = &self.jobs {
             j.lock().queue.report(self.id, Some(p), None);
         }
+    }
+
+    /// Reports a named phase on its own scale (see [`JobProgress::in_phase`]).
+    pub fn phase(&self, label: &str, scale: PhaseScale, done: u64, total: u64) {
+        self.progress(JobProgress::in_phase(label, scale, done, total));
     }
 
     pub fn message(&self, m: &str) {

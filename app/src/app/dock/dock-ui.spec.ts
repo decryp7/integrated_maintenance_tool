@@ -1,3 +1,4 @@
+import { CommandRegistry } from '../extensions/command-registry';
 import { TestBed } from '@angular/core/testing';
 import { provideDockTesting, settle } from '../../testing/helpers';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -211,6 +212,13 @@ describe('window layouts, dialogs and commands', () => {
     expect(when('window.pinAll')).toBe(true);
     await run('window.pinAll');
     await run('window.autoHide');
+    const registry = TestBed.inject(CommandRegistry);
+    const lookup = vi.spyOn(registry, 'find');
+    lookup.mockReturnValue({ id: 'window.autoHide', title: 'x', keybinding: 'Ctrl+Alt+J', run: () => undefined });
+    expect(dock.autoHideShortcut()).toMatch(/^(Ctrl\+Alt\+J|⌃⌥J)$/);
+    lookup.mockReturnValue({ id: 'window.autoHide', title: 'x', run: () => undefined });
+    expect(dock.autoHideShortcut()).toBe('');
+    vi.restoreAllMocks();
     await run('window.panelMenu');
     await run('window.switcher');
     expect(dock.switcher()).not.toBeNull();

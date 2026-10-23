@@ -315,7 +315,12 @@ impl WorkerBackend for ServerBackend {
                     let plan = plan_offload(&OffloadInput {
                         file_bytes: info.file_size,
                         block_count: info.block_count.unwrap_or(32),
-                        kv_bytes_per_token: info.kv_bytes_per_token(),
+                        kv_bytes: debrief_ai::fit::KvShape::from_gguf(&info).bytes(
+                            context,
+                            debrief_ai::fit::SERVER_SLOTS,
+                            debrief_ai::fit::KV_TYPE,
+                            debrief_ai::fit::KV_TYPE,
+                        ),
                         context,
                         free_gpu_gb: Some(g.free_gb()),
                         moe: info.is_moe(),
@@ -370,7 +375,10 @@ impl WorkerBackend for ServerBackend {
             Some(e) => format!(
                 "llama-server could not load the model: {e}. If the model is new, update Debrief; otherwise try another model file or another inference build in Settings → AI."
             ),
-            None => "no installed inference runtime works on this computer; download another one (the CPU build always works) in the AI set-up".into(),
+            None => {
+                "no installed inference runtime works on this computer; download another one (the CPU build always works) in the AI set-up"
+                    .into()
+            }
         }))
     }
 
@@ -392,15 +400,17 @@ impl WorkerBackend for ServerBackend {
         let image_tokens: usize = match (r.image_token_px(), p.images.is_empty()) {
             (_, true) => 0,
             (Some(px), false) => p.images.iter().map(|i| image_tokens(i.width, i.height, px)).sum(),
-            (None, false) if r.launch.projector_token_px.is_some() => return Err(RpcError::new(
-                code::INVALID_PARAMS,
-                "llama-server reports that it cannot read images with this model's projector; try another inference build in Settings → AI",
-            )),
+            (None, false) if r.launch.projector_token_px.is_some() => {
+                return Err(RpcError::new(
+                    code::INVALID_PARAMS,
+                    "llama-server reports that it cannot read images with this model's projector; try another inference build in Settings → AI",
+                ));
+            }
             (None, false) => {
                 return Err(RpcError::new(
                     code::INVALID_PARAMS,
                     "this model was loaded without an image projector, so it cannot read images",
-                ))
+                ));
             }
         };
         let n_ctx = r.caps.n_ctx;
@@ -501,7 +511,7 @@ impl WorkerBackend for ServerBackend {
                             prompt_tokens: prompt_tokens.unwrap_or(tokens),
                             completion_tokens: completion_tokens.unwrap_or(produced),
                             finish,
-                        })
+                        });
                     }
                     Event::Error(e) => return Err(e),
                 }

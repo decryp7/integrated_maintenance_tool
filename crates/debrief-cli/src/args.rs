@@ -23,6 +23,8 @@ pub struct Source {
     pub since: Option<i64>,
     /// Only events up to this time (epoch ms) are imported.
     pub until: Option<i64>,
+    /// No progress lines on standard error (`--quiet`; also set by `--json` and `--format json`).
+    pub quiet: bool,
 }
 
 /// How a query's table is written.
@@ -138,8 +140,9 @@ SOURCE OPTIONS (every command that reads data):
   --store DIR      keep the store in DIR and reuse it next time (default: a scratch store, removed at the end)
   --since TIME     import only events from TIME   (2026-10-01, 2026-10-01 14:30, 2026-10-01T14:30:00Z; UTC)
   --until TIME     import only events up to TIME
+  --quiet          no progress lines on standard error (they show only on a terminal, never with --json)
 
-Exit codes: 0 done, 1 failed, 2 wrong command line, 3 findings (with --fail-on-findings).
+Exit codes: 0 done, 1 failed, 2 wrong command line, 3 findings (with --fail-on-findings), 130 stopped with Ctrl+C.
 With --json every command prints one JSON object on standard output, errors included.
 See docs/cli.md."
     )
@@ -242,12 +245,18 @@ fn collect(cur: &mut Cursor<'_>) -> Result<Options, UsageError> {
                 o.src.until = Some(parse_time(&val(cur)?).map_err(|e| format!("--until: {e}"))?);
                 o.used.push("--until");
             }
+            "--quiet" => {
+                o.src.quiet = true;
+                o.used.push("--quiet");
+            }
             "--json" => {
                 o.json = true;
+                o.src.quiet = true;
                 o.used.push("--json");
             }
             "--format" => {
                 o.format = Some(val(cur)?);
+                o.src.quiet |= o.format.as_deref() == Some("json");
                 o.used.push("--format");
             }
             "--limit" => {
@@ -333,7 +342,7 @@ fn only(o: &Options, command: &str, allowed: &[&str]) -> Result<(), UsageError> 
     }
 }
 
-const SOURCE_FLAGS: [&str; 4] = ["--open", "--store", "--since", "--until"];
+const SOURCE_FLAGS: [&str; 5] = ["--open", "--store", "--since", "--until", "--quiet"];
 
 fn allowed(extra: &[&'static str]) -> Vec<&'static str> {
     SOURCE_FLAGS.iter().chain(extra.iter()).copied().collect()
@@ -518,6 +527,19 @@ mod tests {
 
     fn p(s: &str) -> Result<Command, UsageError> {
         parse(&s.split_whitespace().map(str::to_string).collect::<Vec<_>>())
+    }
+
+    #[test]
+    fn quiet_is_set_by_the_flag_and_by_json_output() {
+        let quiet = |s: &str| match p(s).unwrap() {
+            Command::Import { src, .. } | Command::Query { src, .. } => src.quiet,
+            _ => panic!("not a command with a source"),
+        };
+        assert!(!quiet("import a.log"));
+        assert!(quiet("import a.log --quiet"));
+        assert!(quiet("import a.log --json"));
+        assert!(quiet("query level=error --open a.log --format json"));
+        assert!(!quiet("query level=error --open a.log"));
     }
 
     #[test]

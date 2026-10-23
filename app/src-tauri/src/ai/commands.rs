@@ -120,6 +120,14 @@ pub async fn ai_recommend<R: Runtime>(app: AppHandle<R>) -> Ai<Recommendations> 
     .await
 }
 
+/// As `ai_recommend`, after reading the headers of the models that could fit (the first bytes of each file, no
+/// download) so the verdicts use the real architecture. Slow (network): call it after showing the quick answer.
+#[tauri::command]
+pub async fn ai_refine_fit<R: Runtime>(app: AppHandle<R>) -> Ai<Recommendations> {
+    let core = core(&app)?;
+    blocking(move || core.refine_fit()).await
+}
+
 /// Every catalog model with its fit on this machine, best first.
 #[tauri::command]
 pub async fn ai_catalog<R: Runtime>(app: AppHandle<R>) -> Ai<Vec<Recommendation>> {
@@ -151,8 +159,12 @@ fn spawn_setup<R: Runtime>(app: AppHandle<R>, core: Arc<AiCore>, job: SetupJob, 
         move |on_progress: &dyn Fn(JobProgress)| -> Ai<()> {
             let a = app.clone();
             let mut on_stage = |st: SetupStage| {
-                if let SetupStage::Downloading { bytes, total, .. } = &st {
-                    on_progress(JobProgress::bytes(*bytes, *total));
+                match &st {
+                    SetupStage::Downloading { bytes, total, .. } => {
+                        on_progress(super::runtime_commands::phase_progress(false, *bytes, *total))
+                    }
+                    SetupStage::Verifying { bytes, total } => on_progress(super::runtime_commands::phase_progress(true, *bytes, *total)),
+                    _ => {}
                 }
                 let _ = a.emit(SETUP_EVENT, SetupEvent::Stage(st));
             };

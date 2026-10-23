@@ -4,6 +4,7 @@
 
 pub mod disk;
 pub mod download;
+pub mod header;
 pub mod hf;
 pub mod source;
 pub mod store;

@@ -85,4 +85,39 @@ test.describe('import progress', () => {
     await banner.getByRole('button', { name: 'Dismiss' }).click();
     await expect(banner).toHaveCount(0);
   });
+
+  test('the phases explain themselves: a growing found count, then formats, then files; Cancel works while finding', async ({ page }) => {
+    await page.clock.install();
+    await openAppWith(page, `${SLOW_IMPORT}&mockSlowDiscovery=60000`);
+    await page.locator('debrief-sidebar').getByRole('button', { name: 'Open folder' }).click();
+    const status = page.getByTestId('import-status');
+    // From the first moment: a count (not an idle 0), growing with every step.
+    await expect(status).toContainText('Finding files… 1,234 found');
+    const first = await status.innerText();
+    await page.clock.runFor(FILE_MS);
+    await expect(status).toContainText('Finding files… 2,468 found');
+    expect(await status.innerText()).not.toBe(first);
+    await expect(status).toContainText('folder-2');
+    await page.clock.runFor(3 * FILE_MS);
+    await expect(status).toContainText('Finding files… 6,170 found');
+    await page.clock.runFor(FILE_MS);
+    await expect(status).toContainText(/Detecting formats… \d+ of 6/);
+    await page.clock.runFor(5 * FILE_MS);
+    await expect(status).toContainText('Importing 0 of 6 files');
+    await status.getByRole('button', { name: 'Cancel' }).click();
+    await page.clock.runFor(FILE_MS);
+    await expect(page.getByTestId('partial-import-banner')).toBeVisible();
+  });
+
+  test('Cancel during the finding phase stops the import without reading files', async ({ page }) => {
+    await page.clock.install();
+    await openAppWith(page, `${SLOW_IMPORT}&mockSlowDiscovery=60000`);
+    await page.locator('debrief-sidebar').getByRole('button', { name: 'Open folder' }).click();
+    const status = page.getByTestId('import-status');
+    await expect(status).toContainText('Finding files…');
+    await status.getByRole('button', { name: 'Cancel' }).click();
+    await page.clock.runFor(FILE_MS);
+    await expect(status).toHaveCount(0);
+    await expect(page.getByTestId('partial-import-banner')).toBeVisible();
+  });
 });

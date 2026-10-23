@@ -3,6 +3,34 @@ import { ChangelogRelease } from './changelog';
 
 export const CHANGELOG: readonly ChangelogRelease[] = [
   {
+    "version": "1.0.2",
+    "date": "2026-10-23",
+    "groups": [
+      {
+        "title": "Added",
+        "items": [
+          "Search: The search box suggests \"Did you mean CompanyA.Graphic.Builder.exe (ProcessName)?\" when your words match a value in your logs, even with different separators, case or small typos",
+          "Tool panes: Every tool pane has an auto-hide (pin) button in its header; right-click it to choose the left, right or bottom edge, remembered per pane. The tooltip shows your current shortcut",
+          "Command line: Import progress by phase on a terminal, `--quiet` to turn it off, and Ctrl+C cancels the import and exits with code 130",
+          "Assistant: It finds events and values by name, trying wider matches when the exact words are not there and saying which step found them",
+          "Jobs: Every long task shows its phase (finding files, checking, importing, compacting, indexing, saving) with its own progress, in the toast, the Jobs pane and the status bar; opening a dump, making a redacted copy, installing the browser and downloading an update are jobs with byte progress and Cancel"
+        ]
+      },
+      {
+        "title": "Fixed",
+        "items": [
+          "AI setup: Model and runtime downloads are checked while they are written, so the progress no longer restarts for a second pass",
+          "AI models: Whether a model fits is judged from its weights plus the cache for the real context size, against the memory that is free now",
+          "Search: A phrase such as \"graphic builder\" finds Graphic.Builder whatever the separators or capitalisation",
+          "Home: Home reflows in a narrow pane, and long paths and file names shorten in the middle with the full value in a tooltip",
+          "Import: Opening a very large folder reports finding, checking and importing with live counts from the first moment and walks the folders in parallel",
+          "Reload: A cancelled reload says \"Reload cancelled — previous data kept\"",
+          "Monitor: Linux threads are no longer counted as processes"
+        ]
+      }
+    ]
+  },
+  {
     "version": "1.0.1",
     "date": "2026-10-23",
     "groups": [

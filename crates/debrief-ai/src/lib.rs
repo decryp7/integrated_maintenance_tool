@@ -11,6 +11,7 @@ pub mod chat;
 #[cfg(windows)]
 mod dxgi;
 pub mod error;
+pub mod fit;
 pub mod gguf;
 pub mod hardware;
 pub mod knowledge;
