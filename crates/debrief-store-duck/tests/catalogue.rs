@@ -27,7 +27,10 @@ fn built(store: &DuckStore) {
 
 fn lookup(store: &DuckStore, text: &str) -> Vec<(Scope, String, u64)> {
     store
-        .catalogue(&CatalogueRequest { text: text.into() })
+        .catalogue(&CatalogueRequest {
+            text: text.into(),
+            ..Default::default()
+        })
         .unwrap()
         .candidates
         .into_iter()
@@ -113,7 +116,12 @@ fn the_catalogue_follows_imports_removals_and_clear() {
 
     store.clear().unwrap();
     assert!(lookup(&store, "alpha").is_empty());
-    let reply = store.catalogue(&CatalogueRequest { text: "alpha".into() }).unwrap();
+    let reply = store
+        .catalogue(&CatalogueRequest {
+            text: "alpha".into(),
+            ..Default::default()
+        })
+        .unwrap();
     assert!(reply.built, "nothing to catalogue is built");
 
     // Reload (a re-import) keeps the names consistent: no doubled counts.
@@ -155,6 +163,61 @@ fn field_values_are_catalogued_and_numbers_and_ids_are_not() {
 #[test]
 fn an_unbuilt_catalogue_falls_back_to_facets_and_reports_pending() {
     let (_logs, _dir, store) = setup("empty");
-    let reply = store.catalogue(&CatalogueRequest { text: "x".into() }).unwrap();
+    let reply = store
+        .catalogue(&CatalogueRequest {
+            text: "x".into(),
+            ..Default::default()
+        })
+        .unwrap();
     assert!(reply.built && reply.candidates.is_empty() && reply.pending == 0);
+}
+
+#[test]
+fn every_name_is_listed_for_the_name_book_and_graphic_builder_groups_its_spellings() {
+    use debrief_core::names::Names;
+    let (logs, _dir, store) = setup("all");
+    lines(
+        &logs.0.join("a.log"),
+        &[
+            "Started CompanyA.Graphic.Builder.exe",
+            "graphicbuilder.exe rendered a frame",
+            "graphicbuilder.exe rendered a frame",
+            "Started CompanyA.Tray.Agent.exe",
+            "heartbeat",
+        ],
+    );
+    store.open(std::slice::from_ref(&logs.0)).unwrap().wait().unwrap();
+    built(&store);
+    let all = store
+        .catalogue(&CatalogueRequest {
+            all: true,
+            ..Default::default()
+        })
+        .unwrap();
+    assert!(all.built && all.candidates.len() >= 3, "{:?}", all.candidates);
+    assert!(all.candidates.windows(2).all(|w| w[0].count >= w[1].count), "most events first");
+
+    let names = Names::default();
+    assert!(names.refresh(&store).unwrap() >= 2);
+    let layer_find = |text: &str| {
+        let ctx = names.context().clone();
+        names.read(|book, vocab| {
+            debrief_core::find::resolve_names(
+                &store,
+                text,
+                5,
+                Some(&debrief_core::find::NameLayer {
+                    book,
+                    vocab,
+                    ctx: &ctx,
+                    settings: names.settings(),
+                }),
+            )
+            .unwrap()
+        })
+    };
+    let r = layer_find("graphic builder");
+    assert_eq!(r.values[0].group.as_deref(), Some("executable|graphic builder"), "{r:#?}");
+    assert_eq!(r.values[0].spellings.len(), 2);
+    assert!(!r.values[0].evidence.is_empty());
 }

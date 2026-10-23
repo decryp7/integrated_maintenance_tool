@@ -480,26 +480,6 @@ export interface FindValuesRequest {
   limit?: number;
 }
 
-/** How a value matched the words, best first. */
-export type ValueVia = 'exact' | 'parts' | 'prefix' | 'fuzzy';
-
-/** A value the logs hold that the words refer to (`CompanyA.Graphic.Builder.exe` of the field `ProcessName` for "graphic builder"). */
-export interface ValueMatch {
-  /** The field (`@source` for a source's name). */
-  field: string;
-  value: string;
-  /** Events with the value. */
-  count: number;
-  via: ValueVia;
-  /** What an entity (`@entity`) is: `executable`, `library`, `file`, `path`, `host`, `ip`, `url`, `exception`, `errorCode`, `guid`. */
-  kind?: string;
-  /** First and last time an entity was seen (epoch ms). */
-  firstSeen?: number;
-  lastSeen?: number;
-  /** Names of sources that have it. */
-  seenIn?: string[];
-}
-
 /** A run of a snippet: a matched word (`mark`) or the text around it. */
 export interface SnippetPart {
   text: string;
@@ -904,6 +884,37 @@ export type QueryOutcome = { result: QlResult } | { error: QlError };
 export type SearchInputKind = 'text' | 'query';
 
 export type CompletionKind = 'field' | 'keyword' | 'operator' | 'function' | 'value';
+
+/**
+ * A name the logs hold that search words refer to (`did_you_mean`, the assistant's `find_values`): a field value, a
+ * source name (`@source`) or an entity found in event text (`@entity`, with its `kind`).
+ */
+export interface ValueMatch {
+  field: string;
+  value: string;
+  /** Events with the value. */
+  count: number;
+  /**
+   * How the value matched: `userAlias` (you said so), `exact`, `segmented` (the same name written differently or run
+   * together), `parts`, `prefix`, `alias` (suggested by the local model, AI-generated) or `fuzzy` (typos).
+   */
+  via: 'userAlias' | 'exact' | 'segmented' | 'parts' | 'prefix' | 'alias' | 'fuzzy';
+  /** What an entity is (`executable`, `library`, `file`, `path`, `host`, `ip`, `url`, `exception`, `errorCode`, `guid`). */
+  kind?: string;
+  /** First and last time an entity was seen (epoch ms). */
+  firstSeen?: number;
+  lastSeen?: number;
+  /** Names of sources that have it. */
+  seenIn?: string[];
+  /** Why it matched, in one short phrase, with what in the context supports it. */
+  why: string;
+  /** Every spelling of the entity in the logs with its count (the canonical one is `value`). */
+  spellings?: { name: string; count: number }[];
+  /** Ids of a few events that carry the name. */
+  evidence?: number[];
+  /** The entity's id, for accepting or rejecting the match. */
+  group?: string;
+}
 
 export interface Completion {
   label: string;

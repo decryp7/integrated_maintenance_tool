@@ -90,6 +90,13 @@ pub struct AiSettings {
     pub model_updates: UpdatePolicy,
     /// Hours between automatic update checks.
     pub update_check_hours: u32,
+    /// Local Pitwall address (`http://localhost:PORT`) used for AI aliases of names; empty: no model, the feature is off.
+    pub pitwall_url: Option<String>,
+    /// Pitwall model to use; empty: the first one it lists.
+    pub pitwall_model: Option<String>,
+    /// Let the local model suggest human names and aliases for the names in the logs (needs Pitwall). Nothing leaves
+    /// this computer; suggestions are labelled AI-generated and can be removed.
+    pub name_aliases: bool,
 }
 
 /// The default hours between update checks (daily).
@@ -117,6 +124,9 @@ impl Default for AiSettings {
             runtime_updates: UpdatePolicy::Ask,
             model_updates: UpdatePolicy::Ask,
             update_check_hours: DEFAULT_UPDATE_CHECK_HOURS,
+            pitwall_url: None,
+            pitwall_model: None,
+            name_aliases: true,
         }
     }
 }
@@ -162,6 +172,18 @@ impl AiSettings {
         }
         if blank(&self.llama_server_path) {
             self.llama_server_path = None;
+        }
+        // Only an address on this computer is kept: names never go to another machine.
+        if blank(&self.pitwall_url)
+            || self
+                .pitwall_url
+                .as_deref()
+                .is_some_and(|u| crate::names_model::loopback_base(u).is_err())
+        {
+            self.pitwall_url = None;
+        }
+        if blank(&self.pitwall_model) {
+            self.pitwall_model = None;
         }
         self
     }
@@ -287,6 +309,9 @@ pub fn schema() -> Value {
         f("runtime_updates", "Inference runtime updates", "When Debrief pins a newer llama.cpp build than the one installed. Automatic downloads and verifies it in the background (the installed build keeps working until the new one is verified, and a running chat is never interrupted); Ask tells you and offers Update, Later and Skip this version; Manual only looks when you choose Check now.", "enum", json!(d.runtime_updates.as_str()), json!({"options": ["automatic", "ask", "manual"]}), false),
         f("model_updates", "Model updates", "When the model list has a newer revision or quantisation of an installed model. Automatic downloads and verifies it in the background and switches to it only when no chat is running; Ask tells you; Manual only looks when you choose Check now.", "enum", json!(d.model_updates.as_str()), json!({"options": ["automatic", "ask", "manual"]}), false),
         f("update_check_hours", "Check for AI updates every (hours)", "How often Debrief checks for runtime and model updates (not with Manual). A check that fails because the computer is offline or a proxy blocks it is retried later without interrupting you.", "int", json!(d.update_check_hours), json!({"min": 1, "max": 720}), false),
+        f("pitwall_url", "Pitwall address", "Optional http://localhost:PORT of Pitwall on this computer. With it Debrief can ask the local model for human names and aliases of the names in your logs (\"gfxbldr\" is \"graphic builder\"). Empty: off. Only addresses on this computer are accepted.", "string", Value::Null, json!({}), false),
+        f("pitwall_model", "Pitwall model", "The Pitwall model for name aliases. Empty uses the first one Pitwall lists.", "string", Value::Null, json!({}), false),
+        f("name_aliases", "AI aliases for names", "Suggest human names and aliases for names in the logs with the local Pitwall model. Suggestions are labelled AI-generated, are never used for events themselves, and you can remove any of them. Turn off to ignore them; nothing is ever sent off this computer.", "bool", json!(d.name_aliases), json!({}), false),
         f("llama_server_path", "Custom llama-server", "Advanced: a llama-server executable to use instead of the inference runtimes Debrief downloads. Empty uses the downloaded builds.", "file", Value::Null, json!({}), true),
     ])
 }

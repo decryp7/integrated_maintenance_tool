@@ -30,6 +30,7 @@ pub mod instance;
 pub mod known_issues;
 pub mod lens;
 pub mod live;
+pub mod names;
 pub mod overwrite;
 pub mod package;
 pub mod parser;

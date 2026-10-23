@@ -257,10 +257,20 @@ impl crate::Inner {
             pending,
             candidates: Vec::new(),
         };
-        if squashed.is_empty() {
+        if squashed.is_empty() && !req.all {
             return Ok(reply);
         }
-        let (sql, args): (String, Vec<String>) = if keys.is_empty() {
+        let (sql, args): (String, Vec<String>) = if req.all {
+            (
+                format!(
+                    "SELECT e.scope, e.name, sum(e.n), min(e.first_ts), max(e.last_ts), list(DISTINCT s.name)
+                     FROM catalogue e JOIN sources s ON s.id = e.source AND s.ready
+                     GROUP BY e.scope, e.name ORDER BY sum(e.n) DESC, e.name LIMIT {}",
+                    debrief_core::catalogue::MAX_NAMES
+                ),
+                Vec::new(),
+            )
+        } else if keys.is_empty() {
             (
                 format!(
                     "SELECT e.scope, e.name, sum(e.n), min(e.first_ts), max(e.last_ts), list(DISTINCT s.name)
@@ -320,7 +330,7 @@ impl crate::DuckStore {
     pub fn wait_for_catalogue(&self, timeout: Duration) -> StoreResult<bool> {
         let started = std::time::Instant::now();
         loop {
-            let reply = self.inner.catalogue(&CatalogueRequest { text: String::new() })?;
+            let reply = self.inner.catalogue(&CatalogueRequest::default())?;
             if reply.built {
                 return Ok(true);
             }

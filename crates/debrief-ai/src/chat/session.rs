@@ -145,6 +145,8 @@ pub struct ChatEnv<'a, P: LlmProvider> {
     pub pages: Vec<PageCapture>,
     /// Images attached to this question (sanitised; the model must read images, ADR 0025). Not kept in history.
     pub images: Vec<ImageInput>,
+    /// The workspace's name book: names resolve to entities with spellings, context ranking and explanations.
+    pub names: Option<std::sync::Arc<debrief_core::names::Names>>,
 }
 
 impl<'a, P: LlmProvider> ChatEnv<'a, P> {
@@ -155,7 +157,13 @@ impl<'a, P: LlmProvider> ChatEnv<'a, P> {
             browser: None,
             pages: vec![],
             images: vec![],
+            names: None,
         }
+    }
+
+    pub fn with_names(mut self, names: std::sync::Arc<debrief_core::names::Names>) -> Self {
+        self.names = Some(names);
+        self
     }
 
     pub fn with_images(mut self, images: Vec<ImageInput>) -> Self {
@@ -480,7 +488,10 @@ impl ChatSession {
         if tight {
             budget = budget.tightened();
         }
-        let engine = EngineTools::new(env.store, budget.tool_limits);
+        let mut engine = EngineTools::new(env.store, budget.tool_limits);
+        if let Some(n) = &env.names {
+            engine = engine.with_names(n.clone());
+        }
         let resolved = resolve(ctx, env.store, &engine, budget.context_chars);
         let emit = |e: ChatEvent| em.borrow_mut().emit(e);
         let mut host = ChatHost::new(a, env.store, engine, resolved.selected.first().copied(), budget.compact_tools);

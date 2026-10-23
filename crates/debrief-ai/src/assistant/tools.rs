@@ -156,6 +156,8 @@ pub struct EngineTools<'a> {
     /// What each event the model saw looked like (id → content hash), to re-check citations at the end of a
     /// turn: the store may change between tool calls (live tail) and ids may shift when it re-sorts.
     seen: RefCell<HashMap<u32, u64>>,
+    /// The workspace's name book, when the app attached it (see [`EngineTools::with_names`]).
+    names: Option<std::sync::Arc<debrief_core::names::Names>>,
 }
 
 /// A content hash of an event (time, level, message, source), independent of its id.
@@ -244,7 +246,14 @@ impl<'a> EngineTools<'a> {
             store: store.into(),
             limits,
             seen: RefCell::default(),
+            names: None,
         }
+    }
+
+    /// Resolves names with the workspace's name book (spellings grouped, context ranking, explanations, questions on ties).
+    pub fn with_names(mut self, names: std::sync::Arc<debrief_core::names::Names>) -> Self {
+        self.names = Some(names);
+        self
     }
 
     pub fn limits(&self) -> ToolLimits {
@@ -257,13 +266,13 @@ impl<'a> EngineTools<'a> {
         vec![
             spec(
                 "find_events",
-                "FIRST CHOICE for a name, product, program, file or any words from the user (\"graphic builder\", \"payment service\"). Case, separators (. _ - / \\ ::) and camelCase are ignored, so it finds `CompanyA.Graphic.Builder.exe`, `GraphicBuilder` and `graphic_builder`. Searches message, exception, template, field values and source names; when nothing matches it widens by itself (any order, parts of words, field values) and the result's `note` says which step found what: relay the note. Results are paged (`offset`, `limit` at most 50). Prefer this over `contains` in run_query.",
+                "FIRST CHOICE for a name, product, program, file or any words from the user (\"graphic builder\", \"payment service\"). Case, separators (. _ - / \\ ::) and camelCase are ignored, so it finds `CompanyA.Graphic.Builder.exe`, `GraphicBuilder` and `graphic_builder`. Searches message, exception, template, field values and source names; when nothing matches it widens by itself (any order, parts of words, field values) and the result's `note` says which step found what and why a name matched: relay the note. If `clarify` is present two different things match about equally: ask that question instead of guessing. Results are paged (`offset`, `limit` at most 50). Prefer this over `contains` in run_query.",
                 json!({"text": text, "offset": {"type": "integer"}, "limit": {"type": "integer"}}),
                 &["text"],
             ),
             spec(
                 "find_values",
-                "Turns the user's words into the exact values the logs hold: field values and source names with their field, event count and how they matched (exact, parts, prefix, fuzzy for typos). Use it to get the precise value (e.g. ProcessName = CompanyA.Graphic.Builder.exe) before writing a run_query with `field = \"value\"`.",
+                "Turns the user's words into the exact values the logs hold: field values and source names with their field, event count and how they matched (userAlias, exact, segmented = same name written differently, parts, prefix, alias = AI-suggested alias, fuzzy = typo). Each value has a short `why`, all `spellings` of the entity and `evidence` event ids: tell the user how a name was matched and cite the evidence. When the reply has `ask_the_user`, ask that question instead of guessing. Use it to get the precise value (e.g. ProcessName = CompanyA.Graphic.Builder.exe) before writing a run_query with `field = \"value\"`.",
                 json!({"text": text, "limit": {"type": "integer"}}),
                 &["text"],
             ),
@@ -441,8 +450,27 @@ impl<'a> EngineTools<'a> {
         }
     }
 
+    /// Runs `f` with the name layer when names are attached (and remembers the search as context).
+    fn with_layer<R>(&self, text: &str, f: impl FnOnce(Option<&debrief_core::find::NameLayer<'_>>) -> R) -> R {
+        let Some(names) = &self.names else { return f(None) };
+        names.context().remember(text);
+        let ctx = names.context().clone();
+        let settings = names.settings();
+        names.read(|book, vocab| {
+            f(Some(&debrief_core::find::NameLayer {
+                book,
+                vocab,
+                ctx: &ctx,
+                settings,
+            }))
+        })
+    }
+
     fn find_events(&self, s: &dyn Store, a: FindArg) -> ToolOutcome {
-        match debrief_core::find::find(s, &a.text, a.offset.unwrap_or(0), a.limit.unwrap_or(0)) {
+        let found = self.with_layer(&a.text, |layer| {
+            debrief_core::find::find_with(s, &a.text, a.offset.unwrap_or(0), a.limit.unwrap_or(0), layer)
+        });
+        match found {
             Ok(r) => {
                 // Remember what the model saw, to re-check its citations at the end of the turn.
                 for h in r.hits.iter().take(10) {
@@ -458,10 +486,17 @@ impl<'a> EngineTools<'a> {
     }
 
     fn find_values(&self, s: &dyn Store, a: FindArg) -> ToolOutcome {
-        match debrief_core::find::resolve_terms(s, &a.text, a.limit.unwrap_or(0)) {
-            Ok(v) => {
-                let n = v.len();
-                self.finish(json!({"text": a.text, "values": v}), format!("{n} matching values"), vec![])
+        let found = self.with_layer(&a.text, |layer| {
+            debrief_core::find::resolve_names(s, &a.text, a.limit.unwrap_or(0), layer)
+        });
+        match found {
+            Ok(r) => {
+                let n = r.values.len();
+                let mut out = json!({"text": a.text, "values": r.values});
+                if let Some(c) = r.clarify {
+                    out["ask_the_user"] = json!(c.question);
+                }
+                self.finish(out, format!("{n} matching values"), vec![])
             }
             Err(e) => ToolOutcome::err(format!("the values cannot be looked up: {e}")),
         }

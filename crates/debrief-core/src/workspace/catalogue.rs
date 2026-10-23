@@ -56,7 +56,7 @@ impl Workspace {
             }
         }
         let text: String = req.text.trim().chars().take(crate::find::MAX_TEXT_CHARS).collect();
-        let mut candidates = candidates_from(&rows, &text);
+        let mut candidates = if req.all { all_from(&rows) } else { candidates_from(&rows, &text) };
         for c in &mut candidates {
             c.seen_in.retain(|s| !s.is_empty());
         }
