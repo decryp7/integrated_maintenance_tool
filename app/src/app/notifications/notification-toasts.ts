@@ -2,7 +2,7 @@ import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/cor
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { Icon } from '../shared/icon';
 import { actionLabel, NoticeActions, NOTIFICATIONS_VIEW } from './notice-actions';
-import { NotificationsStore } from './notifications.store';
+import { NotificationsStore, RUNNING_KEY } from './notifications.store';
 import { Notice, NoticeAction } from './notifications.types';
 import { titleWithCount } from './notifications-text';
 
@@ -28,7 +28,7 @@ import { titleWithCount } from './notifications-text';
           }
           <div class="actions">
             @if (t.primary; as a) {
-              <button type="button" class="btn primary" (click)="act(t, a)" data-testid="notice-toast-primary">{{ actionLabel(a) }}</button>
+              <button type="button" class="btn" [class.primary]="t.dedupeKey !== runningKey" (click)="act(t, a)" data-testid="notice-toast-primary">{{ actionLabel(a) }}</button>
             }
             <!-- A question with three answers ("Update", "Later", "Skip this version") shows all of them. -->
             @if (t.tertiary; as c) {
@@ -66,6 +66,7 @@ export class NotificationToasts {
   private readonly actions = inject(NoticeActions);
   private readonly ctx = inject(COMMAND_CONTEXT);
   protected readonly actionLabel = actionLabel;
+  protected readonly runningKey = RUNNING_KEY;
   protected readonly titleWithCount = titleWithCount;
   protected readonly note = signal<string | null>(null);
 

@@ -44,6 +44,9 @@ interface NotificationsState {
   local: LocalNotice[];
 }
 
+/** Marks the UI's own "running in Jobs" toast: the job's result replaces it. */
+export const RUNNING_KEY = 'toast:running';
+
 const initial: NotificationsState = { snapshot: EMPTY_NOTICES, toasts: [], sources: [], read: 'all', focus: null, error: null, loaded: false, local: [] };
 
 function message(e: unknown): string {
@@ -111,7 +114,18 @@ export const NotificationsStore = signalStore(
         patchState(store, { snapshot: { notices: e.notices, unread: e.unread }, loaded: true });
         const p = e.posted;
         if (p && !p.read && !OWN_TOASTS.includes(p.source)) {
-          patchState(store, (s) => ({ toasts: [...s.toasts.filter((t) => t.id !== p.id), p].slice(-MAX_TOASTS) }));
+          // One toast per operation: a job's result takes the place of the oldest "running" toast instead of stacking.
+          patchState(store, (s) => {
+            const rest = s.toasts.filter((t) => t.id !== p.id);
+            const running = p.source === 'job' ? rest.findIndex((t) => t.dedupeKey === RUNNING_KEY) : -1;
+            if (running < 0) return { toasts: [...rest, p].slice(-MAX_TOASTS) };
+            const replaced = rest[running];
+            if (replaced) {
+              clearTimeout(timers.get(replaced.id));
+              timers.delete(replaced.id);
+            }
+            return { toasts: rest.map((t, i) => (i === running ? p : t)) };
+          });
           clearTimeout(timers.get(p.id));
           timers.set(
             p.id,
@@ -188,7 +202,7 @@ export const NotificationsStore = signalStore(
       dismissToast,
 
       /** A toast of the UI's own (not a message of the centre): e.g. "Explaining event #7 — running in Jobs". */
-      showLocal(n: Pick<Notice, 'severity' | 'title'> & { body?: string; primary?: Notice['primary'] }): void {
+      showLocal(n: Pick<Notice, 'severity' | 'title'> & { body?: string; primary?: Notice['primary']; running?: boolean }): void {
         const now = Date.now();
         const toast: Notice = {
           id: -++localIds,
@@ -204,10 +218,10 @@ export const NotificationsStore = signalStore(
           secondary: null,
           tertiary: null,
           link: { window: null, jobId: null, recordId: null, pluginId: null, path: null },
-          dedupeKey: null,
+          dedupeKey: n.running ? RUNNING_KEY : null,
           scope: 'project',
         };
-        patchState(store, (s) => ({ toasts: [...s.toasts, toast].slice(-MAX_TOASTS) }));
+        patchState(store, (s) => ({ toasts: [...s.toasts.filter((t) => !(n.running && t.dedupeKey === RUNNING_KEY && t.title === n.title)), toast].slice(-MAX_TOASTS) }));
         timers.set(
           toast.id,
           setTimeout(() => dismissToast(toast.id), TOAST_MS),
