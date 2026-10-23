@@ -229,7 +229,8 @@ describe('AiImagePanel', () => {
   }
 
   it('opens an image, explains it and finds its related logs', async () => {
-    const { f, store, root } = await panel({ stepMs: 2 });
+    // Slow enough that the transient "reads the image" status is still there when the polling looks.
+    const { f, store, root } = await panel({ stepMs: 30 });
     expect(root.textContent).toContain('Open a screenshot');
     el<HTMLButtonElement>(f, '[data-testid=ai-image-open]').click();
     await until(f, () => !!root.querySelector('debrief-image-viewer'));
