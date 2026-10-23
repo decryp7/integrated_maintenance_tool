@@ -8,7 +8,7 @@ import { AutoHideEvent, EMPTY_AUTO_HIDE } from './auto-hide';
 import { DockAutoHide } from './dock-auto-hide';
 import { DockContext } from './dock-context';
 import { keepGroupsUnscrolled, labelTabOverflow, observeFloatingAria } from './dock-dom';
-import { DockSlot, isLayoutTarget, Point, Rect, resolveGuideDrop } from './dock-geometry';
+import { DockSlot, isLayoutTarget, Point, Rect, resolveGuideDrop, Side } from './dock-geometry';
 import { DockPersistence } from './dock-persistence';
 import { DockPlacement } from './dock-placement';
 import { DockPolicy } from './dock-policy';
@@ -180,7 +180,14 @@ export class DockService {
       defaultTabComponent: TAB_COMPONENT,
       createTabComponent: (o) => (o.name === TAB_COMPONENT ? new PanelTab((id, el) => this.openPanelMenu(id, el)) : undefined),
       createRightHeaderActionComponent: () =>
-        new GroupActions({ openMenu: (g, anchor) => g.activePanel && this.openPanelMenu(g.activePanel.id, anchor) }),
+        new GroupActions({
+          openMenu: (g, anchor) => g.activePanel && this.openPanelMenu(g.activePanel.id, anchor),
+          autoHide: {
+            available: (g) => !!g.activePanel && this.canAutoHide(g.activePanel.id),
+            run: (g) => g.activePanel && this.unpin(g.activePanel.id),
+            chooseSide: (g, anchor, at) => g.activePanel && this.openAutoHideSideMenu(g.activePanel.id, anchor, at),
+          },
+        }),
     });
     this.ctx.api = api;
     const onKey = (e: KeyboardEvent) => {
@@ -492,8 +499,29 @@ export class DockService {
   /* -------------------------------------------------------------- auto-hide */
 
   /** Collapses a docked tool window into a tab on the nearest side bar ("Auto hide"). */
-  unpin(id: string): void {
-    this.autoHider.unpin(id);
+  unpin(id: string, side?: Side): void {
+    this.autoHider.unpin(id, side);
+  }
+
+  /** Is this panel a docked tool window the auto-hide button applies to (not a document, not floating)? */
+  canAutoHide(id: string): boolean {
+    return this.autoHider.canAutoHide(id);
+  }
+
+  /** The left / right / bottom choice for auto-hiding a tool window (never the top). */
+  openAutoHideSideMenu(id: string, anchor: HTMLElement | null, at?: Point): void {
+    const box = anchor?.getBoundingClientRect();
+    const items: { side: Side; label: string }[] = [
+      { side: 'left', label: $localize`:@@dock.autoHide.toLeft:Auto-hide to the left` },
+      { side: 'right', label: $localize`:@@dock.autoHide.toRight:Auto-hide to the right` },
+      { side: 'bottom', label: $localize`:@@dock.autoHide.toBottom:Auto-hide to the bottom` },
+    ];
+    this.menus.open(
+      at?.x ?? box?.left ?? 100,
+      at?.y ?? box?.bottom ?? 100,
+      items.map((i) => ({ label: i.label, run: () => this.unpin(id, i.side) })),
+      anchor,
+    );
   }
 
   /** Docks an auto-hidden tool window back where it was ("Pin"). */
@@ -760,6 +788,7 @@ export class DockService {
     const docked = new Set((this.api?.panels ?? []).map((p) => p.id));
     const known = (id: string) => !!this.views.find(id);
     this.ctx.autoHide.set({ items: extras.autoHidden.filter((i) => known(i.id) && !docked.has(i.id)), open: null, openedBy: null });
+    this.ctx.autoHideSides.set({ ...(extras.autoHideSides ?? {}) });
     this.ctx.pinned.set(new Set(extras.pinnedTabs.filter((id) => docked.has(id))));
     this.ctx.markPinnedTabs();
   }

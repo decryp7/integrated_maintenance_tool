@@ -20,6 +20,7 @@ import { Side } from './dock-geometry';
 import { DockKeys } from './dock-keys';
 import { DockService } from './dock.service';
 import { DockSwitcher } from './switcher-overlay';
+import { Icon } from '../shared/icon';
 
 /** What a slid-out panel keeps open when it is pressed or focused: itself, its bar, menus, and the overlays and dialogs it opened (lists, pickers, reviews). */
 const KEEP_OPEN = '.debrief-ah-flyout, .debrief-ah-bar, .menu, .cdk-overlay-container, debrief-dialog-host';
@@ -35,7 +36,7 @@ export const HOVER_HIDE_MS = 300;
   selector: 'debrief-dock-host',
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
-  imports: [DockSwitcher],
+  imports: [DockSwitcher, Icon],
   template: `
     @for (side of sides; track side) {
       @if (bars()[side].length) {
@@ -77,8 +78,8 @@ export const HOVER_HIDE_MS = 300;
         >
           <header class="debrief-ah-head">
             <span class="debrief-ah-title">{{ item.title }}</span>
-            <button type="button" class="debrief-dock-action" [attr.aria-label]="pinLabel(item.title)" title="Pin (dock it again)" i18n-title="@@dock.host.pinTitle" (click)="dock.pin(item.id)">
-              <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17v5M8 3h8l-1 7 3 3H6l3-3z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" /></svg>
+            <button type="button" class="debrief-dock-action debrief-ah-pin" [attr.aria-label]="pinLabel(item.title)" aria-pressed="true" title="Pin (dock it again, Ctrl+Alt+H)" i18n-title="@@dock.host.pinTitle" (click)="dock.pin(item.id)">
+              <debrief-icon name="unpin" [size]="13" [stroke]="2" />
             </button>
             <button type="button" class="debrief-dock-action" [attr.aria-label]="hideLabel(item.title)" title="Hide (Esc)" i18n-title="@@dock.host.hideTitle" (click)="escape()">
               <svg width="13" height="13" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" /></svg>

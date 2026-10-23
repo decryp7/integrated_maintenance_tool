@@ -10534,66 +10534,87 @@
         <note priority="1" from="description">Tab strip overflow chip, several hidden tabs</note>
       </trans-unit>
       <trans-unit id="dock.host.pinTitle" datatype="html">
-        <source>Pin (dock it again)</source>
+        <source>Pin (dock it again, Ctrl+Alt+H)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">80</context>
+          <context context-type="linenumber">81</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.hideTitle" datatype="html">
         <source>Hide (Esc)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">83</context>
+          <context context-type="linenumber">84</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">95,97</context>
+          <context context-type="linenumber">96,98</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.dismiss" datatype="html">
         <source>Dismiss</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">97,99</context>
+          <context context-type="linenumber">98,100</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.barLeft" datatype="html">
         <source>Auto-hidden tool windows (left)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">234</context>
+          <context context-type="linenumber">235</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.barRight" datatype="html">
         <source>Auto-hidden tool windows (right)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">236</context>
+          <context context-type="linenumber">237</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.barBottom" datatype="html">
         <source>Auto-hidden tool windows (bottom)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">238</context>
+          <context context-type="linenumber">239</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.pinLabel" datatype="html">
         <source>Pin <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">243</context>
+          <context context-type="linenumber">244</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.host.hideLabel" datatype="html">
         <source>Hide <x id="title" equiv-text="title"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-host.ts</context>
-          <context context-type="linenumber">247</context>
+          <context context-type="linenumber">248</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dock.autoHide.toLeft" datatype="html">
+        <source>Auto-hide to the left</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/dock.service.ts</context>
+          <context context-type="linenumber">515</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dock.autoHide.toRight" datatype="html">
+        <source>Auto-hide to the right</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/dock.service.ts</context>
+          <context context-type="linenumber">516</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dock.autoHide.toBottom" datatype="html">
+        <source>Auto-hide to the bottom</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/dock.service.ts</context>
+          <context context-type="linenumber">517</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.floatCue.window" datatype="html">
@@ -10614,21 +10635,35 @@
         <source>Panel menu</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">47</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.groupActions.restore" datatype="html">
         <source>Restore panel size</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.groupActions.maximize" datatype="html">
         <source>Maximize panel</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">77</context>
+          <context context-type="linenumber">114</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dock.groupActions.autoHide" datatype="html">
+        <source>Auto-hide <x id="title" equiv-text="title"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
+          <context context-type="linenumber">126</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="dock.groupActions.autoHideTitle" datatype="html">
+        <source>Auto-hide <x id="title" equiv-text="title"/> (Ctrl+Alt+H). Right-click to choose the left, right or bottom edge.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
+          <context context-type="linenumber">127</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.layoutDialog.name" datatype="html">
@@ -35778,182 +35813,182 @@
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(s.total) }}"/> events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">21,22</context>
+          <context context-type="linenumber">22,23</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.matching" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(store.matchTotal()!) }}"/> matching</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">23,25</context>
+          <context context-type="linenumber">24,26</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.instances" datatype="html">
         <source><x id="INTERPOLATION" equiv-text="{{ fmt(store.instanceCount()) }}"/> instances</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">25,26</context>
+          <context context-type="linenumber">26,27</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.profile" datatype="html">
         <source>Profile: <x id="INTERPOLATION" equiv-text="{{ s.profileName }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">27,29</context>
+          <context context-type="linenumber">28,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.noFiles" datatype="html">
         <source>No files open</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">30,33</context>
+          <context context-type="linenumber">31,34</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.noWorkspace" datatype="html">
         <source>No workspace</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">33,35</context>
+          <context context-type="linenumber">34,36</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.liveTail" datatype="html">
         <source>Live tail</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">45,46</context>
+          <context context-type="linenumber">46,47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.live" datatype="html">
         <source><x id="START_TAG_SPAN" ctype="x-span" equiv-text="&lt;span class=&quot;live-dot&quot; aria-hidden=&quot;true&quot;&gt;"/><x id="CLOSE_TAG_SPAN" ctype="x-span" equiv-text="&lt;/span&gt;"/>Live </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">55,57</context>
+          <context context-type="linenumber">56,58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.toggleTimezone" datatype="html">
         <source>Toggle UTC / local time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.details" datatype="html">
         <source>Details</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">61,62</context>
+          <context context-type="linenumber">62,63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.detailsLabel" datatype="html">
         <source>Details</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">64</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.detail.sources" datatype="html">
         <source>Sources</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.detail.events" datatype="html">
         <source>Events</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">66,67</context>
+          <context context-type="linenumber">67,68</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.untimedTitle" datatype="html">
         <source>Events without a timestamp: in the grid, not on the timeline</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.detail.untimed" datatype="html">
         <source>Without a time</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">68,69</context>
+          <context context-type="linenumber">69,70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.droppedTitle" datatype="html">
         <source>Events removed by the profile pipeline</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.detail.dropped" datatype="html">
         <source>Dropped by pipeline</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">71,72</context>
+          <context context-type="linenumber">72,73</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.detail.group" datatype="html">
         <source>Group</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">73</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.detail.importers" datatype="html">
         <source>Importers</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">75,76</context>
+          <context context-type="linenumber">76,77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.detail.version" datatype="html">
         <source>Version</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">76,77</context>
+          <context context-type="linenumber">77,78</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.liveFailed" datatype="html">
         <source>Live tail failed: <x id="error" equiv-text="error"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">116</context>
+          <context context-type="linenumber">120</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.liveOn" datatype="html">
         <source>Live tail is on: new lines appear as the files grow. Click to stop.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">117</context>
+          <context context-type="linenumber">121</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.liveFollow" datatype="html">
         <source>Follow the opened files as they grow</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">119</context>
+          <context context-type="linenumber">123</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.liveOpenFiles" datatype="html">
         <source>Open files to follow them live</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">120</context>
+          <context context-type="linenumber">124</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.profileTitle" datatype="html">
         <source>The parsing profile in use: <x id="name" equiv-text="name"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">126</context>
+          <context context-type="linenumber">130</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.statusBar.indexedTitle" datatype="html">
         <source>Indexed in <x id="duration" equiv-text="took"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/status-bar.ts</context>
-          <context context-type="linenumber">133</context>
+          <context context-type="linenumber">137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="shell.timestampWarning.text" datatype="html">
