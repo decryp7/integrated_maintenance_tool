@@ -4,7 +4,7 @@
   "scripts": {
     "ng": "ng",
     "start": "node scripts/whats-new.mjs && node scripts/build-info.mjs serve",
-    "build": "node scripts/whats-new.mjs && node scripts/build-info.mjs build",
+    "build": "node scripts/whats-new.mjs && node scripts/build-info.mjs build && node ../scripts/ci/check-index.mjs",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "lint": "ng lint && node scripts/lint-styles.mjs && node scripts/lint-effects.mjs && node scripts/check-dialog-commands.mjs",

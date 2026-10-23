@@ -47,6 +47,34 @@
   }
 }
 
+/* Start-up splash (Paddock lesson): shown inside <debrief-root> until Angular replaces it; fades in after ~400 ms so a
+   fast start never flashes it. No inline style or script (CSP); colours follow the system until the theme is set. */
+.debrief-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--bg-1, Canvas);
+  color: var(--text-2, GrayText);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: var(--fs-sm, 13px);
+  opacity: 0;
+  animation: debrief-splash-in 200ms ease 400ms forwards;
+
+  p {
+    margin: 0;
+  }
+}
+
+@keyframes debrief-splash-in {
+  to {
+    opacity: 1;
+  }
+}
+
 /* While the shell captures the window for an error snapshot (ADR 0034), toasts stay out of the picture. */
 html[data-snapshot-capturing] [data-snapshot-ignore] {
   visibility: hidden !important;
