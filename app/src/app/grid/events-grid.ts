@@ -1,4 +1,4 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, signal, untracked, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, effect, ElementRef, inject, linkedSignal, signal, untracked, viewChild } from '@angular/core';
 import { ErrorDetails } from '../ui/error-details';
 import { RecordView } from '../core/api.types';
 import { DebriefBackend } from '../core/backend';
@@ -330,7 +330,16 @@ export class EventsGrid {
 
   private queryKey = '';
   /** Selected rows by index (multi-select); its focus is the row the inspector shows (`selected`). */
-  protected readonly selection = signal<RowSelection>(EMPTY_SELECTION);
+  protected readonly selection = linkedSignal<RecordView | null, RowSelection>({
+    // Something else selected a record (timeline, bookmark, data reset): drop a multi-selection that no longer matches.
+    source: () => this.sel.selected(),
+    computation: (selected, previous) => {
+      const sel = previous?.value ?? EMPTY_SELECTION;
+      if (!selected) return EMPTY_SELECTION;
+      const focusRow = untracked(() => this.rows.rowAt(sel.focus));
+      return focusRow && focusRow.id !== selected.id ? EMPTY_SELECTION : sel;
+    },
+  });
   /** Row to select once its page arrives (keyboard navigation to a page that is not loaded yet). */
   private pendingSelect: number | null = null;
   /** The scrollTop we last wrote ourselves; scroll events at that position carry no new information. */
@@ -458,20 +467,6 @@ export class EventsGrid {
       if (!anchor || anchor.nonce === handledAnchorNonce.get(this.sel)) return;
       handledAnchorNonce.set(this.sel, anchor.nonce);
       untracked(() => void this.jumpTo(anchor.id));
-    });
-
-    // Something else selected a record (timeline, bookmark, data reset): drop a multi-selection that no longer matches.
-    effect(() => {
-      const selected = this.sel.selected();
-      untracked(() => {
-        const sel = this.selection();
-        if (!selected) {
-          if (sel !== EMPTY_SELECTION) this.selection.set(EMPTY_SELECTION);
-          return;
-        }
-        const focusRow = this.rows.rowAt(sel.focus);
-        if (focusRow && focusRow.id !== selected.id) this.selection.set(EMPTY_SELECTION);
-      });
     });
 
     // Publish the selected records (and again as their pages load) for commands outside the grid.
