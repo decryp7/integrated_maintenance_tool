@@ -65,7 +65,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
     </div>
     <p class="desc" i18n="@@settings.storage.desc">What Debrief keeps on this computer. The cache is rebuilt when needed; data is yours and is removed one category at a time.</p>
 
-    @if (store.loadError(); as e) {
+    @if (store.error(); as e) {
       <div class="banner err" role="alert">
         <span i18n="@@settings.storage.loadError">Could not measure Debrief's storage: {{ e }}</span>
         <button class="btn" type="button" (click)="store.load()" i18n="@@settings.storage.retry">Retry</button>
@@ -73,7 +73,7 @@ export function resultLine(r: StorageCategoryClearResult, label: string): string
     }
     @if (store.clearing()) {
       <p class="muted" role="status" i18n="@@settings.storage.clearing">Clearing… You can keep working; it continues in the background.</p>
-    } @else if (store.loading() && !store.usage()) {
+    } @else if (store.isLoading() && !store.usage()) {
       <p class="muted" role="status" i18n="@@settings.storage.loading">Measuring…</p>
     }
     @if (store.actionError(); as e) {

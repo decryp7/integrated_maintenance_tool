@@ -7,6 +7,7 @@ import { OverwriteGuard } from '../../ui/overwrite-guard';
 import { ParserDialogs } from './parser-dialogs';
 import { ParserFiles } from './parser-files';
 import { ParserSaveOptions, ParsersBackend } from './parsers-backend';
+import { setError, setLoaded, setLoading, withRequestStatus } from '../../shared/store/with-request-status';
 
 /** What "New blank" starts from: the smallest useful parser (the engine's built-in `generic` documents every key). */
 export const BLANK_PARSER = String.raw`schema = 1
@@ -26,9 +27,6 @@ regexes = ['^(?P<timestamp>\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?)\s
 
 interface ParsersState {
   library: ParserLibraryDto | null;
-  loading: boolean;
-  /** Listing failed (shown with Retry). */
-  loadError: string | null;
   /** The parser an action runs on now ('*' for the library: import, re-read). */
   busy: string | null;
   /** What the last action did. */
@@ -41,7 +39,7 @@ interface ParsersState {
   readTarget: { id: number; name: string } | null;
 }
 
-const INITIAL: ParsersState = { library: null, loading: false, loadError: null, busy: null, notice: null, actionError: null, editing: null, readTarget: null };
+const INITIAL: ParsersState = { library: null, busy: null, notice: null, actionError: null, editing: null, readTarget: null };
 
 /**
  * What "Parse with…" selects at first for a source: the parser the user chose for it before, else "Automatic" (also
@@ -67,6 +65,7 @@ export interface ParserGroup {
 export const ParsersStore = signalStore(
   { providedIn: 'root' },
   withState<ParsersState>(INITIAL),
+  withRequestStatus(),
   withComputed((store) => {
     const parsers = computed(() => store.library()?.parsers ?? []);
     return {
@@ -89,13 +88,11 @@ export const ParsersStore = signalStore(
     const entry = (id: string) => store.parsers().find((p) => p.id === id) ?? null;
 
     const load = async (): Promise<void> => {
-      patchState(store, { loading: true, loadError: null });
+      patchState(store, setLoading());
       try {
-        patchState(store, { library: await backend.list() });
+        patchState(store, { library: await backend.list() }, setLoaded());
       } catch (e) {
-        patchState(store, { loadError: errorMessage(e) });
-      } finally {
-        patchState(store, { loading: false });
+        patchState(store, setError(errorMessage(e)));
       }
     };
 

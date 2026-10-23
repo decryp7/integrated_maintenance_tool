@@ -7,12 +7,10 @@ import { errorMessage } from '../tools/tool-errors';
 import { SettingsBackend } from './settings-backend';
 import { GENERAL_ID, sameValue } from './settings-model';
 import { FieldError, ImportResult, SettingsOverview, SettingsSection, SettingValue } from './settings.types';
+import { setError, setLoaded, setLoading, withRequestStatus } from '../shared/store/with-request-status';
 
 interface EngineSettingsState {
   overview: SettingsOverview | null;
-  loading: boolean;
-  /** Loading the sections failed (shown with Retry). */
-  loadError: string | null;
   /** Navigation selection: a section id or `GENERAL_ID`. */
   selected: string;
   /** Unapplied edits: section id → key → value. Kept when the screen is closed without Apply. */
@@ -47,8 +45,6 @@ export interface UndoChange {
 
 const INITIAL: EngineSettingsState = {
   overview: null,
-  loading: false,
-  loadError: null,
   selected: GENERAL_ID,
   drafts: {},
   errors: {},
@@ -85,6 +81,7 @@ function describeImport(r: ImportResult): string {
 export const EngineSettingsStore = signalStore(
   { providedIn: 'root' },
   withState<EngineSettingsState>(INITIAL),
+  withRequestStatus(),
   withComputed((store) => ({
     sections: computed<SettingsSection[]>(() => store.overview()?.sections ?? []),
     /** Sections with an edit that differs from the applied value. */
@@ -180,13 +177,11 @@ export const EngineSettingsStore = signalStore(
     return {
       /** (Re)reads the sections. Unapplied edits are kept. */
       async load(): Promise<void> {
-        patchState(store, { loading: true, loadError: null });
+        patchState(store, setLoading());
         try {
-          patchState(store, { overview: await backend.sections() });
+          patchState(store, { overview: await backend.sections() }, setLoaded());
         } catch (e) {
-          patchState(store, { loadError: errorMessage(e) });
-        } finally {
-          patchState(store, { loading: false });
+          patchState(store, setError(errorMessage(e)));
         }
       },
       select: (selected: string) => patchState(store, { selected, query: '' }),

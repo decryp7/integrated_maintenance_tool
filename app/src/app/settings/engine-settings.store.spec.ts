@@ -118,7 +118,7 @@ describe('EngineSettingsStore', () => {
   it('reports load failures for Retry', async () => {
     const { store } = setup(new MockSettingsBackend({ fail: true }));
     await store.load();
-    expect(store.loadError()).toContain('unavailable');
+    expect(store.error()).toContain('unavailable');
     expect(store.sections()).toEqual([]);
     expect(store.current()).toBeNull();
     store.edit('x', 'y', 1);
