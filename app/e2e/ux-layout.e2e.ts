@@ -81,3 +81,11 @@ test('Compare time ranges starts from the data and leaves the grid its rows', as
   await expect.poll(() => visibleGridRows(page)).toBeGreaterThanOrEqual(7);
   expect(before).toBeGreaterThanOrEqual(12);
 });
+
+// U12: the filter bar is one row at 1440 (the lens and the view options no longer wrap onto a second, mostly empty row).
+test('the filter bar is a single row at 1440', async ({ page }) => {
+  await page.addInitScript(() => localStorage.clear());
+  await openApp(page);
+  const h = await page.locator('debrief-filter-bar').evaluate((e) => Math.round(e.getBoundingClientRect().height));
+  expect(h).toBeLessThanOrEqual(60);
+});
