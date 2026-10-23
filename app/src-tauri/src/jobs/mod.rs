@@ -334,22 +334,28 @@ pub(crate) fn store_cancel(controls: Controls) -> (Controls, debrief_core::ql::Q
     (cancelling(controls, &control), control)
 }
 
-/// `controls` whose probe also names the phase (the probe's counts then read as that phase's growing count).
-fn in_phase(controls: Controls, label: &'static str) -> Controls {
-    let Some(inner) = controls.probe.clone() else { return controls };
-    let mut c = controls;
-    c.probe = Some(Arc::new(move || {
-        inner().map(|p| JobProgress {
-            phase: Some(JobPhase::new(label, PhaseScale::Count)),
-            ..p
-        })
-    }));
-    c
+/// The job progress of a store operation that moves through stages (a redacted copy: redact, import, finish, write; a
+/// project save: write): the phase named for the stage with its counts. `None` while no stage has begun.
+pub(crate) fn stage_progress(p: debrief_core::ql::QueryProgress, matching: &str, writing: &str) -> Option<JobProgress> {
+    use debrief_core::ql::QueryStage;
+    Some(match p.stage {
+        QueryStage::Matching | QueryStage::Evaluating if p.total == 0 => return None,
+        QueryStage::Matching | QueryStage::Evaluating => JobProgress::in_phase(matching, PhaseScale::Count, p.done.min(p.total), p.total),
+        QueryStage::Importing => JobProgress::in_phase("Importing the redacted copy", PhaseScale::Bytes, p.done, p.total),
+        QueryStage::Finishing => JobProgress::in_phase("Finishing the import", PhaseScale::Indeterminate, 0, 0),
+        QueryStage::Writing => JobProgress::in_phase(writing, PhaseScale::Bytes, p.done.min(p.total), p.total),
+    })
 }
 
-/// `controls` with a probe of `control`'s progress under the phase `label` (events processed of those to process).
-pub(crate) fn with_phase_probe(controls: Controls, control: &debrief_core::ql::QueryControl, label: &'static str) -> Controls {
-    in_phase(with_query_progress(controls, control), label)
+/// `controls` with a probe of `control`'s staged progress (see [`stage_progress`]).
+pub(crate) fn with_stage_probe(
+    controls: Controls,
+    control: &debrief_core::ql::QueryControl,
+    matching: &'static str,
+    writing: &'static str,
+) -> Controls {
+    let c = control.clone();
+    controls.with_probe(move || stage_progress(c.progress(), matching, writing))
 }
 
 /// `controls` with a probe of `control`'s progress (the events the store has read of those it will read, as its
@@ -423,6 +429,28 @@ pub(crate) fn export_spec(title: &str, window: Option<&str>, path: &std::path::P
     spec
 }
 
+/// The progress of an export under way: rows (or events) written of those to write (`total` 0 while unknown) and the
+/// bytes the file holds so far, under the phase "Writing the export". `None` before the store has begun.
+pub(crate) fn written_progress(p: debrief_core::ql::QueryProgress, file_bytes: u64) -> Option<JobProgress> {
+    if p.total == 0 && p.done == 0 && file_bytes == 0 {
+        return None;
+    }
+    let done = if p.total > 0 { p.done.min(p.total) } else { p.done };
+    Some(JobProgress {
+        bytes_done: Some(file_bytes),
+        ..JobProgress::in_phase("Writing the export", PhaseScale::Count, done, p.total)
+    })
+}
+
+/// `controls` with a probe of an export of `control` to `path`; see [`written_progress`].
+fn with_written_probe(controls: Controls, control: &debrief_core::ql::QueryControl, path: &std::path::Path) -> Controls {
+    let (c, path) = (control.clone(), path.to_path_buf());
+    controls.with_probe(move || {
+        let bytes = std::fs::metadata(&path).map_or(0, |m| m.len());
+        written_progress(c.progress(), bytes)
+    })
+}
+
 /// Queues work that writes the file `path` (an export, a bundle, a report, diagnostics) and returns its job at
 /// once: the user goes on working and a message with "Show in folder" says when the file is there. `f` returns
 /// the line that message shows ("Exported 1,204 events"). Check what can be checked at once (the path, overwrite)
@@ -433,9 +461,7 @@ pub(crate) fn start_file<R: Runtime>(
     path: &std::path::Path,
     f: impl FnOnce(&JobCtx) -> Result<String, String> + Send + 'static,
 ) -> CmdResult<u64> {
-    let result = JobResult::File {
-        path: path.display().to_string(),
-    };
+    let result = JobResult::file(path.display().to_string());
     crate::error::lift(
         spawn(app, spec, Controls::default(), move |ctx| {
             let summary = f(ctx)?;
@@ -457,20 +483,45 @@ pub(crate) fn export<R: Runtime>(
     let spec = export_spec(title, Some(win.label()), path);
     let w = win.arc().clone();
     let control = debrief_core::ql::QueryControl::new();
-    let result = JobResult::File {
-        path: path.display().to_string(),
-    };
-    // The probe reports the events written so far of those to write, under the phase "Writing the export".
-    let controls = in_phase(
-        with_query_progress(cancelling(Controls::default(), &control), &control),
-        "Writing the export",
-    );
+    let result = JobResult::file(path.display().to_string());
+    // The probe reports the rows written so far of those to write (when the total is known) and the bytes of the file,
+    // under the phase "Writing the export".
+    let controls = with_written_probe(cancelling(Controls::default(), &control), &control, path);
     crate::error::lift(
         spawn(app, spec, controls, move |ctx: &JobCtx| -> CmdResult<Done<()>> {
             ctx.phase("Preparing the export", PhaseScale::Indeterminate, 0, 0);
             let summary = with_store(&w, &control, f)?;
             ctx.message(&summary);
             Ok(Done::new(()).with_result(result))
+        })
+        .map(|id| id.0),
+    )
+}
+
+/// Starts `f` as a job and returns its id at once: the command returns without waiting, and its caller follows the job
+/// (`jobs_wait`, events) and reads `f`'s value from the finished job's result (`JobOutcome::result`: a [`JobResult::Value`],
+/// or the `detail` of a [`JobResult::File`] when `f` names the file it wrote). Errors fail the job with their text
+/// (a cancelled one cancels it).
+pub(crate) fn start_value<R, T>(
+    app: &AppHandle<R>,
+    spec: JobSpec,
+    controls: Controls,
+    f: impl FnOnce(&JobCtx) -> CmdResult<Done<T>> + Send + 'static,
+) -> CmdResult<u64>
+where
+    R: Runtime,
+    T: Serialize + Send + 'static,
+{
+    crate::error::lift(
+        spawn(app, spec, controls, move |ctx| -> CmdResult<Done<()>> {
+            let done = f(ctx)?;
+            let value = serde_json::to_value(&done.value).map_err(crate::err)?;
+            let result = match done.result {
+                Some(JobResult::File { path, .. }) => JobResult::file_with(path, value),
+                Some(other) => other,
+                None => JobResult::Value { value },
+            };
+            Ok(Done::new(()).with_result(result).cancelled_if(done.cancelled))
         })
         .map(|id| id.0),
     )
@@ -607,7 +658,7 @@ pub async fn jobs_unwait<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: 
 pub async fn jobs_reveal<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, id: u64) -> CmdResult<String> {
     let jobs = service(&app)?;
     let job = owned(&jobs, &win, id)?;
-    let Some(JobResult::File { path }) = job.result else {
+    let Some(JobResult::File { path, .. }) = job.result else {
         return Err("this job did not write a file".into());
     };
     let p = std::path::PathBuf::from(&path);

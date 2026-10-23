@@ -9,6 +9,7 @@
 use crate::{engine, DuckStore};
 use debrief_core::api::FileKind;
 use debrief_core::ports::{Ingest, Profiles, Projects, Redaction, StoreError, StoreResult};
+use debrief_core::ql::{QueryProgress, QueryStage};
 use debrief_core::redact::copy::{
     copy_path, excluded_reason_of, without_redact_section, ExcludedSource, RedactedExport, RedactedExportRequest, UI_FILE,
 };
@@ -58,6 +59,23 @@ impl Redaction for DuckStore {
         // Whatever happened, the redacted text must not outlive the export.
         let _ = std::fs::remove_dir_all(&work);
         result
+    }
+}
+
+/// The job-visible progress of the nested import: bytes while it finds, detects and reads, no counts while it finishes.
+fn import_progress(p: &debrief_core::workspace::ProgressSnapshot) -> QueryProgress {
+    use debrief_core::workspace::ImportPhase;
+    match p.phase {
+        ImportPhase::Finishing => QueryProgress {
+            stage: QueryStage::Finishing,
+            done: 0,
+            total: 0,
+        },
+        _ => QueryProgress {
+            stage: QueryStage::Importing,
+            done: p.bytes_done.min(p.bytes_total),
+            total: p.bytes_total,
+        },
     }
 }
 
@@ -146,12 +164,25 @@ impl DuckStore {
         let result = (|| -> StoreResult<()> {
             copy.set_parsers(self.inner.parser_set().setup())?;
             debrief_core::ports::Skew::set_clock_offsets(&copy, &offsets)?;
+            if let Some(c) = &control {
+                c.begin(QueryStage::Importing, 0);
+            }
             let session = copy.open(std::slice::from_ref(&files))?;
             // Cancel reaches the nested import too (its files not read yet would be left out of the copy).
             let _hook = control.as_ref().map(|c| {
                 let progress = copy.progress();
                 c.on_cancel(Box::new(move || progress.cancel()))
             });
+            // Wait for the nested import, relaying its phase and counts to the job (files not yet read count as bytes).
+            while !session.is_finished() {
+                if let Some(c) = &control {
+                    c.report(import_progress(&session.progress()));
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+            if let Some(c) = &control {
+                c.begin(QueryStage::Finishing, 0);
+            }
             session.wait()?;
             if control.as_ref().is_some_and(|c| c.is_cancelled()) {
                 return Err(StoreError::Cancelled);

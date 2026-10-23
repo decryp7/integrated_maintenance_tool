@@ -251,6 +251,12 @@ impl ProjectDir {
                 .collect();
             files.extend(substitutes.iter().map(|(rel, src)| (src.clone(), rel.clone())));
             files.sort_by(|a, b| a.1.cmp(&b.1));
+            // The job running this export (if any) sees the bytes packed of those to pack, and Cancel stops it between chunks.
+            let control = crate::ql::QueryControl::current();
+            if let Some(c) = &control {
+                let size: u64 = files.iter().map(|(src, _)| std::fs::metadata(src).map_or(0, |m| m.len())).sum();
+                c.begin(crate::ql::QueryStage::Writing, usize::try_from(size).unwrap_or(usize::MAX));
+            }
             for (src, rel) in files {
                 let name = rel
                     .components()
@@ -293,6 +299,7 @@ impl ProjectDir {
         }
     }
 }
+
 
 fn read_text(path: &Path) -> Result<String> {
     let f = std::fs::File::open(path).with_context(|| format!("cannot open {}", path.display()))?;
@@ -461,6 +468,21 @@ mod tests {
     }
 
     #[test]
+    fn a_cancelled_export_leaves_neither_the_archive_nor_its_partial_file() {
+        let root = temp("export-cancel");
+        let dir = root.join("c.debrief");
+        let p = ProjectDir::create(&dir, "c").unwrap();
+        std::fs::write(dir.join("data.duckdb"), vec![7u8; 600_000]).unwrap();
+        let out = root.join("c.debriefz");
+        let control = crate::ql::QueryControl::new();
+        control.cancel();
+        let err = control.scope(|| p.export(&out)).unwrap_err();
+        assert!(format!("{err:#}").contains("cancelled"), "{err:#}");
+        assert!(!out.exists() && !root.join("c.debriefz.part").exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn projects_export_without_caches_and_open_again() {
         let root = temp("export");
         let dir = root.join("incident.debrief");
@@ -479,8 +501,13 @@ mod tests {
             vec!["data.duckdb", "project.toml", "segments/0001.parquet", "snapshots/s1.json"]
         );
         let out = root.join("incident.debriefz");
-        let bytes = p.export(&out).unwrap();
+        // The writing is reported as bytes packed of bytes to pack, and ends complete.
+        let control = crate::ql::QueryControl::new();
+        let bytes = control.scope(|| p.export(&out)).unwrap();
         assert!(bytes > 100_000);
+        let progress = control.progress();
+        assert_eq!(progress.stage, crate::ql::QueryStage::Writing);
+        assert!(progress.total > 100_000 && progress.done == progress.total, "{progress:?}");
         assert!(!root.join("incident.debriefz.part").exists());
         let opened = open_package(&out, &root.join("open")).unwrap();
         let (opened, manifest) = project(opened);

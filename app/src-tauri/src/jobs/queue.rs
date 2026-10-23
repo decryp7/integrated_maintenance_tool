@@ -188,6 +188,7 @@ fn result_type(r: &JobResult) -> &'static str {
         JobResult::Proposal { .. } => "proposal",
         JobResult::Chat { .. } => "chat",
         JobResult::File { .. } => "file",
+        JobResult::Value { .. } => "value",
         JobResult::Workspace => "workspace",
         JobResult::View { .. } => "view",
         JobResult::Model { .. } => "model",

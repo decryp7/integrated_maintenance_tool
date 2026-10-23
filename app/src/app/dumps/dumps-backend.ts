@@ -1,4 +1,5 @@
 import { inject, Provider } from '@angular/core';
+import { jobValue } from '../jobs/job-value';
 import { invoke as tauriInvoke } from '../core/activity/ipc';
 import {
   DumpDocSummary,
@@ -70,8 +71,10 @@ export class TauriDumpsBackend extends DumpsBackend {
   sniff(paths: string[]) {
     return this.invoke<DumpSniffResult[]>('dumps_sniff', { paths });
   }
-  open(path: string) {
-    return this.invoke<DumpDocSummary>('dumps_open', { path });
+  /** The command starts an import job and returns its id; the opened document is the job's value. */
+  async open(path: string) {
+    const job = await this.invoke<number>('dumps_open', { path });
+    return jobValue<DumpDocSummary>(this.invoke, job);
   }
   list() {
     return this.invoke<DumpDocSummary[]>('dumps_list');

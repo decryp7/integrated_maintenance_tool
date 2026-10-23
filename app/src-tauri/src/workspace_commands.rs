@@ -517,7 +517,8 @@ pub(crate) async fn session_of(state: &CurrentWindow, name: String, ui: Value) -
 
 /// Saves the window's store as a project: `<name>.debriefz`, self-contained (events, sources, diagnostics, the
 /// profile, the UI state and reports) and shareable; it opens without the original log files. Written by a
-/// file job (it can take a while for a large store); returns the path and name at once.
+/// file job (it can take a while for a large store): the command returns the job's id at once and the job's
+/// value (`jobs_wait`) is the saved project's path and name.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // the command's arguments are its wire contract
 pub(crate) async fn save_project<R: Runtime>(
@@ -530,7 +531,7 @@ pub(crate) async fn save_project<R: Runtime>(
     ui: Value,
     reports: Option<Vec<Value>>,
     overwrite: Option<bool>,
-) -> CmdResult<crate::services::project::SavedProject> {
+) -> CmdResult<u64> {
     crate::share::refuse_bundle_folder(&path)?;
     let target = grants.write(&path, &[debrief_core::package::ARCHIVE_EXTENSION])?;
     let reports = crate::share::parse_reports(reports.unwrap_or_default())?;
@@ -544,53 +545,35 @@ pub(crate) async fn save_project<R: Runtime>(
         ..ProjectManifest::default()
     };
     let (n, out) = (name.clone(), file.clone());
-    // A file job: the Jobs pane shows the phases and the bytes written, and Cancel stops the copy of the store.
+    // A file job: the Jobs pane shows the phases and the bytes packed, and Cancel stops the copy of the store.
     let spec = crate::jobs::export_spec("Saving", Some(state.label()), &file);
-    let control = debrief_core::ql::QueryControl::new();
-    let (probe_dir, probe_path) = (store.store_dir(), file.clone());
-    let controls = crate::jobs::Controls::cancel({
-        let c = control.clone();
-        move || c.cancel()
-    })
-    .with_probe(move || {
-        use debrief_core::package::{export_phase, ExportPhase};
-        // The phase is told by the files the export leaves (the store may be in another process).
-        Some(match export_phase(&probe_dir, &probe_path) {
-            ExportPhase::Checkpoint => crate::jobs::JobProgress::in_phase("Checkpoint", crate::jobs::PhaseScale::Indeterminate, 0, 0),
-            ExportPhase::CopyingDatabase => {
-                crate::jobs::JobProgress::in_phase("Copying database", crate::jobs::PhaseScale::Indeterminate, 0, 0)
-            }
-            ExportPhase::WritingArchive { bytes } => {
-                crate::jobs::JobProgress::in_phase("Writing archive", crate::jobs::PhaseScale::Bytes, bytes, 0)
-            }
-        })
-    });
-    crate::jobs::run(
+    let (controls, control) = crate::jobs::store_cancel(Default::default());
+    let controls = crate::jobs::with_stage_probe(controls, &control, "Reading the events", "Writing the project file");
+    let win = state.arc().clone();
+    let app2 = app.clone();
+    crate::jobs::start_value(
         &app,
         spec,
         controls,
-        move |ctx: &crate::jobs::JobCtx| -> CmdResult<crate::jobs::Done<()>> {
+        move |ctx: &crate::jobs::JobCtx| -> CmdResult<crate::jobs::Done<crate::services::project::SavedProject>> {
             ctx.phase("Saving the notes and reports", crate::jobs::PhaseScale::Indeterminate, 0, 0);
             crate::services::project::write_ui(&store.store_dir(), &ui, &reports)?;
             if ctx.is_cancelled() {
-                return Err(CmdError::from("saving the project was cancelled".to_string()));
+                return Err(CmdError::new(crate::ErrorCode::Cancelled, "saving the project was cancelled"));
             }
             ctx.phase("Preparing the store", crate::jobs::PhaseScale::Indeterminate, 0, 0);
             let bytes = control.scope(|| store.export_project(&manifest, &out)).map_err(CmdError::from)?;
             log::info!(Bytes = bytes; "Project saved");
-            Ok(crate::jobs::Done::new(()).with_result(crate::jobs::JobResult::File {
-                path: out.display().to_string(),
-            }))
+            // "Save" writes here again without a dialog.
+            grants.grant(&out, crate::paths::Access::Write, crate::paths::GrantSource::Project)?;
+            win.set_project(Some(path.clone()));
+            crate::recent::opened_project(&app2, &path, &n);
+            let safe = privacy::safe_path(std::path::Path::new(&path));
+            domain_event("project.saved", op.as_deref(), &[("Path", &safe)]);
+            Ok(crate::jobs::Done::new(crate::services::project::SavedProject { path, name: n })
+                .with_result(crate::jobs::JobResult::file(out.display().to_string())))
         },
     )
-    .await?;
-    // "Save" writes here again without a dialog.
-    grants.grant(target.path(), crate::paths::Access::Write, crate::paths::GrantSource::Project)?;
-    state.set_project(Some(path.clone()));
-    crate::recent::opened_project(&app, &path, &n);
-    let safe = privacy::safe_path(std::path::Path::new(&path));
-    domain_event("project.saved", op.as_deref(), &[("Path", &safe)]);
-    Ok(crate::services::project::SavedProject { path, name })
 }
 
 /// Opens a project the user chose (or one from the recent list): an `.debriefz` (extracted into Debrief's stores
@@ -1030,7 +1013,7 @@ mod tests {
 
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
-        let job = block(export_events(app.handle().clone(), st(), OpId::default(), req)).unwrap();
+        let job = crate::test_support::returns_fast("export_events", export_events(app.handle().clone(), st(), OpId::default(), req)).unwrap();
         assert_eq!(
             crate::test_support::job_done(&app, job),
             format!("Exported {} events.", summary["total"])
@@ -1054,17 +1037,21 @@ mod tests {
         overwrite: Option<bool>,
     ) -> CmdResult<crate::services::project::SavedProject> {
         let st = crate::windows::CurrentWindow::of(app.handle(), label).unwrap();
-        block(save_project(
-            app.handle().clone(),
-            st,
-            crate::paths::WindowGrants::of(app.handle(), label),
-            OpId::default(),
-            path.to_string(),
-            name.to_string(),
-            ui,
-            reports,
-            overwrite,
-        ))
+        let started = crate::test_support::returns_fast(
+            "save_project",
+            save_project(
+                app.handle().clone(),
+                st,
+                crate::paths::WindowGrants::of(app.handle(), label),
+                OpId::default(),
+                path.to_string(),
+                name.to_string(),
+                ui,
+                reports,
+                overwrite,
+            ),
+        );
+        crate::test_support::finished(app, started).map(|v| serde_json::from_value(v).expect("the saved project"))
     }
 
     fn open(app: &tauri::App<MockRuntime>, label: &str, path: &str) -> CmdResult<OpenedProject> {
@@ -1212,7 +1199,7 @@ mod tests {
         );
         assert!(e.props["Rows"].parse::<u64>().unwrap() > 0);
         let file = dir.0.join("p.debriefz").to_string_lossy().into_owned();
-        block(save_project(
+        crate::test_support::finished(&app, block(save_project(
             app.handle().clone(),
             st(),
             crate::paths::WindowGrants::of(app.handle(), "main"),
@@ -1222,7 +1209,7 @@ mod tests {
             json!({}),
             None,
             None,
-        ))
+        )))
         .unwrap();
         assert!(crate::tools::tests::domain_event("project.saved", "op-save").props["Path"].starts_with("<dir#"));
         block(open_project(
@@ -1500,7 +1487,7 @@ mod tests {
         )
         .unwrap();
         let ui = json!({ "profiling": { "captures": [s(&capture), "relative.cpuprofile"] } });
-        block(save_project(
+        crate::test_support::finished(&app, block(save_project(
             app.handle().clone(),
             st(),
             grants(),
@@ -1510,7 +1497,7 @@ mod tests {
             ui,
             None,
             None,
-        ))
+        )))
         .unwrap();
         let listed = crate::recent::recents(app.handle()).list().projects;
         assert_eq!((listed[0].name.as_str(), listed.len()), ("P", 1));

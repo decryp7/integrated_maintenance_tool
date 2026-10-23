@@ -240,7 +240,7 @@ pub async fn dumps_open<R: tauri::Runtime>(
     state: CurrentWindow,
     grants: WindowGrants,
     path: String,
-) -> CmdResult<DumpDocSummary> {
+) -> CmdResult<u64> {
     let docs = state.dumps.docs.clone();
     let label = state.label().to_string();
     let symbols = crate::symbols::of(&app);
@@ -275,8 +275,8 @@ pub async fn dumps_open<R: tauri::Runtime>(
         }
     });
     let app2 = app.clone();
-    crate::jobs::run(
-        &app2,
+    crate::jobs::start_value(
+        &app,
         spec,
         controls,
         move |ctx: &crate::jobs::JobCtx| -> CmdResult<crate::jobs::Done<DumpDocSummary>> {
@@ -353,12 +353,11 @@ pub async fn dumps_open<R: tauri::Runtime>(
                     path,
                     max_text: limits.max_text,
                 };
-                let _ = start_symbols_job(&app, target, download, reimport);
+                let _ = start_symbols_job(&app2, target, download, reimport);
             }
             Ok(crate::jobs::Done::new(summary))
         },
     )
-    .await
 }
 
 /// Event to the window when the symbols of one of its dumps changed (the PDBs arrived, or the download ended).
@@ -868,6 +867,21 @@ mod tests {
         crate::tools::tests::ipc(w, cmd, body)
     }
 
+    /// `dumps_open` over the IPC path: the command returns its job at once (checked); the job's value or how it failed.
+    fn open_dump(
+        app: &tauri::App<tauri::test::MockRuntime>,
+        w: &tauri::WebviewWindow<tauri::test::MockRuntime>,
+        path: &str,
+    ) -> Result<serde_json::Value, String> {
+        let started = std::time::Instant::now();
+        let id = ipc(w, "dumps_open", serde_json::json!({ "path": path })).map_err(|e| e["message"].to_string())?;
+        assert!(
+            started.elapsed() < crate::test_support::FAST_RETURN,
+            "dumps_open must return its job at once"
+        );
+        crate::test_support::job_value(app, id.as_u64().expect("a job id"))
+    }
+
     /// The commands over the real IPC path, with the real dumps plugin process when the plugins binary is built
     /// (the workspace's tests build it); without it, opening says the plugin is unavailable.
     #[test]
@@ -881,11 +895,11 @@ mod tests {
             .to_string_lossy()
             .into_owned();
         let sniff = ipc(&a, "dumps_sniff", json!({ "paths": [dmp, "/definitely/missing.dmp"] })).unwrap();
-        let opened = ipc(&a, "dumps_open", json!({ "path": dmp }));
+        let opened = open_dump(&app, &a, &dmp);
         let Ok(doc) = opened else {
             let e = opened.unwrap_err();
             eprintln!("the plugins binary has no dumps plugin; only the unavailable path was tested");
-            assert_eq!(e["code"], "unavailable", "{e}");
+            assert!(e.contains("not available"), "{e}");
             assert_eq!(sniff[0]["kind"], "none");
             return;
         };
@@ -912,8 +926,8 @@ mod tests {
 
         let umdh = samples().join("dumps/umdh");
         let snap = |n: &str| umdh.join(n).to_string_lossy().into_owned();
-        let s1 = ipc(&a, "dumps_open", json!({ "path": snap("OrderService-4120-snap-1030.txt") })).unwrap();
-        let s3 = ipc(&a, "dumps_open", json!({ "path": snap("OrderService-4120-snap-1040.txt") })).unwrap();
+        let s1 = open_dump(&app, &a, &snap("OrderService-4120-snap-1030.txt")).unwrap();
+        let s3 = open_dump(&app, &a, &snap("OrderService-4120-snap-1040.txt")).unwrap();
         assert_eq!(s1["kind"], "umdhSnapshot");
         let page = ipc(
             &a,
@@ -938,7 +952,7 @@ mod tests {
         assert_eq!(wrong["code"], "unsupported");
         assert_eq!(ipc(&a, "dumps_close", json!({ "id": id })).unwrap(), json!(true));
         assert_eq!(ipc(&a, "dumps_overview", json!({ "id": id })).unwrap_err()["code"], "notFound");
-        let not = ipc(&a, "dumps_open", json!({ "path": samples().join("README.md").to_string_lossy() })).unwrap_err();
-        assert_eq!(not["code"], "unsupported");
+        let not = open_dump(&app, &a, &samples().join("README.md").to_string_lossy()).unwrap_err();
+        assert!(not.contains("neither a dump nor a UMDH log"), "{not}");
     }
 }

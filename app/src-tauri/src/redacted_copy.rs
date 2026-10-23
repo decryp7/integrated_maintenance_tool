@@ -129,8 +129,8 @@ fn redacted_ui(redactor: &Redactor, ui: &Value, reports: &[Value]) -> Result<Str
     serde_json::to_string(&doc).map_err(|e| CmdError::new(crate::ErrorCode::Internal, e.to_string()))
 }
 
-/// Writes the window's project as `<name>.debriefz` with everything redacted (see the module docs). Returns what it holds
-/// and what it left out.
+/// Writes the window's project as `<name>.debriefz` with everything redacted (see the module docs). A file job does the
+/// work (the command returns its id at once): its value (`jobs_wait`) is what the copy holds and what it left out.
 #[tauri::command]
 #[allow(clippy::too_many_arguments)] // the command's arguments are its wire contract
 pub(crate) async fn export_redacted_copy<R: Runtime>(
@@ -144,7 +144,7 @@ pub(crate) async fn export_redacted_copy<R: Runtime>(
     ui: Value,
     reports: Option<Vec<Value>>,
     overwrite: Option<bool>,
-) -> CmdResult<RedactedExport> {
+) -> CmdResult<u64> {
     crate::share::refuse_bundle_folder(&path)?;
     let target = grants.write(&path, &[debrief_core::package::ARCHIVE_EXTENSION])?;
     let file = target.path().to_path_buf();
@@ -165,35 +165,37 @@ pub(crate) async fn export_redacted_copy<R: Runtime>(
         out: file,
         ui_json: Some(ui_json),
     };
-    // A file job: the Jobs pane shows the events redacted so far, and Cancel stops the copy and removes its work folder.
+    // A file job: the Jobs pane shows each stage (events redacted, the copy imported, the archive written) with its
+    // counts, and Cancel stops the copy and removes its work folder and any partial archive.
     let spec = crate::jobs::export_spec("Redacted copy", Some(state.label()), &request.out);
-    let result = crate::jobs::JobResult::File {
-        path: request.out.display().to_string(),
-    };
+    let result = crate::jobs::JobResult::file(request.out.display().to_string());
     let (controls, control) = crate::jobs::store_cancel(Default::default());
-    let controls = crate::jobs::with_phase_probe(controls, &control, "Redacting events");
+    let controls = crate::jobs::with_stage_probe(controls, &control, "Redacting events", "Writing the archive");
     let win = state.arc().clone();
-    let report = crate::jobs::run(
+    crate::jobs::start_value(
         &app,
         spec,
         controls,
         move |ctx: &crate::jobs::JobCtx| -> CmdResult<crate::jobs::Done<RedactedExport>> {
             ctx.phase("Preparing the copy", crate::jobs::PhaseScale::Indeterminate, 0, 0);
-            let r = crate::jobs::with_store(&win, &control, |s| s.export_redacted_project(&request).map_err(CmdError::from))?;
-            Ok(crate::jobs::Done::new(r).with_result(result))
+            let report = crate::jobs::with_store(&win, &control, |s| s.export_redacted_project(&request).map_err(CmdError::from))?;
+            let safe = privacy::safe_path(std::path::Path::new(&path));
+            domain_event("project.shared-redacted", op.as_deref(), &[("Path", &safe)]);
+            log::info!(Sources = report.sources as u64, Excluded = report.excluded.len() as u64, Bytes = report.bytes; "Redacted copy written");
+            ctx.message(&format!(
+                "Redacted copy written: {} events from {} sources.",
+                report.events, report.sources
+            ));
+            Ok(crate::jobs::Done::new(report).with_result(result))
         },
     )
-    .await?;
-    let safe = privacy::safe_path(std::path::Path::new(&path));
-    domain_event("project.shared-redacted", op.as_deref(), &[("Path", &safe)]);
-    log::info!(Sources = report.sources as u64, Excluded = report.excluded.len() as u64, Bytes = report.bytes; "Redacted copy written");
-    Ok(report)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use debrief_core::redact::RedactRuleCfg;
+    use tauri::Manager as _;
 
     fn base() -> RedactCfg {
         RedactCfg {
@@ -265,6 +267,56 @@ mod tests {
     }
 
     #[test]
+    fn a_refused_copy_never_becomes_a_job_and_a_cancelled_one_leaves_no_file() {
+        use crate::test_support::{block, finished, main_window, test_app, TempDir};
+        let dir = TempDir::new("redcopy-cancel");
+        std::fs::write(dir.0.join("app.log"), "2026-10-14 10:00:00 INFO a@invented.test\n").unwrap();
+        let app = test_app(None);
+        crate::paths::allow_under(app.handle(), "main", &dir.0);
+        block(crate::workspace_commands::open_paths(
+            app.handle().clone(),
+            main_window(&app),
+            vec![dir.0.join("app.log").to_string_lossy().into_owned()],
+        ))
+        .unwrap();
+        let out = dir.0.join("never.debriefz");
+        let start = |options: CopyOptions| {
+            block(export_redacted_copy(
+                app.handle().clone(),
+                main_window(&app),
+                crate::paths::WindowGrants::of(app.handle(), "main"),
+                OpId::default(),
+                out.to_string_lossy().into_owned(),
+                "N".into(),
+                options,
+                serde_json::json!({}),
+                None,
+                None,
+            ))
+        };
+        // Nothing to redact with: refused by the command itself, before any job exists.
+        let refused = start(CopyOptions {
+            detectors: Some(vec![]),
+            ..CopyOptions::default()
+        })
+        .unwrap_err();
+        assert!(refused.message.contains("at least one"));
+        // A job that is cancelled: the engine stops, the archive is not there, nor its partial file.
+        let started = start(CopyOptions {
+            detectors: Some(vec![Detector::Email]),
+            ..CopyOptions::default()
+        });
+        let id = started.unwrap();
+        let _ = app.state::<crate::jobs::Jobs>().cancel(crate::jobs::JobId(id));
+        let end = crate::test_support::job_end(&app, id);
+        if end.state == crate::jobs::JobState::Cancelled {
+            assert!(!out.exists());
+        }
+        assert!(!out.with_extension("debriefz.part").exists());
+        let _ = finished;
+    }
+
+    #[test]
     fn a_window_previews_and_writes_a_copy_without_the_secret() {
         use crate::test_support::{block, main_window, test_app, TempDir};
         let dir = TempDir::new("redcopy-cmd");
@@ -297,19 +349,22 @@ mod tests {
         .unwrap_err();
         assert!(refused.message.contains("at least one"));
         let out = dir.0.join("shared.debriefz");
-        let report = block(export_redacted_copy(
-            app.handle().clone(),
-            main_window(&app),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            out.to_string_lossy().into_owned(),
-            "Shared".into(),
-            options(),
-            serde_json::json!({"note": "carol.invented@example.test"}),
-            None,
-            None,
-        ))
-        .unwrap();
+        let started = crate::test_support::returns_fast(
+            "export_redacted_copy",
+            export_redacted_copy(
+                app.handle().clone(),
+                main_window(&app),
+                crate::paths::WindowGrants::of(app.handle(), "main"),
+                OpId::default(),
+                out.to_string_lossy().into_owned(),
+                "Shared".into(),
+                options(),
+                serde_json::json!({"note": "carol.invented@example.test"}),
+                None,
+                None,
+            ),
+        );
+        let report: RedactedExport = serde_json::from_value(crate::test_support::finished(&app, started).unwrap()).unwrap();
         assert_eq!((report.sources, report.events), (1, 2));
         let bytes = std::fs::read(&out).unwrap();
         assert!(!bytes.windows(7).any(|w| w == b"invente"));

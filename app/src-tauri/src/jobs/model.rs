@@ -316,8 +316,15 @@ pub enum JobResult {
         #[serde(rename = "sessionId")]
         session_id: String,
     },
-    /// A written file (export): View reveals it.
-    File { path: String },
+    /// A written file (export): View reveals it. `detail` is what the command that started the job returns to its
+    /// waiter besides the path (a redacted copy's report); never shown.
+    File {
+        path: String,
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        detail: Option<Value>,
+    },
+    /// What the command that started the job returns to its waiter (`jobs_wait`); nothing for View to open.
+    Value { value: Value },
     /// The window's workspace (import).
     Workspace,
     /// An analysis view, with the query it ran.
@@ -336,6 +343,22 @@ pub enum JobResult {
 }
 
 impl JobResult {
+    /// A written file.
+    pub fn file(path: impl Into<String>) -> JobResult {
+        JobResult::File {
+            path: path.into(),
+            detail: None,
+        }
+    }
+
+    /// A written file, with what the starting command returns to its waiter.
+    pub fn file_with(path: impl Into<String>, detail: Value) -> JobResult {
+        JobResult::File {
+            path: path.into(),
+            detail: Some(detail),
+        }
+    }
+
     /// Results kept with a job are bounded: an oversized payload is not saved (View then reports it gone).
     pub const MAX_PAYLOAD_BYTES: usize = 256 * 1024;
 
@@ -345,7 +368,8 @@ impl JobResult {
             | JobResult::Proposal { proposal: v }
             | JobResult::FolderSurvey { outcome: v }
             | JobResult::Storage { result: v }
-            | JobResult::RelatedLogs { result: v } => v.to_string().len(),
+            | JobResult::RelatedLogs { result: v }
+            | JobResult::Value { value: v } => v.to_string().len(),
             _ => 0,
         };
         (size <= Self::MAX_PAYLOAD_BYTES).then_some(self)

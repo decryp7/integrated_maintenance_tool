@@ -2,6 +2,7 @@ import { invoke } from './activity/ipc';
 import { inject, Provider } from '@angular/core';
 import { InstalledPluginDto, InstalledPluginsDto, PackageReviewDto, PermissionDto, Report } from './api.types';
 import { DebriefBackend } from './backend';
+import { jobValue } from '../jobs/job-value';
 import { reportBackendFailures } from './failure-reporter';
 import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
@@ -339,14 +340,16 @@ export class TauriToolsBackend extends ToolsBackend {
   lastSession() {
     return this.call<string | null>('last_session');
   }
-  saveProject(path: string, name: string, ui: unknown, reports?: Report[], overwrite = false) {
-    return this.call<ProjectSaved>('save_project', {
+  /** The command starts a file job and returns its id; the saved project is the job's value. */
+  async saveProject(path: string, name: string, ui: unknown, reports?: Report[], overwrite = false) {
+    const job = await this.call<number>('save_project', {
       path,
       name,
       ui,
       ...(reports ? { reports } : {}),
       ...(overwrite ? { overwrite } : {}),
     });
+    return jobValue<ProjectSaved>(this.call, job);
   }
   openProject(path: string) {
     return this.call<ProjectOpened>('open_project', { path });

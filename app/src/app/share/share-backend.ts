@@ -1,4 +1,5 @@
 import { invoke } from '../core/activity/ipc';
+import { jobValue } from '../jobs/job-value';
 import {
   Analyzed,
   BundleOpened,
@@ -89,9 +90,10 @@ export class TauriShareBackend extends ShareBackend {
   redactedCopyPreview(options: RedactedCopyOptions) {
     return this.call<RedactedCopyPreview>('redacted_copy_preview', { options });
   }
-  exportRedactedCopy(request: RedactedCopyRequest) {
+  /** The command starts a file job and returns its id; what the copy holds is the job's value. */
+  async exportRedactedCopy(request: RedactedCopyRequest) {
     const { path, name, options, ui, reports, overwrite } = request;
-    return this.call<RedactedExport>('export_redacted_copy', {
+    const job = await this.call<number>('export_redacted_copy', {
       path,
       name,
       options,
@@ -99,5 +101,6 @@ export class TauriShareBackend extends ShareBackend {
       ...(reports ? { reports } : {}),
       ...(overwrite ? { overwrite } : {}),
     });
+    return jobValue<RedactedExport>(this.call, job);
   }
 }

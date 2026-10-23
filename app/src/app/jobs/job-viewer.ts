@@ -109,6 +109,7 @@ export class JobViewer {
         return;
       }
       case 'file':
+      case 'value':
         return;
     }
   }

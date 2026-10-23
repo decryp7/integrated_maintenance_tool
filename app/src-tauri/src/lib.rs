@@ -809,6 +809,35 @@ pub(crate) mod test_support {
         end.message.unwrap_or_default()
     }
 
+    /// Waits for job `id`, which a command started and returned (see `jobs::start_value`); the value it ends with, or
+    /// the text of how it failed.
+    pub fn job_value(app: &tauri::App<MockRuntime>, id: u64) -> Result<serde_json::Value, String> {
+        let end = job_end(app, id);
+        match (end.state, end.result) {
+            (jobs::JobState::Done, Some(jobs::JobResult::Value { value })) => Ok(value),
+            (jobs::JobState::Done, Some(jobs::JobResult::File { detail: Some(value), .. })) => Ok(value),
+            (state, result) => Err(end.error.unwrap_or_else(|| format!("the job ended {state:?} without a value ({result:?})"))),
+        }
+    }
+
+    /// A started command's result (`CmdResult<job id>`) once its job ended: the job's value, or the command's or the
+    /// job's failure as an error.
+    pub fn finished(app: &tauri::App<MockRuntime>, started: crate::CmdResult<u64>) -> crate::CmdResult<serde_json::Value> {
+        job_value(app, started?).map_err(crate::CmdError::from)
+    }
+
+    /// Asserts that a command's future returns within `FAST_RETURN` and hands back its output. A command that does long work
+    /// must start a job and return its id: this is the check, applied to the commands that used to await their jobs.
+    pub const FAST_RETURN: std::time::Duration = std::time::Duration::from_millis(250);
+
+    pub fn returns_fast<F: std::future::Future>(what: &str, f: F) -> F::Output {
+        let started = std::time::Instant::now();
+        let out = block(f);
+        let took = started.elapsed();
+        assert!(took < FAST_RETURN, "{what} took {took:?} to return: long work belongs in a job, not in the command");
+        out
+    }
+
     /// The clock of the test app's jobs and notification centre.
     pub struct TestClock(pub std::sync::Arc<jobs::ManualClock>);
 

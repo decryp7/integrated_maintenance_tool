@@ -125,6 +125,11 @@ pub(super) fn write_csv(conn: &Connection, sql: &str, req: &SqlExportRequest, li
     out.write_record(described.iter().map(|(n, _)| defuse(n.clone())))
         .map_err(|e| io(target, e))?;
     let (mut rows, mut bytes, mut truncated) = (0u64, 0u64, false);
+    // The export job shows the rows written so far (the total is not known before the query has run).
+    let progress = debrief_core::ql::QueryControl::current();
+    if let Some(c) = &progress {
+        c.begin(debrief_core::ql::QueryStage::Matching, 0);
+    }
     let mut record: Vec<String> = Vec::with_capacity(described.len());
     let mut stmt = conn.prepare(&wrapped).map_err(|e| stopper.error(e, limits.time))?;
     let mut result = stmt.query([]).map_err(|e| stopper.error(e, limits.time))?;
@@ -142,6 +147,9 @@ pub(super) fn write_csv(conn: &Connection, sql: &str, req: &SqlExportRequest, li
         out.write_record(&record).map_err(|e| io(target, e))?;
         rows += 1;
         bytes += row_bytes;
+        if let Some(c) = &progress {
+            c.advance(1);
+        }
     }
     drop(result);
     drop(stmt);
