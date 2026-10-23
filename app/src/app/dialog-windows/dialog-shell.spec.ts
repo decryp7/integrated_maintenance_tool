@@ -1,5 +1,7 @@
 import { Component, inject, input, Injector } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { CmdError } from '../core/cmd-error';
+import { deniedCommand, reportRefusedCommand } from '../core/denied-command';
 import { Logger } from '../core/logger';
 import { UiSync } from '../popout/ui-sync';
 import { el, settle } from '../../testing/helpers';
@@ -177,5 +179,16 @@ describe('DialogShell', () => {
     const run = vi.spyOn(TestBed.inject(UiSync), 'runInHost').mockReturnValue(true);
     el<HTMLButtonElement>(fixture, '[data-testid=dialog-error-report]').click();
     expect(run).toHaveBeenCalledWith('dialogRun', 'help.reportProblem');
+  });
+
+  it('shows an inline alert when the engine refuses a command for this window, never silently', async () => {
+    const { fixture } = await setup();
+    deniedCommand.set(null);
+    reportRefusedCommand('resolve_close', new CmdError({ code: 'denied', message: 'resolve_close is not available in this window', retryable: false }));
+    await settle(fixture);
+    expect(el(fixture, '[data-testid=dialog-denied]').textContent).toContain('resolve_close');
+    deniedCommand.set(null);
+    reportRefusedCommand('x', new CmdError({ code: 'denied', message: 'Access is denied.', retryable: false }));
+    expect(deniedCommand()).toBeNull();
   });
 });

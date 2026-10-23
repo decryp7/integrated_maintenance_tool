@@ -2,6 +2,7 @@ import { invoke as tauriInvoke, InvokeArgs, InvokeOptions } from '@tauri-apps/ap
 import { currentOperationId } from './runtime';
 import { OP_HEADER } from './types';
 import { fromRejection } from '../cmd-error';
+import { reportRefusedCommand } from '../denied-command';
 import { reportCommandFailure, reportCommandSuccess } from '../store-health';
 
 /** `options` with the operation id header added (existing headers kept; an explicit one wins). */
@@ -33,6 +34,7 @@ export function invoke<T>(cmd: string, args?: InvokeArgs, options?: InvokeOption
     .catch((e: unknown) => {
     const err = fromRejection(e);
     reportCommandFailure(err);
+    reportRefusedCommand(cmd, err);
     throw err;
   });
 }

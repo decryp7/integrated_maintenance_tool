@@ -13,6 +13,7 @@ import {
   viewChild,
   ViewContainerRef,
 } from '@angular/core';
+import { deniedCommand } from '../core/denied-command';
 import { Logger } from '../core/logger';
 import { REPORT_PROBLEM_COMMAND } from '../diagnostics/snapshot.types';
 import { WorkspaceStore } from '../core/workspace.store';
@@ -56,6 +57,9 @@ const BODY_PADDING_PX = 16;
       } @else if (!component()) {
         <p class="loading" data-testid="dialog-loading" i18n="@@dialogWindow.loading">Loading…</p>
       }
+      @if (denied(); as d) {
+        <p class="denied" role="alert" data-testid="dialog-denied">{{ d }}</p>
+      }
       <ng-container #host />
     </main>
   `,
@@ -63,9 +67,10 @@ const BODY_PADDING_PX = 16;
     /* A dialog window is a full-height column: the content fills it and scrolls inside (no sizes of the in-page overlay). */
     :host { --dialog-window-height: 100%; --dialog-window-max-height: none; display: block; height: 100vh; background: var(--bg-2); color: var(--text); }
     .body { box-sizing: border-box; height: 100%; min-height: 0; overflow: auto; padding: 16px; display: flex; flex-direction: column; gap: 12px; }
-    .body > :not(.loading):not(.failed):not(.foot) { flex: 1 1 auto; min-height: 0; }
+    .body > :not(.loading):not(.failed):not(.denied):not(.foot) { flex: 1 1 auto; min-height: 0; }
     .loading { margin: auto; color: var(--muted); font-size: var(--fs-md); }
     .failed { margin: auto 0; }
+    .denied { margin: 0; padding: 8px 10px; border: 1px solid var(--lvl-error); border-radius: 6px; color: var(--lvl-error); }
     .failed-title { margin: 0 0 8px; font-size: var(--fs-lg); font-weight: 600; }
     .failed-reason { margin: 0; color: var(--lvl-error); overflow-wrap: anywhere; }
     .foot { display: flex; justify-content: flex-end; gap: 8px; }
@@ -90,6 +95,8 @@ export class DialogShell {
   protected readonly component = signal<Type<unknown> | null>(null);
   protected readonly inputs = signal<Record<string, unknown>>({});
   protected readonly error = signal<string | null>(null);
+  /** A command this window may not call was refused (the dialog's own error handling must not be the only place it shows). */
+  protected readonly denied = deniedCommand;
 
   /** What the content injects as `DIALOG_REF`: closing answers the host and ends this window. */
   readonly ref: DialogRef = { closed: new Promise(() => undefined), close: (result) => void this.close(result) };
