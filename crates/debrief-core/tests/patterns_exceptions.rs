@@ -977,3 +977,125 @@ fn serilog_templates_and_long_values_are_handled() {
     let v = &mined[0].placeholders[0].values[0].value;
     assert_eq!(v.chars().count(), debrief_core::patterns::MAX_VALUE_CHARS);
 }
+
+// ---------------------------------------------------------------------------
+// Pipelined mining equals the sequential path
+// ---------------------------------------------------------------------------
+
+mod pipelined {
+    use super::*;
+    use debrief_core::exceptions::group_pipelined;
+    use debrief_core::patterns::mine_pipelined;
+    use debrief_core::stages::Stages;
+    use std::sync::atomic::AtomicBool;
+
+    fn pool(n: usize) -> rayon::ThreadPool {
+        rayon::ThreadPoolBuilder::new().num_threads(n).build().unwrap()
+    }
+
+    /// Varied synthetic events: several templates with changing numbers, quoted values and some Serilog templates.
+    pub fn events(n: u32) -> Vec<Record> {
+        (0..n)
+            .map(|i| {
+                let mut r = match i % 7 {
+                    0 => rec(i, &format!("Connection to host-{} failed after {} ms", i % 13, i * 7 % 900)),
+                    1 => rec(i, &format!("User \"user{}\" logged in from 10.0.{}.{}", i % 50, i % 8, i % 250)),
+                    2 => rec(i, &format!("Request {} took {}ms status={}", i, i % 400, 200 + i % 3)),
+                    3 => rec(i, "Cache miss for key abc"),
+                    4 => rec(i, &format!("Disk {} at {}% full", i % 4, i % 100)),
+                    5 => {
+                        let mut r = rec(i, &format!("Processed batch {i}"));
+                        r.template = Some("Processed batch {Id}".into());
+                        r
+                    }
+                    _ => rec(i, &format!("Unexpected token '{}' at line {}", i % 9, i)),
+                };
+                r.ts = Some(1_700_000_000_000 + i64::from(i) * 1000);
+                if i % 5 == 0 {
+                    r.exception = Some(if i % 10 == 0 { DOTNET } else { JAVA }.to_string());
+                }
+                r
+            })
+            .collect()
+    }
+
+    #[test]
+    fn mining_in_a_pipeline_gives_exactly_the_sequential_patterns() {
+        let data = events(6000);
+        let want = mine(data.iter(), &MinerConfig::default());
+        for threads in [1, 3] {
+            let p = pool(threads);
+            let stages = Stages {
+                pool: &p,
+                chunk: 97,
+                cancel: None,
+            };
+            let mut miner = PatternMiner::new(MinerConfig::default());
+            assert!(mine_pipelined(data.iter(), &mut miner, &stages));
+            let got = miner.clusters();
+            assert_eq!(format!("{got:?}"), format!("{want:?}"), "{threads} threads");
+        }
+        assert!(want.len() > 5);
+    }
+
+    #[test]
+    fn exception_grouping_in_a_pipeline_gives_exactly_the_sequential_groups() {
+        let data = events(4000);
+        let key = |r: &Record| format!("src{}", r.id % 3);
+        let want = group(data.iter().map(|r| (r, key(r))));
+        let p = pool(3);
+        let stages = Stages {
+            pool: &p,
+            chunk: 64,
+            cancel: None,
+        };
+        let (got, done) = group_pipelined(data.iter().map(|r| (r, key(r))), &stages);
+        assert!(done);
+        assert_eq!(got, want);
+        assert!(!want.is_empty());
+    }
+
+    #[test]
+    fn a_cancelled_mining_stops_early_and_reports_it() {
+        let data = events(5000);
+        let p = pool(2);
+        let cancel = AtomicBool::new(true);
+        let stages = Stages {
+            pool: &p,
+            chunk: 50,
+            cancel: Some(&cancel),
+        };
+        let mut miner = PatternMiner::new(MinerConfig::default());
+        assert!(!mine_pipelined(data.iter(), &mut miner, &stages));
+        assert!(miner.clusters().is_empty());
+    }
+
+    /// `cargo test -p debrief-core --release --test patterns_exceptions -- --ignored --nocapture`
+    #[test]
+    #[ignore = "timing"]
+    fn timing_sequential_against_pipelined() {
+        let data = events(400_000);
+        let t = std::time::Instant::now();
+        let a = mine(data.iter(), &MinerConfig::default());
+        let seq = t.elapsed();
+        let p = pool(7);
+        let stages = Stages {
+            pool: &p,
+            chunk: 2048,
+            cancel: None,
+        };
+        let t = std::time::Instant::now();
+        let mut miner = PatternMiner::new(MinerConfig::default());
+        mine_pipelined(data.iter(), &mut miner, &stages);
+        let pip = t.elapsed();
+        assert_eq!(a.len(), miner.clusters().len());
+        println!("patterns 400k: sequential {seq:?}, pipelined {pip:?}");
+        let t = std::time::Instant::now();
+        let g = group(data.iter().map(|r| (r, "x")));
+        let seq = t.elapsed();
+        let t = std::time::Instant::now();
+        let (g2, _) = group_pipelined(data.iter().map(|r| (r, "x")), &stages);
+        println!("exceptions 400k: sequential {seq:?}, pipelined {:?}", t.elapsed());
+        assert_eq!(g, g2);
+    }
+}

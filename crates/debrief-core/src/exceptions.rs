@@ -508,11 +508,40 @@ struct Acc {
 /// Groups the exceptions of `records` by fingerprint. Each item pairs a record with an instance key
 /// (such as its source file). Records without an exception are skipped. Result is ordered by count, most frequent first.
 pub fn group<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>) -> Vec<ExceptionGroup> {
-    let mut index: HashMap<String, usize> = HashMap::new();
-    let mut accs: Vec<Acc> = Vec::new();
+    let mut grouper = Grouper::default();
     for (r, instance) in records {
-        let instance = instance.as_ref();
-        let Some(text) = r.exception() else { continue };
+        grouper.add(r.exception().map(Parsed::of), &r, instance.as_ref());
+    }
+    grouper.finish()
+}
+
+/// [`group`] with the parsing and fingerprinting (the costly, pure part) done on `stages`' pool and the counting in
+/// record order on one thread: the same groups as [`group`], found faster. The flag is false when cancelled.
+pub fn group_pipelined<R: RowRef + Send + Sync, K: AsRef<str> + Send + Sync>(
+    records: impl Iterator<Item = (R, K)>,
+    stages: &crate::stages::Stages<'_>,
+) -> (Vec<ExceptionGroup>, bool) {
+    let mut grouper = Grouper::default();
+    let done = stages.run(
+        records,
+        |(r, _)| r.exception().map(Parsed::of),
+        |(r, instance), parsed, _| grouper.add(parsed, &r, instance.as_ref()),
+    );
+    (grouper.finish(), done)
+}
+
+/// What parsing one exception text yields: the fingerprint and the group's descriptive fields. Pure in the text, so
+/// it can be computed on any thread before the ordered counting.
+pub struct Parsed {
+    fp: String,
+    type_name: String,
+    message: String,
+    top_frame: Option<String>,
+}
+
+impl Parsed {
+    /// Parses and fingerprints `text`.
+    pub fn of(text: &str) -> Parsed {
         let (fp, type_name, message, top_frame) = match parse_exception(text) {
             Some(info) => {
                 let top = significant_frames(info.root(), 1).first().map(|(_, f)| f.function.clone());
@@ -524,7 +553,36 @@ pub fn group<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>
                 (text_fingerprint(first), "Unknown".to_string(), message, None)
             }
         };
-        let i = *index.entry(fp.clone()).or_insert_with(|| {
+        Parsed {
+            fp,
+            type_name,
+            message,
+            top_frame,
+        }
+    }
+}
+
+/// Counts exceptions into groups, in the order the records arrive.
+#[derive(Default)]
+pub struct Grouper {
+    index: HashMap<String, usize>,
+    accs: Vec<Acc>,
+}
+
+impl Grouper {
+    /// Counts `r` under `instance`; a record without an exception (`parsed` none) is skipped.
+    pub fn add<R: RowRef + ?Sized>(&mut self, parsed: Option<Parsed>, r: &R, instance: &str) {
+        let Some(Parsed {
+            fp,
+            type_name,
+            message,
+            top_frame,
+        }) = parsed
+        else {
+            return;
+        };
+        let accs = &mut self.accs;
+        let i = *self.index.entry(fp.clone()).or_insert_with(|| {
             accs.push(Acc {
                 group: ExceptionGroup {
                     fingerprint: fp,
@@ -541,7 +599,7 @@ pub fn group<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>
             });
             accs.len() - 1
         });
-        let a = &mut accs[i];
+        let a = &mut self.accs[i];
         a.group.count += 1;
         *a.instances.entry(instance.to_string()).or_default() += 1;
         if let Some(ts) = r.ts() {
@@ -552,15 +610,20 @@ pub fn group<R: RowRef, K: AsRef<str>>(records: impl IntoIterator<Item = (R, K)>
             a.group.sample_ids.push(u32::try_from(r.id()).unwrap_or(u32::MAX));
         }
     }
-    let mut out: Vec<ExceptionGroup> = accs
-        .into_iter()
-        .map(|mut a| {
-            let mut inst: Vec<(String, usize)> = a.instances.into_iter().collect();
-            inst.sort_by(|x, y| y.1.cmp(&x.1).then_with(|| x.0.cmp(&y.0)));
-            a.group.instances = inst;
-            a.group
-        })
-        .collect();
-    out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.fingerprint.cmp(&b.fingerprint)));
-    out
+
+    /// The groups, most frequent first.
+    pub fn finish(self) -> Vec<ExceptionGroup> {
+        let mut out: Vec<ExceptionGroup> = self
+            .accs
+            .into_iter()
+            .map(|mut a| {
+                let mut inst: Vec<(String, usize)> = a.instances.into_iter().collect();
+                inst.sort_by(|x, y| y.1.cmp(&x.1).then_with(|| x.0.cmp(&y.0)));
+                a.group.instances = inst;
+                a.group
+            })
+            .collect();
+        out.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.fingerprint.cmp(&b.fingerprint)));
+        out
+    }
 }

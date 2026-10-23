@@ -154,6 +154,12 @@ impl IdsWriter {
         Ok(())
     }
 
+    /// Ids pushed so far.
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> u64 {
+        self.written + self.pending.len() as u64
+    }
+
     fn flush(&mut self) -> Result<()> {
         if self.pending.is_empty() {
             return Ok(());

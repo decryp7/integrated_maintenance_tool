@@ -15,7 +15,75 @@ use crate::query::Query;
 use anyhow::Result;
 use serde::Serialize;
 use std::collections::BTreeMap;
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
+
+/// Annotators run at once at most.
+pub const MAX_PARALLEL_ANNOTATORS: usize = 4;
+
+/// How far a run of the annotators is: annotators finished of those due, and the events they have read so far.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AnnotateProgress {
+    pub annotators_done: usize,
+    pub annotators_total: usize,
+    pub events_read: u64,
+}
+
+/// What a caller can say about a run of the annotators: whether it was cancelled, and where it is.
+pub struct RunControl<'a> {
+    pub cancelled: &'a (dyn Fn() -> bool + Sync),
+    pub progress: &'a (dyn Fn(AnnotateProgress) + Sync),
+}
+
+impl RunControl<'_> {
+    /// Never cancelled, progress ignored.
+    pub fn none() -> RunControl<'static> {
+        fn never() -> bool {
+            false
+        }
+        fn ignore(_: AnnotateProgress) {}
+        RunControl {
+            cancelled: &never,
+            progress: &ignore,
+        }
+    }
+}
+
+/// The view an annotator reads through: counts the records it returns, reports progress, and fails once cancelled
+/// so a long annotator stops at its next read.
+struct ControlledView<'a> {
+    inner: &'a (dyn AnnotationView + Sync),
+    cancelled: &'a (dyn Fn() -> bool + Sync),
+    events: &'a AtomicU64,
+    on_read: &'a (dyn Fn() + Sync),
+}
+
+impl ControlledView<'_> {
+    fn read(&self, f: impl FnOnce() -> Result<Vec<ViewRecord>>) -> Result<Vec<ViewRecord>> {
+        if (self.cancelled)() {
+            anyhow::bail!("cancelled");
+        }
+        let records = f()?;
+        self.events.fetch_add(records.len() as u64, Ordering::Relaxed);
+        (self.on_read)();
+        Ok(records)
+    }
+}
+
+impl AnnotationView for ControlledView<'_> {
+    fn select(&self, filter: &ViewFilter, limit: usize) -> Result<Vec<ViewRecord>> {
+        self.read(|| self.inner.select(filter, limit))
+    }
+    fn query(&self, query: &Query, limit: usize) -> Result<Vec<ViewRecord>> {
+        self.read(|| self.inner.query(query, limit))
+    }
+    fn instances(&self) -> Vec<String> {
+        self.inner.instances()
+    }
+    fn time_range(&self) -> Option<(i64, i64)> {
+        self.inner.time_range()
+    }
+}
 
 /// Most annotations kept per annotator.
 pub const MAX_ANNOTATIONS: usize = 10_000;
@@ -143,23 +211,81 @@ impl Store {
     }
 
     /// Runs every annotator whose plugin is available; returns notes (owner, text).
+    #[cfg(test)]
     pub fn run(
         &self,
         annotators: &[Registered],
-        view: &dyn AnnotationView,
+        view: &(dyn AnnotationView + Sync),
         since: Option<RecordCursor>,
         available: &dyn Fn(&str) -> bool,
     ) -> Vec<(String, String)> {
-        let mut notes = Vec::new();
-        for a in annotators {
-            let id = a.annotator.id().to_string();
-            if a.guard.is_some() && !available(&a.owner) {
-                continue;
+        self.run_with(annotators, view, since, available, &RunControl::none())
+    }
+
+    /// [`Self::run`] under `ctl`: independent annotators run at once on a small pool (each under its own plugin's
+    /// guard) and their results are stored in registration order, so the outcome is the sequential one. Cancelling
+    /// makes the views of the running annotators fail at their next read and keeps every previous set.
+    pub fn run_with(
+        &self,
+        annotators: &[Registered],
+        view: &(dyn AnnotationView + Sync),
+        since: Option<RecordCursor>,
+        available: &dyn Fn(&str) -> bool,
+        ctl: &RunControl<'_>,
+    ) -> Vec<(String, String)> {
+        use rayon::prelude::*;
+        let due: Vec<&Registered> = annotators.iter().filter(|a| a.guard.is_none() || available(&a.owner)).collect();
+        let total = due.len();
+        let events = AtomicU64::new(0);
+        let finished = AtomicUsize::new(0);
+        let report = |done: usize| {
+            (ctl.progress)(AnnotateProgress {
+                annotators_done: done,
+                annotators_total: total,
+                events_read: events.load(Ordering::Relaxed),
+            })
+        };
+        report(0);
+        let controlled = ControlledView {
+            inner: view,
+            cancelled: ctl.cancelled,
+            events: &events,
+            on_read: &|| report(finished.load(Ordering::Relaxed)),
+        };
+        let run_one = |a: &&Registered| -> Option<Result<Vec<Annotation>>> {
+            if (ctl.cancelled)() {
+                return None;
             }
             let result = match &a.guard {
-                Some(g) => g.call(CallKind::Annotate, "annotate", || a.annotator.annotate(view, since)),
-                None => a.annotator.annotate(view, since),
+                Some(g) => g.call(CallKind::Annotate, "annotate", || a.annotator.annotate(&controlled, since)),
+                None => a.annotator.annotate(&controlled, since),
             };
+            report(finished.fetch_add(1, Ordering::Relaxed) + 1);
+            Some(result)
+        };
+        let threads = crate::threads::threads(crate::threads::WorkKind::Cpu, None)
+            .min(MAX_PARALLEL_ANNOTATORS)
+            .min(total.max(1));
+        let results: Vec<Option<Result<Vec<Annotation>>>> = match (threads > 1 && total > 1)
+            .then(|| {
+                rayon::ThreadPoolBuilder::new()
+                    .num_threads(threads)
+                    .thread_name(|i| format!("debrief-annotate-{i}"))
+                    .build()
+                    .ok()
+            })
+            .flatten()
+        {
+            Some(pool) => pool.install(|| due.par_iter().map(run_one).collect()),
+            None => due.iter().map(run_one).collect(),
+        };
+        let mut notes = Vec::new();
+        if (ctl.cancelled)() {
+            return notes;
+        }
+        for (a, result) in due.into_iter().zip(results) {
+            let Some(result) = result else { continue };
+            let id = a.annotator.id().to_string();
             match result {
                 Ok(list) => {
                     if list.len() > MAX_ANNOTATIONS {

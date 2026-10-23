@@ -5,7 +5,7 @@
 //! reported for its plugin (the plugin's status lists the note; repeated panics quarantine it).
 
 use crate::windows::WindowState;
-use debrief_core::plugin::annotate::{PortView, RecordCursor};
+use debrief_core::plugin::annotate::{AnnotateProgress, PortView, RecordCursor, RunControl};
 use debrief_core::ports::{NewEvents, Store};
 use std::time::{Duration, Instant};
 
@@ -14,12 +14,47 @@ pub(crate) const TAIL_EVERY: Duration = Duration::from_secs(1);
 
 /// Runs the window's annotators over `store` (nothing when no plugin contributes one). `told` is the job's
 /// message line while they run.
-pub(crate) fn run(win: &WindowState, store: &dyn Store, told: &dyn Fn(&str)) {
+pub(crate) fn run(win: &WindowState, store: &dyn Store, told: &(dyn Fn(&str) + Sync)) {
+    run_controlled(win, store, told, &|| false);
+}
+
+/// [`run`] as part of `ctx`'s job: the job's Cancel (or `flag`) stops the annotators and the job's message tells
+/// how far they are ("Annotators 2 of 5 - 120,000 events read").
+pub(crate) fn run_in_job(win: &WindowState, store: &dyn Store, ctx: &crate::jobs::JobCtx, flag: &std::sync::atomic::AtomicBool) {
+    run_controlled(win, store, &|m| ctx.message(m), &|| {
+        ctx.is_cancelled() || flag.load(std::sync::atomic::Ordering::Relaxed)
+    });
+}
+
+fn run_controlled(win: &WindowState, store: &dyn Store, told: &(dyn Fn(&str) + Sync), cancelled: &(dyn Fn() -> bool + Sync)) {
     if !win.host.registry.has_annotators() {
         return;
     }
     told("Running the annotators");
-    run_since(win, store, None);
+    let progress = |p: AnnotateProgress| told(&progress_text(&p));
+    let started = Instant::now();
+    match PortView::new(store) {
+        Ok(view) => win.host.registry.run_annotators_with(
+            &view,
+            None,
+            &RunControl {
+                cancelled,
+                progress: &progress,
+            },
+        ),
+        Err(e) => log::warn!("The annotators did not run: the store did not answer ({e})"),
+    }
+    log::info!(ElapsedMs = started.elapsed().as_millis() as u64, Cancelled = cancelled(); "Annotators ran");
+}
+
+/// The job's message line for a run of the annotators.
+pub(crate) fn progress_text(p: &AnnotateProgress) -> String {
+    let shown = (p.annotators_done + 1).min(p.annotators_total.max(1));
+    if p.events_read == 0 {
+        format!("Annotators {shown} of {}", p.annotators_total)
+    } else {
+        format!("Annotators {shown} of {} - {} events read", p.annotators_total, p.events_read)
+    }
 }
 
 /// The first new event of two refreshes: the earlier id and the earlier time.
@@ -85,6 +120,22 @@ fn run_since(win: &WindowState, store: &dyn Store, since: Option<RecordCursor>) 
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
+
+    #[test]
+    fn the_progress_line_counts_annotators_and_events() {
+        let p = |done, total, events_read| AnnotateProgress {
+            annotators_done: done,
+            annotators_total: total,
+            events_read,
+        };
+        assert_eq!(progress_text(&p(0, 5, 0)), "Annotators 1 of 5");
+        assert_eq!(progress_text(&p(1, 5, 1200)), "Annotators 2 of 5 - 1200 events read");
+        assert_eq!(
+            progress_text(&p(5, 5, 9)),
+            "Annotators 5 of 5 - 9 events read",
+            "never past the total"
+        );
+    }
     use debrief_core::plugin::annotate::{AnnotationView, Annotator};
     use std::sync::{Arc, Mutex};
 

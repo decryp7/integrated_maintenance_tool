@@ -1723,6 +1723,7 @@ dependencies = [
  "getrandom 0.4.3",
  "globset",
  "insta",
+ "libc",
  "log",
  "proptest",
  "quick-xml",
@@ -1737,6 +1738,7 @@ dependencies = [
  "thiserror 2.0.21",
  "toml 1.1.8+spec-1.1.0",
  "ts-rs",
+ "windows",
  "yaml-rust2",
  "zip",
 ]

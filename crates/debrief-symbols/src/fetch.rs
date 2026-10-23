@@ -11,7 +11,7 @@ use crate::{msf, ServerConfig, SymbolError};
 use std::collections::HashMap;
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
 
 pub use crate::msf::PDB_MAGIC;
@@ -35,6 +35,9 @@ pub enum FetchError {
     Network(String),
     #[error("{0}")]
     Io(String),
+    /// The caller cancelled while the PDB was downloading; the partial file was removed.
+    #[error("the download was cancelled")]
+    Cancelled,
 }
 
 impl From<std::io::Error> for FetchError {
@@ -50,10 +53,24 @@ impl FetchError {
     }
 }
 
+/// What a download reports and honours while it runs: the cancel flag (checked between reads) and the bytes
+/// received, called with each chunk's size from the downloading thread.
+pub struct DownloadWatch<'a> {
+    pub cancel: &'a AtomicBool,
+    pub bytes: &'a (dyn Fn(u64) + Sync),
+}
+
 /// Gets a PDB into the cache.
 pub trait Fetcher: Send + Sync {
     /// The cached PDB of `key`, downloaded into `cache` first when it is not there.
     fn fetch(&self, key: &PdbKey, cache: &Path) -> Result<PathBuf, FetchError>;
+
+    /// [`Self::fetch`] that stops inside a running download once `watch.cancel` is set (the result is
+    /// [`FetchError::Cancelled`] and nothing is cached) and reports the bytes received. A fetcher that cannot do
+    /// either just fetches.
+    fn fetch_watched(&self, key: &PdbKey, cache: &Path, _watch: &DownloadWatch<'_>) -> Result<PathBuf, FetchError> {
+        self.fetch(key, cache)
+    }
 }
 
 /// Distinct names for temporary files of concurrent downloads in one process.
@@ -94,7 +111,7 @@ impl HttpFetcher {
         &self.cfg.url
     }
 
-    fn download(&self, key: &PdbKey, dest: &Path) -> Result<(), FetchError> {
+    fn download(&self, key: &PdbKey, dest: &Path, watch: &DownloadWatch<'_>) -> Result<(), FetchError> {
         let name = key.name().as_str();
         let url = format!("{}/{}", self.cfg.url.trim_end_matches('/'), key.store_path());
         let resp = self.agent.get(&url).call().map_err(|e| FetchError::Network(e.to_string()))?;
@@ -121,6 +138,9 @@ impl HttpFetcher {
             let mut buf = vec![0u8; 64 * 1024];
             let mut total = 0u64;
             loop {
+                if watch.cancel.load(Ordering::Relaxed) {
+                    return Err(FetchError::Cancelled);
+                }
                 let n = match reader.read(&mut buf) {
                     Ok(0) => break,
                     Ok(n) => n,
@@ -131,6 +151,7 @@ impl HttpFetcher {
                     return Err(FetchError::TooLarge(max));
                 }
                 file.write_all(&buf[..n])?;
+                (watch.bytes)(n as u64);
             }
             file.sync_all()?;
             drop(file);
@@ -159,6 +180,17 @@ impl HttpFetcher {
 
 impl Fetcher for HttpFetcher {
     fn fetch(&self, key: &PdbKey, cache: &Path) -> Result<PathBuf, FetchError> {
+        self.fetch_watched(
+            key,
+            cache,
+            &DownloadWatch {
+                cancel: &AtomicBool::new(false),
+                bytes: &|_| {},
+            },
+        )
+    }
+
+    fn fetch_watched(&self, key: &PdbKey, cache: &Path, watch: &DownloadWatch<'_>) -> Result<PathBuf, FetchError> {
         let dest = key.store_file(cache);
         if dest.is_file() {
             crate::cache::touch(&dest);
@@ -168,10 +200,10 @@ impl Fetcher for HttpFetcher {
         if let Some(e) = self.failed.lock().unwrap_or_else(|p| p.into_inner()).get(&id) {
             return Err(e.clone());
         }
-        let result = self.download(key, &dest);
+        let result = self.download(key, &dest, watch);
         if let Err(e) = &result {
             let mut failed = self.failed.lock().unwrap_or_else(|p| p.into_inner());
-            if !e.is_transient() && failed.len() < MAX_REMEMBERED {
+            if !e.is_transient() && *e != FetchError::Cancelled && failed.len() < MAX_REMEMBERED {
                 failed.insert(id, e.clone());
             }
         }
@@ -197,10 +229,22 @@ impl ServerList {
 impl Fetcher for ServerList {
     /// `NotFound` when no server has it; otherwise the first other failure.
     fn fetch(&self, key: &PdbKey, cache: &Path) -> Result<PathBuf, FetchError> {
+        self.fetch_watched(
+            key,
+            cache,
+            &DownloadWatch {
+                cancel: &AtomicBool::new(false),
+                bytes: &|_| {},
+            },
+        )
+    }
+
+    fn fetch_watched(&self, key: &PdbKey, cache: &Path, watch: &DownloadWatch<'_>) -> Result<PathBuf, FetchError> {
         let mut failure = None;
         for s in &self.servers {
-            match s.fetch(key, cache) {
+            match s.fetch_watched(key, cache, watch) {
                 Ok(p) => return Ok(p),
+                Err(FetchError::Cancelled) => return Err(FetchError::Cancelled),
                 Err(FetchError::NotFound(_)) => {}
                 Err(e) => {
                     failure.get_or_insert(e);
@@ -274,6 +318,45 @@ mod tests {
                 format!("/{}", key("gone.pdb").store_path())
             ]
         );
+    }
+
+    /// Cancel is honoured inside a running download: it stops at the next chunk, leaves nothing in the cache, is not
+    /// remembered as a failure of the PDB, and the bytes received were reported.
+    #[test]
+    fn a_download_in_progress_stops_on_cancel_and_reports_its_bytes() {
+        let body = vec![7u8; 900_000];
+        let server = FakeServer::start(move |_| http("200 OK", &body));
+        let cache = tempfile::tempdir().unwrap();
+        let f = fetcher(&server.url, 1 << 21);
+        let cancel = AtomicBool::new(false);
+        let received = AtomicU64::new(0);
+        let count = |n: u64| {
+            received.fetch_add(n, Ordering::Relaxed);
+            cancel.store(true, Ordering::Relaxed);
+        };
+        let r = f.fetch_watched(
+            &key("big.pdb"),
+            cache.path(),
+            &DownloadWatch {
+                cancel: &cancel,
+                bytes: &count,
+            },
+        );
+        assert_eq!(r, Err(FetchError::Cancelled));
+        let got = received.load(Ordering::Relaxed);
+        assert!(got > 0 && got < 900_000, "stopped part way: {got}");
+        assert!(files(cache.path()).is_empty(), "the partial file is removed");
+        // Not remembered as a failure: without the cancel it downloads (and fails only on being no PDB).
+        let again = f.fetch_watched(
+            &key("big.pdb"),
+            cache.path(),
+            &DownloadWatch {
+                cancel: &AtomicBool::new(false),
+                bytes: &|_| {},
+            },
+        );
+        assert!(matches!(again, Err(FetchError::Refused(_))), "{again:?}");
+        assert!(!FetchError::Cancelled.is_transient());
     }
 
     #[test]

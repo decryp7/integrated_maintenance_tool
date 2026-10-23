@@ -17,6 +17,7 @@ mod fts;
 mod hits;
 mod inspect;
 mod lanes;
+mod mining;
 mod parsers;
 mod pos;
 mod profiles;

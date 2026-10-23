@@ -5,8 +5,9 @@
 //!   `System.TimeoutException` is `system`, `timeoutexception`, `timeout` and `exception`. An event's text is
 //!   its message, exception and template (what the search box looks at).
 //! - A search asks for every word, the last as a prefix ([`debrief_core::words::WordQuery`]).
-//! - Indexing runs on a background thread from the registered segments of ready sources, one segment at a
-//!   time under the store's write lock (imports and compaction wait for at most one segment), so the grid is
+//! - Indexing runs on a background thread from the registered segments of ready sources, up to four segments
+//!   at a time (read, document building on a small pool and adding in order, as a pipeline) under the store's
+//!   write lock (imports and compaction wait for at most one batch), so the grid is
 //!   usable at once and import speed does not depend on indexing speed. A segment is indexed by deleting
 //!   the documents of its key, adding its rows and committing, then marking it `indexed` in the catalog: a
 //!   crash in between is repaired by indexing it again, never by duplicates.
@@ -18,6 +19,8 @@ use crate::segments::SEGMENTS_DIR;
 use crate::writer::{meta_u64, set_meta};
 use anyhow::{Context, Result};
 use debrief_core::batch::EventId;
+use debrief_core::stages::Stages;
+use debrief_core::threads::{lower_priority, threads, WorkKind};
 use debrief_core::words::WordQuery;
 use duckdb::{params, Connection};
 use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
@@ -25,7 +28,7 @@ use parquet::arrow::ProjectionMask;
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Condvar, Mutex};
+use std::sync::{Arc, Condvar, Mutex, OnceLock};
 use std::time::Duration;
 use tantivy::collector::{Collector, Count, SegmentCollector, TopDocs};
 use tantivy::query::{BooleanQuery, EmptyQuery, Occur, Query, RegexQuery, TermQuery};
@@ -326,11 +329,134 @@ impl Fts {
         Ok((ids.len() <= cap).then_some(ids))
     }
 
-    /// Indexes the rows of ready sources in one segment file.
-    fn index_segment(&self, w: &mut IndexWriter, path: &Path, file: &str, ready: &HashSet<u32>) -> Result<u64> {
-        let key = segment_key(file);
-        w.delete_term(Term::from_field_u64(self.f.seg, key));
-        let builder = ParquetRecordBatchReaderBuilder::try_new(std::fs::File::open(path)?)?;
+    /// Indexes the rows of ready sources of `files` (segment files, in order) as one pipeline: the files are read
+    /// batch by batch (IO, on this thread), the documents are built on `stages`' pool (CPU), and they are added to
+    /// the writer in the order of the files (so the result does not depend on the pool). `done` is called with the
+    /// number of files finished so far. Stops when `stages` is cancelled (the caller rolls back).
+    fn index_files(
+        &self,
+        w: &mut IndexWriter,
+        seg_dir: &Path,
+        files: &[String],
+        ready: &HashSet<u32>,
+        stages: &Stages<'_>,
+        mut done: impl FnMut(usize) + Send,
+    ) -> Result<()> {
+        let ts_field = self.index.schema().get_field("ts")?;
+        let keys: Vec<u64> = files.iter().map(|f| segment_key(f)).collect();
+        let mut batches = SegmentBatches::new(seg_dir, files);
+        let input = std::iter::from_fn(|| batches.next_batch());
+        let mut first_error: Option<anyhow::Error> = None;
+        let mut finished = 0usize;
+        let mut seen = vec![false; files.len()];
+        let completed = stages.run(
+            input,
+            |(file, rb)| match rb {
+                Ok(rb) => self.documents(rb, keys[*file], ts_field, ready),
+                Err(e) => Err(anyhow::anyhow!("{e:#}")),
+            },
+            |(file, _), docs, _| {
+                if first_error.is_some() {
+                    return;
+                }
+                if !std::mem::replace(&mut seen[file], true) {
+                    w.delete_term(Term::from_field_u64(self.f.seg, keys[file]));
+                    while finished < file {
+                        finished += 1;
+                        done(finished);
+                    }
+                }
+                let added = docs.and_then(|docs| docs.into_iter().try_for_each(|d| w.add_document(d).map(|_| ()).map_err(Into::into)));
+                if let Err(e) = added {
+                    first_error = Some(e.context(format!("indexing {}", files[file])));
+                }
+            },
+        );
+        if let Some(e) = first_error {
+            return Err(e);
+        }
+        if let Some(e) = batches.error() {
+            return Err(e);
+        }
+        if !completed {
+            anyhow::bail!("indexing was stopped");
+        }
+        // Files without a single batch were never "seen" (empty segments): their old documents still go.
+        for (file, seen) in seen.iter().enumerate() {
+            if !seen {
+                w.delete_term(Term::from_field_u64(self.f.seg, keys[file]));
+            }
+        }
+        done(files.len());
+        Ok(())
+    }
+
+    /// The documents of the ready rows of one batch of a segment (pure in the batch: any thread).
+    fn documents(
+        &self,
+        rb: &duckdb::arrow::record_batch::RecordBatch,
+        key: u64,
+        ts_field: Field,
+        ready: &HashSet<u32>,
+    ) -> Result<Vec<tantivy::TantivyDocument>> {
+        use duckdb::arrow::array::{Array, AsArray};
+        use duckdb::arrow::datatypes::{Int64Type, UInt32Type, UInt64Type};
+        let col = |name: &str| rb.column_by_name(name).with_context(|| format!("column {name}"));
+        let ids = col("id")?.as_primitive_opt::<UInt64Type>().context("id type")?;
+        let ts = col("ts")?.as_primitive_opt::<Int64Type>().context("ts type")?;
+        let src = col("source")?.as_primitive_opt::<UInt32Type>().context("source type")?;
+        let msg = col("message")?.as_string_opt::<i32>().context("message type")?;
+        let exc = col("exception")?.as_string_opt::<i32>().context("exception type")?;
+        let tpl = col("template")?.as_string_opt::<i32>().context("template type")?;
+        let mut out = Vec::with_capacity(rb.num_rows());
+        for i in 0..rb.num_rows() {
+            if !ready.contains(&src.value(i)) {
+                continue;
+            }
+            let mut d = doc!(
+                self.f.id => ids.value(i),
+                self.f.source => src.value(i) as u64,
+                self.f.seg => key,
+                ts_field => if ts.is_null(i) { i64::MAX } else { ts.value(i) },
+                self.f.text => msg.value(i),
+            );
+            if !exc.is_null(i) {
+                d.add_text(self.f.text, exc.value(i));
+            }
+            if !tpl.is_null(i) {
+                d.add_text(self.f.text, tpl.value(i));
+            }
+            out.push(d);
+        }
+        Ok(out)
+    }
+}
+
+type Batch = duckdb::arrow::record_batch::RecordBatch;
+
+/// The projected record batches of several segment files, one after the other, tagged with the file's index.
+/// A read failure ends the iteration and is kept for [`SegmentBatches::error`].
+struct SegmentBatches<'a> {
+    dir: &'a Path,
+    files: &'a [String],
+    next_file: usize,
+    current: Option<(usize, parquet::arrow::arrow_reader::ParquetRecordBatchReader)>,
+    failed: Option<anyhow::Error>,
+}
+
+impl<'a> SegmentBatches<'a> {
+    fn new(dir: &'a Path, files: &'a [String]) -> Self {
+        SegmentBatches {
+            dir,
+            files,
+            next_file: 0,
+            current: None,
+            failed: None,
+        }
+    }
+
+    fn open(&self, file: &str) -> Result<parquet::arrow::arrow_reader::ParquetRecordBatchReader> {
+        let builder = ParquetRecordBatchReaderBuilder::try_new(std::fs::File::open(self.dir.join(file))?)?;
         let names = ["id", "ts", "source", "message", "exception", "template"];
         let schema = builder.parquet_schema();
         let roots: Vec<usize> = names
@@ -343,42 +469,40 @@ impl Fts {
             })
             .collect::<Result<_>>()?;
         let mask = ProjectionMask::roots(schema, roots);
-        let reader = builder.with_projection(mask).with_batch_size(8192).build()?;
-        let ts_field = self.index.schema().get_field("ts")?;
-        let mut n = 0;
-        for rb in reader {
-            let rb = rb?;
-            use duckdb::arrow::array::{Array, AsArray};
-            use duckdb::arrow::datatypes::{Int64Type, UInt32Type, UInt64Type};
-            let col = |name: &str| rb.column_by_name(name).with_context(|| format!("column {name}"));
-            let ids = col("id")?.as_primitive_opt::<UInt64Type>().context("id type")?;
-            let ts = col("ts")?.as_primitive_opt::<Int64Type>().context("ts type")?;
-            let src = col("source")?.as_primitive_opt::<UInt32Type>().context("source type")?;
-            let msg = col("message")?.as_string_opt::<i32>().context("message type")?;
-            let exc = col("exception")?.as_string_opt::<i32>().context("exception type")?;
-            let tpl = col("template")?.as_string_opt::<i32>().context("template type")?;
-            for i in 0..rb.num_rows() {
-                if !ready.contains(&src.value(i)) {
-                    continue;
+        Ok(builder.with_projection(mask).with_batch_size(8192).build()?)
+    }
+
+    fn next_batch(&mut self) -> Option<(usize, Result<Batch, anyhow::Error>)> {
+        if self.failed.is_some() {
+            return None;
+        }
+        loop {
+            if let Some((i, reader)) = &mut self.current {
+                match reader.next() {
+                    Some(Ok(rb)) => return Some((*i, Ok(rb))),
+                    Some(Err(e)) => {
+                        let i = *i;
+                        self.failed = Some(anyhow::Error::new(e).context(format!("reading {}", self.files[i])));
+                        return None;
+                    }
+                    None => self.current = None,
                 }
-                let mut d = doc!(
-                    self.f.id => ids.value(i),
-                    self.f.source => src.value(i) as u64,
-                    self.f.seg => key,
-                    ts_field => if ts.is_null(i) { i64::MAX } else { ts.value(i) },
-                    self.f.text => msg.value(i),
-                );
-                if !exc.is_null(i) {
-                    d.add_text(self.f.text, exc.value(i));
+            }
+            let i = self.next_file;
+            let file = self.files.get(i)?;
+            self.next_file += 1;
+            match self.open(file) {
+                Ok(r) => self.current = Some((i, r)),
+                Err(e) => {
+                    self.failed = Some(e.context(format!("opening {file}")));
+                    return None;
                 }
-                if !tpl.is_null(i) {
-                    d.add_text(self.f.text, tpl.value(i));
-                }
-                w.add_document(d)?;
-                n += 1;
             }
         }
-        Ok(n)
+    }
+
+    fn error(&mut self) -> Option<anyhow::Error> {
+        self.failed.take()
     }
 }
 
@@ -504,29 +628,71 @@ fn todo(conn: &Connection) -> Result<(Vec<String>, HashSet<u32>)> {
     Ok((files, ready))
 }
 
-/// Indexes the next segment, if the write lock is free and there is one; true when it did.
+/// Segments indexed under one lock and one commit at most (the lock is held that long; imports and compaction wait).
+const SEGMENTS_PER_STEP: usize = 4;
+
+/// The pipeline of the indexer: batches of rows are read in order, their documents built on a small shared pool.
+fn stages(cancel: &AtomicBool) -> Stages<'_> {
+    static POOL: OnceLock<rayon::ThreadPool> = OnceLock::new();
+    let pool = POOL.get_or_init(|| {
+        rayon::ThreadPoolBuilder::new()
+            .num_threads(threads(WorkKind::Cpu, None).clamp(1, 4))
+            .thread_name(|i| format!("debrief-fts-docs-{i}"))
+            .start_handler(|_| {
+                lower_priority();
+            })
+            .build()
+            .unwrap_or_else(|_| rayon::ThreadPoolBuilder::new().num_threads(1).build().expect("a one-thread pool"))
+    });
+    Stages {
+        pool,
+        chunk: 4,
+        cancel: Some(cancel),
+    }
+}
+
+/// Indexes the next segments (up to [`SEGMENTS_PER_STEP`]) in one commit, if the write lock is free and there are
+/// some; true when it did.
 fn step(s: &FtsShared, seg_dir: &Path, conn: &Connection, write_lock: &Mutex<()>, epoch: u64) -> Result<bool> {
     let Ok(_writing) = write_lock.try_lock() else { return Ok(false) };
     let (files, ready) = todo(conn)?;
     s.pending.store(files.len() as u64, Ordering::SeqCst);
-    let Some(file) = files.first() else {
+    if files.is_empty() {
         return Ok(false);
-    };
+    }
+    let batch = &files[..files.len().min(SEGMENTS_PER_STEP)];
     let mut slot = crate::lock(&s.writer);
     let w = match slot.as_mut() {
         Some(w) => w,
         None => slot.insert(s.fts.writer()?),
     };
-    if let Err(e) = s.fts.index_segment(w, &seg_dir.join(file), file, &ready) {
-        // Not retried in a loop: the segment stays unsearchable and the failure is reported.
+    let total = files.len() as u64;
+    let result = s.fts.index_files(w, seg_dir, batch, &ready, &stages(&s.stop), |n| {
+        s.pending.store(total - n as u64, Ordering::SeqCst)
+    });
+    if let Err(e) = result {
         let _ = w.rollback();
-        conn.execute("UPDATE segments SET indexed = TRUE WHERE file = ?", params![file])?;
-        return Err(e.context(format!("indexing {file}")));
+        if s.stop.load(Ordering::SeqCst) {
+            return Ok(false);
+        }
+        // Not retried in a loop: a segment that cannot be indexed stays unsearchable and the failure is reported;
+        // the others of the batch are tried again.
+        let bad = failing_segment(&e, batch).unwrap_or(&batch[0]);
+        conn.execute("UPDATE segments SET indexed = TRUE WHERE file = ?", params![bad])?;
+        return Err(e.context(format!("indexing {bad}")));
     }
     s.fts.commit(w, epoch)?;
-    conn.execute("UPDATE segments SET indexed = TRUE WHERE file = ?", params![file])?;
-    s.pending.store(files.len() as u64 - 1, Ordering::SeqCst);
+    for file in batch {
+        conn.execute("UPDATE segments SET indexed = TRUE WHERE file = ?", params![file])?;
+    }
+    s.pending.store(total - batch.len() as u64, Ordering::SeqCst);
     Ok(true)
+}
+
+/// The segment a failure names (its message holds the file name), when it does.
+fn failing_segment<'a>(e: &anyhow::Error, batch: &'a [String]) -> Option<&'a String> {
+    let text = format!("{e:#}");
+    batch.iter().find(|f| text.contains(f.as_str()))
 }
 
 fn run(s: &FtsShared, dir: &Path, conn: &Connection, write_lock: &Mutex<()>, epoch: u64) {

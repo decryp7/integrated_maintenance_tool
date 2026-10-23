@@ -46,6 +46,12 @@ zip.workspace = true
 # TypeScript bindings of the wire types (feature `ts`, ADR 0016).
 ts-rs = { version = "11.1", optional = true }
 
+[target.'cfg(any(target_os = "macos", target_os = "linux"))'.dependencies]
+libc.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
 [dev-dependencies]
 # The app's allocator, so benches/engine.rs measures what ships.
 debrief-alloc = { path = "../debrief-alloc" }

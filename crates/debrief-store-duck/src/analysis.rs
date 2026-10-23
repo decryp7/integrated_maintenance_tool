@@ -15,7 +15,7 @@ use debrief_core::api::{
 use debrief_core::batch::{EventBatch, EventId, EventSchema, BATCH_ROWS};
 use debrief_core::chart::{chart_defs, chart_value, parse_y, Agg, Buckets, SeriesBuilder};
 use debrief_core::exceptions::{self, ExceptionGroup};
-use debrief_core::patterns::{MinerConfig, Pattern, PatternMiner, MAX_CLUSTERS};
+use debrief_core::patterns::{self, MinerConfig, Pattern, PatternMiner, MAX_CLUSTERS};
 use debrief_core::ports::{Analysis, Analyzed, Coverage, Filter, StoreError, StoreResult};
 use debrief_core::profile::compile_conditions;
 use debrief_core::ql::{Expr, QueryControl};
@@ -33,6 +33,14 @@ pub const MAX_ANALYSED: usize = 2_000_000;
 /// Most events of its window the Moment (an interactive summary) reads, in time order; the coverage says when
 /// it stopped early. 2M events took 15-30 s and 300 MB at 10M events.
 pub const MOMENT_EVENTS: usize = 250_000;
+
+/// The events a compiled filter selects, as an SQL condition; `keep` must outlive its use.
+struct Selection {
+    condition: String,
+    keep: Vec<Arc<crate::hits::HitsFile>>,
+    /// How many events it selects, when the scan that wrote the selection counted them.
+    matched: Option<u64>,
+}
 
 /// How an analysis reads its events.
 pub(crate) struct Read<'a> {
@@ -716,9 +724,7 @@ impl Inner {
             let mut overflow = 0;
             let mut out = self.analyse(&req.query, Read::ordered(Columns::only(true, Vec::<String>::new())), |rows, _| {
                 let mut miner = PatternMiner::new(MinerConfig::default());
-                for r in rows {
-                    miner.add(&r);
-                }
+                patterns::mine_pipelined(rows, &mut miner, &crate::mining::stages());
                 overflow = miner.overflowed();
                 miner.clusters()
             })?;
@@ -738,26 +744,36 @@ impl Inner {
                 ..Read::ordered(Columns::only(false, Vec::<String>::new()))
             };
             self.analyse(&req.query, read, |rows, cq| {
-                exceptions::group(rows.map(|r| {
-                    let key = cq.group_key_of(&r);
-                    (r, key)
-                }))
+                exceptions::group_pipelined(
+                    rows.map(|r| {
+                        let key = cq.group_key_of(&r);
+                        (r, key)
+                    }),
+                    &crate::mining::stages(),
+                )
+                .0
             })
         })
+    }
+
+    /// `known` (counted while the selection was written) or else a count of the events `filter` selects.
+    fn matched_or_count(&self, conn: &Connection, filter: &str, known: Option<u64>) -> StoreResult<u64> {
+        match known {
+            Some(n) => Ok(n),
+            None => Ok(count(conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64),
+        }
     }
 
     /// The SQL condition that selects exactly the events matching a compiled filter: the filter's own SQL when
     /// it is exact, else the ids of the events that pass the scan's check, written to a file (no limit, bounded
     /// memory). The returned files must be kept while the condition is used.
-    fn exact_selection(
-        &self,
-        conn: &Connection,
-        ctx: &Ctx,
-        sf: &SqlFilter,
-        cq: &CompiledQuery,
-    ) -> StoreResult<(String, Vec<Arc<crate::hits::HitsFile>>)> {
+    fn exact_selection(&self, conn: &Connection, ctx: &Ctx, sf: &SqlFilter, cq: &CompiledQuery) -> StoreResult<Selection> {
         if sf.exact {
-            return Ok((sf.all_sql(), sf.keep.clone()));
+            return Ok(Selection {
+                condition: sf.all_sql(),
+                keep: sf.keep.clone(),
+                matched: None,
+            });
         }
         let sql = format!(
             "SELECT {} FROM {FROM} WHERE {}",
@@ -770,11 +786,17 @@ impl Inner {
             ids.push(r.id).map_err(|e| StoreError::Io(format!("{e:#}")))?;
         }
         stream.finish()?;
+        let matched = ids.len();
         let hits = ids.finish().map_err(|e| StoreError::Io(format!("{e:#}")))?;
         let (condition, file) = hits
             .condition()
             .ok_or_else(|| StoreError::Engine("the selected events' file has an unusable path".into()))?;
-        Ok((condition, file.into_iter().chain(sf.keep.iter().cloned()).collect()))
+        Ok(Selection {
+            condition,
+            keep: file.into_iter().chain(sf.keep.iter().cloned()).collect(),
+            // The scan that wrote the ids counted them: no second pass over the events to count.
+            matched: Some(matched),
+        })
     }
 
     /// Anomalies detected in SQL (see `crate::anomalies`): memory for per-instance aggregates, not per event,
@@ -793,8 +815,12 @@ impl Inner {
             .map(|f| text_expr(f, &ctx.fields))
             .collect::<Option<_>>()
             .ok_or_else(ungroupable)?;
-        let (filter, _keep) = self.exact_selection(&conn, &ctx, &sf, &cq)?;
-        let matched = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64;
+        let Selection {
+            condition: filter,
+            keep: _keep,
+            matched,
+        } = self.exact_selection(&conn, &ctx, &sf, &cq)?;
+        let matched = self.matched_or_count(&conn, &filter, matched)?;
         let mut inputs = crate::anomalies::SqlInputs::new(&conn, &filter, &key, parts, &ctx.fields);
         let result = analysis::detect_with(&mut inputs, cfg)?;
         Ok(Analyzed {
@@ -901,7 +927,11 @@ impl Inner {
         let conn = self.conn()?;
         let ctx = self.ctx(&conn)?;
         let (sf, cq) = self.compile(&ctx, q)?;
-        let (filter, _keep) = self.exact_selection(&conn, &ctx, &sf, &cq)?;
+        let Selection {
+            condition: filter,
+            keep: _keep,
+            matched: known,
+        } = self.exact_selection(&conn, &ctx, &sf, &cq)?;
         let unreadable = |f: &str| StoreError::Invalid(format!("the field name {f:?} cannot be read"));
         let text = |f: &str| text_expr(f, &ctx.fields).ok_or_else(|| unreadable(f));
         let number = |f: &str| number_expr(f, &ctx.fields).ok_or_else(|| unreadable(f));
@@ -955,7 +985,7 @@ impl Inner {
                 }
             }
         }
-        let matched = count(&conn, &format!("SELECT count(*) FROM {FROM} WHERE {filter}"))? as u64;
+        let matched = self.matched_or_count(&conn, &filter, known)?;
         Ok(Analyzed {
             result: collector,
             coverage: Coverage {

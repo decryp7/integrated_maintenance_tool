@@ -366,17 +366,28 @@ pub(crate) async fn import_progress(state: CurrentWindow) -> debrief_core::works
 
 /// The automatic health check: findings, most severe first, with how much of the data it covered.
 #[tauri::command]
-pub(crate) async fn overview(state: CurrentWindow, request: debrief_core::api::QueryRequest) -> CmdResult<Analyzed<Vec<Finding>>> {
-    with_store(&state, move |s| s.overview(&request)).await
+pub(crate) async fn overview<R: Runtime>(
+    app: AppHandle<R>,
+    state: CurrentWindow,
+    request: debrief_core::api::QueryRequest,
+) -> CmdResult<Analyzed<Vec<Finding>>> {
+    let ql = request.query.ql.clone();
+    crate::insights::analysis(&app, &state, "Check the data", "overview", &ql, move |s| s.overview(&request)).await
 }
 
 /// The Home dashboard's summary: counts, the history by level with its markers and anomalies, exception groups.
+/// An analysis job (Jobs pane, progress and Cancel), because its anomaly and exception analyses scan the events.
 #[tauri::command]
-pub(crate) async fn home_summary(
+pub(crate) async fn home_summary<R: Runtime>(
+    app: AppHandle<R>,
     state: CurrentWindow,
     request: debrief_core::home::HomeRequest,
 ) -> CmdResult<debrief_core::home::HomeSummary> {
-    with_store(&state, move |s| debrief_core::home::home_summary(s, &request)).await
+    let ql = request.query.ql.clone();
+    crate::insights::analysis(&app, &state, "Summarise the data", "home", &ql, move |s| {
+        debrief_core::home::home_summary(s, &request)
+    })
+    .await
 }
 
 /// Ranges and points found by plugin annotators (reboots, service uptime, ...) overlapping the request, by
@@ -645,7 +656,7 @@ async fn open_store_project<R: Runtime>(
         let base = win.engine.profile();
         let dest = win.engine.unpack_root();
         let opened = win.engine.host().open_project(&file, &dest, &base).map_err(CmdError::from)?;
-        crate::engine::annotate::run(&win, opened.0.as_ref(), &|m| ctx.message(m));
+        crate::engine::annotate::run_in_job(&win, opened.0.as_ref(), ctx, &std::sync::atomic::AtomicBool::new(false));
         Ok(crate::jobs::Done::new(opened).with_result(crate::jobs::JobResult::Workspace))
     })
     .await?;

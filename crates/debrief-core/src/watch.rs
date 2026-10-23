@@ -23,6 +23,63 @@ pub const MAX_SCAN_ENTRIES: usize = 50_000;
 /// Deepest folder a scan enters.
 pub const MAX_SCAN_DEPTH: usize = 16;
 
+/// Quiet time with no further file becoming ready before the ready ones are imported together.
+pub const DEFAULT_BATCH_QUIET_MS: u64 = 3_000;
+/// The longest the first ready file waits for the batch to fill.
+pub const DEFAULT_BATCH_MAX_WAIT_MS: u64 = 30_000;
+/// Ready files that flush a batch at once.
+pub const DEFAULT_BATCH_MAX_FILES: usize = 500;
+
+/// Decides when the ready files of a folder are imported as one batch (one import job, one position rebuild, instead
+/// of one per file): after the number of ready files stopped growing for `quiet_ms`, or when the first has waited
+/// `max_wait_ms`, or at once when `max_files` are ready. Pure: the caller supplies the clock.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Batcher {
+    pub quiet_ms: u64,
+    pub max_wait_ms: u64,
+    pub max_files: usize,
+    first_ready: Option<u64>,
+    last_count: usize,
+    last_change: u64,
+}
+
+impl Default for Batcher {
+    fn default() -> Self {
+        Batcher {
+            quiet_ms: DEFAULT_BATCH_QUIET_MS,
+            max_wait_ms: DEFAULT_BATCH_MAX_WAIT_MS,
+            max_files: DEFAULT_BATCH_MAX_FILES,
+            first_ready: None,
+            last_count: 0,
+            last_change: 0,
+        }
+    }
+}
+
+impl Batcher {
+    /// Whether to import the `ready` files now (`now` in ms). Nothing ready resets the batch; a flush starts the next.
+    pub fn flush(&mut self, ready: usize, now: u64) -> bool {
+        if ready == 0 {
+            self.first_ready = None;
+            self.last_count = 0;
+            return false;
+        }
+        let first = *self.first_ready.get_or_insert(now);
+        if ready != self.last_count {
+            self.last_count = ready;
+            self.last_change = now;
+        }
+        let due = ready >= self.max_files
+            || now.saturating_sub(self.last_change) >= self.quiet_ms
+            || now.saturating_sub(first) >= self.max_wait_ms;
+        if due {
+            self.first_ready = None;
+            self.last_count = 0;
+        }
+        due
+    }
+}
+
 /// How the watcher decides.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct WatchConfig {
@@ -94,6 +151,7 @@ pub struct WatchState {
     pending: HashMap<PathBuf, Pending>,
     reported: HashSet<PathBuf>,
     notified: HashMap<String, usize>,
+    batcher: Batcher,
 }
 
 /// Whether a name looks like a file that is still being copied or downloaded, or an editor's scratch file.
@@ -215,6 +273,11 @@ impl WatchState {
         None
     }
 
+    /// Whether the files `ready` are to be imported now, together (see [`Batcher`]); the others wait for more.
+    pub fn flush_due(&mut self, ready: &Ready, now: u64) -> bool {
+        self.batcher.flush(ready.new.len() + ready.changed.len(), now)
+    }
+
     /// Files waiting for their quiet time or a retry.
     pub fn pending_len(&self) -> usize {
         self.pending.len()
@@ -289,6 +352,71 @@ mod tests {
             size,
             modified_ms: mtime,
         }
+    }
+
+    #[test]
+    fn ready_files_are_flushed_together_once_the_batch_stops_growing() {
+        let mut b = Batcher {
+            quiet_ms: 3_000,
+            max_wait_ms: 20_000,
+            max_files: 100,
+            ..Batcher::default()
+        };
+        assert!(!b.flush(0, 0), "nothing ready");
+        assert!(!b.flush(2, 1_000), "the first ready files wait for company");
+        assert!(!b.flush(5, 3_500), "still growing: the quiet time starts again");
+        assert!(!b.flush(5, 6_000));
+        assert!(b.flush(5, 6_500), "quiet for 3 s: one batch");
+        assert!(!b.flush(1, 7_000), "the next batch starts afresh");
+        assert!(b.flush(1, 10_000));
+        // A batch that keeps growing is flushed after the longest wait, and a full one at once.
+        let mut b = Batcher {
+            quiet_ms: 3_000,
+            max_wait_ms: 20_000,
+            max_files: 100,
+            ..Batcher::default()
+        };
+        assert!(!b.flush(1, 0));
+        for (n, t) in [
+            (2, 2_000),
+            (3, 4_000),
+            (4, 6_000),
+            (5, 8_000),
+            (6, 10_000),
+            (7, 12_000),
+            (8, 14_000),
+            (9, 16_000),
+            (10, 18_000),
+        ] {
+            assert!(!b.flush(n, t), "{n} at {t}");
+        }
+        assert!(b.flush(11, 20_000), "the longest wait");
+        assert!(b.flush(100, 20_100), "a full batch goes at once");
+    }
+
+    #[test]
+    fn the_state_flushes_what_observe_found_ready_in_one_batch() {
+        let mut s = state();
+        let mut now = 0;
+        let mut batches = Vec::new();
+        for names in [vec!["a.log"], vec!["a.log", "b.log"], vec!["a.log", "b.log", "c.log"]] {
+            let scan: Vec<_> = names.iter().map(|n| stamp(n, 10, 1)).collect();
+            now += 1_500;
+            let ready = s.observe(&scan, now);
+            if s.flush_due(&ready, now) {
+                batches.push(ready.new.len());
+            }
+        }
+        assert!(batches.is_empty(), "files kept settling");
+        let scan: Vec<_> = ["a.log", "b.log", "c.log"].iter().map(|n| stamp(n, 10, 1)).collect();
+        for _ in 0..4 {
+            now += 1_500;
+            let ready = s.observe(&scan, now);
+            if s.flush_due(&ready, now) {
+                batches.push(ready.new.len());
+            }
+        }
+        assert_eq!(batches, [3], "one batch for all three");
     }
 
     fn state() -> WatchState {

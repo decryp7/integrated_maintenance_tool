@@ -765,10 +765,20 @@ impl PluginRegistry {
     }
 
     /// Runs every annotator of an available plugin over `view`.
-    pub fn run_annotators(&self, view: &dyn annotate::AnnotationView, since: Option<annotate::RecordCursor>) {
+    pub fn run_annotators(&self, view: &(dyn annotate::AnnotationView + Sync), since: Option<annotate::RecordCursor>) {
+        self.run_annotators_with(view, since, &annotate::RunControl::none());
+    }
+
+    /// [`Self::run_annotators`] with a cancel check and progress (annotators finished, events read).
+    pub fn run_annotators_with(
+        &self,
+        view: &(dyn annotate::AnnotationView + Sync),
+        since: Option<annotate::RecordCursor>,
+        ctl: &annotate::RunControl<'_>,
+    ) {
         let notes = self
             .annotations
-            .run(&self.annotators, view, since, &|owner| self.runtime.available(owner).is_ok());
+            .run_with(&self.annotators, view, since, &|owner| self.runtime.available(owner).is_ok(), ctl);
         *self.annotate_notes.lock().unwrap_or_else(|p| p.into_inner()) = notes;
     }
 
