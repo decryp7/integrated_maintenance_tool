@@ -119,11 +119,7 @@ fn long_jobs_post_a_message_and_view_opens_their_result() {
     let (id, release) = gated_export(&app, "main", "Export report report.html");
     wait_until("running", || jobs(&app).state_of(id) == Some(JobState::Running));
     clock(&app).advance(queue::ATTENTION_AFTER_MS);
-    release
-        .send(Ok(Some(JobResult::File {
-            path: file.display().to_string(),
-        })))
-        .unwrap();
+    release.send(Ok(Some(JobResult::file(file.display().to_string())))).unwrap();
     wait_until("done", || jobs(&app).state_of(id) == Some(JobState::Done));
     let job = listed(&main)[0].clone();
     assert_eq!((job["unseen"].as_bool(), job["resultType"].as_str()), (Some(true), Some("file")));
@@ -156,7 +152,7 @@ fn a_dialog_that_follows_a_job_gets_its_outcome_and_no_message_is_posted() {
     let w = main.clone();
     let waiter = std::thread::spawn(move || ipc(&w, "jobs_wait", json!({ "id": id.0 })).unwrap());
     wait_until("the dialog to wait", || jobs(&app).waited(id));
-    release.send(Ok(Some(JobResult::File { path: "x.csv".into() }))).unwrap();
+    release.send(Ok(Some(JobResult::file("x.csv")))).unwrap();
     let outcome = waiter.join().unwrap();
     assert_eq!(
         (outcome["state"].as_str(), outcome["result"]["type"].as_str()),
@@ -174,7 +170,7 @@ fn a_dialog_that_follows_a_job_gets_its_outcome_and_no_message_is_posted() {
     ipc(&main, "jobs_unwait", json!({ "id": id.0 })).unwrap();
     assert_eq!(waiter.join().unwrap()["state"], "running");
     clock(&app).advance(queue::ATTENTION_AFTER_MS);
-    release.send(Ok(Some(JobResult::File { path: "y.csv".into() }))).unwrap();
+    release.send(Ok(Some(JobResult::file("y.csv")))).unwrap();
     wait_until("the message", || {
         ipc(&main, "notifications_list", json!({})).unwrap()["unread"] == 1
     });
@@ -407,4 +403,70 @@ fn job_events_are_versioned_deltas() {
     assert_eq!((d.order.len(), d.changed.len()), (1, 1));
     assert_eq!(delta(Some(&running), &running, 3), None);
     let _ = tx.send(());
+}
+
+#[test]
+fn a_staged_store_operation_reports_each_stage_as_a_phase_with_its_counts() {
+    use debrief_core::ql::{QueryProgress, QueryStage};
+    let p = |stage, done, total| QueryProgress { stage, done, total };
+    let phase = |j: &JobProgress| j.phase.as_ref().map(|p| (p.label.clone(), p.scale));
+    // Nothing began yet: nothing to report.
+    assert!(stage_progress(p(QueryStage::Matching, 0, 0), "Redacting events", "Writing the archive").is_none());
+    let redact = stage_progress(p(QueryStage::Matching, 50, 200), "Redacting events", "Writing the archive").unwrap();
+    assert_eq!(phase(&redact), Some(("Redacting events".into(), PhaseScale::Count)));
+    assert_eq!((redact.done, redact.total), (Some(50), Some(200)));
+    let import = stage_progress(p(QueryStage::Importing, 10, 40), "Redacting events", "Writing the archive").unwrap();
+    assert_eq!(phase(&import), Some(("Importing the redacted copy".into(), PhaseScale::Bytes)));
+    let finish = stage_progress(p(QueryStage::Finishing, 0, 0), "Redacting events", "Writing the archive").unwrap();
+    assert_eq!(phase(&finish), Some(("Finishing the import".into(), PhaseScale::Indeterminate)));
+    assert_eq!(finish.fraction, None);
+    let write = stage_progress(p(QueryStage::Writing, 300, 1000), "Redacting events", "Writing the archive").unwrap();
+    assert_eq!(phase(&write), Some(("Writing the archive".into(), PhaseScale::Bytes)));
+    assert_eq!(
+        (write.done, write.total, write.unit),
+        (Some(300), Some(1000), model::ProgressUnit::Bytes)
+    );
+    // Bytes grow from one sample to the next.
+    let later = stage_progress(p(QueryStage::Writing, 700, 1000), "Redacting events", "Writing the archive").unwrap();
+    assert!(later.done > write.done);
+}
+
+#[test]
+fn an_export_reports_rows_and_the_bytes_of_the_file_written_so_far() {
+    use debrief_core::ql::{QueryProgress, QueryStage};
+    let p = |done, total| QueryProgress {
+        stage: QueryStage::Matching,
+        done,
+        total,
+    };
+    assert!(written_progress(p(0, 0), 0).is_none());
+    let known = written_progress(p(25, 100), 4096).unwrap();
+    assert_eq!((known.done, known.total, known.bytes_done), (Some(25), Some(100), Some(4096)));
+    // The total of a SQL result is not known before it has run: the rows grow without a fraction.
+    let open = written_progress(p(25, 0), 4096).unwrap();
+    assert_eq!((open.done, open.total, open.fraction), (Some(25), None, None));
+}
+
+#[test]
+fn a_value_job_hands_its_value_to_the_waiter_and_keeps_the_file_of_a_file_job() {
+    let app = test_app_with_commands(None);
+    let plain = start_value(app.handle(), JobSpec::new(JobKind::Export, "Plain"), Controls::default(), |_| {
+        Ok::<_, crate::CmdError>(Done::new(serde_json::json!({"n": 1})))
+    })
+    .unwrap();
+    assert_eq!(crate::test_support::job_value(&app, plain).unwrap()["n"], 1);
+    let file = start_value(app.handle(), JobSpec::new(JobKind::Export, "File"), Controls::default(), |_| {
+        Ok::<_, crate::CmdError>(Done::new(serde_json::json!({"n": 2})).with_result(JobResult::file("/x/y.debriefz")))
+    })
+    .unwrap();
+    let end = crate::test_support::job_end(&app, file);
+    assert!(
+        matches!(&end.result, Some(JobResult::File { path, detail: Some(d) }) if path == "/x/y.debriefz" && d["n"] == 2),
+        "{end:?}"
+    );
+    let failed = start_value(app.handle(), JobSpec::new(JobKind::Export, "Fails"), Controls::default(), |_| {
+        Err::<Done<u8>, _>(crate::CmdError::from("no space left".to_string()))
+    })
+    .unwrap();
+    assert!(crate::test_support::job_value(&app, failed).unwrap_err().contains("no space left"));
 }

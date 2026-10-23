@@ -21,6 +21,34 @@ pub enum QueryStage {
     Matching,
     /// Running the query-language program over the matching records.
     Evaluating,
+    /// A nested import (a redacted copy reading its redacted files): `done` of `total` bytes (`total` 0 while unknown).
+    Importing,
+    /// The nested import's last steps (compacting, indexing): no counts.
+    Finishing,
+    /// Writing an archive: `done` of `total` bytes of the files it packs.
+    Writing,
+}
+
+impl QueryStage {
+    fn code(self) -> u8 {
+        match self {
+            QueryStage::Matching => 0,
+            QueryStage::Evaluating => 1,
+            QueryStage::Importing => 2,
+            QueryStage::Finishing => 3,
+            QueryStage::Writing => 4,
+        }
+    }
+
+    fn from_code(n: u8) -> QueryStage {
+        match n {
+            1 => QueryStage::Evaluating,
+            2 => QueryStage::Importing,
+            3 => QueryStage::Finishing,
+            4 => QueryStage::Writing,
+            _ => QueryStage::Matching,
+        }
+    }
 }
 
 /// A snapshot of a query's progress: `done` of `total` records in the current `stage`.
@@ -140,11 +168,7 @@ impl QueryControl {
 
     pub fn progress(&self) -> QueryProgress {
         QueryProgress {
-            stage: if self.0.stage.load(Ordering::Relaxed) == 0 {
-                QueryStage::Matching
-            } else {
-                QueryStage::Evaluating
-            },
+            stage: QueryStage::from_code(self.0.stage.load(Ordering::Relaxed)),
             done: self.0.done.load(Ordering::Relaxed),
             total: self.0.total.load(Ordering::Relaxed),
         }
@@ -154,12 +178,12 @@ impl QueryControl {
     pub fn begin(&self, stage: QueryStage, total: usize) {
         self.0.done.store(0, Ordering::Relaxed);
         self.0.total.store(total as u64, Ordering::Relaxed);
-        self.0.stage.store(u8::from(stage == QueryStage::Evaluating), Ordering::Relaxed);
+        self.0.stage.store(stage.code(), Ordering::Relaxed);
     }
 
     /// Takes over `p` as the progress of the run (a store worker's progress, relayed by its client).
     pub fn report(&self, p: QueryProgress) {
-        self.0.stage.store(u8::from(p.stage == QueryStage::Evaluating), Ordering::Relaxed);
+        self.0.stage.store(p.stage.code(), Ordering::Relaxed);
         self.0.total.store(p.total, Ordering::Relaxed);
         self.0.done.store(p.done, Ordering::Relaxed);
     }
@@ -384,6 +408,24 @@ mod tests {
             }
             (r, "s")
         })
+    }
+
+    #[test]
+    fn every_stage_round_trips_through_begin_and_report() {
+        let c = QueryControl::new();
+        for stage in [
+            QueryStage::Matching,
+            QueryStage::Evaluating,
+            QueryStage::Importing,
+            QueryStage::Finishing,
+            QueryStage::Writing,
+        ] {
+            c.begin(stage, 10);
+            assert_eq!(c.progress().stage, stage);
+            let other = QueryControl::new();
+            other.report(c.progress());
+            assert_eq!((other.progress().stage, other.progress().total), (stage, 10));
+        }
     }
 
     #[test]

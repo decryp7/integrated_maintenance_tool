@@ -210,7 +210,7 @@ fn anchors_resolve_after_reopening_a_project() {
     let record = serde_json::to_value(block(notes_record(main_window(&app))).unwrap()).unwrap();
     assert_eq!(record["version"], 1);
     let file = dir.0.join("incident.debriefz").to_string_lossy().into_owned();
-    block(crate::workspace_commands::save_project(
+    crate::test_support::finished(&app, block(crate::workspace_commands::save_project(
         app.handle().clone(),
         main_window(&app),
         grants(&app, "main"),
@@ -220,7 +220,7 @@ fn anchors_resolve_after_reopening_a_project() {
         json!({ "notes": record }),
         None,
         None,
-    ))
+    )))
     .unwrap();
     std::fs::remove_dir_all(dir.0.join("logs")).unwrap();
     crate::paths::allow_under(app.handle(), "w-2", &dir.0);

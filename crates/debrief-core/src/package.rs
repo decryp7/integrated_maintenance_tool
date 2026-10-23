@@ -180,6 +180,12 @@ impl ProjectDir {
                 .collect();
             files.extend(substitutes.iter().map(|(rel, src)| (src.clone(), rel.clone())));
             files.sort_by(|a, b| a.1.cmp(&b.1));
+            // The job running this export (if any) sees the bytes packed of those to pack, and Cancel stops it between chunks.
+            let control = crate::ql::QueryControl::current();
+            if let Some(c) = &control {
+                let size: u64 = files.iter().map(|(src, _)| std::fs::metadata(src).map_or(0, |m| m.len())).sum();
+                c.begin(crate::ql::QueryStage::Writing, usize::try_from(size).unwrap_or(usize::MAX));
+            }
             for (src, rel) in files {
                 let name = rel
                     .components()
@@ -195,7 +201,7 @@ impl ProjectDir {
                 let opts = zip::write::SimpleFileOptions::default().compression_method(method).large_file(true);
                 zip.start_file(name.as_str(), opts)?;
                 let mut f = std::fs::File::open(&src).with_context(|| format!("cannot read {name}"))?;
-                total += std::io::copy(&mut f, &mut zip).with_context(|| format!("cannot write {name}"))?;
+                total += copy_counting(&mut f, &mut zip, control.as_ref()).with_context(|| format!("cannot write {name}"))?;
             }
             let mut w = zip.finish()?;
             w.flush()?;
@@ -210,6 +216,26 @@ impl ProjectDir {
                 let _ = std::fs::remove_file(&part);
                 Err(e)
             }
+        }
+    }
+}
+
+/// [`std::io::copy`] in chunks that count `control`'s progress (bytes) and stop with an error once it is cancelled.
+fn copy_counting(from: &mut impl Read, to: &mut impl Write, control: Option<&crate::ql::QueryControl>) -> std::io::Result<u64> {
+    let mut buf = vec![0u8; 256 * 1024];
+    let mut n = 0u64;
+    loop {
+        if control.is_some_and(|c| c.is_cancelled()) {
+            return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "cancelled"));
+        }
+        let got = from.read(&mut buf)?;
+        if got == 0 {
+            return Ok(n);
+        }
+        to.write_all(&buf[..got])?;
+        n += got as u64;
+        if let Some(c) = control {
+            c.advance(got);
         }
     }
 }
@@ -381,6 +407,21 @@ mod tests {
     }
 
     #[test]
+    fn a_cancelled_export_leaves_neither_the_archive_nor_its_partial_file() {
+        let root = temp("export-cancel");
+        let dir = root.join("c.debrief");
+        let p = ProjectDir::create(&dir, "c").unwrap();
+        std::fs::write(dir.join("data.duckdb"), vec![7u8; 600_000]).unwrap();
+        let out = root.join("c.debriefz");
+        let control = crate::ql::QueryControl::new();
+        control.cancel();
+        let err = control.scope(|| p.export(&out)).unwrap_err();
+        assert!(format!("{err:#}").contains("cancelled"), "{err:#}");
+        assert!(!out.exists() && !root.join("c.debriefz.part").exists());
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
     fn projects_export_without_caches_and_open_again() {
         let root = temp("export");
         let dir = root.join("incident.debrief");
@@ -399,8 +440,13 @@ mod tests {
             vec!["data.duckdb", "project.toml", "segments/0001.parquet", "snapshots/s1.json"]
         );
         let out = root.join("incident.debriefz");
-        let bytes = p.export(&out).unwrap();
+        // The writing is reported as bytes packed of bytes to pack, and ends complete.
+        let control = crate::ql::QueryControl::new();
+        let bytes = control.scope(|| p.export(&out)).unwrap();
         assert!(bytes > 100_000);
+        let progress = control.progress();
+        assert_eq!(progress.stage, crate::ql::QueryStage::Writing);
+        assert!(progress.total > 100_000 && progress.done == progress.total, "{progress:?}");
         assert!(!root.join("incident.debriefz.part").exists());
         let opened = open_package(&out, &root.join("open")).unwrap();
         let (opened, manifest) = project(opened);

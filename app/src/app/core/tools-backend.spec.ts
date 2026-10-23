@@ -46,7 +46,6 @@ describe('TauriToolsBackend', () => {
       [() => b.pluginSetEnabled('p', false), 'plugin_set_enabled', { id: 'p', enabled: false }],
       [() => b.saveSession({ a: 1 }), 'save_session', { ui: { a: 1 } }],
       [() => b.lastSession(), 'last_session'],
-      [() => b.saveProject('/p', 'n', { a: 1 }), 'save_project', { path: '/p', name: 'n', ui: { a: 1 } }],
       [() => b.openProject('/p'), 'open_project', { path: '/p' }],
       [() => b.takePendingOpen(), 'take_pending_open'],
     ];
@@ -61,6 +60,29 @@ describe('TauriToolsBackend', () => {
     await b.onOpenRequested(handler);
     expect(listen.mock.calls.map((c) => c[0])).toEqual(['debrief://open']);
     expect('setLive' in b || 'onWorkspaceChanged' in b).toBe(false);
+  });
+});
+
+describe('TauriToolsBackend save_project', () => {
+  it('starts the save as a job and resolves with its value; a failed or cancelled save rejects', async () => {
+    const calls: [string, unknown][] = [];
+    let outcome: unknown = { state: 'done', result: { type: 'file', path: '/p', detail: { path: '/p', name: 'n' } } };
+    const call = vi.fn(async (cmd: string, args?: unknown) => {
+      calls.push([cmd, args]);
+      return cmd === 'jobs_wait' ? outcome : 41;
+    });
+    const b = new TauriToolsBackend(call as never, vi.fn(async () => () => undefined));
+    expect(await b.saveProject('/p', 'n', { a: 1 })).toEqual({ path: '/p', name: 'n' });
+    expect(calls).toEqual([
+      ['save_project', { path: '/p', name: 'n', ui: { a: 1 } }],
+      ['jobs_wait', { id: 41 }],
+    ]);
+    await b.saveProject('/p', 'n', {}, [], true);
+    expect(calls[2]).toEqual(['save_project', { path: '/p', name: 'n', ui: {}, reports: [], overwrite: true }]);
+    outcome = { state: 'cancelled', error: 'saving the project was cancelled' };
+    await expect(b.saveProject('/p', 'n', {})).rejects.toMatchObject({ code: 'cancelled' });
+    outcome = { state: 'failed', error: 'disk full' };
+    await expect(b.saveProject('/p', 'n', {})).rejects.toMatchObject({ code: 'failed', message: 'disk full' });
   });
 });
 

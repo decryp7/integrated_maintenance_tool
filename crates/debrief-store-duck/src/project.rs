@@ -121,7 +121,14 @@ impl DuckStore {
             .map_err(engine)?;
             self.project_dir()
                 .export_with(out, &[(PathBuf::from(crate::DB_FILE), copy.clone())])
-                .map_err(io)
+                .map_err(|e| {
+                    // Cancel stops the packing between chunks: that is a cancellation, not an I/O failure.
+                    if debrief_core::ql::QueryControl::current().is_some_and(|c| c.is_cancelled()) {
+                        StoreError::Cancelled
+                    } else {
+                        io(e)
+                    }
+                })
         })();
         let _ = std::fs::remove_dir_all(&tmp);
         result

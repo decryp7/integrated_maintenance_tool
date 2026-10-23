@@ -57,7 +57,10 @@ export type JobResult =
   | { type: 'narrative'; narrative: unknown }
   | { type: 'proposal'; proposal: unknown }
   | { type: 'chat'; sessionId: string }
-  | { type: 'file'; path: string }
+  /** `detail`: what the command that started the job returns to its waiter besides the path (see `jobValue`). */
+  | { type: 'file'; path: string; detail?: unknown }
+  /** What the command that started the job returns to its waiter (see `jobValue`); nothing to view. */
+  | { type: 'value'; value: unknown }
   | { type: 'workspace' }
   | { type: 'view'; view: string; ql: string | null }
   | { type: 'model'; fileName: string | null }

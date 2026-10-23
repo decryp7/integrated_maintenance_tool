@@ -21,7 +21,7 @@
  *   plugin_package_set_permissions { id, granted }       -> InstalledPluginDto (the plugin restarts with them)
  *   save_session      { ui }                      -> void
  *   last_session      {}                          -> string | null
- *   save_project      { path, name, ui, reports?, overwrite? } -> { path, name }   (a self-contained `.debriefz`)
+ *   save_project      { path, name, ui, reports?, overwrite? } -> number (the file job's id; its value, via `jobs_wait`, is { path, name }: a self-contained `.debriefz`)
  *   open_project      { path }                    -> ProjectOpened  (`.debriefz`, a `.debrief` folder, or Debrief's own `.debriefproj`)
  *   set_live          { enabled }                 -> number (watched paths)
  *   take_pending_open {}                          -> string[]

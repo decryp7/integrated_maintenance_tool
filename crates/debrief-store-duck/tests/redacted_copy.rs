@@ -209,9 +209,35 @@ fn a_cancelled_copy_reports_its_progress_stops_and_leaves_no_file() {
     let err = control.scope(|| store.export_redacted_project(&request(&out, cfg()))).unwrap_err();
     assert!(matches!(err, StoreError::Cancelled), "{err:?}");
     assert!(!out.exists());
-    // Counting: an uncancelled run advances the control to the number of events it redacted.
+    // Progress: an uncancelled run moves through redacting, importing the copy, finishing and writing the archive, in that
+    // order, and ends with every byte of the archive's files written.
+    use debrief_core::ql::QueryStage::{Finishing, Importing, Matching, Writing};
     let control = debrief_core::ql::QueryControl::new();
+    let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let watcher = {
+        let (c, seen, stop) = (control.clone(), seen.clone(), stop.clone());
+        std::thread::spawn(move || {
+            while !stop.load(std::sync::atomic::Ordering::Relaxed) {
+                let p = c.progress();
+                let mut s = seen.lock().unwrap();
+                if s.last().map(|(st, _, _)| *st) != Some(p.stage) {
+                    s.push((p.stage, p.done, p.total));
+                }
+                drop(s);
+                std::thread::sleep(std::time::Duration::from_micros(200));
+            }
+        })
+    };
     control.scope(|| store.export_redacted_project(&request(&out, cfg()))).unwrap();
+    stop.store(true, std::sync::atomic::Ordering::Relaxed);
+    watcher.join().unwrap();
     let p = control.progress();
-    assert!(p.done == 3 && p.total >= p.done, "{p:?}");
+    assert!(p.stage == Writing && p.total > 0 && p.done == p.total, "{p:?}");
+    let order = |s| [Matching, Importing, Finishing, Writing].iter().position(|x| *x == s).unwrap();
+    let seen = seen.lock().unwrap();
+    assert!(
+        seen.windows(2).all(|w| order(w[0].0) < order(w[1].0)),
+        "stages out of order: {seen:?}"
+    );
 }

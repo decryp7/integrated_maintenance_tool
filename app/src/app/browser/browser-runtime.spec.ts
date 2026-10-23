@@ -27,11 +27,13 @@ const q = (f: { nativeElement: unknown }, id: string) => (f.nativeElement as HTM
 describe('TauriBrowserRuntimeBackend', () => {
   it('maps every method to its command', async () => {
     const calls: string[] = [];
-    const b = new TauriBrowserRuntimeBackend((async (cmd: string) => (calls.push(cmd), cmd)) as never);
+    const b = new TauriBrowserRuntimeBackend((async (cmd: string) =>
+      (calls.push(cmd), cmd === 'jobs_wait' ? { state: 'done', result: { type: 'value', value: 'installed' } } : cmd === 'browser_runtime_install' ? 3 : cmd)) as never);
     expect(await b.getRuntimeStatus()).toBe('browser_runtime_status');
-    expect(await b.installRuntime()).toBe('browser_runtime_install');
+    // The install is a download job: the command returns its id and the new status is the job's value.
+    expect(await b.installRuntime()).toBe('installed');
     expect(await b.removeRuntime()).toBe('browser_runtime_remove');
-    expect(calls).toEqual(['browser_runtime_status', 'browser_runtime_install', 'browser_runtime_remove']);
+    expect(calls).toEqual(['browser_runtime_status', 'browser_runtime_install', 'jobs_wait', 'browser_runtime_remove']);
   });
 });
 

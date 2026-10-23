@@ -6,12 +6,12 @@ describe('TauriDumpsBackend', () => {
     const calls: [string, unknown][] = [];
     const invoke = (async (cmd: string, args?: unknown) => {
       calls.push([cmd, args]);
-      return null;
+      return cmd === 'jobs_wait' ? { state: 'done', result: { type: 'value', value: { id: 1 } } } : cmd === 'dumps_open' ? 12 : null;
     }) as never;
     const b = new TauriDumpsBackend(invoke);
     const req = { id: 1, offset: 0, limit: 10, filter: null };
     await b.sniff(['/a.dmp']);
-    await b.open('/a.dmp');
+    expect(await b.open('/a.dmp')).toEqual({ id: 1 });
     await b.list();
     await b.close(1);
     await b.overview(1);
@@ -27,6 +27,7 @@ describe('TauriDumpsBackend', () => {
     expect(calls.map((c) => c[0])).toEqual([
       'dumps_sniff',
       'dumps_open',
+      'jobs_wait',
       'dumps_list',
       'dumps_close',
       'dumps_overview',
@@ -42,10 +43,11 @@ describe('TauriDumpsBackend', () => {
     ]);
     expect(calls[0]![1]).toEqual({ paths: ['/a.dmp'] });
     expect(calls[1]![1]).toEqual({ path: '/a.dmp' });
-    expect(calls[2]![1]).toBeUndefined();
-    expect(calls[3]![1]).toEqual({ id: 1 });
-    expect(calls[5]![1]).toEqual({ request: req });
-    expect(calls[13]![1]).toEqual({ request: { ids: [1] } });
+    expect(calls[2]![1]).toEqual({ id: 12 });
+    expect(calls[3]![1]).toBeUndefined();
+    expect(calls[4]![1]).toEqual({ id: 1 });
+    expect(calls[6]![1]).toEqual({ request: req });
+    expect(calls[14]![1]).toEqual({ request: { ids: [1] } });
   });
 
   it('tells the handler which document got its symbols, ignoring malformed events', async () => {

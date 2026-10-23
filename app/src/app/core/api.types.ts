@@ -2596,7 +2596,7 @@ export interface RedactionSummary {
 // Share a redacted copy of the project (.debriefz) (crates/debrief-core, app/src-tauri/src/share.rs)
 //   redacted_copy_choices  {}                              -> RedactedCopyChoices   (detectors, custom rules, what the profile selects)
 //   redacted_copy_preview  { options }                     -> RedactedCopyPreview   (`invalid`, field "options", when nothing is picked)
-//   export_redacted_copy   { path, name, options, ui, reports?, overwrite? } -> RedactedExport   (never replaces a file unless `overwrite`)
+//   export_redacted_copy   { path, name, options, ui, reports?, overwrite? } -> number (the file job's id; its value, via `jobs_wait`, is the RedactedExport; never replaces a file unless `overwrite`)
 // ---------------------------------------------------------------------------------------------
 
 /** The profile's `[redact]` section as the engine reports it. */
@@ -2922,7 +2922,7 @@ export interface ProfileVersionInfo {
 
 /** What a running query is doing: `done` of `total` records of the current `stage`. */
 export interface QueryProgress {
-  stage: 'matching' | 'evaluating';
+  stage: 'matching' | 'evaluating' | 'importing' | 'finishing' | 'writing';
   done: number;
   total: number;
 }
@@ -3165,7 +3165,7 @@ export interface NativeCaptureStatus {
 // ---- Dumps and UMDH heap logs (app/src-tauri/src/dumps.rs; ADR 0023) ----
 // Generated from `debrief_dump::api`. Commands (invoke name -> args -> result):
 //   dumps_sniff     { paths: string[] }                    -> DumpSniffResult[]   (first 64 KiB; nothing is opened)
-//   dumps_open      { path: string }                       -> DumpDocSummary      (a path the user chose)
+//   dumps_open      { path: string }                       -> number              (the import job's id; its value, via `jobs_wait`, is the DumpDocSummary; a path the user chose)
 //   dumps_list      {}                                     -> DumpDocSummary[]
 //   dumps_close     { id: number }                         -> boolean
 //   dumps_overview  { id: number }                         -> DumpOverview

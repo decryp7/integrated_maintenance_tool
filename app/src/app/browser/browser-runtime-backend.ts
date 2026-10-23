@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
+import { jobValue } from '../jobs/job-value';
 import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { browserMocks } from '../core/mock-registry';
@@ -29,8 +30,10 @@ export class TauriBrowserRuntimeBackend extends BrowserRuntimeBackend {
   getRuntimeStatus() {
     return this.call<RuntimeStatus>('browser_runtime_status');
   }
-  installRuntime() {
-    return this.call<RuntimeStatus>('browser_runtime_install');
+  /** The command starts a download job and returns its id; the new status is the job's value. */
+  async installRuntime() {
+    const job = await this.call<number>('browser_runtime_install');
+    return jobValue<RuntimeStatus>(this.call, job);
   }
   removeRuntime() {
     return this.call<RuntimeStatus>('browser_runtime_remove');
