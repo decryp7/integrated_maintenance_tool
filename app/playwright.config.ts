@@ -1,10 +1,13 @@
 import { defineConfig, devices } from '@playwright/test';
 
 // Ports and the production-build server can be overridden so several runs can share a machine.
+const CI = !!process.env['CI'];
+const SKIP_PROD = !!process.env['DEBRIEF_E2E_SKIP_PROD'];
+// CI must name its ports (a fixed default could collide with another job on the host); locally 4300/4301 are the defaults.
+if (CI && !process.env['DEBRIEF_E2E_PORT']) throw new Error('CI: set DEBRIEF_E2E_PORT (the port of the ng serve dev server)');
+if (CI && !SKIP_PROD && !process.env['DEBRIEF_E2E_PROD_PORT']) throw new Error('CI: set DEBRIEF_E2E_PROD_PORT (the port of the production-build server) or DEBRIEF_E2E_SKIP_PROD');
 const PORT = Number(process.env['DEBRIEF_E2E_PORT'] ?? 4300);
 const PROD_PORT = Number(process.env['DEBRIEF_E2E_PROD_PORT'] ?? 4301);
-const SKIP_PROD = !!process.env['DEBRIEF_E2E_SKIP_PROD'];
-const CI = !!process.env['CI'];
 const PROD_CSP = '**/prod-csp.e2e.ts';
 // These also run against the production build with the Tauri CSP (no extra permissions needed).
 const ERROR_SNAPSHOTS = '**/error-snapshots.e2e.ts';
@@ -26,7 +29,7 @@ export default defineConfig({
   timeout: CI ? 60_000 : 30_000,
   // Two on CI: each shard's container shares a runner host with other jobs; three made WebKit tests time out.
   workers: CI ? 2 : undefined,
-  reporter: [['html', { open: 'never' }], ['list']],
+  reporter: [['html', { open: 'never' }], ['list'], ['./e2e/retried-reporter.mjs']],
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
@@ -51,7 +54,8 @@ export default defineConfig({
       // open page through HMR mid-test and fail whatever was running. Tests run against the build they started with.
       command: `npx ng serve --port ${PORT} --watch=false`,
       url: `http://localhost:${PORT}`,
-      reuseExistingServer: !CI,
+      // Never reuse whatever listens on the port: a stale server would test the wrong build.
+      reuseExistingServer: false,
       timeout: 180_000,
     },
     ...(SKIP_PROD
