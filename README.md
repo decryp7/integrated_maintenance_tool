@@ -12,7 +12,7 @@ profile, and it never leaves your machine.
 
 </div>
 
-![Debrief: make sense of any log file](docs/images/debrief-hero.svg?v=f02761b9)
+![Debrief: make sense of any log file](docs/images/debrief-hero.svg?v=b267f9f6)
 
 ## At a glance
 
@@ -43,7 +43,7 @@ scale to that. Debrief is built for exactly this job:
 
 ## Key features
 
-![Debrief features: a timeline per instance, pattern trends, error outliers and range comparison](docs/images/debrief-features.svg?v=9c26a5b7)
+![Debrief features: a timeline per instance, pattern trends, error outliers and range comparison](docs/images/debrief-features.svg?v=3c7a2901)
 
 Every feature, with screenshots, is in [docs/features.md](docs/features.md).
 
@@ -86,7 +86,7 @@ Prefer to build it yourself? [Build from source](#building-from-source).
 
 ### A two-minute tour
 
-![A two-minute tour: open the samples, load the sample profile, read the timeline, inspect an event](docs/images/debrief-tour.svg?v=2a125057)
+![A two-minute tour: open the samples, load the sample profile, read the timeline, inspect an event](docs/images/debrief-tour.svg?v=f90834ee)
 
 1. **Open the samples.** Start Debrief, choose *Open folder…* (`Ctrl/⌘+Shift+O`) and pick the
    [`samples/`](samples/) folder (or drag it onto the window). It holds one incident seen through

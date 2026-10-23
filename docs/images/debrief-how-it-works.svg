@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1600" height="500" viewBox="0 0 1600 500" role="img" aria-labelledby="t d">
-<title id="t">How Debrief works</title><desc id="d">Open, then Search and filter, then Analyse, then Share. Pitcrew opens its job logs in Debrief. Sighter run bundles and Pitwall explanations come after version 1.</desc>
+<title id="t">How Debrief works</title><desc id="d">Open, then Search and filter, then Analyse, then Share. Pitcrew opens its job logs in Debrief. Sighter run bundles and Pitwall explanations are planned.</desc>
 <style>
 :root{--ink:#14161A;--muted:#566070;--card:#FFFFFF;--line:#DDE1E8;--soft:#F1F3F7;--bar:#ECEEF2;--link:#8A93A3;--codebg:#F7F8FA;--acc:#1D5FD1;--acct:#1D5FD1;--accf:#2F6FE0;--glow:.20;--shadow:.22;--wbg:#FFFFFF}
 @media (prefers-color-scheme: dark){:root{--ink:#F2F4F7;--muted:#A6AEBC;--card:#171A20;--line:#2B303A;--soft:#1B1E24;--bar:#20242C;--link:#667085;--codebg:#12151A;--acc:#5B9BFF;--acct:#5B9BFF;--glow:.26;--shadow:.55;--wbg:#0E0F12}}
@@ -33,7 +33,7 @@ text{font-family:-apple-system,"SF Pro Display","SF Pro Text","Segoe UI Variable
 .mfield{fill:var(--soft);stroke:var(--line)}.mact{fill:var(--acc);fill-opacity:.14}.maccf{fill:var(--accf)}.mbox{fill:var(--acc);fill-opacity:.12;stroke:var(--acc);stroke-width:2}
 .mt{font-size:14px;font-weight:500;fill:var(--ink)}.mm{font-size:13px;fill:var(--muted)}.mta{font-size:13px;font-weight:600;fill:var(--acct)}.mtw{font-size:12.5px;font-weight:600;fill:#fff}.mh{font-size:20px;font-weight:600;fill:var(--ink)}
 .medge{fill:none;stroke:var(--link);stroke-width:1.5}.mcode{fill:var(--codebg);stroke:var(--line)}.mmono{font:13px ui-monospace,"SF Mono",Menlo,Consolas,monospace;fill:var(--ink)}.mmonoa{font:600 13px ui-monospace,"SF Mono",Menlo,Consolas,monospace;fill:var(--acct)}
-.madd{fill:#2EA043;fill-opacity:.18}.mdel{fill:#F85149;fill-opacity:.16}.mrec{fill:#E5484D}
+.madd{fill:#2EA043;fill-opacity:.18}.mdel{fill:#F85149;fill-opacity:.16}.mrec{fill:#E5484D}.mcon{fill:var(--card);stroke:var(--acc);stroke-width:2}
 </style><svg x="80" y="40" width="40" height="40" viewBox="60 60 904 904" overflow="visible">
   
   <defs>
@@ -67,5 +67,5 @@ text{font-family:-apple-system,"SF Pro Display","SF Pro Text","Segoe UI Variable
 <circle class="accfill" cx="980" cy="188" r="44"/><g class="gl" transform="translate(962 170) scale(1.5)"><path d="M3 12h4l2-6 4 12 2-6h6"/></g><path class="conn" d="M1038 188 L1274 188"/><path class="chev" d="M1268 182 l7 6 -7 6"/><text class="stepn" x="980" y="272" text-anchor="middle">STEP 3</text><text class="stept" x="980" y="302" text-anchor="middle">Analyse</text><text class="steps" x="980" y="330" text-anchor="middle">Anomalies, patterns,</text><text class="steps" x="980" y="358" text-anchor="middle">exceptions and error</text><text class="steps" x="980" y="386" text-anchor="middle">outliers.</text>
 <circle class="accfill" cx="1340" cy="188" r="44"/><g class="gl" transform="translate(1322 170) scale(1.5)"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/></g><text class="stepn" x="1340" y="272" text-anchor="middle">STEP 4</text><text class="stept" x="1340" y="302" text-anchor="middle">Share</text><text class="steps" x="1340" y="330" text-anchor="middle">Incident reports and</text><text class="steps" x="1340" y="358" text-anchor="middle">redacted copies.</text>
 <line x1="80" x2="1520" y1="434" y2="434" stroke="var(--line)"/>
-<text class="small" x="80" y="472">Pitcrew opens its job logs in Debrief. Sighter run bundles and Pitwall explanations come after version 1.</text>
+<text class="small" x="80" y="472">Pitcrew opens its job logs in Debrief. Sighter run bundles and Pitwall explanations are planned.</text>
 </svg>
