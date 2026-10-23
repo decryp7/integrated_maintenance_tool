@@ -1,4 +1,14 @@
-import { cancelHintRect, cueHint, DRAG_CANCEL_CLASS, FLOAT_MAX, FLOAT_MIN, FloatCue, ghostRect, previewSize, tabDropOutcome } from './float-cue';
+import { floatedSize, FLOAT_ORIGIN, cancelHintRect, cueHint, DRAG_CANCEL_CLASS, FLOAT_MAX, FLOAT_MIN, FloatCue, ghostRect, previewSize, tabDropOutcome } from './float-cue';
+
+describe('floatedSize', () => {
+  it('is roomy on a big window, capped, and stays inside a small one', () => {
+    expect(floatedSize({ width: 1440, height: 900 })).toEqual({ width: 864, height: 630 });
+    expect(floatedSize({ width: 3000, height: 2000 })).toEqual({ width: 960, height: 640 });
+    const small = floatedSize({ width: 600, height: 400 });
+    expect(FLOAT_ORIGIN.x + small.width).toBeLessThanOrEqual(600);
+    expect(FLOAT_ORIGIN.y + small.height).toBeLessThanOrEqual(400);
+  });
+});
 
 describe('float cue geometry', () => {
   it('decides what a release does', () => {

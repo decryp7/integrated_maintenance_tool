@@ -4,7 +4,7 @@ import { DebriefView, ViewPosition } from '../extensions/tokens';
 import { DockContext, PANEL, rectOf } from './dock-context';
 import { adjacentNeighbour, atEdge, DockSlot, fullSpanEdge, Point, Rect } from './dock-geometry';
 import { DockTarget, GroupBox, hitDockTarget, outsideViewport, targetPreview } from './dock-target';
-import { cancelHintRect, FLOAT_MAX, ghostRect, previewSize, TabDropOutcome, tabDropOutcome } from './float-cue';
+import { cancelHintRect, FLOAT_ORIGIN, floatedSize, ghostRect, previewSize, TabDropOutcome, tabDropOutcome } from './float-cue';
 import { AutoHideItem, autoHideReduce } from './auto-hide';
 import { DockExtras, EMPTY_EXTRAS } from './layout-store';
 import { analysisTabToClose, viewArea } from './view-area';
@@ -15,8 +15,8 @@ const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
 /** The share of the dock's height the events grid keeps when a document opens beside the timeline. */
 const DOCUMENT_GRID_SHARE = 0.35;
-/** Size of a group floated with the "Float panel" button. */
-const FLOAT_SIZE = FLOAT_MAX;
+/** Size and position of a group floated with the "Float panel" button: roomy, and inside the window. */
+const floatRect = () => ({ ...floatedSize({ width: window.innerWidth, height: window.innerHeight }), ...FLOAT_ORIGIN });
 /** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
 const TOOL_SIZE = { side: INSPECTOR_WIDTH, bottom: 240 };
 
@@ -327,7 +327,7 @@ export class DockPlacement {
       if (anchor) group.api.moveTo({ group: anchor.group, position: position === 'center' ? 'center' : position });
       else group.api.moveTo({ position: 'right' });
     } else {
-      api.addFloatingGroup(group, { ...FLOAT_SIZE, x: 140, y: 100 });
+      api.addFloatingGroup(group, floatRect());
     }
   }
 
@@ -335,7 +335,7 @@ export class DockPlacement {
   floatPanel(panel: IDockviewPanel): void {
     const api = this.ctx.api;
     const group = panel.group;
-    if (api && group.api.location.type !== 'floating') api.addFloatingGroup(group.panels.length > 1 ? panel : group, { ...FLOAT_SIZE, x: 140, y: 100 });
+    if (api && group.api.location.type !== 'floating') api.addFloatingGroup(group.panels.length > 1 ? panel : group, floatRect());
   }
 
   /* ------------------------------------------- a tab dragged off the drop zones */
