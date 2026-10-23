@@ -109,7 +109,7 @@ fn unknown_tools_and_helpers() {
     assert!(specs
         .iter()
         .all(|s| s.input_schema["type"] == "object" && !s.description.is_empty()));
-    assert!(tools(ToolLimits::for_context(8192)).specs().len() == 11);
+    assert!(tools(ToolLimits::for_context(8192)).specs().len() == 12);
     let l = ToolLimits::for_context(4096);
     assert!(l.max_chars < ToolLimits::for_context(32768).max_chars && l.max_items >= 3);
     assert_eq!(ToolLimits::for_context(1).max_chars, 1200);
