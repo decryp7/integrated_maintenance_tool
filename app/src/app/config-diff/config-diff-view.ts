@@ -254,11 +254,11 @@ export function valueText(v: ValueDto | null): string {
     .pick { display: flex; gap: 6px; align-items: flex-end; flex-wrap: wrap; }
     .side { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 180px; }
     .lbl { font-size: var(--fs-xs); color: var(--text-2); }
-    .opts summary { cursor: pointer; color: var(--text-2); font-size: var(--fs-sm); }
+    .opts summary { cursor: pointer; line-height: 24px; color: var(--text-2); font-size: var(--fs-sm); }
     .ign { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
     .ign textarea { width: 100%; box-sizing: border-box; }
     .row-opts { display: flex; gap: 12px; align-items: center; margin-top: 6px; flex-wrap: wrap; }
-    .check { display: inline-flex; gap: 4px; align-items: center; font-size: var(--fs-sm); }
+    .check { display: inline-flex; gap: 4px; align-items: center; min-height: 24px; font-size: var(--fs-sm); }
     .alert { display: flex; gap: 10px; align-items: center; padding: 6px 10px; border: 1px solid var(--lvl-error); border-radius: 6px; background: var(--bg-2); color: var(--text); }
     .notice { font-size: var(--fs-sm); color: var(--text-2); }
     .bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
@@ -294,7 +294,7 @@ export function valueText(v: ValueDto | null): string {
     .details { display: flex; gap: 8px; align-items: center; padding: 4px 0; }
     .d-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-sm); }
     .files { border-collapse: collapse; font-size: var(--fs-sm); width: 100%; }
-    .files th, .files td { padding: 3px 8px; text-align: left; border-bottom: 1px solid var(--border); }
+    .files th, .files td { padding: 3px 8px; overflow-wrap: anywhere; text-align: left; border-bottom: 1px solid var(--border); }
     .files .num { text-align: right; }
     .st.changed { color: var(--warn-text); }
     .st.unreadable, .st.removed { color: var(--danger-text); }

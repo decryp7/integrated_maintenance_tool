@@ -134,8 +134,8 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     </div>
   `,
   styles: `
-    /* Basis 300 px: the bar wraps before the field falls below a usable width, so the placeholder is never cut. */
-    :host { position: relative; flex: 1 1 220px; min-width: 200px; height: 30px; display: block; }
+    /* Basis 340 px (room for the inline buttons and the partial-match note beside a usable text area): the bar wraps before the field falls below a usable width, so the placeholder is never cut. */
+    :host { position: relative; flex: 1 1 340px; min-width: min(340px, 100%); height: 30px; display: block; }
     .box {
       position: absolute; inset: 0 0 auto 0; min-height: 30px; box-sizing: border-box; z-index: 5;
       display: flex; align-items: flex-start; gap: 6px; padding: 0 4px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2);

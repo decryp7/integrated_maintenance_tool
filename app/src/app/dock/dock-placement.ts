@@ -16,7 +16,7 @@ const TIMELINE_HEIGHT = 300;
 /** The timeline row's height once an analysis panel shares the dock (the grid keeps the rest). */
 const TIMELINE_COMPACT_HEIGHT = 210;
 /** The share of the dock's height the events grid keeps when a document opens beside the timeline (it is the main artefact). */
-const DOCUMENT_GRID_SHARE = 0.6;
+const DOCUMENT_GRID_SHARE = 0.4;
 /** A document that opens beside the timeline takes at most this share of the dock's width, and at most `DOCUMENT_MAX_WIDTH` px. */
 const DOCUMENT_WIDTH_SHARE = 0.4;
 const DOCUMENT_MAX_WIDTH = 640;
@@ -29,6 +29,10 @@ const MAIN_MIN_WIDTH = 640;
 const FULL_HEIGHT_MIN_WIDTH = 320;
 /** The least width the events grid keeps when a window narrows beside a full-height column, px. */
 const GRID_MIN_WIDTH = 760;
+/** The least width the events grid keeps when a tool window also opens beside a full-height column, px. */
+const GRID_MIN_WIDTH_WITH_TOOL = 360;
+/** ...and the column keeps this much (three columns must fit a 1440 px window beside the Explorer), px. */
+const COLUMN_MIN_WIDTH_WITH_TOOL = 280;
 /** Below this dock width a full-height document is placed like any other document. */
 const FULL_HEIGHT_MIN_DOCK_WIDTH = 900;
 /** A document group counts as full height when it is at least this share of the dock's height. */
@@ -163,10 +167,27 @@ export class DockPlacement {
     // A column at the window edge must not change the rows' heights (dockview redistributes them when the root flips
     // to a horizontal split, which left the events grid two rows when the inspector was pinned).
     const heights = api.groups.filter((g) => g.api.location.type === 'grid').map((g) => ({ group: g, height: g.height }));
+    // A full-height column (Home, Registry) already holds the right edge: it and the grid give way a little each, so the
+    // tool keeps its width and the column is not squeezed to a sliver (it keeps its minimum, the grid a lower one).
+    const column = this.fullHeightColumn(api);
+    if (column) {
+      column.api.setConstraints({ minimumWidth: COLUMN_MIN_WIDTH_WITH_TOOL });
+      (api.getPanel(PANEL.events) ?? api.getPanel(PANEL.timeline))?.group?.api?.setConstraints?.({ minimumWidth: GRID_MIN_WIDTH_WITH_TOOL });
+    }
     const panel = api.addPanel({ ...base, position: { direction: 'right' } });
     panel.group.api.setSize({ width: TOOL_SIZE.side });
+    if (column && api.width > 0) this.shareWithTool(api, column);
     for (const { group, height } of heights) if (height > 0 && Math.abs(group.height - height) > 2) group.api.setSize({ height });
     return panel;
+  }
+
+  /** After a tool opens beside a full-height column: the column keeps up to its width (never below its minimum), the grid gets the rest. */
+  private shareWithTool(api: DockviewApi, column: DockviewGroupPanel): void {
+    const grid = (api.getPanel(PANEL.events) ?? api.getPanel(PANEL.timeline))?.group;
+    const rest = api.width - TOOL_SIZE.side;
+    const columnWidth = Math.max(COLUMN_MIN_WIDTH_WITH_TOOL, Math.min(column.width, rest - GRID_MIN_WIDTH_WITH_TOOL));
+    grid?.api.setSize({ width: Math.max(GRID_MIN_WIDTH_WITH_TOOL, rest - columnWidth) });
+    column.api.setSize({ width: columnWidth });
   }
 
   /** A status tool window as a tab on the bottom side bar, slid out unless opened in the background. */
@@ -244,7 +265,7 @@ export class DockPlacement {
    * timeline row's strip is never the place it lands in. The timeline and the grid keep their rows beside it.
    */
   private addFullHeight(api: DockviewApi, base: AddPanel): IDockviewPanel {
-    const column = api.groups.find((g) => this.isTall(api, g) && g.panels.length > 0 && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.isDocument(p.id)));
+    const column = this.fullHeightColumn(api);
     if (column) return api.addPanel({ ...base, position: { referenceGroup: column.id, direction: 'within' } });
     if (!api.getPanel(PANEL.timeline) && !api.getPanel(PANEL.events)) return api.addPanel(base);
     const panel = api.addPanel({ ...base, position: { direction: 'right' } });
@@ -254,13 +275,19 @@ export class DockPlacement {
     return panel;
   }
 
+  /** The document group that spans the dock beside the timeline and the grid (Home, Registry), if one is open. */
+  private fullHeightColumn(api: DockviewApi): DockviewGroupPanel | undefined {
+    return api.groups.find((g) => this.isTall(api, g) && g.panels.length > 0 && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.isDocument(p.id)));
+  }
+
   private isTall(api: DockviewApi, g: DockviewGroupPanel): boolean {
     return g.api.location.type === 'grid' && g.height >= api.height * FULL_HEIGHT_MIN_SHARE;
   }
 
   /** A document group as tall as the dock that holds a full-height view. */
-  private isFullHeightColumn(api: DockviewApi, g: DockviewGroupPanel): boolean {
-    return this.isTall(api, g) && g.panels.some((p) => this.ctx.views.find(p.id)?.fullHeight === true);
+  private isFullHeightColumn(_api: DockviewApi, g: DockviewGroupPanel): boolean {
+    // Not measured: right after a layout (WebKit) a column's height can still read as 0, and a document must not tab into it then.
+    return g.api.location.type === 'grid' && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.ctx.views.find(p.id)?.fullHeight === true);
   }
 
   private isDocument(id: string): boolean {

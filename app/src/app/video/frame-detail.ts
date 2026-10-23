@@ -58,10 +58,11 @@ const MAX_TEXT = 2000;
   styles: [
     VIDEO_STYLES,
     `
+      :host { container-type: inline-size; }
       .detail { display: grid; grid-template-columns: minmax(200px, 1fr) minmax(220px, 1fr); gap: 12px; align-items: start; }
       .big { border-radius: 4px; overflow: hidden; min-height: 120px; }
       .desc { color: var(--text); }
-      @media (max-width: 720px) { .detail { grid-template-columns: 1fr; } }
+      @container (max-width: 720px) { .detail { grid-template-columns: 1fr; } }
     `,
   ],
 })
