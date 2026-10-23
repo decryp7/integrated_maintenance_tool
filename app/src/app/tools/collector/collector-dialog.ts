@@ -210,6 +210,7 @@ type Phase = 'idle' | 'running' | 'done';
   `,
 })
 export class CollectorDialog implements OnInit {
+  static readonly dialogId = 'collector';
   protected readonly fmt = formatCount;
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(CollectBackend);

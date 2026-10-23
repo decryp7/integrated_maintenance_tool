@@ -117,8 +117,7 @@ import {
                     {{ r.model.name }}
                     @if (r.model.id === p.recommendations.best?.model?.id) {
                       <span class="badge best" i18n="@@ai.setup.badge.best">Best</span>
-                    }
-                    @if (r.model.id === p.recommendations.fastest?.model?.id) {
+                    } @else if (r.model.id === p.recommendations.fastest?.model?.id) {
                       <span class="badge fastest" i18n="@@ai.setup.badge.fastest">Fastest</span>
                     }
                     @if (r.installed) {
@@ -282,8 +281,6 @@ import {
       display: flex;
       flex-direction: column;
       gap: 6px;
-      max-height: 320px;
-      overflow: auto;
     }
     .model {
       display: grid;
@@ -294,9 +291,14 @@ import {
       border-radius: 6px;
       cursor: pointer;
     }
+    /* The radio sits in its own column; every line of text lines up in the second one, however many there are. */
     .model input {
-      grid-row: span 3;
+      grid-column: 1;
+      grid-row: 1;
       margin-top: 3px;
+    }
+    .model > :not(input) {
+      grid-column: 2;
     }
     .model.picked {
       border-color: var(--accent);
@@ -369,14 +371,22 @@ import {
     .err {
       color: var(--danger-text, var(--lvl-error));
     }
+    /* The buttons stay in view while the models scroll. */
     .foot {
       display: flex;
       justify-content: flex-end;
       gap: 8px;
+      position: sticky;
+      bottom: -16px;
+      margin-bottom: -16px;
+      padding: 10px 0 16px;
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
     }
   `,
 })
 export class AiSetupWizard implements OnInit {
+  static readonly dialogId = 'ai-setup';
   private readonly backend = inject(AiBackend);
   private readonly status = inject(AiStatusStore);
   protected readonly runtimes = inject(AiRuntimeStore);

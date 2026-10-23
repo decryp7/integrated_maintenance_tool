@@ -101,7 +101,8 @@ test.describe('pseudo-locale', () => {
     await page.locator('debrief-activity-bar button').last().click();
     await page.locator('debrief-general-settings').getByTestId('language-select').locator('button').click();
     await page.getByRole('option', { name: 'English' }).click();
-    const dialog = page.getByRole('dialog').last();
+    // Settings is a modeless dialog; the restart question over it is the modal one.
+    const dialog = page.locator('[role=dialog][data-modality=modal]');
     await expect(dialog).toContainText(PSEUDO);
     // Later: the window keeps running in pseudo and says a restart is needed.
     await dialog.getByRole('button').filter({ hasText: PSEUDO }).first().click();

@@ -154,6 +154,30 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   });
   await page.keyboard.press('Escape');
 
+  // Dialogs are OS windows on the desktop (ADR 0050); the browser build shows the same dialogs in the page: a modeless
+  // tool beside the work, and a modal question with the page dimmed behind it.
+  await shot(page, 'dialog-modeless', async () => {
+    await need(page, 'About Debrief');
+    await expect(page.getByRole('dialog', { name: 'About Debrief' })).toHaveAttribute('data-modality', 'modeless');
+  });
+  await page.keyboard.press('Escape');
+  await shot(page, 'dialog-modal', async () => {
+    await need(page, 'Paste as log');
+    await expect(page.getByRole('dialog', { name: 'Paste as log' })).toHaveAttribute('data-modality', 'modal');
+  });
+  await page.keyboard.press('Escape');
+
+  await shot(page, 'dialog-redacted-copy', async () => {
+    await need(page, 'Share redacted copy');
+    await expect(page.getByTestId('rc-scanned')).toContainText('Scanned');
+  });
+  await page.keyboard.press('Escape');
+  await shot(page, 'dialog-export', async () => {
+    await need(page, 'Export events');
+    await expect(page.getByRole('dialog', { name: 'Export events' })).toBeVisible();
+  });
+  await page.keyboard.press('Escape');
+
   await shot(page, 'timeline-zoom', async () => {
     const zoomIn = page.getByRole('button', { name: 'Zoom in' });
     for (let i = 0; i < 3; i++) await zoomIn.click();
@@ -345,6 +369,16 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await need(page, 'View: Jobs').catch(() => undefined);
     await page.waitForTimeout(800);
   });
+
+  // The first-start AI set-up window (modeless: the app stays usable while the model downloads).
+  await page.goto('/?mockAi=setup&mockAiStepMs=60000');
+  await expect(page.locator('debrief-status-bar')).toContainText('events', { timeout: 20_000 });
+  await command(page, `Colour scheme: ${theme}`);
+  await shot(page, 'dialog-ai-setup', async () => {
+    await need(page, 'Set up AI assistant');
+    await expect(page.getByTestId('ai-hardware')).toBeVisible();
+  });
+  await page.keyboard.press('Escape');
 
   // Home: the dashboard (tiles, history by level, findings, activity).
   await fresh(page, theme);

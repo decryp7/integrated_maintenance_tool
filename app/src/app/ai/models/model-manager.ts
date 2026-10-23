@@ -318,6 +318,7 @@ const ENGINE_STATE: Record<string, string> = {
   `,
 })
 export class AiModelManager implements OnInit {
+  static readonly dialogId = 'ai-models';
   private readonly backend = inject(AiBackend);
   private readonly dialogs = inject(DialogService);
   private readonly platform = inject(Platform);

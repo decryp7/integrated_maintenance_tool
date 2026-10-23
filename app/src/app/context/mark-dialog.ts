@@ -28,6 +28,7 @@ import { DIALOG_REF } from '../ui/dialog.service';
   styles: [DIALOG_FORM_STYLES],
 })
 export class MarkDialog {
+  static readonly dialogId = 'mark';
   protected readonly ref = inject(DIALOG_REF);
 
   readonly initial = input<Condition[]>([]);

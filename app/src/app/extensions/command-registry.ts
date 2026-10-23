@@ -3,6 +3,8 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { Logger } from '../core/logger';
 import { ActivityLog } from '../core/activity/activity-log';
 import { Trigger } from '../core/activity/types';
+import { HOST_COMMAND_FORWARD } from '../dialog-windows/host-commands';
+import { ModalGate } from '../dialog-windows/modal-gate';
 import { fuzzyFilter } from './fuzzy';
 import { matchesKeybinding } from './keybinding';
 import { applyOverrides } from './keybinding-overrides';
@@ -25,6 +27,8 @@ export class CommandRegistry {
   private readonly context = inject(COMMAND_CONTEXT);
   private readonly activity = inject(ActivityLog);
   private readonly overrides = inject(KeybindingOverridesStore);
+  private readonly gate = inject(ModalGate);
+  private readonly forward = inject(HOST_COMMAND_FORWARD);
 
   /** Commands once each, with the user's key bindings applied (a cleared binding has no `keybinding`). */
   private readonly effective = computed(() => {
@@ -68,8 +72,11 @@ export class CommandRegistry {
    * (menu, palette, shortcut, context menu, button, native menu event), see `core/activity/trigger.ts`.
    */
   async run(id: string, trigger: Trigger | 'auto' = 'auto'): Promise<boolean> {
+    // A dialog window hands commands to the window it belongs to.
+    if (this.forward(id)) return true;
     const command = this.find(id);
-    if (!command || !this.isAvailable(command)) return false;
+    // A modal dialog window is open over this window: it answers first.
+    if (this.gate.blocked() || !command || !this.isAvailable(command)) return false;
     try {
       await this.activity.track(id, trigger, { Title: command.title, Category: command.category }, () => command.run(this.context));
       return true;
@@ -82,7 +89,7 @@ export class CommandRegistry {
 
   /** Runs the command bound to the key combination, if any. Returns true when one ran. */
   runForKey(e: KeyboardEvent): boolean {
-    if (this.keysSuspended()) return false;
+    if (this.keysSuspended() || this.gate.blocked()) return false;
     const command = this.available().find((c) => c.keybinding && matchesKeybinding(c.keybinding, e));
     if (!command) return false;
     e.preventDefault();

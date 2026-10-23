@@ -15,7 +15,7 @@ export class UpdatesCommands {
 
   /** Opens the Updates dialog and checks, unless an update is already being handled. */
   open(): void {
-    if (!this.dialogs.stack().some((d) => d.component === UpdatesDialog)) this.dialogs.open(UpdatesDialog, { title: $localize`:@@updates.dialog.title:Check for updates`, width: 520 });
+    this.dialogs.open(UpdatesDialog, { title: $localize`:@@updates.dialog.title:Check for updates`, width: 520 });
     const kind = this.store.phase()?.kind ?? 'idle';
     if (CHECK_FROM.has(kind)) void this.store.check();
   }

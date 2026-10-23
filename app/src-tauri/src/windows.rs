@@ -356,7 +356,7 @@ pub fn emit_to_window<R: Runtime, S: Serialize + Clone>(app: &tauri::AppHandle<R
         EventTarget::Window { label: l }
         | EventTarget::Webview { label: l }
         | EventTarget::WebviewWindow { label: l }
-        | EventTarget::AnyLabel { label: l } => l == label || crate::panel_windows::host_of(l) == Some(label),
+        | EventTarget::AnyLabel { label: l } => l == label || crate::panel_windows::resolve(l) == label,
         _ => false,
     });
 }

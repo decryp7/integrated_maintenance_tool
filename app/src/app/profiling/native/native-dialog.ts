@@ -169,6 +169,7 @@ const STATE_LABEL: Record<NativeCaptureStatus['state'], string> = {
   `,
 })
 export class NativeDialog implements OnInit {
+  static readonly dialogId = 'profile-native';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly store = inject(NativeCaptureStore);
   protected readonly modes = MODE_CHOICES;

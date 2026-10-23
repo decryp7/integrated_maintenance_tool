@@ -33,6 +33,7 @@ mod config_store;
 mod demo;
 mod dev_overrides;
 mod diagnostics;
+mod dialog_windows;
 mod drag_ghost;
 mod dumps;
 mod encodings;
@@ -129,8 +130,8 @@ macro_rules! command_table {
 }
 
 // Every command the UI can invoke: one line each (ADR 0016). Kind: Query (read-only), Mutation, Quiet
-// (polling and bookkeeping). Windows: MAIN (`main`, `w-*`), POPOUT (`p-*`), WINDOW =
-// MAIN | POPOUT. Limit: the largest request in bytes (default `commands::DEFAULT_LIMIT`).
+// (polling and bookkeeping). Windows: MAIN (`main`, `w-*`), POPOUT (`p-*`), DIALOG (`d-*`), WINDOW =
+// MAIN | POPOUT | DIALOG. Limit: the largest request in bytes (default `commands::DEFAULT_LIMIT`).
 command_table! {
     Query [WINDOW] => workspace_commands::workspace_summary,
     Mutation [WINDOW] => workspace_commands::open_paths,
@@ -298,11 +299,11 @@ command_table! {
     Mutation [WINDOW] => snapshots::open_snapshots_folder,
     Mutation [WINDOW] => snapshots::export_diagnostics,
     Query [WINDOW] => storage::storage_usage,
-    Mutation [MAIN] => storage::storage_clear,
+    Mutation [MAIN | DIALOG] => storage::storage_clear,
     Query [WINDOW] => storage::storage_stores,
-    Mutation [MAIN] => storage::storage_stores_clear,
+    Mutation [MAIN | DIALOG] => storage::storage_stores_clear,
     Query [WINDOW] => storage::storage_policy,
-    Mutation [MAIN] => storage::storage_set_policy,
+    Mutation [MAIN | DIALOG] => storage::storage_set_policy,
     Mutation [WINDOW] => storage::storage_reveal,
     Query [WINDOW] limit MIB => activity::report::problem_report_preview,
     Mutation [WINDOW] limit MIB => activity::report::save_problem_report,
@@ -312,7 +313,7 @@ command_table! {
     Query [WINDOW] => diagnostics::diagnostics_settings,
     Mutation [WINDOW] => diagnostics::set_diagnostics_settings,
     Query [WINDOW] => system::elevation,
-    Mutation [MAIN] => system::restart_elevated,
+    Mutation [MAIN | DIALOG] => system::restart_elevated,
     Mutation [WINDOW] => paths::pick_paths,
     Query [WINDOW] => system::read_file_head,
     Query [WINDOW] => tools::tools_list,
@@ -327,23 +328,23 @@ command_table! {
     Query [WINDOW] => agent_commands::agent_run_manifest,
     Mutation [WINDOW] => agent_commands::agent_open_run,
     Query [WINDOW] => lifecycle::app_status,
-    Mutation [MAIN] => lifecycle::restart_app,
-    Mutation [MAIN] => plugin_config::plugin_reset,
-    Mutation [MAIN] => plugin_config::plugin_set_enabled,
-    Query [MAIN] => plugin_packages::plugin_packages_list,
-    Query [MAIN] => plugin_packages::plugin_package_inspect,
-    Mutation [MAIN] => plugin_packages::plugin_package_install,
-    Mutation [MAIN] => plugin_packages::plugin_package_remove,
-    Mutation [MAIN] => plugin_packages::plugin_package_set_enabled,
-    Mutation [MAIN] => plugin_packages::plugin_package_set_permissions,
+    Mutation [MAIN | DIALOG] => lifecycle::restart_app,
+    Mutation [MAIN | DIALOG] => plugin_config::plugin_reset,
+    Mutation [MAIN | DIALOG] => plugin_config::plugin_set_enabled,
+    Query [MAIN | DIALOG] => plugin_packages::plugin_packages_list,
+    Query [MAIN | DIALOG] => plugin_packages::plugin_package_inspect,
+    Mutation [MAIN | DIALOG] => plugin_packages::plugin_package_install,
+    Mutation [MAIN | DIALOG] => plugin_packages::plugin_package_remove,
+    Mutation [MAIN | DIALOG] => plugin_packages::plugin_package_set_enabled,
+    Mutation [MAIN | DIALOG] => plugin_packages::plugin_package_set_permissions,
     Quiet [MAIN] limit 16 * MIB => lifecycle::save_session,
     Query [MAIN] => lifecycle::last_session,
     Mutation [MAIN] => lifecycle::restore_windows,
     Query [WINDOW] => settings::settings_sections,
     Mutation [WINDOW] limit MIB => settings::set_settings,
-    Mutation [MAIN] => settings::reset_settings,
+    Mutation [MAIN | DIALOG] => settings::reset_settings,
     Mutation [WINDOW] => settings::export_settings,
-    Mutation [MAIN] => settings::import_settings,
+    Mutation [MAIN | DIALOG] => settings::import_settings,
     Mutation [WINDOW] => window_manager::new_window,
     Mutation [WINDOW] => window_manager::close_window,
     Mutation [WINDOW] => window_manager::quit_app,
@@ -360,6 +361,9 @@ command_table! {
     Mutation [WINDOW] => panel_windows::dock_panel,
     Query [WINDOW] => panel_windows::list_popouts,
     Mutation [WINDOW] => panel_windows::set_popout_on_top,
+    Mutation [MAIN | DIALOG] limit 9 * MIB => dialog_windows::dialog_open,
+    Query [DIALOG] => dialog_windows::dialog_take_input,
+    Mutation [DIALOG] => dialog_windows::dialog_close,
     Query [WINDOW] => recent::recent_list,
     Mutation [WINDOW] => recent::recent_remove,
     Mutation [WINDOW] => recent::recent_clear,
@@ -497,8 +501,8 @@ command_table! {
     Query [WINDOW] => updater::updates_check,
     Mutation [WINDOW] => updater::updates_download,
     Mutation [WINDOW] => updater::updates_discard,
-    Mutation [MAIN] => updater::updates_install_on_quit,
-    Mutation [MAIN] => updater::updates_restart,
+    Mutation [MAIN | DIALOG] => updater::updates_install_on_quit,
+    Mutation [MAIN | DIALOG] => updater::updates_restart,
     Mutation [WINDOW] => updater::updates_open_releases,
 }
 
@@ -618,6 +622,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(shared);
     app.manage(windows);
     app.manage(panel_windows::Popouts::default());
+    app.manage(dialog_windows::Dialogs::default());
     app.manage(drag_ghost::DragGhosts::default());
     app.manage(life);
     app.manage(background::BackgroundTasks::default());

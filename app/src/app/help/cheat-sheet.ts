@@ -61,6 +61,7 @@ export const PRINT_CLASS = 'debrief-print-cheat-sheet';
   `,
 })
 export class CheatSheet {
+  static readonly dialogId = 'cheat-sheet';
   private readonly registry = inject(CommandRegistry);
   private readonly settings = inject(SettingsDialogService);
   private readonly ref = inject(DIALOG_REF, { optional: true });

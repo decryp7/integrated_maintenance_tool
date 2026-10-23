@@ -78,6 +78,7 @@ export function openKnowledgeEditor(dialogs: DialogService, file: KnowledgeInfo 
   `,
 })
 export class KnowledgeEditor implements OnInit {
+  static readonly dialogId = 'knowledge-editor';
   protected readonly ref = inject(DIALOG_REF);
   private readonly store = inject(KnowledgeStore);
   /** The file to edit; null writes a new one in `scope`. */

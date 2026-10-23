@@ -55,6 +55,7 @@ import { AUTO_ENCODING, encodingText, initialEncodingChoice } from './encoding-f
   `,
 })
 export class EncodingDialog implements OnInit {
+  static readonly dialogId = 'encoding';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(EncodingBackend);
   private readonly workspace = inject(WorkspaceStore);

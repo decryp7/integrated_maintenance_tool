@@ -53,6 +53,7 @@ import { NativeOpener } from './native-capture.store';
   `,
 })
 export class EtlDialog implements OnInit {
+  static readonly dialogId = 'profile-etl';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(NativeBackend);
   private readonly opener = inject(NativeOpener);

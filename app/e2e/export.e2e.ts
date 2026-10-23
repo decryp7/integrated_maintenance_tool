@@ -9,14 +9,15 @@ test('export dialog counts events, exports through the backend and reports it', 
 
   const dialog = page.getByRole('dialog', { name: 'Export events' });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByRole('combobox', { name: 'Format' })).toBeFocused();
+  await expect(dialog.getByTestId('exp-format').getByRole('button')).toBeVisible();
   await expect(dialog.getByRole('status')).toContainText('events will be exported');
   const all = parseCount(await dialog.getByRole('status').innerText());
   expect(all).toBeGreaterThan(1000);
   await expectNoSeriousViolations(page, testInfo, 'export-dialog');
 
   await dialog.getByLabel('Newest first').check();
-  await dialog.getByLabel('Format').selectOption('clef');
+  await dialog.getByTestId('exp-format').getByRole('button').click();
+  await page.getByRole('option', { name: /Compact Log Event Format/ }).click();
   await dialog.getByRole('button', { name: 'Export…' }).click();
   // The dialog closes at once; a job writes the file and its message offers "Show in folder".
   await expect(dialog).toHaveCount(0);

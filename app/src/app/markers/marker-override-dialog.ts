@@ -61,6 +61,7 @@ import { OverrideStyle, PluginKindRow, styleProblems } from './marker-overrides'
   ],
 })
 export class MarkerOverrideDialog {
+  static readonly dialogId = 'marker-override';
   protected readonly ref = inject<DialogRef<OverrideStyle>>(DIALOG_REF);
   readonly row = input.required<PluginKindRow>();
   /** The profile's current override of the kind's style. */

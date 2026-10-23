@@ -153,6 +153,7 @@ const STATE_LABEL: Record<DotnetCaptureStatus['state'], string> = {
   `,
 })
 export class DotnetDialog implements OnInit {
+  static readonly dialogId = 'profile-dotnet';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly store = inject(DotnetCaptureStore);
   protected readonly kinds = KIND_CHOICES;

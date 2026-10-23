@@ -90,6 +90,7 @@ const DOC_TITLES: Record<LegalDoc, string> = {
   `,
 })
 export class AboutDialog {
+  static readonly dialogId = 'about';
   private readonly legal = inject(LEGAL_SOURCE);
   private readonly lifecycle = inject(LifecycleService);
   /** Commit and date recorded at build time (`'unknown'` in dev builds and tests). */
@@ -159,7 +160,6 @@ export class AboutService {
   private readonly dialogs = inject(DialogService);
 
   open(): void {
-    if (this.dialogs.stack().some((d) => d.component === AboutDialog)) return;
     this.dialogs.open(AboutDialog, { title: $localize`:@@about.title:About Debrief`, width: 720
  });
   }

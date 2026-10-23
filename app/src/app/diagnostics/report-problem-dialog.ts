@@ -90,6 +90,7 @@ export const MAX_DESCRIPTION = 10 * 1024;
   `,
 })
 export class ReportProblemDialog implements OnInit {
+  static readonly dialogId = 'report-problem';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(SnapshotBackend);
   private readonly target = inject(ExportTarget);

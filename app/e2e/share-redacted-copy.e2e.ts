@@ -3,6 +3,20 @@ import { chooseMenu } from './menu-support';
 import { openAppWith } from './tools-support';
 
 test.describe('share a redacted copy', () => {
+  for (const height of [900, 768]) {
+    test(`Create copy and Cancel stay in view at ${height}px height while the content scrolls`, async ({ page }) => {
+      await page.setViewportSize({ width: 1440, height });
+      await openAppWith(page, '');
+      await chooseMenu(page, 'File', 'Share redacted copy…');
+      const dialog = page.getByRole('dialog', { name: 'Share redacted copy' });
+      await expect(dialog.getByTestId('rc-scanned')).toContainText('Scanned');
+      for (const id of ['rc-create', 'rc-cancel']) {
+        const box = await dialog.getByTestId(id).boundingBox();
+        expect(box && box.y + box.height).toBeLessThanOrEqual(height);
+      }
+    });
+  }
+
   test('File > Share redacted copy... previews, follows the picks and creates the copy', async ({ page }) => {
     await openAppWith(page, '');
     await chooseMenu(page, 'File', 'Share redacted copy…');
@@ -16,10 +30,11 @@ test.describe('share a redacted copy', () => {
     await expect(dialog.getByTestId('rc-excluded')).toContainText('Left out of the copy');
     await expect(dialog.getByTestId('rc-notes')).toContainText('video frames');
 
-    const before = await dialog.locator('[data-rule-hit=email]').innerText();
+    // Rules that found nothing are summarised in one line instead of listed as rows of zeros.
+    await expect(dialog.getByTestId('rc-zero-hits')).toContainText(/other rules? found nothing/);
+    for (const row of await dialog.locator('[data-rule-hit] td').allInnerTexts()) expect(row).not.toBe('0');
     await email.uncheck();
-    await expect(dialog.locator('[data-rule-hit=email]')).toHaveCount(0);
-    expect(before).toMatch(/Email addresses/);
+    await expect(dialog.getByTestId('rc-zero-hits')).toBeVisible();
 
     // Nothing picked: the engine's refusal shows and the action is disabled.
     const count = await dialog.locator('[data-detector]').count();

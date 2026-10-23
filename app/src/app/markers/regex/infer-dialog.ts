@@ -86,6 +86,7 @@ const VALID_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
   ],
 })
 export class InferDialog {
+  static readonly dialogId = 'infer';
   protected readonly ref = inject(DIALOG_REF);
   private readonly api = inject(RegexApi);
   private readonly dialogs = inject(DialogService);

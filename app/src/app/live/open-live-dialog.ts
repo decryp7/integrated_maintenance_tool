@@ -26,6 +26,7 @@ import { LiveTail } from '../workspace/live-tail';
   styles: [DIALOG_FORM_STYLES, `.small { font-size: var(--fs-xs); }`],
 })
 export class OpenLiveDialog {
+  static readonly dialogId = 'open-live';
   protected readonly ref = inject(DIALOG_REF);
   private readonly platform = inject(Platform);
   private readonly live = inject(LiveTail);

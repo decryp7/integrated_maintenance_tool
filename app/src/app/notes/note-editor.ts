@@ -89,6 +89,7 @@ export function parseTags(text: string): string[] {
   `,
 })
 export class NoteEditor implements OnInit {
+  static readonly dialogId = 'note-editor';
   protected readonly ref = inject(DIALOG_REF);
   private readonly store = inject(NotesStore);
   /** A new note on this anchor (ignored when `note` is given). */

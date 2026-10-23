@@ -54,6 +54,7 @@ import { lineDiff } from './line-diff';
   `,
 })
 export class ParserImportConfirm {
+  static readonly dialogId = 'parser-import-confirm';
   protected readonly ref = inject(DIALOG_REF);
   readonly check = input.required<ParserImportCheckDto>();
 

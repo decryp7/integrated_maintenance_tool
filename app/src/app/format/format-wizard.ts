@@ -144,6 +144,7 @@ const PARTS: { id: FormatPart; label: string }[] = [
   ],
 })
 export class FormatWizard implements OnInit {
+  static readonly dialogId = 'format-wizard';
   protected readonly ref = inject(DIALOG_REF);
   private readonly backend = inject(DebriefBackend);
   private readonly settings = inject(SettingsStore);

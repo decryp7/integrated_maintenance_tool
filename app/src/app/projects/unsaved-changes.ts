@@ -44,6 +44,7 @@ export class UnsavedChangesGuard {
   `,
 })
 export class UnsavedChangesDialog {
+  static readonly dialogId = 'unsaved-changes';
   protected readonly ref = inject(DIALOG_REF);
   readonly name = input(UNTITLED);
   readonly action = input($localize`:Completes "Save the changes before you ..."|@@projects.unsaved.defaultAction:continue`);

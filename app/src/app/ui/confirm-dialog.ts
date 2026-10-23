@@ -27,6 +27,8 @@ import { DIALOG_REF } from './dialog.service';
   `,
 })
 export class ConfirmDialog {
+  /** On the desktop a yes/no question is the OS message box (ADR 0050); this component renders it in the browser build. */
+  static readonly nativeConfirm = true;
   protected readonly ref = inject(DIALOG_REF);
   readonly message = input.required<string>();
   /** A second, smaller line (e.g. the full path). */

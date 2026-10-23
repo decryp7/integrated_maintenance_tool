@@ -112,6 +112,7 @@ import { confidenceLabel, formatConfidence, formatOffset, parseOffset } from './
   ],
 })
 export class ClockDialog {
+  static readonly dialogId = 'clock';
   readonly sourceId = input.required<number>();
 
   protected readonly ref = inject(DIALOG_REF);

@@ -2,7 +2,6 @@ import { TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, provideFakeDock, provideTinyBackend, settle, text } from '../../../testing/helpers';
 import { CommandRegistry } from '../../extensions/command-registry';
 import { DialogService } from '../../ui/dialog.service';
-import { EngineSettingsStore } from '../engine-settings.store';
 import { MockStorageBackend } from './mock-storage-backend';
 import { StorageBackend } from './storage-backend';
 import { categoryLabel, resultLine, sizeLabel, StorageSettings } from './storage-settings';
@@ -123,6 +122,6 @@ describe('Clear cache command', () => {
     await settle();
     expect(await registry.run(CLEAR_CACHE_COMMAND)).toBe(true);
     expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Settings');
-    expect(TestBed.inject(EngineSettingsStore).selected()).toBe(STORAGE_ID);
+    expect(TestBed.inject(DialogService).stack()[0]?.options.inputs).toEqual({ section: STORAGE_ID });
   });
 });
