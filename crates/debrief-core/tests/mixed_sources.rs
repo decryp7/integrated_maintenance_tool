@@ -253,9 +253,12 @@ fn json_first_then_text_is_read_by_the_text_importer() {
 }
 
 fn tempdir() -> PathBuf {
-    let d = std::env::temp_dir().join(format!("debrief-mixed-{}-{:?}", std::process::id(), std::thread::current().id()));
-    std::fs::create_dir_all(&d).unwrap();
-    d
+    // Kept for the thread (tests run one per thread) and removed with it, also after a panic.
+    thread_local!(static KEPT: std::cell::RefCell<Vec<tempfile::TempDir>> = const { std::cell::RefCell::new(Vec::new()) });
+    let dir = tempfile::Builder::new().prefix("debrief-mixed-").tempdir().unwrap();
+    let path = dir.path().to_path_buf();
+    KEPT.with(|k| k.borrow_mut().push(dir));
+    path
 }
 
 /// Counts events per source and keeps the reports.

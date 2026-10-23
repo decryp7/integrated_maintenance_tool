@@ -4,9 +4,7 @@ use crate::Profile;
 
 /// A workspace over one invented CLEF log `host-agent.log` in a fresh folder.
 fn store_with(name: &str, events: &[(&str, &str)]) -> WorkspaceStore {
-    let dir = std::env::temp_dir().join(format!("debrief-find-{}-{name}", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::test_dirs::scratch_dir(&format!("find-{name}"));
     let mut text = String::new();
     for (i, (msg, process)) in events.iter().enumerate() {
         text.push_str(&format!(
@@ -178,9 +176,7 @@ fn a_source_name_is_a_value() {
 
 #[test]
 fn hits_say_exception_and_template_and_empty_values_never_match() {
-    let dir = std::env::temp_dir().join(format!("debrief-find-{}-exc", std::process::id()));
-    let _ = std::fs::remove_dir_all(&dir);
-    std::fs::create_dir_all(&dir).unwrap();
+    let dir = crate::test_dirs::scratch_dir("find-exc");
     let line = "{\"@t\":\"2026-10-14T09:00:00.000Z\",\"@mt\":\"Crash in {Name}\",\"Name\":\"x\",\"@m\":\"Crash in x\",\"@x\":\"System.InvalidOperationException: Graphic.Builder died\"}\n";
     std::fs::write(dir.join("a.log"), line).unwrap();
     let mut ws = Workspace::new(Profile::default_profile()).unwrap();

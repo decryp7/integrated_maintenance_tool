@@ -163,12 +163,21 @@ jobs:
 
       # nextest runs every test in its own process, in parallel across crates, and reports every failure;
       # .config/nextest.toml serialises (and retries) the tests that time real child processes.
+      - name: Temp folders before the tests
+        shell: bash
+        run: node scripts/ci/check-temp-leaks.mjs --snapshot "$RUNNER_TEMP/temp-leaks.json"
+
       - name: Tests
         run: cargo nextest run --workspace --no-fail-fast
 
       # nextest does not run doc tests.
       - name: Doc tests
         run: cargo test --workspace --doc
+
+      # Tests clean up after themselves (docs/testing/temp-leaks.md): a debrief-* / imt-* folder left behind fails the job.
+      - name: No temp folders left behind
+        shell: bash
+        run: node scripts/ci/check-temp-leaks.mjs --check "$RUNNER_TEMP/temp-leaks.json"
 
       # The analyses' memory budget (ADR 0014) is the shipped worker's: measured on a release build, Linux only
       # (DuckDB's jemalloc is the allocator there; the test skips itself in debug builds).
@@ -274,7 +283,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs
           node scripts/ci/check-icons.mjs
           scripts/notices/generate.sh
           git diff --exit-code -- app/src-tauri/resources app/src/app/about/generated
@@ -324,7 +333,10 @@ jobs:
           node scripts/i18n/build-locales.mjs --check .i18n-check/messages.xlf
 
       - name: Frontend unit tests
-        run: npx ng test --watch=false --coverage
+        run: |
+          node ../scripts/ci/check-temp-leaks.mjs --snapshot "${RUNNER_TEMP:-/tmp}/temp-leaks-ui.json"
+          npx ng test --watch=false --coverage
+          node ../scripts/ci/check-temp-leaks.mjs --check "${RUNNER_TEMP:-/tmp}/temp-leaks-ui.json"
 
   e2e:
     name: end-to-end (shard ${{ matrix.shard }}/2)

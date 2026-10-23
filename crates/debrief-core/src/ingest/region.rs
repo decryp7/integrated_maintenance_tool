@@ -497,10 +497,7 @@ mod tests {
     }
 
     fn temp(name: &str, bytes: &[u8]) -> (std::path::PathBuf, NewSource) {
-        let mut b = [0u8; 8];
-        getrandom::fill(&mut b).unwrap();
-        let dir = std::env::temp_dir().join(format!("debrief-region-{}-{:x}", std::process::id(), u64::from_le_bytes(b)));
-        std::fs::create_dir_all(&dir).unwrap();
+        let dir = crate::test_dirs::scratch_dir("region");
         let p = dir.join(name);
         std::fs::write(&p, bytes).unwrap();
         let src = NewSource {
