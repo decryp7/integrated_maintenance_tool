@@ -38,13 +38,12 @@ async function moveFloatingByHeader(page: Page): Promise<void> {
   const start = { x: header.x + header.width / 2, y: header.y + header.height / 2 };
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
-  await page.mouse.move(start.x - 60, start.y + 50, { steps: 10 });
+  await page.mouse.move(start.x - 60, start.y - 50, { steps: 10 });
   // Moving a window docks nothing: no dock guides.
   await expect(page.locator('.debrief-drop-guides.on')).toHaveCount(0);
   await page.mouse.up();
   await expect.poll(async () => (await floating(page).boundingBox())!.x).toBeLessThan(before.x - 40);
-  const after = (await floating(page).boundingBox())!;
-  expect(after.y).toBeGreaterThan(before.y + 30);
+  await expect.poll(async () => (await floating(page).boundingBox())!.y).toBeLessThan(before.y - 30);
 }
 
 test.describe('dragging a panel tab', () => {
