@@ -1,6 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 import { openApp, openView } from './app';
 import { chooseMenu } from './menu-support';
+import { stableCenter } from '../src/app/layout-plan/layout-scenarios.playwright';
 
 // Dragging a tab: a release on a drop guide docks it; a release inside the window but off every guide cancels the
 // drag ("Release to cancel" by the pointer; the tab stays, nothing floats); outside the window a translucent ghost labelled "Release to open in a
@@ -33,9 +34,10 @@ async function pressAndDrag(page: Page, name: string): Promise<void> {
 
 /** Drags the floating window by the empty part of its tab strip (as one moves a window by its title bar). */
 async function moveFloatingByHeader(page: Page): Promise<void> {
+  // The floated group lays its header out in steps (its empty strip is 0 px wide for a frame or two, when its centre is
+  // on the tab): press only once the strip has its final box, or the press lands on the tab and starts a dock drag.
+  const start = await stableCenter(page, '.dv-resize-container .dv-void-container');
   const before = (await floating(page).boundingBox())!;
-  const header = (await floating(page).locator('.dv-void-container').boundingBox())!;
-  const start = { x: header.x + header.width / 2, y: header.y + header.height / 2 };
   await page.mouse.move(start.x, start.y);
   await page.mouse.down();
   await page.mouse.move(start.x - 60, start.y - 50, { steps: 10 });
@@ -138,6 +140,27 @@ test.describe('floating a panel deliberately', () => {
     await page.getByRole('menu', { name: 'Actions' }).getByRole('menuitem', { name: 'Float', exact: true }).click();
     await expect(floating(page)).toBeVisible();
     await moveFloatingByHeader(page);
+  });
+
+  // The cause of the old intermittent failure, made deterministic: a floated group lays its header out in steps and
+  // its empty strip is 0 px wide for a frame or two; a press at the centre read then lands on the tab, which starts a dock
+  // drag (guides on) instead of moving the window. The helper must not hand out a point until the strip has its box.
+  test('the header press waits for the strip to have its final box (a collapsed strip puts the press on the tab)', async ({ page }) => {
+    await tab(page, 'Metrics').click();
+    await chooseMenu(page, 'Window', 'Float panel');
+    await expect(floating(page)).toBeVisible();
+    await stableCenter(page, '.dv-resize-container .dv-void-container');
+    await page.addStyleTag({ content: '.dv-resize-container .dv-void-container { flex: 0 0 0 !important; width: 0 !important; min-width: 0 !important; }' });
+    let resolved = false;
+    const pending = stableCenter(page, '.dv-resize-container .dv-void-container').then((c) => {
+      resolved = true;
+      return c;
+    });
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(() => r()))))));
+    expect(resolved, 'no point is handed out while the strip is collapsed').toBe(false);
+    await page.evaluate(() => document.querySelectorAll('style').forEach((st) => st.textContent?.includes('flex: 0 0 0') && st.remove()));
+    const centre = await pending;
+    expect(await page.evaluate(([x, y]) => !!document.elementFromPoint(x!, y!)?.closest('.dv-resize-container .dv-void-container'), [centre.x, centre.y])).toBe(true);
   });
 
   test('from Window ▸ Float panel (the active panel)', async ({ page }) => {

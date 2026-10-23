@@ -135,27 +135,86 @@ describe('DockLayout.fit', () => {
   });
 });
 
-describe('DockPersistence.hold (a layout fitted to a small window is not written over the saved one)', () => {
-  it('skips saves while held and saves again after release', async () => {
-    vi.useFakeTimers();
-    try {
-      TestBed.configureTestingModule({ providers: [provideDebriefBuiltins(), provideWorkspace(), ...provideTinyBackendBare(tinyBackend())] });
-      const { DockPersistence } = await import('./dock-persistence');
-      const { LAYOUT_STORE } = await import('./layout-store');
-      const store = { load: () => null, save: vi.fn(), clear: vi.fn() };
-      TestBed.overrideProvider(LAYOUT_STORE, { useValue: store });
-      const persistence = TestBed.inject(DockPersistence);
-      TestBed.inject(DockContext).api = { toJSON: () => ({ grid: {}, panels: {} }) } as unknown as DockviewApi;
-      persistence.hold();
-      persistence.schedule();
-      vi.advanceTimersByTime(1000);
-      expect(store.save).not.toHaveBeenCalled();
-      persistence.release();
-      persistence.schedule();
-      vi.advanceTimersByTime(1000);
-      expect(store.save).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
+describe('displaced views and grow-back', () => {
+  const grid = () => fakeDock(1100, 800, { 'timeline+events': { width: 400, height: 800 }, 'ai-chat': { width: 372, height: 800 }, home: { width: 328, height: 800 } });
+
+  it('records where a view was and what it joined when the plan tabs it away', () => {
+    const layout = setup();
+    const { api } = grid();
+    const slot = { referencePanel: null, direction: 'within' as const, edge: 'right' as const, size: 700 };
+    layout.fit(api, { sizes: true, capture: (id) => (id === 'home' ? slot : null) });
+    expect(TestBed.inject(DockContext).displaced.get('home')).toEqual({ id: 'home', slot, into: 'events' });
+  });
+
+  it('records an auto-hidden side tool with no host', () => {
+    const layout = setup();
+    const { api } = fakeDock(800, 700, { 'timeline+events': { width: 428, height: 700 }, 'ai-chat': { width: 372, height: 700 } });
+    TestBed.inject(DockContext).api = api;
+    layout.fit(api);
+    expect(TestBed.inject(DockContext).displaced.get('ai-chat')?.into).toBeNull();
+  });
+
+  it('a displaced view is a grow-back candidate only once there is room plus the margin, so it cannot flap', () => {
+    const layout = setup();
+    const ctx = TestBed.inject(DockContext);
+    // Home tabbed into events; the dock is as wide as the threshold (1300) and then margin wider (1364).
+    for (const [width, expected] of [[1300, []], [1363, []], [1364, ['home']]] as const) {
+      const { api } = fakeDock(width, 900, { 'timeline+events+home': { width: 900, height: 900 }, 'ai-chat': { width: 372, height: 900 } });
+      ctx.displaced.clear();
+      ctx.displaced.set('home', { id: 'home', slot: { referencePanel: null, direction: 'within' }, into: 'events' });
+      expect(layout.growBackIds(api), `${width}`).toEqual([...expected]);
     }
+  });
+
+  it('restoreOrder puts a view after the view its slot is relative to, and survives a cycle', () => {
+    const layout = setup();
+    const d = TestBed.inject(DockContext).displaced;
+    const at = (id: string, ref: string | null) => d.set(id, { id, slot: { referencePanel: ref, direction: 'within' }, into: null });
+    at('home', 'registry');
+    at('registry', 'ai-chat');
+    at('ai-chat', null);
+    expect(layout.restoreOrder(['home', 'registry', 'ai-chat'])).toEqual(['ai-chat', 'registry', 'home']);
+    at('a', 'b');
+    at('b', 'a');
+    expect(layout.restoreOrder(['a', 'b'])).toEqual(['a', 'b']);
+  });
+
+  it('a view tabbed in by the plan does not turn its host into a full-height column', () => {
+    const layout = setup();
+    const { api } = fakeDock(1500, 900, { 'timeline+events+home': { width: 1000, height: 900 }, 'ai-chat': { width: 372, height: 900 } });
+    TestBed.inject(DockContext).displaced.set('home', { id: 'home', slot: { referencePanel: null, direction: 'within' }, into: 'events' });
+    const open = layout.openViews(api);
+    expect(open.find((v) => v.id === 'events')?.fullHeight).toBeUndefined();
+    expect(open.find((v) => v.id === 'home')?.fullHeight).toBe(true);
+  });
+
+  it('moveBack: a column at the window edge is re-added by the caller, a neighbour slot is a move, a moved or missing view is stale', () => {
+    const layout = setup();
+    const { api, panels } = fakeDock(1500, 900, { 'timeline+events+home': { width: 1100, height: 900 }, 'ai-chat': { width: 372, height: 900 } });
+    expect(layout.moveBack(api, { id: 'home', slot: { referencePanel: null, direction: 'within', edge: 'right' }, into: 'events' })).toBe('readd');
+    expect(layout.moveBack(api, { id: 'home', slot: { referencePanel: 'ai-chat', direction: 'left' }, into: 'events' })).toBe('moved');
+    expect(panels.get('home')!.api.moveTo).toHaveBeenCalledWith({ group: panels.get('ai-chat')!.group, position: 'left' });
+    expect(layout.moveBack(api, { id: 'home', slot: { referencePanel: null, direction: 'within' }, into: 'ai-chat' })).toBe('stale');
+    expect(layout.moveBack(api, { id: 'gone', slot: { referencePanel: null, direction: 'within' }, into: 'events' })).toBe('stale');
+  });
+
+  it('remembers dragged sizes as the user\'s wish and uses them (never below the minimum) as hints', () => {
+    const layout = setup();
+    const ctx = TestBed.inject(DockContext);
+    const { api } = fakeDock(1920, 1080, { 'timeline+events': { width: 1200, height: 1080 }, 'ai-chat': { width: 500, height: 1080 } });
+    layout.rememberSizes(api);
+    expect(ctx.userSizes['ai-chat']).toEqual({ width: 500, height: 1080 });
+    expect(layout.hints().sizes?.['ai-chat']?.width).toBe(500);
+  });
+
+  it('the Explorer verdict: hides when the plan has no room, shows again only with the margin', () => {
+    const layout = setup();
+    const narrow = fakeDock(400, 900, { 'timeline+events': { width: 400, height: 900 } });
+    expect(layout.explorerVerdict(narrow.api, true, 300)).toBe('hide');
+    const roomy = fakeDock(1200, 900, { 'timeline+events': { width: 1200, height: 900 } });
+    expect(layout.explorerVerdict(roomy.api, true, 300)).toBe('keep');
+    // Closed: the dock has the Explorer's room too; it needs 300 + 560 + the margin.
+    expect(layout.explorerVerdict(fakeDock(923, 900, { 'timeline+events': { width: 923, height: 900 } }).api, false, 300)).toBe('keep');
+    expect(layout.explorerVerdict(fakeDock(925, 900, { 'timeline+events': { width: 925, height: 900 } }).api, false, 300)).toBe('show');
   });
 });

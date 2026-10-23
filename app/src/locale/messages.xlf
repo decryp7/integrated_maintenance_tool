@@ -10800,42 +10800,42 @@
         <source>Some panes were tabbed to fit this window</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-layout.ts</context>
-          <context context-type="linenumber">202</context>
+          <context context-type="linenumber">329</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.layout.fit.body" datatype="html">
         <source>Your saved layout is kept; it returns when the window is large enough.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-layout.ts</context>
-          <context context-type="linenumber">203</context>
+          <context context-type="linenumber">330</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.layout.fit.undo" datatype="html">
         <source>Undo</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-layout.ts</context>
-          <context context-type="linenumber">204</context>
+          <context context-type="linenumber">331</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.autoHide.toLeft" datatype="html">
         <source>Auto-hide to the left</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock.service.ts</context>
-          <context context-type="linenumber">541</context>
+          <context context-type="linenumber">553</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.autoHide.toRight" datatype="html">
         <source>Auto-hide to the right</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock.service.ts</context>
-          <context context-type="linenumber">542</context>
+          <context context-type="linenumber">554</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.autoHide.toBottom" datatype="html">
         <source>Auto-hide to the bottom</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock.service.ts</context>
-          <context context-type="linenumber">543</context>
+          <context context-type="linenumber">555</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.floatCue.window" datatype="html">
@@ -16655,7 +16655,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">72</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.alerts.kind.errorSpike" datatype="html">
@@ -17055,103 +17055,103 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.views.tailStatus" datatype="html">
         <source>Tail status</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">32</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.views.alertsCount" datatype="html">
         <source>Alerts (<x id="count" equiv-text="count &gt; 999 ? &apos;999+&apos; : count"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">43</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.toggle" datatype="html">
         <source>Toggle live tail</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">53</context>
+          <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.categoryFile" datatype="html">
         <source>File</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">53</context>
+          <context context-type="linenumber">51</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">55</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.open" datatype="html">
         <source>Open for live tail…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">56</context>
+          <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.openTitle" datatype="html">
         <source>Open for live tail</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">60</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.resume" datatype="html">
         <source>Resume following</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.categoryAnalyze" datatype="html">
         <source>Analyze</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">61</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">67</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.showAlerts" datatype="html">
         <source>Show live alerts</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">62</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.categoryView" datatype="html">
         <source>View</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">62</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.showStatus" datatype="html">
         <source>Show tail status</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">63</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.commands.rules" datatype="html">
         <source>Edit live alert rules…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/live/provide-live.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">66</context>
         </context-group>
       </trans-unit>
       <trans-unit id="live.qlInput.label" datatype="html">
@@ -20421,7 +20421,7 @@
         <source>View</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/provide-notifications.ts</context>
-          <context context-type="linenumber">39</context>
+          <context context-type="linenumber">38</context>
         </context-group>
         <note priority="1" from="description">Command palette category</note>
       </trans-unit>
@@ -20429,14 +20429,14 @@
         <source>View: Notifications</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/provide-notifications.ts</context>
-          <context context-type="linenumber">41</context>
+          <context context-type="linenumber">40</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.cmd.markAll" datatype="html">
         <source>Notifications: Mark all read</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/provide-notifications.ts</context>
-          <context context-type="linenumber">42</context>
+          <context context-type="linenumber">41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="onboarding.demo.missing" datatype="html">
@@ -37000,7 +37000,7 @@
         <source>View</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/store-pane/provide-store-pane.ts</context>
-          <context context-type="linenumber">21</context>
+          <context context-type="linenumber">20</context>
         </context-group>
         <note priority="1" from="description">Command palette category</note>
       </trans-unit>
@@ -37008,14 +37008,14 @@
         <source>Open Store</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/store-pane/provide-store-pane.ts</context>
-          <context context-type="linenumber">25</context>
+          <context context-type="linenumber">24</context>
         </context-group>
       </trans-unit>
       <trans-unit id="store.cmd.sql" datatype="html">
         <source>Open SQL console</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/store-pane/provide-store-pane.ts</context>
-          <context context-type="linenumber">34</context>
+          <context context-type="linenumber">33</context>
         </context-group>
       </trans-unit>
       <trans-unit id="store.sql.noIds" datatype="html">

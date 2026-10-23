@@ -1,4 +1,4 @@
-import { checkPlan, defaultViewLayout, fitAxis, LayoutArea, OpenView, planLayout, Size, ViewLayout } from './layout-plan';
+import { checkPlan, defaultViewLayout, fitAxis, LayoutArea, OpenView, planLayout, restorable, sanitizeViewLayout, Size, ViewLayout } from './layout-plan';
 
 const L = (area: LayoutArea, minW: number, minH: number, prefW: number, prefH: number, priority: number): ViewLayout => ({
   area,
@@ -16,6 +16,8 @@ const V = {
   markers: { id: 'markers', row: 'analysis', layout: L('analysis', 560, 180, 560, 280, 50) },
   notes: { id: 'notes', layout: L('side', 320, 240, 372, 400, 50) },
   jobs: { id: 'jobs', layout: L('status', 320, 180, 480, 360, 20) },
+  explorer: { id: 'explorer', layout: { ...L('side', 240, 240, 300, 400, 80), edge: 'left' } },
+  metrics: { id: 'metrics', row: 'timeline', group: 'metrics-group', layout: L('document', 420, 240, 640, 400, 55) },
 } satisfies Record<string, OpenView>;
 
 const widthOf = (plan: ReturnType<typeof planLayout>, id: string) => plan.columns.find((c) => c.views.includes(id))?.width;
@@ -136,6 +138,66 @@ describe('planLayout scenarios', () => {
   });
 });
 
+describe('Explorer and side-by-side documents', () => {
+  const set = (...ids: (keyof typeof V)[]): OpenView[] => ids.map((i) => V[i]);
+
+  it('the Explorer is a left column: it keeps its preference when there is room', () => {
+    const plan = planLayout({ width: 1600, height: 900 }, set('explorer', 'timeline', 'events', 'ai'));
+    expect(plan.columns.map((c) => c.kind)).toEqual(['left', 'main', 'side']);
+    expect(widthOf(plan, 'explorer')).toBe(300);
+    expect(widthOf(plan, 'events')).toBe(1600 - 300 - 372);
+  });
+
+  it('gives way after the assistant (lower priority), then closes before the events grid is squeezed', () => {
+    const tight = planLayout({ width: 1200, height: 900 }, set('explorer', 'timeline', 'events', 'ai'));
+    expect(tight.hidden).toEqual([]);
+    // The assistant (priority 70) gives up room before the Explorer (80).
+    expect(widthOf(tight, 'ai')).toBe(340);
+    expect(widthOf(tight, 'explorer')).toBe(300);
+    const none = planLayout({ width: 700, height: 900 }, set('explorer', 'timeline', 'events', 'ai'));
+    expect(none.hidden).toEqual([{ id: 'ai', edge: 'right' }, { id: 'explorer', edge: 'left' }].sort((a, b) => (a.id < b.id ? -1 : 1)));
+    expect(none.violations).toEqual([]);
+  });
+
+  it('documents in one row sit side by side, each at or above its minimum', () => {
+    const plan = planLayout({ width: 1300, height: 900 }, set('timeline', 'events', 'metrics'));
+    const row = plan.columns[0]!.rows.find((r) => r.key === 'timeline')!;
+    expect(row.cells.map((c) => c.views)).toEqual([['timeline'], ['metrics']]);
+    expect(row.cells.every((c) => c.width >= c.minWidth)).toBe(true);
+    expect(plan.violations).toEqual([]);
+  });
+
+  it('when a row\'s groups do not fit side by side the lowest-priority one is tabbed into the highest', () => {
+    const plan = planLayout({ width: 900, height: 900 }, set('timeline', 'events', 'metrics'));
+    expect(plan.tabbed).toEqual([{ id: 'metrics', into: 'timeline' }]);
+    expect(plan.violations).toEqual([]);
+  });
+});
+
+describe('restorable (grow-back with hysteresis)', () => {
+  const open = [V.timeline, V.events, V.ai, V.home];
+  const margin = { width: 64, height: 48 };
+
+  it('a tabbed view returns only once the window is a margin wider than where it first fits', () => {
+    // Home fits from 560 + 320 (the assistant at its minimum) + 420 = 1300.
+    expect(planLayout({ width: 1300, height: 900 }, open).tabbed).toEqual([]);
+    expect(planLayout({ width: 1299, height: 900 }, open).tabbed).toEqual([{ id: 'home', into: 'events' }]);
+    expect(restorable({ width: 1300, height: 900 }, open, ['home'], margin)).toEqual([]);
+    expect(restorable({ width: 1363, height: 900 }, open, ['home'], margin)).toEqual([]);
+    expect(restorable({ width: 1364, height: 900 }, open, ['home'], margin)).toEqual(['home']);
+  });
+
+  it('does not flap: after a restore at the threshold, shrinking by less than the margin plans no displacement', () => {
+    const at = 1364;
+    expect(restorable({ width: at, height: 900 }, open, ['home'], margin)).toEqual(['home']);
+    for (let w = at; w >= at - 64; w--) expect(planLayout({ width: w, height: 900 }, open).tabbed, `${w}`).toEqual([]);
+  });
+
+  it('keeps displaced views that are still displaced, and ignores ids that are no longer open', () => {
+    expect(restorable({ width: 1100, height: 900 }, open, ['home', 'gone'], margin)).toEqual([]);
+  });
+});
+
 describe('fitAxis', () => {
   it('gives equal priorities their cut in proportion to their slack', () => {
     const fit = fitAxis(
@@ -236,5 +298,30 @@ describe('planLayout properties (random viewports and view sets)', () => {
         expect(nowWidth >= pref || after.columns.some((a) => a.views.includes('extra')) || after.hidden.some((h) => h.id === 'extra'), `seed ${seed}`).toBe(true);
       }
     }
+  });
+});
+
+describe('sanitizeViewLayout (a plugin\'s declaration)', () => {
+  it('accepts a good declaration unchanged', () => {
+    const l = L('side', 300, 200, 360, 400, 40);
+    expect(sanitizeViewLayout(l)).toEqual(l);
+  });
+
+  it('fills what is missing from the area default, lifts pref to min, and bounds priority and size', () => {
+    const d = defaultViewLayout('side');
+    expect(sanitizeViewLayout({ area: 'side' })).toEqual(d);
+    expect(sanitizeViewLayout({ area: 'side', min: { width: 500 }, pref: { width: 100 } })?.pref.width).toBe(500);
+    expect(sanitizeViewLayout({ area: 'document', priority: 9999 })?.priority).toBe(100);
+    expect(sanitizeViewLayout({ area: 'document', priority: -5 })?.priority).toBe(1);
+    expect(sanitizeViewLayout({ area: 'document', min: { width: 1e12, height: NaN } })?.min).toEqual({ width: 8000, height: defaultViewLayout('document').min.height });
+  });
+
+  it('refuses what is not a layout', () => {
+    for (const raw of [null, undefined, 5, 'x', {}, { area: 'floating' }]) expect(sanitizeViewLayout(raw)).toBeNull();
+  });
+
+  it('only a side view can live at the left edge', () => {
+    expect(sanitizeViewLayout({ area: 'side', edge: 'left' })?.edge).toBe('left');
+    expect(sanitizeViewLayout({ area: 'document', edge: 'left' })?.edge).toBeUndefined();
   });
 });

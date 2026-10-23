@@ -1,19 +1,15 @@
 import { DOCUMENT } from '@angular/common';
 import { DestroyRef, inject, Injectable } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
+import { EXPLORER_LAYOUT } from '../dock/dock-layout';
 import { DockService } from '../dock/dock.service';
 
-/** Below this window width (px) the Explorer closes by itself (H1); wider again, it comes back if it was closed this way. */
-export const EXPLORER_AUTO_HIDE_PX = 1100;
-
-/** Below this window width (px) docked tool windows auto-hide into side-bar tabs (H1); wider again, they are pinned back. */
-export const DOCKS_AUTO_HIDE_PX = 1000;
-
 /**
- * Keeps the window usable when it is narrow: the Explorer side bar closes when the window drops below
- * `EXPLORER_AUTO_HIDE_PX` and comes back when the window is wide again, unless the user closed or opened it in
- * between (their choice wins). The Explorer can still be opened with Ctrl+B at any width. Docked tool windows
- * (side docks) auto-hide below `DOCKS_AUTO_HIDE_PX` the same way and are pinned back where they were.
+ * Keeps the window usable when it is narrow, by the layout plan (ADR 0056) and not by window-width constants: the
+ * Explorer is a view of the plan (a left column outside the dock, priority 80), so it closes when the plan has no room
+ * for it beside what is docked, and comes back, with a margin so it cannot flap, when there is. Lower-priority tool
+ * windows yield first (the dock tabs or auto-hides them in the same plan). The user's choice wins: an Explorer opened
+ * by hand (Ctrl+B) stays open until the plan has room again; one the user closed is never reopened.
  */
 @Injectable({ providedIn: 'root' })
 export class NarrowWindow {
@@ -23,48 +19,42 @@ export class NarrowWindow {
   private readonly destroyRef = inject(DestroyRef);
   /** The sidebar was open when the window narrowed and was closed by this service. */
   private closedByNarrowing = false;
-  /** Tool windows this service auto-hid when the window narrowed. */
-  private hiddenDocks: string[] = [];
+  /** The user opened the Explorer by hand while there was no room: leave it open until it fits again. */
+  private keptByUser = false;
   private started = false;
 
-  /** Starts following the window width (idempotent). Without `matchMedia` nothing happens. */
+  /** Starts following the dock's re-plans (idempotent). */
   start(): void {
     if (this.started) return;
     this.started = true;
-    this.follow(EXPLORER_AUTO_HIDE_PX, (narrow) => this.apply(narrow));
-    this.follow(DOCKS_AUTO_HIDE_PX, (narrow) => this.applyDocks(narrow));
+    this.destroyRef.onDestroy(this.dock.onWindowPlan(() => this.evaluate()));
+    this.evaluate();
   }
 
-  private follow(px: number, apply: (narrow: boolean) => void): void {
-    const query = this.doc.defaultView?.matchMedia?.(`(max-width: ${px - 1}px)`);
-    if (!query) return;
-    apply(query.matches);
-    const listener = (e: MediaQueryListEvent) => apply(e.matches);
-    query.addEventListener('change', listener);
-    this.destroyRef.onDestroy(() => query.removeEventListener('change', listener));
-  }
-
-  /** @internal The window became narrow (true) or wide (false) for the docks; exposed for tests. */
-  applyDocks(narrow: boolean): void {
-    if (narrow) {
-      this.hiddenDocks = [...new Set([...this.hiddenDocks, ...this.dock.autoHideAll()])];
-    } else {
-      const ids = this.hiddenDocks;
-      this.hiddenDocks = [];
-      this.dock.pinIds(ids);
-    }
-  }
-
-  /** @internal The window became narrow (true) or wide (false); exposed for tests. */
-  apply(narrow: boolean): void {
-    if (narrow) {
-      if (this.store.sidebarOpen()) {
+  /** Asks the plan whether the Explorer fits and closes or reopens it accordingly; exposed for tests. */
+  evaluate(): void {
+    const open = this.store.sidebarOpen();
+    const verdict = this.dock.explorerVerdict(open, this.width());
+    if (open) {
+      if (this.closedByNarrowing) {
+        // It was closed by this service and is open again: the user opened it.
+        this.closedByNarrowing = false;
+        this.keptByUser = verdict === 'hide';
+        return;
+      }
+      if (verdict === 'keep') this.keptByUser = false;
+      else if (verdict === 'hide' && !this.keptByUser) {
         this.closedByNarrowing = true;
         this.store.toggleSidebar();
       }
-    } else if (this.closedByNarrowing) {
+    } else if (verdict === 'show' && this.closedByNarrowing) {
       this.closedByNarrowing = false;
-      if (!this.store.sidebarOpen()) this.store.toggleSidebar();
+      this.store.toggleSidebar();
     }
+  }
+
+  private width(): number {
+    const w = this.doc.querySelector('debrief-sidebar')?.getBoundingClientRect().width ?? 0;
+    return w > 0 ? w : EXPLORER_LAYOUT.pref.width;
   }
 }

@@ -4,6 +4,7 @@ import { ViewRegistry } from '../extensions/view-registry';
 import { AutoHideState, EMPTY_AUTO_HIDE } from './auto-hide';
 import { Rect, Side } from './dock-geometry';
 import { DropGuides } from './drop-guides';
+import type { DisplacedView, UserSizes } from './layout-store';
 import { PANEL_WINDOWS, PanelWindows } from './panel-windows';
 import { viewKind, ViewKind } from './view-kind';
 
@@ -39,6 +40,10 @@ export class DockContext {
   readonly shown = signal<ReadonlySet<string>>(new Set());
   readonly autoHide = signal<AutoHideState>(EMPTY_AUTO_HIDE);
   /** The side each tool window was last auto-hidden to (it goes there again). */
+  /** Views the layout plan moved away for lack of room, by id (they return when there is room; persisted in the extras). */
+  readonly displaced = new Map<string, DisplacedView>();
+  /** The sizes the user dragged views to (persisted in the extras). */
+  userSizes: UserSizes = {};
   readonly autoHideSides = signal<Readonly<Record<string, Side>>>({});
   /** Tabs pinned to the left of their strip (they survive "Close all"). */
   readonly pinned = signal<ReadonlySet<string>>(new Set());

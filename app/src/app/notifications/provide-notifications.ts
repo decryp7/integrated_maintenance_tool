@@ -28,8 +28,7 @@ export function notificationsViews(): DebriefView[] {
       title: $localize`:View title@@notifications.view.title:Notifications`,
       icon: 'bell',
       category: 'core',
-      defaultPosition: 'right',
-      area: 'status',
+      defaultPosition: 'right', layout: { area: 'status', min: { width: 320, height: 180 }, pref: { width: 480, height: 360 }, priority: 20 },
       component: () => import('./notifications-panel').then((m) => m.NotificationsPanel),
     },
   ];

@@ -3,8 +3,8 @@ import { openApp } from './app';
 import { expectNoSeriousViolations } from './axe';
 
 // Narrow windows: the filter bar folds range, time zone and Clear all into a ⋯ menu (bar < 1000 px), the Explorer
-// closes by itself below 1100 px (and comes back), low-priority status items go below 1000 px, and the page never
-// scrolls sideways.
+// closes by itself when the layout plan has no room for it beside the events grid (and comes back with a margin), low-priority
+// status items go below 1000 px, tool windows auto-hide the same way, and the page never scrolls sideways.
 
 const sidebar = (page: Page) => page.locator('debrief-sidebar');
 const more = (page: Page) => page.getByTestId('filter-more');
@@ -26,9 +26,9 @@ test.describe('narrow window', () => {
     await expect(page.locator('debrief-status-bar .low').first()).toBeVisible();
   });
 
-  test('1024 px: the Explorer has closed by itself, the page does not scroll sideways', async ({ page }, testInfo) => {
+  test('1024 px: the Explorer still fits beside the events grid (the plan decides, not a width), the page does not scroll sideways', async ({ page }, testInfo) => {
     await resize(page, 1024);
-    await expect(sidebar(page)).toHaveCount(0);
+    await expect(sidebar(page)).toBeVisible();
     expect(await noHorizontalScroll(page)).toBe(true);
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'narrow-1024');
@@ -102,7 +102,7 @@ test.describe('narrow window', () => {
     await expect(sidebar(page)).toBeVisible();
   });
 
-  test('side docks auto-hide below 1000 px and are pinned back when the window widens (H1)', async ({ page }) => {
+  test('side docks auto-hide when the plan has no room for them and are pinned back, with a margin, when the window widens', async ({ page }) => {
     // Pin the inspector so it is a docked tool window.
     const bar = page.getByRole('navigation', { name: 'Auto-hidden tool windows (right)' });
     await bar.getByRole('button', { name: 'Inspector' }).click();

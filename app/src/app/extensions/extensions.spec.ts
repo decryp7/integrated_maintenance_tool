@@ -28,6 +28,7 @@ import {
   JUMP_TIMEOUT_MS,
   matchesKeybinding,
   provideDebriefPlugin,
+  UI_PLUGIN_API_VERSION,
   ViewRegistry,
   WorkspaceCommandContext,
 } from './index';
@@ -105,6 +106,34 @@ describe('contributions', () => {
     expect(flattenContributions(TestBed.inject(DEBRIEF_FIELD_FORMATTERS))).toEqual([formatter]);
     expect(flattenContributions(TestBed.inject(DEBRIEF_INSPECTOR_SECTIONS))).toHaveLength(1);
     expect(TestBed.inject(DEBRIEF_VIEWS, null)).toBeTruthy();
+  });
+});
+
+describe('UI plugin API version and view layout (ADR 0056)', () => {
+  const mk = (patch: Partial<DebriefView>): DebriefView => ({ id: 'v', title: 'V', icon: 'panel', component: async () => Component as never, ...patch });
+
+  it('parses a plugin view\'s layout once at registration: bounds it, or drops an unusable one', () => {
+    TestBed.configureTestingModule({
+      providers: [
+        provideDebriefPlugin({
+          apiVersion: UI_PLUGIN_API_VERSION,
+          views: [
+            mk({ id: 'good', layout: { area: 'side', min: { width: 400, height: 100 }, pref: { width: 100, height: 100 }, priority: 5000 } }),
+            mk({ id: 'bad', layout: { area: 'nowhere' } as never }),
+            mk({ id: 'none' }),
+          ],
+        }),
+      ],
+    });
+    const [good, bad, none] = flattenContributions<DebriefView>(TestBed.inject(DEBRIEF_VIEWS));
+    expect(good?.layout).toMatchObject({ area: 'side', priority: 100, pref: { width: 400 } });
+    expect(bad?.layout).toBeUndefined();
+    expect(none?.layout).toBeUndefined();
+  });
+
+  it('refuses a plugin written for a newer contract than this build provides, naming both versions', () => {
+    expect(() => provideDebriefPlugin({ apiVersion: UI_PLUGIN_API_VERSION + 1 })).toThrow(new RegExp(`API ${UI_PLUGIN_API_VERSION + 1}.*provides ${UI_PLUGIN_API_VERSION}`));
+    expect(() => provideDebriefPlugin({})).not.toThrow();
   });
 });
 

@@ -17,9 +17,9 @@ const V = DUMP_VIEW_IDS;
 /** The dump views (same extension point as plugin views). */
 export function dumpsViews(tools: { listed(id: string): boolean }): DebriefView[] {
   return [
-    { id: V.dump, category: 'Diagnostics', title: $localize`:@@dumps.views.dump:Dump`, icon: 'alert', defaultPosition: 'center', component: () => import('./dump-view').then((m) => m.DumpView) },
-    { id: V.umdh, category: 'Diagnostics', title: $localize`:@@dumps.views.umdh:UMDH heap growth`, icon: 'metrics', defaultPosition: 'center', component: () => import('./umdh-view').then((m) => m.UmdhView) },
-    { id: V.capture, category: 'Tools', title: $localize`:@@dumps.views.capture:Create dump`, icon: 'file', defaultPosition: 'center', component: () => import('./create-dump-view').then((m) => m.CreateDumpView), enabled: () => tools.listed(TOOL_IDS.dumpCapture) },
+    { id: V.dump, category: 'Diagnostics', title: $localize`:@@dumps.views.dump:Dump`, icon: 'alert', defaultPosition: 'center', layout: { area: 'document', min: { width: 420, height: 240 }, pref: { width: 640, height: 400 }, priority: 55 }, component: () => import('./dump-view').then((m) => m.DumpView) },
+    { id: V.umdh, category: 'Diagnostics', title: $localize`:@@dumps.views.umdh:UMDH heap growth`, icon: 'metrics', defaultPosition: 'center', layout: { area: 'document', min: { width: 420, height: 240 }, pref: { width: 640, height: 400 }, priority: 55 }, component: () => import('./umdh-view').then((m) => m.UmdhView) },
+    { id: V.capture, category: 'Tools', title: $localize`:@@dumps.views.capture:Create dump`, icon: 'file', defaultPosition: 'center', layout: { area: 'document', min: { width: 420, height: 240 }, pref: { width: 640, height: 400 }, priority: 55 }, component: () => import('./create-dump-view').then((m) => m.CreateDumpView), enabled: () => tools.listed(TOOL_IDS.dumpCapture) },
   ];
 }
 

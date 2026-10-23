@@ -12,7 +12,7 @@ export function playbooksViews(): DebriefView[] {
       title: $localize`:@@playbooks.view.title:Playbooks`,
       icon: 'check',
       category: 'core',
-      defaultPosition: 'right',
+      defaultPosition: 'right', layout: { area: 'side', min: { width: 320, height: 240 }, pref: { width: 372, height: 400 }, priority: 45 },
       component: () => import('./playbooks-panel').then((m) => m.PlaybooksPanel),
     },
   ];

@@ -110,3 +110,29 @@ export async function paneWidths(page: Page, panes: Record<string, string>): Pro
   for (const [label, selector] of Object.entries(panes)) out[label] = (await groupOf(page, selector))?.width ?? -1;
   return out;
 }
+
+/**
+ * The centre of an element once its box has stopped changing (the same box on two consecutive animation frames, and
+ * not empty): a newly floated or resized dock group lays its header out in steps (its empty strip is 0 px wide for a
+ * frame or two), so a point read once can land on the wrong element. Polls with animation frames, never sleeps.
+ */
+export async function stableCenter(page: Page, selector: string, minWidth = 20): Promise<{ x: number; y: number }> {
+  await page.evaluate(() => {
+    delete (window as unknown as Record<string, unknown>)['__stablePrev'];
+  });
+  await page.waitForFunction(
+    ([sel, min]) => {
+      const w = window as unknown as { __stablePrev?: string; __stableCenter?: { x: number; y: number } };
+      const r = document.querySelector(sel as string)?.getBoundingClientRect();
+      if (!r) return false;
+      const key = `${r.x}|${r.y}|${r.width}|${r.height}`;
+      const same = w.__stablePrev === key && r.width >= (min as number) && r.height > 0;
+      w.__stablePrev = key;
+      if (same) w.__stableCenter = { x: r.x + r.width / 2, y: r.y + r.height / 2 };
+      return same;
+    },
+    [selector, minWidth] as const,
+    { polling: 'raf' },
+  );
+  return page.evaluate(() => (window as unknown as { __stableCenter: { x: number; y: number } }).__stableCenter);
+}

@@ -11,6 +11,9 @@
 
 export type LayoutArea = 'document' | 'side' | 'analysis' | 'status';
 
+/** Where a side view docks; `left` is a column at the left edge (the Explorer), default `right`. */
+export type SideEdge = 'left' | 'right';
+
 export interface Size {
   width: number;
   height: number;
@@ -25,6 +28,8 @@ export interface ViewLayout {
   pref: Size;
   /** Higher stays visible; lower is tabbed or auto-hidden first. */
   priority: number;
+  /** Side views only: the edge column the view lives in. Default `right`. */
+  edge?: SideEdge;
 }
 
 /** A view that is open (or about to be). */
@@ -35,6 +40,8 @@ export interface OpenView {
   fullHeight?: boolean;
   /** Views of the main column that share a row (tabs of one group) give the same key; default: the view's own id. */
   row?: string;
+  /** Views in the same dock group (tabs of one group) give the same key; groups of one row sit side by side. Default: the view's own id. */
+  group?: string;
 }
 
 /** Sizes the user or a saved layout asked for; they replace `pref` (still clamped to `min`). */
@@ -42,12 +49,22 @@ export interface SavedHints {
   sizes?: Readonly<Record<string, Partial<Size>>>;
 }
 
-export type ColumnKind = 'main' | 'full' | 'side';
-export type Edge = 'right' | 'bottom';
+export type ColumnKind = 'left' | 'main' | 'full' | 'side';
+export type Edge = 'left' | 'right' | 'bottom';
+
+export interface PlannedCell {
+  views: string[];
+  width: number;
+  minWidth: number;
+  /** The cell that takes the leftover width of its row. */
+  anchor: boolean;
+}
 
 export interface PlannedRow {
   key: string;
   views: string[];
+  /** The groups of the row, left to right by priority: side by side, each a stack of tabs. */
+  cells: PlannedCell[];
   height: number;
   minHeight: number;
   /** The row that takes the leftover height (its size is not set; the container gives it the rest). */
@@ -163,14 +180,14 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
   const tabbed: LayoutPlan['tabbed'] = [];
   const shrunk = new Set<string>();
 
-  const groups: Record<ColumnKind, OpenView[]> = { main: [], full: [], side: [] };
+  const groups: Record<ColumnKind, OpenView[]> = { left: [], main: [], full: [], side: [] };
   for (const v of views) {
     switch (v.layout.area) {
       case 'status':
         hidden.push({ id: v.id, edge: 'bottom' });
         break;
       case 'side':
-        groups.side.push(v);
+        (v.layout.edge === 'left' ? groups.left : groups.side).push(v);
         break;
       case 'analysis':
         groups.main.push(v);
@@ -181,7 +198,7 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
     }
   }
 
-  const kinds = (['main', 'full', 'side'] as const).filter((k) => groups[k].length);
+  const kinds = (['left', 'main', 'full', 'side'] as const).filter((k) => groups[k].length);
   const colItems: Item[] = kinds.map((k) => ({
     key: k,
     min: Math.max(...groups[k].map((v) => v.layout.min.width)),
@@ -195,7 +212,8 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
   for (const k of colFit.dropped as ColumnKind[]) {
     for (const v of groups[k]) {
       const into = anchorTarget();
-      if (k === 'side' || !into || v.layout.area === 'side') hidden.push({ id: v.id, edge: 'right' });
+      if (k === 'left') hidden.push({ id: v.id, edge: 'left' });
+      else if (k === 'side' || !into || v.layout.area === 'side') hidden.push({ id: v.id, edge: 'right' });
       else tabbed.push({ id: v.id, into });
     }
   }
@@ -240,15 +258,41 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
         for (const v of rowViews.get(key)!) if (into) tabbed.push({ id: v.id, into });
       }
       const kept = rowKeys.filter((key) => !rowFit.dropped.includes(key));
-      col.views = kept.flatMap((key) => rowViews.get(key)!.map((v) => v.id));
       // The dropped rows' views are tabs of the top row, not members of their own row.
-      col.rows = kept.map((key) => ({
-        key,
-        views: rowViews.get(key)!.map((v) => v.id),
-        height: rowFit.sizes.get(key) ?? 0,
-        minHeight: rowItems.find((i) => i.key === key)!.min,
-        anchor: key === topRow,
-      }));
+      col.rows = kept.map((key) => {
+        const vs = rowViews.get(key)!;
+        // Groups of one row sit side by side: they share the column's width like columns share the window's.
+        const cellKeys: string[] = [];
+        const cellViews = new Map<string, OpenView[]>();
+        for (const v of vs) {
+          const ck = v.group ?? v.id;
+          if (!cellViews.has(ck)) {
+            cellKeys.push(ck);
+            cellViews.set(ck, []);
+          }
+          cellViews.get(ck)!.push(v);
+        }
+        const cellItems: Item[] = cellKeys.map((ck) => {
+          const cv = cellViews.get(ck)!;
+          return { key: ck, min: Math.max(...cv.map((v) => v.layout.min.width)), pref: Math.max(...cv.map((v) => hinted(v, saved, 'width'))), priority: Math.max(...cv.map((v) => v.layout.priority)) };
+        });
+        const cellFit = fitAxis(cellItems, col.width);
+        const keptCells = cellKeys.filter((ck) => !cellFit.dropped.includes(ck));
+        const home = cellFit.anchor ? cellViews.get(cellFit.anchor)![0]?.id : undefined;
+        for (const ck of cellFit.dropped) for (const v of cellViews.get(ck)!) if (home) tabbed.push({ id: v.id, into: home });
+        for (const ck of keptCells) if (cellFit.shrunk.has(ck)) cellViews.get(ck)!.forEach((v) => shrunk.add(v.id));
+        if (cellFit.overflow) colFit.overflow = true;
+        const keptViews = keptCells.flatMap((ck) => cellViews.get(ck)!.map((v) => v.id));
+        return {
+          key,
+          views: keptViews,
+          cells: keptCells.map((ck) => ({ views: cellViews.get(ck)!.map((v) => v.id), width: cellFit.sizes.get(ck) ?? 0, minWidth: cellItems.find((i) => i.key === ck)!.min, anchor: ck === cellFit.anchor })),
+          height: rowFit.sizes.get(key) ?? 0,
+          minHeight: rowItems.find((i) => i.key === key)!.min,
+          anchor: key === topRow,
+        };
+      });
+      col.views = col.rows.flatMap((r) => r.views);
       for (const key of kept) if (rowFit.shrunk.has(key)) rowViews.get(key)!.forEach((v) => shrunk.add(v.id));
       if (rowFit.overflow) colFit.overflow = true;
     }
@@ -281,6 +325,7 @@ export function checkPlan(plan: LayoutPlan, open: readonly OpenView[]): string[]
     const total = plan.columns.reduce((s, c) => s + c.width, 0);
     if (total > plan.viewport.width) out.push(`columns overlap: ${total} px in ${plan.viewport.width} px`);
     for (const c of plan.columns) {
+      for (const r of c.rows) for (const cell of r.cells) if (cell.width < cell.minWidth) out.push(`a cell of row ${r.key} is ${cell.width} px, under its minimum ${cell.minWidth}`);
       for (const r of c.rows) if (r.height < r.minHeight) out.push(`row ${r.key} is ${r.height} px, under its minimum ${r.minHeight}`);
       if (c.rows.length && c.rows.reduce((s, r) => s + r.height, 0) > plan.viewport.height) out.push('rows overlap');
     }
@@ -311,4 +356,45 @@ export function defaultViewLayout(area: LayoutArea): ViewLayout {
     case 'document':
       return { area, min: { width: 420, height: 240 }, pref: { width: 640, height: 400 }, priority: 60 };
   }
+}
+
+/**
+ * Grow-back with hysteresis: of the views the plan moved away (`displaced`), the ones that would still be placed with
+ * `margin` px less room in each direction. A view tabbed or hidden at width W therefore returns only once the window is
+ * `margin` wider than the width where it first fits, so a few pixels of jitter around the threshold cannot flap it.
+ */
+export function restorable(viewport: Size, open: readonly OpenView[], displaced: readonly string[], margin: Size, saved?: SavedHints): string[] {
+  const tight = planLayout({ width: viewport.width - margin.width, height: viewport.height - margin.height }, open, saved);
+  const away = new Set([...tight.tabbed.map((t) => t.id), ...tight.hidden.map((h) => h.id)]);
+  return displaced.filter((id) => !away.has(id) && open.some((v) => v.id === id)).sort();
+}
+
+const AREAS: readonly LayoutArea[] = ['document', 'side', 'analysis', 'status'];
+const MAX_PX = 8000;
+const num = (v: unknown, fallback: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.min(MAX_PX, Math.max(0, Math.round(v))) : fallback);
+
+/**
+ * Parses an untrusted `ViewLayout` (a plugin's declaration) once, at the edge: null when there is none or its area is
+ * unknown; otherwise finite, bounded numbers with `min <= pref` and a priority between 1 and 100. Missing parts take the
+ * area's default, so a plugin may declare only what it cares about.
+ */
+export function sanitizeViewLayout(raw: unknown): ViewLayout | null {
+  if (typeof raw !== 'object' || raw === null) return null;
+  const r = raw as Record<string, unknown>;
+  const area = r['area'];
+  if (!AREAS.includes(area as LayoutArea)) return null;
+  const d = defaultViewLayout(area as LayoutArea);
+  const size = (v: unknown, fb: Size): Size => {
+    const o = typeof v === 'object' && v !== null ? (v as Record<string, unknown>) : {};
+    return { width: num(o['width'], fb.width), height: num(o['height'], fb.height) };
+  };
+  const min = size(r['min'], d.min);
+  const pref = size(r['pref'], d.pref);
+  return {
+    area: area as LayoutArea,
+    min,
+    pref: { width: Math.max(min.width, pref.width), height: Math.max(min.height, pref.height) },
+    priority: Math.min(100, Math.max(1, num(r['priority'], d.priority))),
+    ...(r['edge'] === 'left' && area === 'side' ? { edge: 'left' as const } : {}),
+  };
 }

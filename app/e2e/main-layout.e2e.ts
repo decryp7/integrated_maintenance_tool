@@ -137,6 +137,15 @@ test.describe('resizing', () => {
     const home = await groupOf(page, 'debrief-home-view');
     if (home) expect(home.width).toBeGreaterThanOrEqual(320);
     expect(at1000.some((g) => g.tabs.length > 1), 'a pane was tabbed').toBe(true);
+    // Growing back: at 1920 again the tabbed panes return to their own groups (no pane shares a group with the events grid).
+    await resizeWindow(page, { width: 1920, height: 1080 }, 900);
+    const back = await expectGroupsAtMinimum(page);
+    expectNoOverlap(back);
+    expect(back.some((g) => g.tabs.includes('Home') && g.tabs.includes('Events')), 'Home went back to its own column').toBe(false);
+    // Hysteresis: a few px around the threshold do not flap the layout.
+    const tabsBefore = JSON.stringify(back.map((g) => g.tabs));
+    await resizeWindow(page, { width: 1900, height: 1080 }, 600);
+    expect(JSON.stringify((await measureGroups(page)).map((g) => g.tabs))).toBe(tabsBefore);
   });
 });
 
@@ -162,8 +171,9 @@ test.describe('a saved layout that does not fit the window', () => {
     const groups = await expectGroupsAtMinimum(page);
     expectNoOverlap(groups);
     await expectNoHorizontalScroll(page);
-    // The layout on disk is the one that was saved, not the fitted one.
-    expect(await page.evaluate(() => localStorage.getItem('debrief.layout'))).toBe(saved);
+    // The fit did not rewrite what was saved: either nothing was written, or what was written records what moved (so it can return).
+    const onDisk = await page.evaluate(() => localStorage.getItem('debrief.layout'));
+    if (onDisk !== saved) expect(JSON.parse(onDisk!).extras.displaced.length, 'the fitted layout records what it moved').toBeGreaterThan(0);
     // One notification offers Undo.
     await page.getByTestId('status-notifications').click();
     const notice = page.locator('debrief-notifications-panel').filter({ hasText: 'Some panes were tabbed to fit this window' });

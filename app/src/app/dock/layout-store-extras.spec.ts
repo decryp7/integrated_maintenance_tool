@@ -84,3 +84,25 @@ describe('sanitizeExtras auto-hide sides', () => {
     expect(sanitizeExtras({ autoHidden: [], pinnedTabs: [], poppedOut: [] }).autoHideSides).toBeUndefined();
   });
 });
+
+describe('sanitizeExtras: displaced views and user sizes (ADR 0056)', () => {
+  it('keeps well-formed records, drops malformed and duplicate ones, and tolerates their absence', () => {
+    const e = sanitizeExtras({
+      displaced: [
+        { id: 'home', slot: { referencePanel: null, direction: 'within', edge: 'right', size: 700 }, into: 'events' },
+        { id: 'home', into: 'x' },
+        { id: 'ai-chat', slot: 7, into: null },
+        { slot: {} },
+        'junk',
+      ],
+      sizes: { 'ai-chat': { width: 372, height: -4 }, bad: { width: 'x' }, worse: 5, home: { height: 600.4 } },
+    });
+    expect(e.displaced?.map((d) => d.id)).toEqual(['home', 'ai-chat']);
+    expect(e.displaced?.[0]?.into).toBe('events');
+    expect(e.displaced?.[1]?.into).toBeNull();
+    expect(e.sizes).toEqual({ 'ai-chat': { width: 372 }, home: { height: 600.4 } });
+    const none = sanitizeExtras({});
+    expect(none.displaced).toBeUndefined();
+    expect(none.sizes).toBeUndefined();
+  });
+});
