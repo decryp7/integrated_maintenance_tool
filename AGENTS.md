@@ -61,7 +61,10 @@ The family's binding rules, copied from [paddock/docs/rules.md](https://dev.decr
 
 ### Platform and release
 23. **macOS bundles are ad-hoc sealed** (`signingIdentity: "-"`) and CI verifies them with `codesign --verify --deep
-    --strict` on the .app and the DMG; release verification runs it on the published DMG.
+    --strict` on the .app and the DMG; release verification runs it on the published DMG. While ad-hoc, the hardened
+    runtime is off (ad-hoc code under it cannot load vendor-signed libraries: "different Team IDs"); every bundled
+    Mach-O carries the same TeamIdentifier, and CI starts every sidecar from the built app (`--self-test`). The hardened
+    runtime comes back with a real signing identity.
 24. **Services survive updates:** re-register once per version change (unregister → `launchctl bootout` → wait →
     register) and repair a stale registration automatically.
 25. **Before tagging:** `cargo deny check advisories`, one CI build with bundles, the icon check, strip whitespace from
