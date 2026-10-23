@@ -3,12 +3,20 @@ import { ChangelogRelease } from './changelog';
 
 export const CHANGELOG: readonly ChangelogRelease[] = [
   {
-    "version": "0.1.0",
-    "date": "2026-10-22",
+    "version": "1.0.0",
+    "date": "2026-10-23",
     "groups": [
       {
         "title": "Added",
         "items": [
+          "Debrief: The product has a new name, Debrief: the app, the command line (`debrief`), the project and plugin file formats, the SDK and the crates all carry the new name",
+          "Command line: The `debrief` tool imports, queries, analyses, watches and reports headlessly with the same engine as the app, for scripts and CI gates",
+          "Outliers: Error outliers show which hosts, builds or other fields are over-represented among errors compared with the rest of the same time span",
+          "Patterns: Every message pattern has a trend sparkline on one shared scale, and a Values list shows what was behind each placeholder",
+          "Import: Import only a time window (for example one hour of a 20 GB folder); everything outside it is skipped",
+          "Watched folders: Debrief imports new files as they settle in folders you watch and announces known issues when they appear",
+          "Lenses: Save a view as a lens (levels, search, filters, extra columns, highlights and the first chart) and switch between lenses from one menu in the filter row",
+          "Design: A design pass over every screen: themed selects, switches and number fields, one tabs style, plugins as one table with a side panel, a one-line timeline legend with a popover and folded marker counts, hover row actions, calm empty states, a Home that fits a 1440 x 900 window and a colour-blind-safe pair for comparing A and B",
           "Shortcuts: Edit every key binding in Settings > Keyboard, with conflict warnings; the F1 cheat sheet shows your bindings",
           "Themes: A high contrast theme (WCAG AAA text, strong outlines and focus rings) that is chosen automatically when your system asks for more contrast; \"Follow system\" is the new default theme choice",
           "What's new: This panel, shown once after an update and always under Help > What's new",
