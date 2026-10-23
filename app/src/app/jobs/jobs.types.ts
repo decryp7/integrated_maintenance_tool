@@ -61,9 +61,10 @@ export type JobResult =
   | { type: 'file'; path: string; detail?: unknown }
   /** What the command that started the job returns to its waiter (see `jobValue`); nothing to view. */
   | { type: 'value'; value: unknown }
-  | { type: 'workspace' }
+  /** `detail`: what the command that started the job returns to its waiter (the opened workspace; see `jobValue`). */
+  | { type: 'workspace'; detail?: unknown }
   | { type: 'view'; view: string; ql: string | null }
-  | { type: 'model'; fileName: string | null }
+  | { type: 'model'; fileName: string | null; detail?: unknown }
   | { type: 'folderSurvey'; outcome: unknown }
   | { type: 'storage'; result: unknown }
   /** The logs related to an image (`RelatedOutcome`, ADR 0025). */

@@ -258,6 +258,7 @@ pub async fn ai_model_install_projector<R: Runtime>(app: AppHandle<R>, file_name
         let _ = tauri::Emitter::emit(&h, super::STATUS_EVENT, core.status());
         r?;
         Ok(Done::new(()).with_result(JobResult::Model {
+            detail: None,
             file_name: Some(file_name.clone()),
         }))
     })
@@ -272,7 +273,7 @@ pub async fn ai_model_add_projector<R: Runtime>(
     grants: crate::paths::WindowGrants,
     file_name: String,
     path: String,
-) -> Ai<ModelDto> {
+) -> Ai<u64> {
     let core = core(&app)?;
     core.availability()?;
     let file = grants.read_file(&path, &["gguf"])?.path().to_path_buf();
@@ -285,13 +286,13 @@ pub async fn ai_model_add_projector<R: Runtime>(
     let spec = JobSpec::new(JobKind::Download, format!("Checking the image projector for {file_name}")).link(JobLink::Path {
         path: file.to_string_lossy().into_owned(),
     });
-    jobs::run(&app, spec, controls, move |_ctx: &JobCtx| -> Ai<Done<ModelDto>> {
+    jobs::start_value(&app, spec, controls, move |_ctx: &JobCtx| -> Ai<Done<ModelDto>> {
         let m = core.add_projector(&file_name, &file, &progress)?;
         Ok(Done::new(m).with_result(JobResult::Model {
+            detail: None,
             file_name: Some(file_name.clone()),
         }))
     })
-    .await
 }
 
 // ---- the use cases ----

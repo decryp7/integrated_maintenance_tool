@@ -54,11 +54,14 @@ mod tests {
         }
         let app = test_app(None);
         crate::paths::allow_under(app.handle(), "main", &dir.0);
-        block(crate::workspace_commands::open_paths(
-            app.handle().clone(),
-            main_window(&app),
-            vec![dir.0.to_string_lossy().into_owned()],
-        ))
+        crate::test_support::finished(
+            &app,
+            block(crate::workspace_commands::open_paths(
+                app.handle().clone(),
+                main_window(&app),
+                vec![dir.0.to_string_lossy().into_owned()],
+            )),
+        )
         .unwrap();
         let st = || main_window(&app);
         let suggested = block(suggest_offsets(st(), None)).unwrap();

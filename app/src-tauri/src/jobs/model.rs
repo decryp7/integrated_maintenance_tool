@@ -325,14 +325,21 @@ pub enum JobResult {
     },
     /// What the command that started the job returns to its waiter (`jobs_wait`); nothing for View to open.
     Value { value: Value },
-    /// The window's workspace (import).
-    Workspace,
+    /// The window's workspace (import). `detail` is what the command that started the job returns to its waiter besides
+    /// that (the opened workspace's summary); never shown.
+    Workspace {
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        detail: Option<Value>,
+    },
     /// An analysis view, with the query it ran.
     View { view: String, ql: Option<String> },
     /// A model ready to activate (model manager).
     Model {
         #[serde(rename = "fileName")]
         file_name: Option<String>,
+        /// What the command that started the job returns to its waiter (the added model); never shown.
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        detail: Option<Value>,
     },
     /// The folder survey's proposals: View reopens the set-up wizard with them.
     FolderSurvey { outcome: Value },
@@ -349,6 +356,30 @@ impl JobResult {
             path: path.into(),
             detail: None,
         }
+    }
+
+    /// This result carrying `value` for the waiter of the command that started the job: a file, workspace or model keeps
+    /// its own kind (View still opens it); any other kind has no room for it and is returned as it is.
+    pub fn with_detail(self, value: Value) -> JobResult {
+        match self {
+            JobResult::File { path, .. } => JobResult::file_with(path, value),
+            JobResult::Workspace { .. } => JobResult::workspace_with(value),
+            JobResult::Model { file_name, .. } => JobResult::Model {
+                file_name,
+                detail: Some(value),
+            },
+            other => other,
+        }
+    }
+
+    /// The window's workspace, with nothing for the waiter.
+    pub fn workspace() -> JobResult {
+        JobResult::Workspace { detail: None }
+    }
+
+    /// The window's workspace, with what the starting command returns to its waiter.
+    pub fn workspace_with(detail: Value) -> JobResult {
+        JobResult::Workspace { detail: Some(detail) }
     }
 
     /// A written file, with what the starting command returns to its waiter.
@@ -573,7 +604,7 @@ mod tests {
             narrative: Value::String("x".repeat(JobResult::MAX_PAYLOAD_BYTES + 1)),
         };
         assert!(big.bounded().is_none());
-        assert!(JobResult::Workspace.bounded().is_some());
+        assert!(JobResult::workspace().bounded().is_some());
         let link = serde_json::to_value(JobLink::Event { record_id: 4 }).unwrap();
         assert_eq!(link, serde_json::json!({"type": "event", "recordId": 4}));
         assert_eq!(JobId(7).to_string(), "7");

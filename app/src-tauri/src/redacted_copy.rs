@@ -273,11 +273,14 @@ mod tests {
         std::fs::write(dir.0.join("app.log"), "2026-10-14 10:00:00 INFO a@invented.test\n").unwrap();
         let app = test_app(None);
         crate::paths::allow_under(app.handle(), "main", &dir.0);
-        block(crate::workspace_commands::open_paths(
-            app.handle().clone(),
-            main_window(&app),
-            vec![dir.0.join("app.log").to_string_lossy().into_owned()],
-        ))
+        crate::test_support::finished(
+            &app,
+            block(crate::workspace_commands::open_paths(
+                app.handle().clone(),
+                main_window(&app),
+                vec![dir.0.join("app.log").to_string_lossy().into_owned()],
+            )),
+        )
         .unwrap();
         let out = dir.0.join("never.debriefz");
         let start = |options: CopyOptions| {
@@ -327,11 +330,14 @@ mod tests {
         .unwrap();
         let app = test_app(None);
         crate::paths::allow_under(app.handle(), "main", &dir.0);
-        block(crate::workspace_commands::open_paths(
-            app.handle().clone(),
-            main_window(&app),
-            vec![dir.0.join("app.log").to_string_lossy().into_owned()],
-        ))
+        crate::test_support::finished(
+            &app,
+            block(crate::workspace_commands::open_paths(
+                app.handle().clone(),
+                main_window(&app),
+                vec![dir.0.join("app.log").to_string_lossy().into_owned()],
+            )),
+        )
         .unwrap();
         let options = || CopyOptions {
             detectors: Some(vec![Detector::Email]),

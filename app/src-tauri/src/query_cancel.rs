@@ -196,11 +196,14 @@ mod tests {
         let pending = crate::workspace_commands::take_pending_open(main_window(&app), crate::paths::WindowGrants::of(app.handle(), "main"))
             .now()
             .unwrap();
-        block(crate::workspace_commands::open_paths(
-            app.handle().clone(),
-            main_window(&app),
-            pending,
-        ))
+        crate::test_support::finished(
+            &app,
+            block(crate::workspace_commands::open_paths(
+                app.handle().clone(),
+                main_window(&app),
+                pending,
+            )),
+        )
         .unwrap()
         .json();
         app

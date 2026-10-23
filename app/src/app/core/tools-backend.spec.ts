@@ -46,7 +46,6 @@ describe('TauriToolsBackend', () => {
       [() => b.pluginSetEnabled('p', false), 'plugin_set_enabled', { id: 'p', enabled: false }],
       [() => b.saveSession({ a: 1 }), 'save_session', { ui: { a: 1 } }],
       [() => b.lastSession(), 'last_session'],
-      [() => b.openProject('/p'), 'open_project', { path: '/p' }],
       [() => b.takePendingOpen(), 'take_pending_open'],
     ];
     for (const [call, name, args] of calls) {
@@ -83,6 +82,27 @@ describe('TauriToolsBackend save_project', () => {
     await expect(b.saveProject('/p', 'n', {})).rejects.toMatchObject({ code: 'cancelled' });
     outcome = { state: 'failed', error: 'disk full' };
     await expect(b.saveProject('/p', 'n', {})).rejects.toMatchObject({ code: 'failed', message: 'disk full' });
+  });
+});
+
+describe('TauriToolsBackend open_project', () => {
+  it('starts the open as an import job and resolves with the project it ends with; a failed open rejects', async () => {
+    const calls: [string, unknown][] = [];
+    let outcome: unknown = { state: 'done', result: { type: 'workspace', detail: { path: '/p', name: 'n' } } };
+    const call = vi.fn(async (cmd: string, args?: unknown) => {
+      calls.push([cmd, args]);
+      return cmd === 'jobs_wait' ? outcome : 42;
+    });
+    const b = new TauriToolsBackend(call as never, vi.fn(async () => () => undefined));
+    expect(await b.openProject('/p')).toEqual({ path: '/p', name: 'n' });
+    expect(calls).toEqual([
+      ['open_project', { path: '/p' }],
+      ['jobs_wait', { id: 42 }],
+    ]);
+    outcome = { state: 'failed', error: 'not a project' };
+    await expect(b.openProject('/p')).rejects.toMatchObject({ code: 'failed', message: 'not a project' });
+    outcome = { state: 'cancelled', error: 'opening the project was cancelled' };
+    await expect(b.openProject('/p')).rejects.toMatchObject({ code: 'cancelled' });
   });
 });
 

@@ -500,7 +500,7 @@ pub(crate) fn export<R: Runtime>(
 
 /// Starts `f` as a job and returns its id at once: the command returns without waiting, and its caller follows the job
 /// (`jobs_wait`, events) and reads `f`'s value from the finished job's result (`JobOutcome::result`: a [`JobResult::Value`],
-/// or the `detail` of a [`JobResult::File`] when `f` names the file it wrote). Errors fail the job with their text
+/// or the `detail` of the [`JobResult`] `f` names (the file it wrote, the workspace it opened, the model it added)). Errors fail the job with their text
 /// (a cancelled one cancels it).
 pub(crate) fn start_value<R, T>(
     app: &AppHandle<R>,
@@ -517,8 +517,7 @@ where
             let done = f(ctx)?;
             let value = serde_json::to_value(&done.value).map_err(crate::err)?;
             let result = match done.result {
-                Some(JobResult::File { path, .. }) => JobResult::file_with(path, value),
-                Some(other) => other,
+                Some(kept) => kept.with_detail(value),
                 None => JobResult::Value { value },
             };
             Ok(Done::new(()).with_result(result).cancelled_if(done.cancelled))

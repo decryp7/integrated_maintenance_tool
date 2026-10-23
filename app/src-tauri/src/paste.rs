@@ -5,7 +5,6 @@
 use crate::activity::{domain_event, OpId};
 use crate::windows::CurrentWindow;
 use crate::{CmdError, CmdResult, ErrorCode};
-use debrief_core::api::WorkspaceSummary;
 use debrief_core::paste::{prepare, PASTE_DIR};
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
@@ -42,14 +41,21 @@ pub(crate) async fn paste_log<R: Runtime>(
     op: OpId,
     text: String,
     name: Option<String>,
-) -> CmdResult<WorkspaceSummary> {
-    let store = state.engine.store()?;
-    let dir = store.store_dir();
-    let file = crate::sync::blocking("saving the pasted text", move || store_text(&dir, name.as_deref(), &text)).await?;
-    // Debrief's own file: opened without a grant check, like the files of an unpacked bundle.
-    let summary = crate::workspace_commands::open_granted(&app, &state, vec![file.to_string_lossy().into_owned()]).await?;
-    domain_event("source.pasted", op.as_deref(), &[]);
-    Ok(summary)
+) -> CmdResult<u64> {
+    // What the engine refuses is refused here, before anything is queued.
+    prepare(name.as_deref(), &text, &HashSet::new()).map_err(|e| CmdError::invalid(e.to_string()).field("text"))?;
+    // Starting the store, writing the text and opening it are the import job's: the command returns its id at once.
+    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, "Open the pasted text").window(state.label());
+    let (controls, flag) = crate::engine::import::controls();
+    let (handle, win) = (app.clone(), state.clone());
+    crate::jobs::start_value(&app, spec, controls, move |ctx: &crate::jobs::JobCtx| {
+        let dir = win.engine.store()?.store_dir();
+        let file = store_text(&dir, name.as_deref(), &text)?;
+        // Debrief's own file: opened without a grant check, like the files of an unpacked bundle.
+        let summary = crate::workspace_commands::open_in_job(&handle, &win, ctx, &flag, vec![file.to_string_lossy().into_owned()], false)?;
+        domain_event("source.pasted", op.as_deref(), &[]);
+        Ok(crate::jobs::Done::new(summary).with_result(crate::jobs::JobResult::workspace()))
+    })
 }
 
 #[cfg(test)]
@@ -96,28 +102,41 @@ mod tests {
     #[test]
     fn pasted_text_opens_like_a_file() {
         let app = test_app(None);
-        let summary = block(paste_log(
-            app.handle().clone(),
-            main_window(&app),
-            OpId::default(),
-            "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:05 ERROR second\n".into(),
-            Some("web01 errors".into()),
-        ))
+        let summary = crate::test_support::finished(
+            &app,
+            crate::test_support::returns_fast(
+                "paste_log",
+                paste_log(
+                    app.handle().clone(),
+                    main_window(&app),
+                    OpId::default(),
+                    "2026-10-14 10:00:00 INFO first\n2026-10-14 10:00:05 ERROR second\n".into(),
+                    Some("web01 errors".into()),
+                ),
+            ),
+        )
         .unwrap();
-        assert_eq!(summary.total, 2);
-        assert_eq!(summary.sources.len(), 1);
+        assert_eq!(summary["total"], 2);
+        assert_eq!(summary["sources"].as_array().unwrap().len(), 1);
         // Listed under the project's `pasted` folder.
-        assert_eq!(summary.sources[0].name, "pasted/web01 errors.log");
+        assert_eq!(summary["sources"][0]["name"], "pasted/web01 errors.log");
         // Pasting the same name again is a second source.
-        let again = block(paste_log(
-            app.handle().clone(),
-            main_window(&app),
-            OpId::default(),
-            "2026-10-14 11:00:00 INFO third\n".into(),
-            Some("web01 errors".into()),
-        ))
+        let again = crate::test_support::finished(
+            &app,
+            block(paste_log(
+                app.handle().clone(),
+                main_window(&app),
+                OpId::default(),
+                "2026-10-14 11:00:00 INFO third\n".into(),
+                Some("web01 errors".into()),
+            )),
+        )
         .unwrap();
-        assert_eq!(again.sources.len(), 2);
-        assert!(again.sources.iter().any(|s| s.name == "pasted/web01 errors (2).log"));
+        assert_eq!(again["sources"].as_array().unwrap().len(), 2);
+        assert!(again["sources"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|s| s["name"] == "pasted/web01 errors (2).log"));
     }
 }

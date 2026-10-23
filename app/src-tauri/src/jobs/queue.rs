@@ -189,7 +189,7 @@ fn result_type(r: &JobResult) -> &'static str {
         JobResult::Chat { .. } => "chat",
         JobResult::File { .. } => "file",
         JobResult::Value { .. } => "value",
-        JobResult::Workspace => "workspace",
+        JobResult::Workspace { .. } => "workspace",
         JobResult::View { .. } => "view",
         JobResult::Model { .. } => "model",
         JobResult::FolderSurvey { .. } => "folderSurvey",
@@ -743,7 +743,7 @@ mod tests {
         let long = q.submit(ai("long"), 20_000).unwrap();
         q.start(long, 20_000).unwrap();
         let f = q
-            .finish(long, JobEnd::Done(Some(JobResult::Workspace)), 20_000 + ATTENTION_AFTER_MS)
+            .finish(long, JobEnd::Done(Some(JobResult::workspace())), 20_000 + ATTENTION_AFTER_MS)
             .unwrap();
         assert!(f.attention && !f.job.seen);
         let info = q.info_of(long, 40_000).unwrap();

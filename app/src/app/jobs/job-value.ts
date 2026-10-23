@@ -15,7 +15,7 @@ export async function jobValue<T>(wait: Wait, id: number): Promise<T> {
   if (o.state === 'done') {
     const r = o.result;
     if (r?.type === 'value') return r.value as T;
-    if (r?.type === 'file' && r.detail !== undefined) return r.detail as T;
+    if ((r?.type === 'file' || r?.type === 'workspace' || r?.type === 'model') && r.detail !== undefined) return r.detail as T;
     return undefined as T;
   }
   if (o.state === 'cancelled') throw new CmdError({ code: 'cancelled', message: o.error ?? 'Cancelled.', retryable: false });

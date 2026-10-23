@@ -307,6 +307,7 @@ pub(crate) async fn create_bundle<R: Runtime>(
 /// Opens a `.debriefz`: extracts it into its own temporary folder (archive
 /// limits, no path may leave it), checks it against its manifest and opens
 /// its project read-only. A bundle without a project (rare) opens its files.
+/// One import job does it all and the command returns its id at once; the job's value is the `OpenedProject`.
 #[tauri::command]
 pub(crate) async fn open_bundle<R: Runtime>(
     app: AppHandle<R>,
@@ -314,51 +315,50 @@ pub(crate) async fn open_bundle<R: Runtime>(
     grants: WindowGrants,
     op: OpId,
     path: String,
-) -> CmdResult<crate::services::project::OpenedProject> {
+) -> CmdResult<u64> {
     let source = grants.read_file(&path, &["debriefz"])?.path().to_path_buf();
-    // Unpacking is part of the import: an import job of its own, listed with the files it opens next.
-    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, "Unpack the bundle")
+    // Unpacking is part of the import: the job unpacks, then opens what the bundle holds.
+    let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Import, "Open the bundle")
         .window(state.label())
         .link(crate::jobs::JobLink::Path { path: path.clone() });
-    let extracted = crate::jobs::run(&app, spec, Default::default(), move |ctx| {
+    let (controls, flag) = crate::engine::import::controls();
+    let (handle, win) = (app.clone(), state.clone());
+    crate::jobs::start_value(&app, spec, controls, move |ctx: &crate::jobs::JobCtx| {
         ctx.message("Unpacking and checking the bundle");
-        debrief_core::bundle::extract(&source, &bundles_root())
-            .map(crate::jobs::Done::new)
-            .map_err(err)
-    })
-    .await?;
-    // Debrief's own folder: what the bundle holds may be opened from this window.
-    grants.grant(&extracted.dir, crate::paths::Access::Read, crate::paths::GrantSource::Output)?;
-    let mut opened = match &extracted.project {
-        Some(project) => {
-            let shown = project.to_string_lossy().into_owned();
-            crate::workspace_commands::open_project_file(&app, &state, op, project.clone(), shown).await?
-        }
-        None => {
-            let dir = extracted.dir.to_string_lossy().into_owned();
-            let summary = crate::workspace_commands::open_granted(&app, &state, vec![dir]).await?;
-            crate::services::project::OpenedProject {
-                path: String::new(),
-                name: String::new(),
-                summary,
-                profile: state.profile_doc(),
-                ui: Value::Null,
-                reports: Vec::new(),
-                missing: Vec::new(),
-                read_only: true,
-                bundle: None,
-                folder: None,
+        let extracted = debrief_core::bundle::extract(&source, &bundles_root()).map_err(err)?;
+        // Debrief's own folder: what the bundle holds may be opened from this window.
+        grants.grant(&extracted.dir, crate::paths::Access::Read, crate::paths::GrantSource::Output)?;
+        let mut opened = match &extracted.project {
+            Some(project) => {
+                let shown = project.to_string_lossy().into_owned();
+                crate::workspace_commands::open_project_file_in_job(&handle, &win, ctx, &flag, op, project.clone(), shown)?
             }
-        }
-    };
-    // Read-only: no project file to save over; Save asks for a new place.
-    state.set_project(None);
-    opened.path = path;
-    opened.read_only = true;
-    opened.bundle = Some(serde_json::to_value(&extracted.manifest).map_err(err)?);
-    opened.folder = Some(extracted.dir.to_string_lossy().into_owned());
-    log::info!(Manifest = extracted.manifest.is_some(); "Bundle opened");
-    Ok(opened)
+            None => {
+                let dir = extracted.dir.to_string_lossy().into_owned();
+                let summary = crate::workspace_commands::open_in_job(&handle, &win, ctx, &flag, vec![dir], false)?;
+                crate::services::project::OpenedProject {
+                    path: String::new(),
+                    name: String::new(),
+                    summary,
+                    profile: win.profile_doc(),
+                    ui: Value::Null,
+                    reports: Vec::new(),
+                    missing: Vec::new(),
+                    read_only: true,
+                    bundle: None,
+                    folder: None,
+                }
+            }
+        };
+        // Read-only: no project file to save over; Save asks for a new place.
+        win.set_project(None);
+        opened.path = path;
+        opened.read_only = true;
+        opened.bundle = Some(serde_json::to_value(&extracted.manifest).map_err(err)?);
+        opened.folder = Some(extracted.dir.to_string_lossy().into_owned());
+        log::info!(Manifest = extracted.manifest.is_some(); "Bundle opened");
+        Ok(crate::jobs::Done::new(opened).with_result(crate::jobs::JobResult::workspace()))
+    })
 }
 
 #[cfg(test)]
@@ -466,11 +466,14 @@ mod tests {
         let app = test_app(Some(d.0.join("profiles")));
         crate::paths::allow_under(app.handle(), "main", &d.0);
         let paths = vec![samples().join("serilog-clef").to_string_lossy().into_owned()];
-        block(crate::workspace_commands::open_paths(
-            app.handle().clone(),
-            main_window(&app),
-            paths,
-        ))
+        crate::test_support::finished(
+            &app,
+            block(crate::workspace_commands::open_paths(
+                app.handle().clone(),
+                main_window(&app),
+                paths,
+            )),
+        )
         .unwrap()
         .json();
         let toml = "name = 'Shared'\n[redact]\ndetectors = ['email', 'ipv4']\n";
@@ -657,13 +660,16 @@ mod tests {
         ws.write_bundle(&options(), debrief_core::DEFAULT_PROFILE_TOML, std::path::Path::new(&path))
             .unwrap();
         let total = block(crate::workspace_commands::workspace_summary(st())).unwrap().json()["total"].clone();
-        let opened = block(open_bundle(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            path.clone(),
-        ))
+        let opened = crate::test_support::finished(
+            &app,
+            crate::test_support::returns_fast("open_bundle", open_bundle(
+                app.handle().clone(),
+                st(),
+                crate::paths::WindowGrants::of(app.handle(), "main"),
+                OpId::default(),
+                path.clone(),
+            )),
+        )
         .unwrap()
         .json();
         assert_eq!(opened["readOnly"], true);
@@ -699,23 +705,29 @@ mod tests {
             z.write_all(b"{\"@t\":\"2026-10-14T10:00:00Z\",\"@m\":\"x\"}\n").unwrap();
             z.finish().unwrap();
         }
-        let opened = block(open_bundle(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            plain.to_string_lossy().into_owned(),
-        ))
+        let opened = crate::test_support::finished(
+            &app,
+            block(open_bundle(
+                app.handle().clone(),
+                st(),
+                crate::paths::WindowGrants::of(app.handle(), "main"),
+                OpId::default(),
+                plain.to_string_lossy().into_owned(),
+            )),
+        )
         .unwrap()
         .json();
         assert_eq!(opened["bundle"], Value::Null);
-        assert!(block(open_bundle(
-            app.handle().clone(),
-            st(),
-            crate::paths::WindowGrants::of(app.handle(), "main"),
-            OpId::default(),
-            d.0.join("missing.debriefz").to_string_lossy().into_owned()
-        ))
+        assert!(crate::test_support::finished(
+            &app,
+            block(open_bundle(
+                app.handle().clone(),
+                st(),
+                crate::paths::WindowGrants::of(app.handle(), "main"),
+                OpId::default(),
+                d.0.join("missing.debriefz").to_string_lossy().into_owned()
+            ))
+        )
         .is_err());
         assert!(refuse_bundle_folder(&d.0.join("ok.debriefproj").to_string_lossy()).is_ok());
     }

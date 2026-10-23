@@ -4,13 +4,13 @@
  *
  * Commands (invoke name -> args -> result):
  *   workspace_summary      {}                              -> WorkspaceSummary
- *   open_paths             { paths: string[] }             -> WorkspaceSummary
+ *   open_paths             { paths: string[] }             -> number (the import job's id; its value, via `jobs_wait`, is the WorkspaceSummary)
  *   remove_source          { sourceId: number }            -> WorkspaceSummary
  *   import_problems        {}                              -> DiagnosticRow[]
  *   evaluate_fix           { fix: QuickFix }               -> FixEvaluation
  *   index_status           {}                              -> IndexStatus
  *   clear_workspace        {}                              -> WorkspaceSummary
- *   reload_workspace       {}                              -> WorkspaceSummary
+ *   reload_workspace       {}                              -> number (the import job's id; its value is the WorkspaceSummary)
  *   query_page             { request: PageRequest }        -> Page
  *   query_timeline         { request: TimelineRequest }    -> Timeline
  *   query_facet            { request: FacetRequest }       -> Facet
@@ -30,7 +30,7 @@
  *   live_state             {}                              -> LiveState     (live tail on/off and its effective options)
  *   mute_alerts            { target: AlertTarget, untilMs: number } -> void (not raised until untilMs; at most MAX_MUTE_MS ahead)
  *   unmute_alerts          { target: AlertTarget }         -> void
- *   open_paths_live        { paths: string[], startAtEnd?: boolean } -> WorkspaceSummary (startAtEnd: only lines written from now on)
+ *   open_paths_live        { paths: string[], startAtEnd?: boolean } -> number (the import job's id, value WorkspaceSummary; startAtEnd: only lines written from now on)
  *   infer_regex            { lines: string[] }             -> InferredRegex
  *   explain_regex          { pattern: string }             -> ExplainNode[]
  *   annotations            { request: AnnotationsRequest } -> AnnotationDto[] (plugin annotator spans/points and runs, by start time)
@@ -2437,7 +2437,7 @@ export interface HeapPaths {
 //   dashboard_tile     { request: TileRequest }  -> TileData
 //   export_report      { request }               -> number (the export job)
 //   save_visual        { request }               -> VisualSaved
-//   open_bundle        { path }                  -> BundleOpened   (an old share bundle; sharing is `save_project` now:
+//   open_bundle        { path }                  -> number (the import job's id, value BundleOpened; an old share bundle; sharing is `save_project` now:
 //                                                  estimate_bundle and create_bundle always reject with `unsupported`)
 // ---------------------------------------------------------------------------------------------
 
@@ -3266,7 +3266,7 @@ export type {
 //   list_encodings      {}                                         -> EncodingOption[]   (the encodings "Encoding…" offers)
 //   set_source_encoding { sourceId, encoding: string | null }      -> number   (job id: "Encoding…" re-reads one source with that
 //                                                                     encoding; null or "auto" = detect it again)
-//   paste_log           { text, name: string | null }              -> WorkspaceSummary   ("Paste as log…": the engine saves the text as a
+//   paste_log           { text, name: string | null }              -> number (the import job's id, value WorkspaceSummary; "Paste as log…": the engine saves the text as a
 //                                                                     source file in the project (name made safe and unique, e.g.
 //                                                                     "web01 errors (2).log"), opens it through the importers and
 //                                                                     returns the workspace like open_paths; invalid: empty text, or

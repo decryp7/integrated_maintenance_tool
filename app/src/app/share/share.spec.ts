@@ -38,7 +38,6 @@ describe('TauriShareBackend', () => {
       [() => b.dashboardTile({ tile: tile({ type: 'stat' }), query: q }), 'dashboard_tile', { request: { tile: tile({ type: 'stat' }), query: q } }],
       [() => b.exportReport({ report: report(), format: 'pdf', path: '/r.pdf', redact: true, theme: 'dark' }), 'export_report', { request: { report: report(), format: 'pdf', path: '/r.pdf', redact: true, theme: 'dark' } }],
       [() => b.saveVisual({ path: '/a.svg', kind: 'svg', data: '<svg/>' }), 'save_visual', { request: { path: '/a.svg', kind: 'svg', data: '<svg/>' } }],
-      [() => b.openBundle('/x.debriefz'), 'open_bundle', { path: '/x.debriefz' }],
       [() => b.overview(q), 'overview', { request: { query: q } }],
     ];
     for (const [call, name, args] of calls) {
@@ -46,6 +45,21 @@ describe('TauriShareBackend', () => {
       await call();
       expect(invoke.mock.calls[0]).toEqual([name, args]);
     }
+  });
+});
+
+describe('TauriShareBackend open_bundle', () => {
+  it('starts the open as an import job and resolves with the bundle it ends with; a failed open rejects', async () => {
+    let outcome: unknown = { state: 'done', result: { type: 'workspace', detail: { path: '/x.debriefz', readOnly: true } } };
+    const call = vi.fn(async (cmd: string) => (cmd === 'jobs_wait' ? outcome : 44));
+    const b = new TauriShareBackend(call as never);
+    expect(await b.openBundle('/x.debriefz')).toEqual({ path: '/x.debriefz', readOnly: true });
+    expect(call.mock.calls).toEqual([
+      ['open_bundle', { path: '/x.debriefz' }],
+      ['jobs_wait', { id: 44 }],
+    ]);
+    outcome = { state: 'failed', error: 'the bundle is damaged' };
+    await expect(b.openBundle('/x.debriefz')).rejects.toMatchObject({ message: 'the bundle is damaged' });
   });
 });
 

@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { invoke } from '../../core/activity/ipc';
+import { jobValue } from '../../jobs/job-value';
 import { WorkspaceSummary } from '../../core/api.types';
 import { DebriefBackend } from '../../core/backend';
 import { reportBackendFailures } from '../../core/failure-reporter';
@@ -24,8 +25,10 @@ export class TauriPasteBackend extends PasteBackend {
   constructor(private readonly call: typeof invoke = invoke) {
     super();
   }
-  pasteLog(text: string, name: string | null) {
-    return this.call<WorkspaceSummary>('paste_log', { text, name });
+  /** The command starts an import job and returns its id; the new workspace is the job's value. */
+  async pasteLog(text: string, name: string | null) {
+    const job = await this.call<number>('paste_log', { text, name });
+    return jobValue<WorkspaceSummary>(this.call, job);
   }
 }
 

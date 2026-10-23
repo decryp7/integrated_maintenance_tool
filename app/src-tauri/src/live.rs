@@ -501,15 +501,18 @@ pub(crate) async fn open_paths_live<R: Runtime>(
     state: CurrentWindow,
     paths: Vec<String>,
     start_at_end: Option<bool>,
-) -> CmdResult<debrief_core::api::WorkspaceSummary> {
+) -> CmdResult<u64> {
     let paths: Vec<String> = crate::workspace_commands::open_request(&app, state.label(), paths)?
         .into_iter()
         .map(|p| p.to_string_lossy().into_owned())
         .collect();
-    let summary = crate::workspace_commands::open_granted_at(&app, &state, paths.clone(), start_at_end.unwrap_or(false)).await?;
-    log::info!(Sources = summary.sources.len() as u64, StartAtEnd = start_at_end.unwrap_or(false); "Workspace opened for live tail");
-    crate::recent::opened_files(&app, &paths);
-    Ok(summary)
+    let (recorder, recorded) = (app.clone(), paths.clone());
+    let at_end = start_at_end.unwrap_or(false);
+    // An import job does the opening and the command returns its id at once.
+    crate::workspace_commands::start_open_at(&app, &state, paths, at_end, move |summary| {
+        log::info!(Sources = summary.sources.len() as u64, StartAtEnd = at_end; "Workspace opened for live tail");
+        crate::recent::opened_files(&recorder, &recorded);
+    })
 }
 
 #[cfg(test)]
@@ -560,11 +563,14 @@ mod tests {
     fn opened(app: &tauri::App<tauri::test::MockRuntime>, label: &str, dir: &Path) -> CurrentWindow {
         let win = CurrentWindow::of(app.handle(), label).unwrap();
         crate::paths::allow_under(app.handle(), label, dir);
-        block(open_paths(
-            app.handle().clone(),
-            win.clone(),
-            vec![dir.to_string_lossy().into_owned()],
-        ))
+        crate::test_support::finished(
+            app,
+            block(open_paths(
+                app.handle().clone(),
+                win.clone(),
+                vec![dir.to_string_lossy().into_owned()],
+            )),
+        )
         .unwrap()
         .json();
         win
@@ -611,12 +617,13 @@ mod tests {
         let other = TempDir::new("live-end");
         std::fs::write(other.0.join("b.log"), "2026-10-14 10:00:00 INFO old\n").unwrap();
         crate::paths::allow_under(app.handle(), st().label(), &other.0);
-        let summary = block(open_paths_live(
-            app.handle().clone(),
-            st(),
-            vec![other.0.to_string_lossy().into_owned()],
-            Some(true),
-        ))
+        let summary = crate::test_support::finished(
+            &app,
+            crate::test_support::returns_fast(
+                "open_paths_live",
+                open_paths_live(app.handle().clone(), st(), vec![other.0.to_string_lossy().into_owned()], Some(true)),
+            ),
+        )
         .unwrap()
         .json();
         assert_eq!(summary["total"], 2, "the old line of b.log was not read");

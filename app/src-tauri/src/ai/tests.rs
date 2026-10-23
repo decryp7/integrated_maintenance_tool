@@ -540,6 +540,18 @@ fn local_models_are_added_activated_and_deleted() {
     crate::paths::allow_under(app.handle(), "main", &f.tmp.0);
     let src = f.tmp.0.join("My Model.gguf");
     std::fs::write(&src, model_bytes()).unwrap();
+    // The check of the file is a job: the command returns its id at once and the model is the job's value.
+    let started = crate::test_support::returns_fast(
+        "ai_model_add_local",
+        super::commands::ai_model_add_local(
+            app.handle().clone(),
+            crate::paths::WindowGrants::of(app.handle(), "main"),
+            src.to_string_lossy().into_owned(),
+        ),
+    );
+    let model = crate::test_support::job_value(&app, started.unwrap()).unwrap();
+    assert_eq!(model["fileName"], TEST_FILE);
+    let _ = ipc(&main, "ai_model_delete", json!({"fileName": TEST_FILE}));
     let added = ipc(&main, "ai_model_add_local", json!({"path": src.to_string_lossy()})).unwrap();
     // The bytes are the catalog model's (a manual download the browser saved under another name): verified
     // by SHA-256 and filed under the catalog's name, so it is recognised.
@@ -1873,8 +1885,8 @@ fn a_manual_download_is_checked_against_the_catalog_before_it_is_added() {
     let damaged = dir.join(TEST_FILE);
     std::fs::write(&damaged, &bad).unwrap();
     let e = ipc(&main, "ai_model_add_local", json!({"path": damaged.to_string_lossy()})).unwrap_err();
-    assert_eq!(code(e.clone()), "integrity", "{e}");
-    assert!(e["message"].as_str().unwrap().contains("SHA-256"));
+    // The check runs as a job: it fails with the message (the typed code stays with the command's own errors).
+    assert!(e["message"].as_str().unwrap().contains("SHA-256"), "{e}");
     // Incomplete (the browser stopped early).
     std::fs::write(&damaged, &model_bytes()[..model_bytes().len() - 7]).unwrap();
     let e = ipc(&main, "ai_model_add_local", json!({"path": damaged.to_string_lossy()})).unwrap_err();

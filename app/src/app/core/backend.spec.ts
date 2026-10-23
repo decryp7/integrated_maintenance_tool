@@ -18,10 +18,8 @@ describe('TauriBackend', () => {
     const q = query();
     const calls: [() => Promise<unknown>, string, unknown?][] = [
       [() => b.workspaceSummary(), 'workspace_summary'],
-      [() => b.openPaths(['/a']), 'open_paths', { paths: ['/a'] }],
       [() => b.removeSource(3), 'remove_source', { sourceId: 3 }],
       [() => b.clearWorkspace(), 'clear_workspace'],
-      [() => b.reloadWorkspace(), 'reload_workspace'],
       [() => b.queryPage({ query: q, offset: 0, limit: 1, descending: false }), 'query_page', { request: { query: q, offset: 0, limit: 1, descending: false } }],
       [() => b.queryTimeline({ query: q, buckets: 5, alwaysShowLifecycle: true }), 'query_timeline', { request: { query: q, buckets: 5, alwaysShowLifecycle: true } }],
       [() => b.queryFacet({ query: q, field: 'f', limit: 3 }), 'query_facet', { request: { query: q, field: 'f', limit: 3 } }],
@@ -42,7 +40,6 @@ describe('TauriBackend', () => {
       [() => b.liveState(), 'live_state', undefined],
       [() => b.muteAlerts({ rule: 'payments' }, 5_000), 'mute_alerts', { target: { rule: 'payments' }, untilMs: 5_000 }],
       [() => b.unmuteAlerts({ kind: 'crash' }), 'unmute_alerts', { target: { kind: 'crash' } }],
-      [() => b.openPathsLive(['/a.log'], true), 'open_paths_live', { paths: ['/a.log'], startAtEnd: true }],
       [() => b.inferRegex(['a 1', 'a 2']), 'infer_regex', { lines: ['a 1', 'a 2'] }],
       [() => b.explainRegex('a\\d+'), 'explain_regex', { pattern: 'a\\d+' }],
       [() => b.annotations({ from: 1, to: 2 }), 'annotations', { request: { from: 1, to: 2 } }],
@@ -168,5 +165,41 @@ describe('provideBackend', () => {
     } finally {
       window.history.replaceState({}, '', '/');
     }
+  });
+});
+
+describe('TauriBackend import commands', () => {
+  it('start an import job and resolve with the workspace it ends with; a failed or cancelled job rejects', async () => {
+    const calls: [string, unknown][] = [];
+    let outcome: unknown = { state: 'done', result: { type: 'workspace', detail: { total: 7 } } };
+    const call = vi.fn(async (cmd: string, args?: unknown) => {
+      calls.push([cmd, args]);
+      return cmd === 'jobs_wait' ? outcome : 41;
+    });
+    const b = new TauriBackend(call as never);
+    expect(await b.openPaths(['/a'])).toEqual({ total: 7 });
+    expect(calls).toEqual([
+      ['open_paths', { paths: ['/a'] }],
+      ['jobs_wait', { id: 41 }],
+    ]);
+    expect(await b.reloadWorkspace()).toEqual({ total: 7 });
+    expect(calls[2]).toEqual(['reload_workspace', undefined]);
+    expect(await b.openPathsLive(['/a.log'], true)).toEqual({ total: 7 });
+    expect(calls[4]).toEqual(['open_paths_live', { paths: ['/a.log'], startAtEnd: true }]);
+    outcome = { state: 'cancelled', error: 'cancelled' };
+    await expect(b.openPaths(['/a'])).rejects.toMatchObject({ code: 'cancelled' });
+    outcome = { state: 'failed', error: 'the file is locked' };
+    await expect(b.reloadWorkspace()).rejects.toMatchObject({ code: 'failed', message: 'the file is locked' });
+    outcome = { state: 'interrupted' };
+    await expect(b.openPaths(['/a'])).rejects.toMatchObject({ code: 'failed', message: expect.stringContaining('interrupted') });
+  });
+
+  it('rejects at once when the command itself refuses (no job is waited for)', async () => {
+    const call = vi.fn(async () => {
+      throw { code: 'notGranted', message: 'not chosen by you' };
+    });
+    const b = new TauriBackend(call as never);
+    await expect(b.openPaths(['/a'])).rejects.toMatchObject({ code: 'notGranted' });
+    expect(call).toHaveBeenCalledTimes(1);
   });
 });

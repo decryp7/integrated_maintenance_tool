@@ -507,7 +507,13 @@ mod tests {
                 },
             )
         };
-        assert!(call("open_paths", serde_json::json!({ "paths": [file.to_string_lossy()] })).is_ok());
+        // The command starts the import job and returns its id: the queries below need the data loaded.
+        let started = call("open_paths", serde_json::json!({ "paths": [file.to_string_lossy()] })).expect("open_paths is accepted");
+        let started = match started {
+            tauri::ipc::InvokeResponseBody::Json(s) => serde_json::from_str::<Value>(&s).unwrap(),
+            tauri::ipc::InvokeResponseBody::Raw(_) => Value::Null,
+        };
+        assert!(crate::test_support::settle(&w, "open_paths", Ok(started)).is_ok());
         let query = |ql: &str| serde_json::json!({ "request": { "query": { "text": "query-secret-91b2", "ql": ql } } });
         assert!(call("run_query", query("message contains \"query-secret-91b2\" | stats count()")).is_ok());
         // A failing query: its error (which quotes the query) goes to the UI, not to the log.

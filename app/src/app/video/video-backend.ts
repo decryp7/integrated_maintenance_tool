@@ -1,5 +1,6 @@
 import { inject, Provider } from '@angular/core';
 import { invoke as tauriInvoke } from '../core/activity/ipc';
+import { jobValue } from '../jobs/job-value';
 import { AiBackend } from '../ai/ai-backend';
 import { AiImage } from '../ai/ai.types';
 import { reportBackendFailures } from '../core/failure-reporter';
@@ -76,8 +77,10 @@ export class TauriVideoBackend extends VideoBackend {
   getRuntime() {
     return this.invoke<VideoRuntimeView>('video_runtime');
   }
-  installRuntime() {
-    return this.invoke<VideoRuntimeView>('video_runtime_install');
+  /** The command starts a job and returns its id; the result is the job's value. */
+  async installRuntime() {
+    const job = await this.invoke<number>('video_runtime_install');
+    return jobValue<VideoRuntimeView>(this.invoke, job);
   }
   rollbackRuntime() {
     return this.invoke<VideoRuntimeView>('video_runtime_rollback');
@@ -85,8 +88,10 @@ export class TauriVideoBackend extends VideoBackend {
   deleteRuntime(tag: string) {
     return this.invoke<VideoRuntimeView>('video_runtime_delete', { tag });
   }
-  setCustomRuntime(path: string) {
-    return this.invoke<VideoRuntimeView>('video_runtime_set_custom', { path });
+  /** The command starts a job and returns its id; the result is the job's value. */
+  async setCustomRuntime(path: string) {
+    const job = await this.invoke<number>('video_runtime_set_custom', { path });
+    return jobValue<VideoRuntimeView>(this.invoke, job);
   }
   clearCustomRuntime() {
     return this.invoke<VideoRuntimeView>('video_runtime_clear_custom');
@@ -97,20 +102,26 @@ export class TauriVideoBackend extends VideoBackend {
   list() {
     return this.invoke<VideoList>('video_list');
   }
-  open(request: OpenVideoRequest) {
-    return this.invoke<VideoView>('video_open', { request });
+  /** The command starts a job and returns its id; the result is the job's value. */
+  async open(request: OpenVideoRequest) {
+    const job = await this.invoke<number>('video_open', { request });
+    return jobValue<VideoView>(this.invoke, job);
   }
   remove(key: string) {
     return this.invoke<void>('video_remove', { key });
   }
-  include(request: IncludeRequest) {
-    return this.invoke<VideoView>('video_include', { request });
+  /** The command starts a job and returns its id; the result is the job's value. */
+  async include(request: IncludeRequest) {
+    const job = await this.invoke<number>('video_include', { request });
+    return jobValue<VideoView>(this.invoke, job);
   }
   getFrameImage(frame: FrameRef) {
     return this.invoke<FrameImage>('video_frame_image', { frame });
   }
-  addFrame(request: AddFrameRequest) {
-    return this.invoke<VideoView>('video_add_frame', { request });
+  /** The command starts a job and returns its id; the result is the job's value. */
+  async addFrame(request: AddFrameRequest) {
+    const job = await this.invoke<number>('video_add_frame', { request });
+    return jobValue<VideoView>(this.invoke, job);
   }
   removeFrame(frame: FrameRef) {
     return this.invoke<VideoView>('video_remove_frame', { frame });
@@ -118,11 +129,15 @@ export class TauriVideoBackend extends VideoBackend {
   setNote(request: NoteRequest) {
     return this.invoke<VideoView>('video_set_note', { request });
   }
-  generateDescriptions(request: FramesRequest) {
-    return this.invoke<VideoView>('video_describe', { request });
+  /** The command starts a job and returns its id; the result is the job's value. */
+  async generateDescriptions(request: FramesRequest) {
+    const job = await this.invoke<number>('video_describe', { request });
+    return jobValue<VideoView>(this.invoke, job);
   }
-  explainFrames(request: ExplainRangeRequest) {
-    return this.invoke<FrameExplanation>('video_explain', { request });
+  /** The command starts a job and returns its id; the result is the job's value. */
+  async explainFrames(request: ExplainRangeRequest) {
+    const job = await this.invoke<number>('video_explain', { request });
+    return jobValue<FrameExplanation>(this.invoke, job);
   }
   frameToImage(frame: FrameRef) {
     return this.invoke<AiImage>('video_frame_to_image', { frame });
@@ -130,8 +145,10 @@ export class TauriVideoBackend extends VideoBackend {
   setAlignment(request: AlignRequest) {
     return this.invoke<VideoView>('video_set_alignment', { request });
   }
-  alignFromClock(frame: FrameRef) {
-    return this.invoke<VideoView>('video_read_clock', { frame });
+  /** The command starts a job and returns its id; the result is the job's value. */
+  async alignFromClock(frame: FrameRef) {
+    const job = await this.invoke<number>('video_read_clock', { frame });
+    return jobValue<VideoView>(this.invoke, job);
   }
 }
 

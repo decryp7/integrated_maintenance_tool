@@ -148,7 +148,7 @@ pub async fn video_open<R: Runtime>(
     win: CurrentWindow,
     grants: WindowGrants,
     request: OpenVideoRequest,
-) -> CmdResult<VideoView> {
+) -> CmdResult<u64> {
     let granted = grants.read_file(&request.path, &[])?;
     let input = granted.path().to_path_buf();
     let name = input.file_name().map(|n| n.to_string_lossy().into_owned()).unwrap_or_default();
@@ -168,7 +168,7 @@ pub async fn video_open<R: Runtime>(
             path: input.to_string_lossy().into_owned(),
         });
     let h = app.clone();
-    jobs::run(
+    jobs::start_value(
         &app,
         spec,
         Controls::cancel(move || c.store(true, Ordering::SeqCst)),
@@ -203,10 +203,9 @@ pub async fn video_open<R: Runtime>(
             };
             let id = replace(&w, ctx, &cancel, &record)?;
             log::info!(Frames = record.frames.len(), Aligned = record.alignment.by.as_str(); "Video analysed");
-            Ok(Done::new(view_of(&folder, record, id)).with_result(JobResult::Workspace))
+            Ok(Done::new(view_of(&folder, record, id)).with_result(JobResult::workspace()))
         },
     )
-    .await
 }
 
 /// The clean image of a frame, for display.
@@ -335,13 +334,13 @@ fn media_or_explain(folder: &VideoFolder, r: &VideoRecord) -> CmdResult<std::pat
 
 /// Adds the frame at or after a time (the player's position) as the user's own frame (a job: it runs FFmpeg).
 #[tauri::command]
-pub async fn video_add_frame<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: AddFrameRequest) -> CmdResult<VideoView> {
+pub async fn video_add_frame<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: AddFrameRequest) -> CmdResult<u64> {
     let w = win.arc().clone();
     let tools = state(&app)?.ffmpeg.tools().map_err(cmd)?;
     let key = key_of_request(&request.key)?.to_string();
     let h = app.clone();
     let spec = JobSpec::new(JobKind::Analysis, "Adding a video frame").window(win.label());
-    jobs::run(&app, spec, Controls::default(), move |ctx: &JobCtx| -> CmdResult<Done<VideoView>> {
+    jobs::start_value(&app, spec, Controls::default(), move |ctx: &JobCtx| -> CmdResult<Done<VideoView>> {
         let st = state(&h)?;
         let folder = folder_of(&w)?;
         let scratch = st.scratch_dir("frame").map_err(scratch_error)?;
@@ -367,12 +366,11 @@ pub async fn video_add_frame<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, 
         let id = replace(&w, ctx, &flag, &record)?;
         Ok(Done::new(view_of(&folder, record, id)))
     })
-    .await
 }
 
 /// Includes a copy of the video in the project, or drops that copy.
 #[tauri::command]
-pub async fn video_include<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: IncludeRequest) -> CmdResult<VideoView> {
+pub async fn video_include<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: IncludeRequest) -> CmdResult<u64> {
     let w = win.arc().clone();
     let h = app.clone();
     let key = key_of_request(&request.key)?.to_string();
@@ -385,7 +383,7 @@ pub async fn video_include<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, re
         },
     )
     .window(win.label());
-    jobs::run(
+    jobs::start_value(
         &app,
         spec,
         Controls::default(),
@@ -410,7 +408,6 @@ pub async fn video_include<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, re
             Ok(Done::new(view_of(&folder, r, id)))
         },
     )
-    .await
 }
 
 /// Removes a video from the project: its source, frames, notes, descriptions and any included copy. The original
@@ -458,12 +455,12 @@ fn assistant<R: Runtime>(
 /// Describes frames with the loaded vision model (a job; each description is saved as it arrives, so Cancel keeps
 /// what is done). Without `indices`, the frames that have no description yet.
 #[tauri::command]
-pub async fn video_describe<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: FramesRequest) -> CmdResult<VideoView> {
+pub async fn video_describe<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: FramesRequest) -> CmdResult<u64> {
     let w = win.arc().clone();
     let key = key_of_request(&request.key)?.to_string();
     let h = app.clone();
     let spec = JobSpec::new(JobKind::Ai, "Describing the frames of a video").window(win.label());
-    jobs::run(&app, spec, Controls::default(), move |ctx: &JobCtx| -> CmdResult<Done<VideoView>> {
+    jobs::start_value(&app, spec, Controls::default(), move |ctx: &JobCtx| -> CmdResult<Done<VideoView>> {
         let st = state(&h)?;
         let folder = folder_of(&w)?;
         let first = folder.load(&key).map_err(cmd)?;
@@ -511,17 +508,16 @@ pub async fn video_describe<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, r
         let id = replace(&w, ctx, &ctx.cancel_flag(), &record)?;
         Ok(Done::new(view_of(&folder, record, id)).cancelled_if(ctx.is_cancelled()))
     })
-    .await
 }
 
 /// Has the model read the clock on one frame and aligns the video by it (a job).
 #[tauri::command]
-pub async fn video_read_clock<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, frame: FrameRef) -> CmdResult<VideoView> {
+pub async fn video_read_clock<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, frame: FrameRef) -> CmdResult<u64> {
     let w = win.arc().clone();
     let key = key_of_request(&frame.key)?.to_string();
     let h = app.clone();
     let spec = JobSpec::new(JobKind::Ai, "Reading the clock on a video frame").window(win.label());
-    jobs::run(&app, spec, Controls::default(), move |ctx: &JobCtx| -> CmdResult<Done<VideoView>> {
+    jobs::start_value(&app, spec, Controls::default(), move |ctx: &JobCtx| -> CmdResult<Done<VideoView>> {
         let st = state(&h)?;
         let folder = folder_of(&w)?;
         let r = folder.load(&key).map_err(cmd)?;
@@ -542,12 +538,11 @@ pub async fn video_read_clock<R: Runtime>(app: AppHandle<R>, win: CurrentWindow,
         let id = replace(&w, ctx, &ctx.cancel_flag(), &record)?;
         Ok(Done::new(view_of(&folder, record, id)))
     })
-    .await
 }
 
 /// Explains up to four frames of a video together (a job; the text is shown, not kept).
 #[tauri::command]
-pub async fn video_explain<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: ExplainRangeRequest) -> CmdResult<FrameExplanation> {
+pub async fn video_explain<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, request: ExplainRangeRequest) -> CmdResult<u64> {
     if request.indices.is_empty() || request.indices.len() > MAX_EXPLAIN {
         return Err(CmdError::invalid(format!("choose between 1 and {MAX_EXPLAIN} frames")).field("indices"));
     }
@@ -555,7 +550,7 @@ pub async fn video_explain<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, re
     let key = key_of_request(&request.key)?.to_string();
     let h = app.clone();
     let spec = JobSpec::new(JobKind::Ai, "Explaining video frames").window(win.label());
-    jobs::run(
+    jobs::start_value(
         &app,
         spec,
         Controls::default(),
@@ -574,7 +569,6 @@ pub async fn video_explain<R: Runtime>(app: AppHandle<R>, win: CurrentWindow, re
             Ok(Done::new(FrameExplanation { text }))
         },
     )
-    .await
 }
 
 /// The path of the video a window may play, for the `media:` scheme; `None` when it is not in the window's project.

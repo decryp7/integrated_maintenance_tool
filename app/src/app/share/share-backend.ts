@@ -78,8 +78,10 @@ export class TauriShareBackend extends ShareBackend {
   saveVisual(request: VisualRequest) {
     return this.call<VisualSaved>('save_visual', { request });
   }
-  openBundle(path: string) {
-    return this.call<BundleOpened>('open_bundle', { path });
+  /** The command starts an import job and returns its id; the opened bundle is the job's value. */
+  async openBundle(path: string) {
+    const job = await this.call<number>('open_bundle', { path });
+    return jobValue<BundleOpened>(this.call, job);
   }
   overview(query: Query) {
     return this.call<Analyzed<Finding[]>>('overview', { request: { query } });

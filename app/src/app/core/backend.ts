@@ -41,6 +41,7 @@ import { Logger, withFailureLogging } from './logger';
 import { isTauri } from './platform';
 import { listenHere } from '../windowing/window-events';
 import { browserMocks } from './mock-registry';
+import { jobValue } from '../jobs/job-value';
 
 /** Everything the UI can ask the backend. Injected as a class token. */
 export abstract class DebriefBackend {
@@ -128,8 +129,10 @@ export class TauriBackend extends DebriefBackend {
   workspaceSummary() {
     return this.call<WorkspaceSummary>('workspace_summary');
   }
-  openPaths(paths: string[]) {
-    return this.call<WorkspaceSummary>('open_paths', { paths });
+  /** The command starts an import job and returns its id; the opened workspace is the job's value. */
+  async openPaths(paths: string[]) {
+    const job = await this.call<number>('open_paths', { paths });
+    return jobValue<WorkspaceSummary>(this.call, job);
   }
   removeSource(sourceId: number) {
     return this.call<WorkspaceSummary>('remove_source', { sourceId });
@@ -137,8 +140,10 @@ export class TauriBackend extends DebriefBackend {
   clearWorkspace() {
     return this.call<WorkspaceSummary>('clear_workspace');
   }
-  reloadWorkspace() {
-    return this.call<WorkspaceSummary>('reload_workspace');
+  /** The command starts an import job and returns its id; the reloaded workspace is the job's value. */
+  async reloadWorkspace() {
+    const job = await this.call<number>('reload_workspace');
+    return jobValue<WorkspaceSummary>(this.call, job);
   }
   queryPage(request: PageRequest) {
     return this.call<Page>('query_page', { request });
@@ -208,8 +213,10 @@ export class TauriBackend extends DebriefBackend {
   unmuteAlerts(target: AlertTarget) {
     return this.call<void>('unmute_alerts', { target });
   }
-  openPathsLive(paths: string[], startAtEnd: boolean) {
-    return this.call<WorkspaceSummary>('open_paths_live', { paths, startAtEnd });
+  /** An import job, like `open_paths`. */
+  async openPathsLive(paths: string[], startAtEnd: boolean) {
+    const job = await this.call<number>('open_paths_live', { paths, startAtEnd });
+    return jobValue<WorkspaceSummary>(this.call, job);
   }
   setImportWindow(from: number | null, to: number | null) {
     return this.call<void>('set_import_window', { from, to });

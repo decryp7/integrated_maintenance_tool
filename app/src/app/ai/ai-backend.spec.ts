@@ -67,6 +67,29 @@ describe('TauriAiBackend', () => {
     return cmd;
   });
 
+  it('adds a model file through its download job: the model is the job value, a failure keeps the engine error type', async () => {
+    let outcome: unknown = { state: 'done', result: { type: 'model', fileName: 'm.gguf', detail: { fileName: 'm.gguf' } } };
+    const seen: [string, unknown][] = [];
+    const call = vi.fn(async (cmd: string, args?: unknown) => {
+      seen.push([cmd, args]);
+      return cmd === 'jobs_wait' ? outcome : 11;
+    });
+    const b = new TauriAiBackend(call as never, vi.fn() as never);
+    expect(await b.addLocalModel('/p.gguf')).toEqual({ fileName: 'm.gguf' });
+    expect(await b.addProjector('m.gguf', '/p/mmproj.gguf')).toEqual({ fileName: 'm.gguf' });
+    expect(seen).toEqual([
+      ['ai_model_add_local', { path: '/p.gguf' }],
+      ['jobs_wait', { id: 11 }],
+      ['ai_model_add_projector', { fileName: 'm.gguf', path: '/p/mmproj.gguf' }],
+      ['jobs_wait', { id: 11 }],
+    ]);
+    outcome = { state: 'failed', error: 'the file is damaged' };
+    await expect(b.addLocalModel('/p.gguf')).rejects.toBeInstanceOf(AiError);
+    await expect(b.addProjector('m.gguf', '/q')).rejects.toMatchObject({ message: 'the file is damaged' });
+    outcome = { state: 'cancelled', error: 'cancelled' };
+    await expect(b.addLocalModel('/p.gguf')).rejects.toMatchObject({ code: 'cancelled' });
+  });
+
   it('cancels the set-up and runtime install it started through their jobs', async () => {
     const seen: [string, unknown][] = [];
     const call = vi.fn(async (cmd: string, args?: unknown) => {
@@ -114,7 +137,6 @@ describe('TauriAiBackend', () => {
       [() => b.setupPlan('m'), 'ai_setup_plan', { modelId: 'm' }],
       [() => b.models(), 'ai_models', undefined],
       [() => b.deleteModel('f.gguf'), 'ai_model_delete', { fileName: 'f.gguf' }],
-      [() => b.addLocalModel('/p.gguf'), 'ai_model_add_local', { path: '/p.gguf' }],
       [() => b.reset(), 'ai_reset', undefined],
       [() => b.runtimes(), 'ai_runtimes', undefined],
       [() => b.runtimeDelete('b1', 'cpu'), 'ai_runtime_delete', { tag: 'b1', id: 'cpu' }],
@@ -152,7 +174,6 @@ describe('TauriAiBackend', () => {
         { sessionId: 'c', text: 't', context: { selectedIds: [] }, images: [4, 5] },
       ],
       [() => b.installProjector('m.gguf'), 'ai_model_install_projector', { fileName: 'm.gguf' }],
-      [() => b.addProjector('m.gguf', '/p/mmproj.gguf'), 'ai_model_add_projector', { fileName: 'm.gguf', path: '/p/mmproj.gguf' }],
       [() => b.imageOpen('/s/a.png'), 'ai_image_open', { path: '/s/a.png' }],
       [() => b.imagePaste('iVBO', 'a.png'), 'ai_image_paste', { data: 'iVBO', name: 'a.png' }],
       [() => b.imagePaste('iVBO'), 'ai_image_paste', { data: 'iVBO', name: null }],
