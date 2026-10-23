@@ -27,7 +27,7 @@ fn built(store: &DuckStore) {
 
 fn lookup(store: &DuckStore, text: &str) -> Vec<(Scope, String, u64)> {
     store
-        .catalogue(&CatalogueRequest { text: text.into() })
+        .catalogue(&CatalogueRequest { text: text.into(), ..Default::default() })
         .unwrap()
         .candidates
         .into_iter()
@@ -113,7 +113,7 @@ fn the_catalogue_follows_imports_removals_and_clear() {
 
     store.clear().unwrap();
     assert!(lookup(&store, "alpha").is_empty());
-    let reply = store.catalogue(&CatalogueRequest { text: "alpha".into() }).unwrap();
+    let reply = store.catalogue(&CatalogueRequest { text: "alpha".into(), ..Default::default() }).unwrap();
     assert!(reply.built, "nothing to catalogue is built");
 
     // Reload (a re-import) keeps the names consistent: no doubled counts.
@@ -155,6 +155,6 @@ fn field_values_are_catalogued_and_numbers_and_ids_are_not() {
 #[test]
 fn an_unbuilt_catalogue_falls_back_to_facets_and_reports_pending() {
     let (_logs, _dir, store) = setup("empty");
-    let reply = store.catalogue(&CatalogueRequest { text: "x".into() }).unwrap();
+    let reply = store.catalogue(&CatalogueRequest { text: "x".into(), ..Default::default() }).unwrap();
     assert!(reply.built && reply.candidates.is_empty() && reply.pending == 0);
 }

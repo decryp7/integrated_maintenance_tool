@@ -86,10 +86,13 @@ pub struct Candidate {
 }
 
 /// A lookup: the words as the user wrote them.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CatalogueRequest {
     pub text: String,
+    /// Every name instead of those like `text` (at most [`MAX_NAMES`], most events first): the name book groups them.
+    #[serde(default)]
+    pub all: bool,
 }
 
 /// The catalogue's answer.
@@ -131,15 +134,26 @@ pub fn search_keys(text: &str) -> Vec<String> {
 /// find them: names sharing letter groups with the text (all of them when it is shorter than a group: names
 /// starting with it), grouped by scope and name with summed counts, most alike first, at most [`MAX_CANDIDATES`].
 pub fn candidates_from(rows: &[(String, Entry)], text: &str) -> Vec<Candidate> {
+    collect(rows, text, false)
+}
+
+/// Every name among `rows`, grouped by scope and name with summed counts, most events first, at most [`MAX_NAMES`].
+pub fn all_from(rows: &[(String, Entry)]) -> Vec<Candidate> {
+    collect(rows, "", true)
+}
+
+fn collect(rows: &[(String, Entry)], text: &str, all: bool) -> Vec<Candidate> {
     let squashed = squash(text);
-    if squashed.is_empty() {
+    if squashed.is_empty() && !all {
         return Vec::new();
     }
     let keys: BTreeSet<String> = search_keys(text).into_iter().collect();
     let mut by_name: HashMap<(Scope, String), (usize, Candidate)> = HashMap::new();
     for (source, e) in rows {
         let norm = squash(&e.name);
-        let overlap = if keys.is_empty() {
+        let overlap = if all {
+            0
+        } else if keys.is_empty() {
             if !norm.starts_with(&squashed) {
                 continue;
             }
@@ -174,7 +188,7 @@ pub fn candidates_from(rows: &[(String, Entry)], text: &str) -> Vec<Candidate> {
     }
     let mut v: Vec<(usize, Candidate)> = by_name.into_values().collect();
     v.sort_by(|a, b| b.0.cmp(&a.0).then(b.1.count.cmp(&a.1.count)).then_with(|| a.1.name.cmp(&b.1.name)));
-    v.truncate(MAX_CANDIDATES);
+    v.truncate(if all { MAX_NAMES } else { MAX_CANDIDATES });
     v.into_iter()
         .map(|(_, mut c)| {
             c.seen_in.sort();

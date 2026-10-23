@@ -147,7 +147,7 @@ pub fn group(candidates: &[Candidate], vocab: &Vocabulary) -> Vec<NameGroup> {
         let words: Vec<&str> = key.split(' ').collect();
         // Cut one or two leading words that look like a vendor: unknown to the vocabulary, or a single letter.
         let target = (1..=2.min(words.len().saturating_sub(1)))
-            .filter(|cut| words[..*cut].iter().any(|w| w.chars().count() == 1 || !vocab.knows(w)))
+            .filter(|cut| words[..*cut].iter().any(|w| w.chars().count() == 1 || !vocab.is_common(w)))
             .filter(|cut| !words[..*cut].iter().any(|w| w.chars().any(|c| c.is_ascii_digit())))
             .map(|cut| words[cut..].join(" "))
             .find(|rest| by_key.contains_key(&(scope.clone(), rest.clone())));

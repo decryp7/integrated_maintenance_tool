@@ -55,6 +55,11 @@ impl Vocabulary {
         self.cost(word).is_some()
     }
 
+    /// Whether `word` is in the embedded list of common words (the workspace's own words do not count).
+    pub fn is_common(&self, word: &str) -> bool {
+        builtin().contains_key(word)
+    }
+
     /// The cost of `word`, if known: workspace words are cheaper the more they occur.
     fn cost(&self, word: &str) -> Option<f64> {
         if let Some(n) = self.workspace.get(word) {
@@ -132,6 +137,19 @@ pub fn segment(token: &str, vocab: &Vocabulary) -> Vec<String> {
 /// acronym (`XMLParser` is `XML`, `Parser`) and between letters and digits; each lower-cased, alphabetic pieces of
 /// four or more letters then segmented. At most `2 * MAX_TOKEN_CHARS` characters are read.
 pub fn pieces(raw: &str, vocab: &Vocabulary) -> Vec<String> {
+    let mut out = Vec::new();
+    for lower in split_raw(raw) {
+        if lower.chars().all(char::is_alphabetic) {
+            out.extend(segment(&lower, vocab));
+        } else {
+            out.push(lower);
+        }
+    }
+    out
+}
+
+/// The lower-case pieces of `raw` split at separators, case changes, acronyms and letter/digit changes, not yet segmented.
+pub fn split_raw(raw: &str) -> Vec<String> {
     let chars: Vec<char> = raw.chars().take(MAX_TOKEN_CHARS * 2).collect();
     let mut raw_pieces: Vec<String> = Vec::new();
     let mut cur = String::new();
@@ -152,16 +170,7 @@ pub fn pieces(raw: &str, vocab: &Vocabulary) -> Vec<String> {
         cur.push(c);
     }
     flush(&mut cur, &mut raw_pieces);
-    let mut out = Vec::new();
-    for p in raw_pieces {
-        let lower: String = p.chars().flat_map(char::to_lowercase).collect();
-        if lower.chars().all(char::is_alphabetic) {
-            out.extend(segment(&lower, vocab));
-        } else {
-            out.push(lower);
-        }
-    }
-    out
+    raw_pieces.into_iter().map(|p| p.chars().flat_map(char::to_lowercase).collect()).collect()
 }
 
 fn flush(cur: &mut String, out: &mut Vec<String>) {
