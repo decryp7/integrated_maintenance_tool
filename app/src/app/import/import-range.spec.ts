@@ -14,6 +14,12 @@ describe('time range helpers', () => {
     expect(parseRangeTime('1970-01-01T01:00:00+01:00')).toBe(0);
     expect(parseRangeTime(' ')).toBeNull();
     expect(parseRangeTime('soon')).toBeNull();
+    expect(parseRangeTime('1970-01-01 00:01')).toBe(60_000);
+    expect(parseRangeTime('1970-01-02')).toBe(86_400_000);
+    // Day-first (locale) dates are never guessed at.
+    expect(parseRangeTime('14/10/2026 10:30')).toBeNull();
+    expect(parseRangeTime('10/14/2026')).toBeNull();
+    expect(parseRangeTime('2026-13-45 10:30')).toBeNull();
   });
 
   it('explains what is wrong with a range', () => {

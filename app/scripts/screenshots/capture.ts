@@ -173,7 +173,6 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await input.fill('level >= warning | stats count() as n by SourceContext | sort n desc | head 10');
     await page.keyboard.press('ControlOrMeta+Enter');
     await page.waitForTimeout(800);
-    await input.press('Home'); // show the start of the query, not its end
   });
 
   await shot(page, 'query-results', async () => {
@@ -214,9 +213,14 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
 
   await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'moment', async () => {
-    await showPanel(page, 'Events', 'Show events');
-    await page.locator('debrief-events-grid [role=row].row').nth(8).click();
-    await need(page, 'Analyse this moment');
+    // A sub-range after the quiet start, so the metrics have an earlier window to compare with (the whole range has none).
+    const plot = page.locator('debrief-timeline-panel .plot').first();
+    const b = (await plot.boundingBox())!;
+    await page.mouse.move(b.x + b.width * 0.45, b.y + 40);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width * 0.7, b.y + 40, { steps: 8 });
+    await page.mouse.up();
+    await need(page, 'Moment: selected range');
     await page.waitForTimeout(1500);
   }, 'Moment');
 
@@ -277,8 +281,8 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await page.getByTestId('open-range').click();
     const dialog = page.getByRole('dialog', { name: 'Open a time range' });
     await expect(dialog).toBeVisible();
-    await dialog.getByTestId('range-from').fill('2026-10-14T10:30');
-    await dialog.getByTestId('range-to').fill('2026-10-14T11:00');
+    await dialog.getByTestId('range-from').fill('2026-10-14 10:30');
+    await dialog.getByTestId('range-to').fill('2026-10-14 11:00');
     await dialog.getByText('Only events inside this range').click(); // take the focus ring off the date field
     await page.waitForTimeout(500);
   });
@@ -323,7 +327,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await command(page, `Colour scheme: ${theme}`);
   await page.locator('.debrief-tab[data-panel-id="registry"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
   await shot(page, 'jobs', async () => {
-    await page.locator('debrief-events-grid [role=row].row').first().click();
+    await page.locator('debrief-events-grid [role=row].row').nth(8).click(); // a real event, not the very first row (event 0)
     await need(page, 'AI: Explain the selected event');
     await need(page, 'AI: Find likely root causes');
     await need(page, 'New incident report');
@@ -342,30 +346,12 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await page.waitForTimeout(800);
   });
 
-
-  // ---- the README tour strip: step 1 (samples loaded, file list) and step 2 (the sample profile's extractors) ----
-  await fresh(page, theme);
-  await shot(page, 'tour-open', async () => {
-    await page.locator('.debrief-tab[data-panel-id="timeline"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
-    await page.waitForTimeout(800);
-  });
-
-  await fresh(page, theme);
-  await shot(page, 'tour-profile', async () => {
-    await showPanel(page, 'Profile', 'Profile editor', 'Show Profile editor');
-    await page.getByRole('button', { name: /^Extractors/ }).first().click();
-    await page.waitForTimeout(800);
-  }, 'Profile');
-
   // Home: the dashboard (tiles, history by level, findings, activity).
   await fresh(page, theme);
-  // Home is a scrolling page taller than 900 px: zoom its content out a little so the first screen fits whole (nothing cut mid-card).
+  // Home fits the default window: its first screen is whole, Recent activity collapsed below it.
   await shot(page, 'home', async () => {
-    await page.addStyleTag({ content: 'debrief-home-view { zoom: 0.78; }' });
     await command(page, 'Show Home');
     await expect(page.locator('debrief-home-view [data-testid=home-history]')).toBeVisible();
-    // Recent activity lists the capture's own commands: leave it out of the picture.
-    await page.getByText('Recent activity', { exact: true }).evaluate((el) => ((el.closest('section') ?? el.parentElement) as HTMLElement).style.setProperty('display', 'none')).catch(() => undefined);
     await page.waitForTimeout(800);
   }, 'Home');
 }

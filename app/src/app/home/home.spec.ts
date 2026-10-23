@@ -145,6 +145,17 @@ describe('HomeView', () => {
     expect(ctx.calls.at(-1)).toBe('query:{"from":10,"to":20}');
   });
 
+  it('keeps Recent activity collapsed so the first screen fits, and puts attention beside the health check', async () => {
+    const { fixture } = setup([crash, file]);
+    await settle(fixture, 8);
+    const feed = fixture.nativeElement.querySelector('details.feed') as HTMLDetailsElement;
+    expect(feed.open).toBe(false);
+    expect(feed.textContent).toContain('Recent activity');
+    const pair = fixture.nativeElement.querySelector('.pair') as HTMLElement;
+    expect(pair.querySelector('.attention')).toBeTruthy();
+    expect(pair.querySelector('.health')).toBeTruthy();
+  });
+
   it('asks the health check once when the timeline headline and Home both show it', async () => {
     const { fixture, overview } = setup([crash, file]);
     const headline = TestBed.createComponent(HealthHeadline);

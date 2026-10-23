@@ -84,14 +84,14 @@ const VISIBLE_ROWS = 6;
 
             @if (option(); as o) {
               <section class="history" aria-labelledby="home-history">
-                <h3 id="home-history" i18n="@@home.view.history">Events over time</h3>
+                <h3 id="home-history"><span i18n="@@home.view.history">Events over time</span> <span class="faint hint" i18n="@@home.view.historyHint">Click a bar to show that period, or drag across the chart to select a range.</span></h3>
                 <debrief-echart class="chart" data-testid="home-history" [options]="o" (plotClick)="selectBucket($event)" (brushed)="selectRange($event)" />
-                <p class="faint hint" i18n="@@home.view.historyHint">Click a bar to show that period, or drag across the chart to select a range.</p>
               </section>
             }
           }
         </debrief-analysis-state>
 
+        <div class="pair">
         @if (stats(); as st) {
           @if (st.unrecognized.length + st.plugins.length; as n) {
             <section class="attention" aria-labelledby="home-attention" data-testid="home-attention">
@@ -149,9 +149,10 @@ const VISIBLE_ROWS = 6;
             }
           </debrief-analysis-state>
         </section>
+        </div>
 
-        <section class="feed" aria-labelledby="home-feed">
-          <h3 id="home-feed" i18n="@@home.view.activity">Recent activity</h3>
+        <details class="feed" data-testid="home-feed-section">
+          <summary id="home-feed" i18n="@@home.view.activity">Recent activity</summary>
           @if (feed().length) {
             <ul data-testid="home-feed">
               @for (item of feed(); track item.key) {
@@ -161,7 +162,7 @@ const VISIBLE_ROWS = 6;
           } @else {
             <p class="muted" i18n="@@home.view.noActivity">Nothing yet.</p>
           }
-        </section>
+        </details>
       }
 
       <label class="auto" i18n="@@home.view.autoOpen">
@@ -174,7 +175,11 @@ const VISIBLE_ROWS = 6;
     :host { display: flex; flex-direction: column; height: 100%; min-height: 0; background: var(--bg-1); color: var(--text); }
     .bar { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-bottom: 1px solid var(--border); }
     .spacer { flex: 1; }
-    .scroll { flex: 1; min-height: 0; overflow: auto; padding: 10px 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+    .scroll { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px 12px; display: flex; flex-direction: column; gap: 10px; }
+    .scroll > * { flex: none; }
+    .pair { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); gap: 10px 16px; align-items: start; }
+    .feed summary { cursor: pointer; font-size: var(--fs-md); font-weight: 600; }
+    .feed ul { margin-top: 6px; }
     .actions { display: flex; flex-wrap: wrap; gap: 6px; }
     .actions .btn { display: inline-flex; align-items: center; gap: 6px; }
     .pad { margin: 4px 0; }
@@ -182,7 +187,7 @@ const VISIBLE_ROWS = 6;
     .tiles { margin: 0; display: flex; flex-wrap: wrap; gap: 8px; }
     .tiles .hero { flex: 1 1 calc(25% - 8px); min-width: 160px; }
     .tiles > div { position: relative; }
-    .tiles .hero { padding: 10px 12px; border: 1px solid var(--border-2); border-radius: var(--r-3); background: var(--bg-2); min-height: 72px; }
+    .tiles .hero { padding: 10px 12px; border: 1px solid var(--border-2); border-radius: var(--r-3); background: var(--bg-2); min-height: 60px; }
     .tiles .hero dt { font-size: var(--fs-sm); color: var(--muted); }
     .tiles .hero dd { margin: 2px 0 0; font-size: var(--fs-hero); line-height: 1.15; font-weight: 600; font-variant-numeric: tabular-nums; }
     .tiles .chip { flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 10px; border: 1px solid var(--border-2); border-radius: 999px; font-size: var(--fs-sm); width: max-content; max-width: 100%; }
@@ -198,7 +203,7 @@ const VISIBLE_ROWS = 6;
     .spark.bad { stroke: var(--danger-text); }
     .spark.warn { stroke: var(--warn-text); }
     .attention { display: flex; flex-direction: column; gap: 6px; }
-    .callout { display: flex; gap: 10px; align-items: flex-start; padding: 8px 12px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--warn-text); border-radius: var(--r-2); background: var(--bg-2); }
+    .callout { display: flex; gap: 10px; align-items: flex-start; padding: 5px 12px; border: 1px solid var(--border-2); border-inline-start: 3px solid var(--warn-text); border-radius: var(--r-2); background: var(--bg-2); }
     .callout .warn { color: var(--warn-text); margin-top: 1px; }
     .callout .t { font-size: var(--fs-md); font-weight: 600; }
     .callout .d { font-size: var(--fs-sm); color: var(--muted); }
@@ -207,7 +212,7 @@ const VISIBLE_ROWS = 6;
     .all { align-self: flex-start; margin-top: 4px; }
     h3 { margin: 0 0 6px; font-size: var(--fs-md); font-weight: 600; display: flex; align-items: center; gap: 6px; }
     .chart { height: 150px; min-height: 130px; }
-    .hint { margin: 2px 0 0; font-size: var(--fs-xs); }
+    .hint { font-size: var(--fs-xs); font-weight: 400; }
     .sub ul, .feed ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 3px; }
     .sub li, .feed li { font-size: var(--fs-sm); overflow-wrap: anywhere; }
     .feed li.failed { color: var(--danger-text); }
@@ -216,7 +221,7 @@ const VISIBLE_ROWS = 6;
     .faint { color: var(--faint); }
     .bad { color: var(--danger-text); }
     .findings { border: 1px solid var(--border-2); border-radius: 6px; background: var(--bg-2); }
-    .finding { box-sizing: border-box; height: 56px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-2); }
+    .finding { box-sizing: border-box; /* width 0 + min-width 100%: the row follows the list's width instead of its longest title */ width: 0; min-width: 100%; height: 56px; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--border-2); }
     .finding .text { flex: 1; min-width: 0; }
     .title { font-weight: 600; font-size: var(--fs-sm); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .tag { display: inline-block; padding: 0 5px; margin-right: 4px; border-radius: 4px; font-size: var(--fs-xs); font-weight: 600; border: 1px solid var(--border-3); color: var(--text-2); }

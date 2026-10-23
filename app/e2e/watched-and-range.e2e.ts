@@ -11,7 +11,7 @@ test.describe('time-range import and watched folders', () => {
     await expect(dialog).toBeVisible();
     const open = dialog.getByTestId('range-open');
     await expect(open).toBeDisabled();
-    await dialog.getByTestId('range-from').fill('2026-10-14T10:00');
+    await dialog.getByTestId('range-from').fill('2026-10-14 10:00');
     await dialog.getByTestId('range-to').fill('2026-10-14T09:00');
     await expect(dialog.getByRole('alert')).toContainText('The end is before the start.');
     await dialog.getByTestId('range-to').fill('2026-10-14T11:00');

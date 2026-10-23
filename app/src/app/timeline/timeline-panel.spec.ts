@@ -546,11 +546,15 @@ describe('TimelinePanel annotations', () => {
     expect(kinds()).toHaveLength(LEGEND_COLLAPSED_GROUP);
     const more = el<HTMLButtonElement>(fixture, '[data-testid=legend-more]');
     expect(Number(/\+(\d+) more/.exec(more.textContent ?? '')?.[1])).toBeGreaterThanOrEqual(5 - LEGEND_COLLAPSED_GROUP);
+    // The bare count has a name and a tooltip saying what it reveals.
+    expect(more.getAttribute('aria-label')).toMatch(/^Show \d+ more legend entr(y|ies)$/);
+    expect(more.title).toBe(more.getAttribute('aria-label'));
     more.click();
     await settle(fixture);
     expect(kinds()).toHaveLength(5);
     expect(el(fixture, '.legend-row').classList).not.toContain('collapsed');
     expect(more.textContent?.trim()).toBe('Show fewer');
+    expect(more.getAttribute('aria-label')).toBe('Show fewer legend entries');
   });
 
   it('caps the Evidence menu and says how many more are in view', async () => {
