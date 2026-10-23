@@ -13,7 +13,10 @@ import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
 import {
+  fitAdvice,
+  fitFacts,
   fitLabel,
+  fitNumbers,
   formatBytes,
   formatEta,
   formatRate,
@@ -130,6 +133,10 @@ import {
                     <span>{{ toolCalling(r) }}</span>
                     <span data-testid="ai-model-vision">{{ vision(!!r.model.projector) }}</span>
                   </span>
+                  <span class="fit-detail muted" [attr.data-testid]="'ai-fit-' + r.model.id">{{ numbers(r) }}</span>
+                  @if (r.assessment.fit !== 'comfortable') {
+                    <span class="fit-detail muted" [attr.data-testid]="'ai-fit-advice-' + r.model.id">{{ facts(r) }}{{ advice(r) }}</span>
+                  }
                   @if (r.model.notes) {
                     <span class="notes muted">{{ r.model.notes }}</span>
                   }
@@ -465,6 +472,15 @@ export class AiSetupWizard implements OnInit {
   });
 
   protected readonly fit = (r: Recommendation) => fitLabel(r.assessment.fit);
+  protected readonly numbers = (r: Recommendation) => fitNumbers(r.assessment);
+  protected readonly facts = (r: Recommendation) => {
+    const f = fitFacts(r.assessment);
+    return `${f.machine} · ${f.now}`;
+  };
+  protected readonly advice = (r: Recommendation) => {
+    const a = fitAdvice(r.assessment);
+    return a.length ? ` · ${a.join(' · ')}` : '';
+  };
   protected readonly speed = (r: Recommendation) => speedLabel(r.assessment.speed);
   protected readonly size = formatBytes;
   protected readonly startLabel = computed(() =>
@@ -521,9 +537,19 @@ export class AiSetupWizard implements OnInit {
         preferred: this.modelId(),
         needsRuntime: !!runtimes?.needsDownload,
       });
+      void this.refineFit();
     } catch (e) {
       const err = toAiError(e);
       this.dispatch({ type: 'failed', code: err.code, message: err.message });
+    }
+  }
+
+  /** Replaces the rough memory figures with exact ones once the engine has read the model headers. */
+  private async refineFit(): Promise<void> {
+    try {
+      this.dispatch({ type: 'fitRefined', recommendations: await this.backend.refineFit() });
+    } catch {
+      // Offline or the host is down: the rough figures stay (and say so).
     }
   }
 
