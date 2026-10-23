@@ -26,7 +26,7 @@ export class ReportCommands {
   }
 
   readonly commands: DebriefCommand[] = [
-    { id: 'report.show', title: $localize`:@@share.reportCommands.show:Show report builder`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, run: (ctx) => ctx.showView('report') },
+    { id: 'report.show', title: $localize`:@@share.reportCommands.show:Show report builder`, category: $localize`:@@share.commands.categoryAnalyze:Analyze`, view: 'report', run: (ctx) => ctx.showView('report') },
     {
       id: 'report.new',
       title: $localize`:@@share.reportCommands.new:New incident report`,

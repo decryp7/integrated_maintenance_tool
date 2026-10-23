@@ -35,7 +35,7 @@ export class VideoCommands {
 
   readonly commands: DebriefCommand[] = [
     { id: 'video.open', title: $localize`:@@video.cmd.open:Open video…`, category: 'File', run: (ctx) => this.open(ctx) },
-    { id: 'video.show', title: $localize`:@@video.cmd.show:Video: show`, category: $localize`:@@video.category:Video`, run: (ctx) => ctx.showView(VIDEO_VIEW_ID) },
+    { id: 'video.show', title: $localize`:@@video.cmd.show:Video: show`, category: $localize`:@@video.category:Video`, view: VIDEO_VIEW_ID, run: (ctx) => ctx.showView(VIDEO_VIEW_ID) },
   ];
 
   async open(ctx: CommandContext): Promise<void> {

@@ -46,6 +46,16 @@ describe('palette matching (F1)', () => {
     ]);
   });
 
+  it('does not take scattered initials for a match, and ranks familiar commands first among equals', () => {
+    expect(matchWord('ai', 'Open an image')).toBeNull();
+    expect(matchWord('ai', 'AI: Manage models')?.indices).toEqual([0, 1]);
+    expect(matchWord('sa', 'Show anomalies')?.indices).toEqual([0, 5]);
+    const commands = [cmd('m', 'AI: Manage models', 'AI'), cmd('i', 'Open an image'), cmd('s', 'Set up AI assistant', 'AI'), cmd('c', 'AI: Open the assistant chat', 'AI')];
+    expect(rankCommands(commands, 'ai').map((e) => e.command.id)).toEqual(['m', 'c', 's']);
+    expect(rankCommands(commands, 'ai', [], ['s'])[0]!.command.id).toBe('s');
+    expect(rankCommands(commands, 'ai', ['c'], [])[0]!.command.id).toBe('c');
+  });
+
   it('with no query lists the recent commands, then the common ones, then the rest in order', () => {
     const commands = [cmd('x', 'Capture diagnostic screenshot'), cmd('y', 'Open folder…'), cmd('z', 'Search events'), cmd('w', 'Report a problem…')];
     expect(rankCommands(commands, '  ', ['z'], ['y', 'missing']).map((e) => e.command.id)).toEqual(['z', 'y', 'x', 'w']);
