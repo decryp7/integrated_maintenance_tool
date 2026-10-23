@@ -60,7 +60,7 @@ describe('TitleBar', () => {
     const { fixture, store, dock } = setup(TitleBar);
     await settle(fixture);
     // The command centre names what is open (here the folder of the opened files), not the parsing profile or progress.
-    expect(el(fixture, '[data-testid=command-centre-name]').textContent).toMatch(/— type a command/);
+    expect(el(fixture, '[data-testid=command-centre-name]').textContent).toMatch(/\S — type a command/);
     expect(text(fixture)).not.toContain('Indexed');
     await choose(fixture, 'View', 'Explorer');
     expect(store.sidebarOpen()).toBe(false);
@@ -232,7 +232,7 @@ describe('openedFolderName', () => {
     expect(openedFolderName(['/data/logs/a.log', '/data/logs/web/b.log'])).toBe('logs');
     expect(openedFolderName(['C:\\logs\\web01\\a.log'])).toBe('web01');
     expect(openedFolderName(['a.log'])).toBe('a.log');
-    expect(openedFolderName(['/a/x.log', '/b/y.log'])).toBe('/');
+    expect(openedFolderName(['/a/x.log', '/b/y.log'])).toBe('');
   });
 });
 
