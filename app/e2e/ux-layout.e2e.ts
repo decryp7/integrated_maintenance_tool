@@ -1,4 +1,5 @@
 import { expect, Page, test } from '@playwright/test';
+import { runCommand } from './ai-support';
 import { ensureInspector, openApp } from './app';
 
 // Usability review 2026-10-23 (U1, U2): the events grid is the main artefact, so the default layout, a document opened
@@ -70,9 +71,7 @@ test('Compare time ranges starts from the data and leaves the grid its rows', as
   await page.addInitScript(() => localStorage.clear());
   await openApp(page);
   const before = await visibleGridRows(page);
-  await page.keyboard.press('ControlOrMeta+k');
-  await page.keyboard.type('Compare time ranges');
-  await page.keyboard.press('Enter');
+  await runCommand(page, 'Compare time ranges');
   const compare = page.locator('debrief-compare-view');
   await expect(compare.locator('.card .nums').first()).toBeVisible({ timeout: 10_000 });
   const events = await compare.locator('.card .nums').allInnerTexts();
