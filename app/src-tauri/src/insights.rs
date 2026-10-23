@@ -21,7 +21,7 @@ use tauri::{AppHandle, Runtime};
 
 /// An analysis view's computation as an analysis job (visible in the Jobs pane when it takes a while; Cancel
 /// stops it in the store).
-async fn analysis<R: Runtime, T: Send + 'static>(
+pub(crate) async fn analysis<R: Runtime, T: Send + 'static>(
     app: &AppHandle<R>,
     state: &CurrentWindow,
     title: &str,

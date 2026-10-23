@@ -130,7 +130,7 @@ pub(crate) async fn run<R: Runtime>(app: &AppHandle<R>, state: &CurrentWindow, s
             let store = win.engine.store()?;
             let session = start_when_free(store.as_ref(), &start, ctx, &flag)?;
             let report = follow(&win, ctx, &flag, session)?;
-            super::annotate::run(&win, store.as_ref(), &|m| ctx.message(m));
+            super::annotate::run_in_job(&win, store.as_ref(), ctx, &flag);
             Ok(Done::new(report).with_result(JobResult::Workspace))
         },
     )
@@ -157,7 +157,7 @@ pub(crate) fn start<R: Runtime>(
                 let store = win.engine.store()?;
                 let session = start_when_free(store.as_ref(), &start, ctx, &flag)?;
                 let report = follow(&win, ctx, &flag, session)?;
-                super::annotate::run(&win, store.as_ref(), &|m| ctx.message(m));
+                super::annotate::run_in_job(&win, store.as_ref(), ctx, &flag);
                 then(report)?;
                 Ok(Done::new(()).with_result(JobResult::Workspace))
             },
