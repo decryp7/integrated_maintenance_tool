@@ -61,3 +61,8 @@ test('writes the module, reports staleness in check mode and tolerates a missing
   assert.equal(generate({ changelog: join(dir, 'missing.md'), output }), true);
   assert.match(readFileSync(output, 'utf8'), /= \[\];/);
 });
+
+test('the changelog uses the product name, never the old one', () => {
+  assert.doesNotMatch(readFileSync(CHANGELOG_PATH, 'utf8'), /\bIMT\b/);
+  assert.doesNotMatch(readFileSync(OUTPUT_PATH, 'utf8'), /\bIMT\b/);
+});
