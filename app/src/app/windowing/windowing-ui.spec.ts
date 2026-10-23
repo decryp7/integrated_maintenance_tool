@@ -7,9 +7,10 @@ import { provideToolsTesting } from '../tools/mock/test-support';
 import { DialogService } from '../ui/dialog.service';
 import { DialogHost } from '../ui/dialog-host';
 import { BackgroundWork } from './background-work';
-import { ClosePromptService } from './close-prompt';
+import { ClosePromptService } from './close-prompt.service';
 import { memoryHost, MockWindowingBackend } from './mock-windowing-backend';
-import { OpenAskService, openAskTitle } from './open-ask-dialog';
+import { OpenAskService } from './open-ask.service';
+import { openAskTitle } from './open-ask-dialog';
 import { provideWindowing } from './provide-windowing';
 import { WindowingBackend } from './windowing-backend';
 import { WindowingService } from './windowing.service';
@@ -36,7 +37,8 @@ describe('Close prompt', () => {
     expect(text(fixture)).toContain('keeps running in the tray');
     expect(el<HTMLInputElement>(fixture, 'input[type=checkbox]').checked).toBe(true);
     buttonByText(fixture, 'Keep running in tray').click();
-    expect(await ref.closed).toBe('tray');
+    expect(await ref.closed).toEqual({ choice: 'tray', remember: true });
+    await settle(fixture);
     expect(backend.calls).toContain('resolveClose:tray:true');
 
     const again = TestBed.inject(ClosePromptService).open();
@@ -44,7 +46,8 @@ describe('Close prompt', () => {
     el<HTMLInputElement>(fixture, 'input[type=checkbox]').click();
     await settle(fixture);
     buttonByText(fixture, 'Quit').click();
-    expect(await again.closed).toBe('quit');
+    expect(await again.closed).toEqual({ choice: 'quit', remember: false });
+    await settle(fixture);
     expect(backend.calls).toContain('resolveClose:quit:false');
   });
 
@@ -63,7 +66,6 @@ describe('Close prompt', () => {
     buttonByText(fixture, 'Quit').click();
     await settle(fixture);
     expect(store.error()).toBe('Could not close the window: busy');
-    expect(dialogs.stack()).toHaveLength(1);
   });
 });
 
@@ -142,7 +144,7 @@ describe('Open-ask dialog', () => {
     expect(store.error()).toBe('Could not cancel opening the files: window gone');
   });
 
-  it('shows a failure and stays open', async () => {
+  it('shows a failure when the opener cannot carry out the choice', async () => {
     const { backend, store } = setup();
     const fixture = await dialogHost();
     vi.spyOn(backend, 'resolveOpen').mockRejectedValue(new Error('gone'));
@@ -151,7 +153,6 @@ describe('Open-ask dialog', () => {
     buttonByText(fixture, 'This window').click();
     await settle(fixture);
     expect(store.error()).toBe('Could not open the files: gone');
-    expect(TestBed.inject(DialogService).stack()).toHaveLength(1);
   });
 });
 
