@@ -13,6 +13,8 @@ type AddPanel = { id: string; component: string; title: string; inactive: boolea
 
 const INSPECTOR_WIDTH = 372;
 const TIMELINE_HEIGHT = 300;
+/** The timeline row's height once an analysis panel shares the dock (the grid keeps the rest). */
+const TIMELINE_COMPACT_HEIGHT = 210;
 /** The share of the dock's height the events grid keeps when a document opens beside the timeline (it is the main artefact). */
 const DOCUMENT_GRID_SHARE = 0.6;
 /** A document that opens beside the timeline takes at most this share of the dock's width, and at most `DOCUMENT_MAX_WIDTH` px. */
@@ -180,6 +182,12 @@ export class DockPlacement {
     if (!below) return api.addPanel(base);
     const panel = api.addPanel({ ...base, position: { referenceGroup: below.group.id, direction: 'below' } });
     panel.group.api.setSize({ height: ANALYSIS_HEIGHT });
+    // A third band must not starve the events grid: the timeline row gives up height before the grid does.
+    const timeline = api.getPanel(PANEL.timeline)?.group;
+    if (timeline && timeline.api.location.type === 'grid' && timeline.height > TIMELINE_COMPACT_HEIGHT) timeline.api.setSize({ height: TIMELINE_COMPACT_HEIGHT });
+    const events = below.group;
+    const grid = api.height - TIMELINE_COMPACT_HEIGHT - ANALYSIS_HEIGHT;
+    if (timeline && events.api.location.type === 'grid' && grid > 200) events.api.setSize({ height: grid });
     return panel;
   }
 

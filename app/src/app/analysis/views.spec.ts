@@ -386,6 +386,11 @@ describe('CompareView', () => {
   it('asks for two windows first, then compares', async () => {
     const compare = vi.fn(async () => FIX.comparison);
     const { fixture, targets } = await mount(CompareView, stubBackend({ compareWindows: compare }));
+    // Opened with the current range split in two (not an empty page); cleared, it asks for two windows.
+    expect(targets.windowA()).not.toBeNull();
+    targets.setWindows(null, null);
+    compare.mockClear();
+    await settle(fixture, 6);
     expect(text(fixture)).toContain('Pick two windows');
     expect(compare).not.toHaveBeenCalled();
     targets.setWindows({ from: 0, to: 60000 }, { from: 60000, to: 120000 });
@@ -421,8 +426,10 @@ describe('CompareView', () => {
     const { fixture, targets } = await mount(CompareView);
     const range = targets.currentRange()!;
     buttonByText(fixture, 'Current range vs previous').click();
-    expect(targets.windowB()).toEqual(range);
-    expect(targets.windowA()).toEqual({ from: range.from - (range.to - range.from), to: range.from });
+    // The range is all the data: its two halves.
+    const half = Math.round((range.from + range.to) / 2);
+    expect(targets.windowA()).toEqual({ from: range.from, to: half });
+    expect(targets.windowB()).toEqual({ from: half, to: range.to });
 
     buttonByText(fixture, 'Before / after selected time').click();
     const mid = Math.round((range.from + range.to) / 2);

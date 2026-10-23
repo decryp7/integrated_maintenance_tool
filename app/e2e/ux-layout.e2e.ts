@@ -64,3 +64,20 @@ test('the Inspector flyout does not cover the selected row', async ({ page }) =>
   await expect(flyout).toHaveCount(0);
   await expect.poll(() => page.locator('debrief-events-grid').evaluate((e) => (e as HTMLElement).style.getPropertyValue('--debrief-flyout-inset-right'))).toBe('');
 });
+
+// U6: Compare opens with sensible windows (not an empty one before the data) and does not starve the grid.
+test('Compare time ranges starts from the data and leaves the grid its rows', async ({ page }) => {
+  await page.addInitScript(() => localStorage.clear());
+  await openApp(page);
+  const before = await visibleGridRows(page);
+  await page.keyboard.press('ControlOrMeta+k');
+  await page.keyboard.type('Compare time ranges');
+  await page.keyboard.press('Enter');
+  const compare = page.locator('debrief-compare-view');
+  await expect(compare.locator('.card .nums').first()).toBeVisible({ timeout: 10_000 });
+  const events = await compare.locator('.card .nums').allInnerTexts();
+  expect(events).toHaveLength(2);
+  for (const text of events) expect(text).not.toMatch(/^0 events|^1 events/);
+  await expect.poll(() => visibleGridRows(page)).toBeGreaterThanOrEqual(7);
+  expect(before).toBeGreaterThanOrEqual(12);
+});

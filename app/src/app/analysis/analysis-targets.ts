@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { DebriefEvents } from '../extensions/events';
 import { QlQuery } from '../core/api.types';
 import { TimeCursor, TimeRange } from './time-cursor';
+import { defaultWindows } from './windows';
 
 /** What the analysis views were asked to look at: the moment, the two compare windows, a field. */
 @Injectable({ providedIn: 'root' })
@@ -31,6 +32,15 @@ export class AnalysisTargets {
     const from = q.from ?? w?.from ?? null;
     const to = q.to ?? w?.to ?? null;
     return from !== null && to !== null && to >= from ? { from, to } : null;
+  }
+
+  /** Compares the current range with the window before it (or its two halves when it is all the data). */
+  compareCurrentRange(): void {
+    const r = this.currentRange();
+    if (!r) return;
+    const w = this.events.workspace();
+    const { a, b } = defaultWindows(r, w?.from != null && w?.to != null ? { from: w.from, to: w.to } : null);
+    this.setWindows(a, b);
   }
 
   setMoment(range: TimeRange | null): void {
