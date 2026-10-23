@@ -10779,14 +10779,14 @@
         <source>Auto-hide <x id="title" equiv-text="title"/> (<x id="keys" equiv-text="keys"/>). Right-click to choose the left, right or bottom edge.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">138</context>
+          <context context-type="linenumber">148</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.groupActions.autoHideTitle" datatype="html">
         <source>Auto-hide <x id="title" equiv-text="title"/>. Right-click to choose the left, right or bottom edge.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/group-actions.ts</context>
-          <context context-type="linenumber">139</context>
+          <context context-type="linenumber">149</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.layoutDialog.name" datatype="html">

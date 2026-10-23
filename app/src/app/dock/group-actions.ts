@@ -85,7 +85,7 @@ export class GroupActions implements IHeaderActionsRenderer {
     if (ah) {
       this.autoHide.addEventListener('click', () => ah.run(this.group!));
       // The tooltip names the binding as it is now (the user may have changed it since the header was drawn).
-      const fresh = () => this.refreshAutoHide();
+      const fresh = () => this.refreshAutoHideTitle();
       this.autoHide.addEventListener('mouseenter', fresh);
       this.autoHide.addEventListener('focus', fresh);
       // The side choice: right-click, or the Menu key / Shift+F10 on the (focusable) button.
@@ -133,12 +133,20 @@ export class GroupActions implements IHeaderActionsRenderer {
     const title = panel.title ?? panel.id;
     this.autoHide.setAttribute('aria-pressed', 'false');
     this.autoHide.setAttribute('aria-label', $localize`:@@dock.groupActions.autoHide:Auto-hide ${title}:title:`);
-    const keys = ah.shortcut?.() ?? '';
+    this.refreshAutoHideTitle();
+    // The pin glyph is narrower than the maximize and menu glyphs inside the same box: drawn larger it reads as heavy as they do.
+    this.autoHide.replaceChildren(icon(ICONS.pin, PIN_SIZE));
+  }
+
+  /** The tooltip, with the binding as it is now (it may change without the header being redrawn). */
+  private refreshAutoHideTitle(): void {
+    const panel = this.group?.activePanel;
+    if (!panel) return;
+    const title = panel.title ?? panel.id;
+    const keys = this.host.autoHide?.shortcut?.() ?? '';
     this.autoHide.title = keys
       ? $localize`:@@dock.groupActions.autoHideTitleKeys:Auto-hide ${title}:title: (${keys}:keys:). Right-click to choose the left, right or bottom edge.`
       : $localize`:@@dock.groupActions.autoHideTitle:Auto-hide ${title}:title:. Right-click to choose the left, right or bottom edge.`;
-    // The pin glyph is narrower than the maximize and menu glyphs inside the same box: drawn larger it reads as heavy as they do.
-    this.autoHide.replaceChildren(icon(ICONS.pin, PIN_SIZE));
   }
 
   private set(button: HTMLButtonElement, label: string, path: string): void {
