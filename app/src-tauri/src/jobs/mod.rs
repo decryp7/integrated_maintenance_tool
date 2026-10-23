@@ -347,6 +347,11 @@ fn in_phase(controls: Controls, label: &'static str) -> Controls {
     c
 }
 
+/// `controls` with a probe of `control`'s progress under the phase `label` (events processed of those to process).
+pub(crate) fn with_phase_probe(controls: Controls, control: &debrief_core::ql::QueryControl, label: &'static str) -> Controls {
+    in_phase(with_query_progress(controls, control), label)
+}
+
 /// `controls` with a probe of `control`'s progress (the events the store has read of those it will read, as its
 /// worker reports them) unless they have their own.
 fn with_query_progress(controls: Controls, control: &debrief_core::ql::QueryControl) -> Controls {

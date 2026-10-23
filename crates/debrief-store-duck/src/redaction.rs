@@ -68,8 +68,16 @@ impl DuckStore {
         let mut taken = HashSet::new();
         let mut offsets = debrief_core::skew::ClockOffsets::default();
         let files = std::fs::canonicalize(work.join("files")).map_err(io)?;
+        // The caller's control (the export job): counts the events redacted so far and stops the copy on Cancel.
+        let control = debrief_core::ql::QueryControl::current();
         {
             let conn = self.inner.conn()?;
+            if let Some(c) = &control {
+                let total: u64 = conn
+                    .query_row("SELECT coalesce(sum(events), 0) FROM sources WHERE ready", [], |r| r.get(0))
+                    .map_err(engine)?;
+                c.begin(debrief_core::ql::QueryStage::Matching, total as usize);
+            }
             let mut sources = conn
                 .prepare("SELECT id, name, path, importer, file_kind FROM sources WHERE ready ORDER BY id")
                 .map_err(engine)?;
@@ -107,6 +115,10 @@ impl DuckStore {
                 let mut events = 0usize;
                 for raw in raws {
                     let raw = raw.map_err(engine)?;
+                    if let Some(c) = &control {
+                        c.check().map_err(|_| StoreError::Cancelled)?;
+                        c.advance(1);
+                    }
                     out.write_all(redactor.apply(&raw, &mut counts).as_bytes()).map_err(io)?;
                     out.write_all(b"\n").map_err(io)?;
                     events += 1;
@@ -134,7 +146,16 @@ impl DuckStore {
         let result = (|| -> StoreResult<()> {
             copy.set_parsers(self.inner.parser_set().setup())?;
             debrief_core::ports::Skew::set_clock_offsets(&copy, &offsets)?;
-            copy.open(std::slice::from_ref(&files))?.wait()?;
+            let session = copy.open(std::slice::from_ref(&files))?;
+            // Cancel reaches the nested import too (its files not read yet would be left out of the copy).
+            let _hook = control.as_ref().map(|c| {
+                let progress = copy.progress();
+                c.on_cancel(Box::new(move || progress.cancel()))
+            });
+            session.wait()?;
+            if control.as_ref().is_some_and(|c| c.is_cancelled()) {
+                return Err(StoreError::Cancelled);
+            }
             if let Some(ui) = &req.ui_json {
                 std::fs::write(copy.store_dir().join(UI_FILE), ui).map_err(io)?;
             }
