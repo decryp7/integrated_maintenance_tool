@@ -47,6 +47,10 @@ pub trait SearchSource {
     fn facet(&self, req: &FacetRequest) -> StoreResult<crate::api::Facet>;
     /// The exception groups of every event.
     fn exception_groups(&self) -> StoreResult<Vec<ExceptionGroup>>;
+    /// The catalogue's names that look like the text (none built: a reply with `built: false`).
+    fn catalogue(&self, _req: &crate::catalogue::CatalogueRequest) -> StoreResult<crate::catalogue::CatalogueReply> {
+        Ok(Default::default())
+    }
 }
 
 impl<T: Query + Analysis + ?Sized> SearchSource for T {
@@ -61,6 +65,9 @@ impl<T: Query + Analysis + ?Sized> SearchSource for T {
     }
     fn exception_groups(&self) -> StoreResult<Vec<ExceptionGroup>> {
         Analysis::exception_groups(self, &crate::api::QueryRequest { query: Default::default() }).map(|a| a.result)
+    }
+    fn catalogue(&self, req: &crate::catalogue::CatalogueRequest) -> StoreResult<crate::catalogue::CatalogueReply> {
+        Query::catalogue(self, req)
     }
 }
 

@@ -267,6 +267,9 @@ impl Query for WorkspaceStore {
     fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult> {
         self.read().export(req).map_err(invalid)
     }
+    fn catalogue(&self, req: &crate::catalogue::CatalogueRequest) -> StoreResult<crate::catalogue::CatalogueReply> {
+        Ok(self.read().catalogue(req))
+    }
 }
 
 impl Positions for WorkspaceStore {

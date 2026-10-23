@@ -195,3 +195,69 @@ fn hits_say_exception_and_template_and_empty_values_never_match() {
     assert_eq!(mention("no match here", &["zzz".to_string()]), None);
     assert_eq!(mention("x", &[]), None);
 }
+
+#[test]
+fn a_name_only_in_message_text_is_resolved_with_its_kind() {
+    let s = store_with("entity", &[("Started Acme.Render.Worker.exe", "agent"), ("idle", "agent")]);
+    for text in ["render worker", "rendr wrker", "RenderWorker"] {
+        let v = resolve_terms(&s, text, 5).unwrap();
+        let m = v
+            .iter()
+            .find(|m| m.value == "Acme.Render.Worker.exe")
+            .unwrap_or_else(|| panic!("{text}: {v:#?}"));
+        assert_eq!(
+            (m.field.as_str(), m.kind),
+            (ENTITY_FIELD, Some(crate::entities::EntityKind::Executable)),
+            "{text}"
+        );
+        assert_eq!(m.seen_in, ["host-agent.log"]);
+    }
+    // The Value step finds the events of an entity by its text.
+    let r = find(&s, "rendr wrker", 0, 5).unwrap();
+    assert!(r.note.contains("Did you mean Acme.Render.Worker.exe (executable)"), "{}", r.note);
+    let m = &resolve_terms(&s, "render worker", 1).unwrap()[0];
+    assert_eq!(
+        (m.label().as_str(), m.describe().as_str()),
+        ("executable", "executable Acme.Render.Worker.exe")
+    );
+}
+
+/// A store whose catalogue is not built yet: everything else is the workspace's.
+struct Unbuilt(WorkspaceStore);
+
+impl SearchSource for Unbuilt {
+    fn summary(&self) -> StoreResult<crate::ports::SummaryReply> {
+        SearchSource::summary(&self.0)
+    }
+    fn page(&self, req: &PageQuery) -> StoreResult<crate::ports::PageReply> {
+        SearchSource::page(&self.0, req)
+    }
+    fn facet(&self, req: &FacetRequest) -> StoreResult<crate::api::Facet> {
+        SearchSource::facet(&self.0, req)
+    }
+    fn exception_groups(&self) -> StoreResult<Vec<crate::exceptions::ExceptionGroup>> {
+        SearchSource::exception_groups(&self.0)
+    }
+    fn catalogue(&self, _: &CatalogueRequest) -> StoreResult<crate::catalogue::CatalogueReply> {
+        Ok(crate::catalogue::CatalogueReply {
+            built: false,
+            pending: 1,
+            candidates: Vec::new(),
+        })
+    }
+}
+
+#[test]
+fn until_the_catalogue_is_built_values_come_from_facets() {
+    let s = Unbuilt(store_with(
+        "unbuilt",
+        &[("Started Acme.Render.Worker.exe", "Acme.Render.Worker.exe"), ("idle", "agent")],
+    ));
+    let v = resolve_terms(&s, "render worker", 5).unwrap();
+    assert_eq!(v.len(), 1, "{v:#?}");
+    assert_eq!(
+        (v[0].field.as_str(), v[0].kind),
+        ("ProcessName", None),
+        "the names in message text need the catalogue"
+    );
+}

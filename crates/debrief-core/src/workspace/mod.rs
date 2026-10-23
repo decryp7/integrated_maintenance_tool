@@ -3,6 +3,7 @@
 mod annotate;
 mod bundle;
 mod cache_key;
+mod catalogue;
 mod chart;
 mod context;
 mod dashboard;

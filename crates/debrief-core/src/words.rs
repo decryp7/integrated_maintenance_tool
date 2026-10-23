@@ -14,6 +14,11 @@
 //!   the same gap, so `"graphic builder"` finds `Graphic.Builder`, `GraphicBuilder` and `graphic_builder`
 //!   ([`phrase_in`]).
 //!
+//! - Names written with separators also get *joins*: in `CompanyA.Graphic.Builder.exe` the adjacent letter parts
+//!   joined by two or three (`graphicbuilder`, `companyagraphic`, `builderexe`...) are words too, so a search for the
+//!   name written as one run (`GraphicBuilder`) finds it. Only parts of one separator-connected name (`.`, `_`, `-`,
+//!   `/`, `\\`, `:` without spaces) are joined, and parts with digits are not, so prose and ids do not grow.
+//!
 //! Runs longer than [`MAX_RUN`] characters (hashes, base64) are not words; their parts still are.
 
 use std::collections::HashSet;
@@ -36,6 +41,70 @@ pub fn words(text: &str, out: &mut dyn FnMut(String)) {
             }
         }
     }
+    joins(text, out);
+}
+
+/// Most parts joined into one word.
+pub const MAX_JOIN_PARTS: usize = 3;
+/// Most letter parts of one name that are joined (a longer name is joined in its first parts only).
+const MAX_JOIN_UNITS: usize = 12;
+
+/// Joined words of the separator-connected names in `text` (see the module doc), in order.
+fn joins(text: &str, out: &mut dyn FnMut(String)) {
+    let mut units: Vec<String> = Vec::new();
+    let mut runs_seen: Vec<String> = Vec::new();
+    let mut flush = |units: &mut Vec<String>, runs_seen: &mut Vec<String>| {
+        let units_taken = std::mem::take(units);
+        let runs = std::mem::take(runs_seen);
+        // Letter parts, split where a part has digits.
+        for group in units_taken.split(|u| u.is_empty()) {
+            let group = &group[..group.len().min(MAX_JOIN_UNITS)];
+            for n in 2..=MAX_JOIN_PARTS {
+                for w in group.windows(n) {
+                    let joined = w.concat();
+                    if joined.chars().count() <= MAX_RUN && !runs.contains(&joined) {
+                        out(joined);
+                    }
+                }
+            }
+        }
+    };
+    let mut last_end = 0;
+    let mut first = true;
+    let mut rest: Vec<(usize, &str)> = Vec::new();
+    let mut start = None;
+    for (i, c) in text.char_indices().chain(std::iter::once((text.len(), ' '))) {
+        match (c.is_alphanumeric(), start) {
+            (true, None) => start = Some(i),
+            (false, Some(s)) => {
+                rest.push((s, &text[s..i]));
+                start = None;
+            }
+            _ => {}
+        }
+    }
+    for (s, run) in rest {
+        let connected = !first && {
+            let gap = &text[last_end..s];
+            let mut it = gap.chars();
+            matches!((it.next(), it.next()), (Some('.' | '_' | '-' | '/' | '\\' | ':'), None))
+        };
+        if !connected {
+            flush(&mut units, &mut runs_seen);
+        }
+        first = false;
+        last_end = s + run.len();
+        runs_seen.push(run.to_lowercase());
+        for p in parts(run) {
+            units.push(if p.chars().all(char::is_alphabetic) {
+                p.to_lowercase()
+            } else {
+                String::new()
+            });
+        }
+        // Separate runs of one name are not joined to the next across a digit part.
+    }
+    flush(&mut units, &mut runs_seen);
 }
 
 /// The runs of letters and digits.
@@ -222,13 +291,33 @@ mod tests {
     fn runs_split_at_case_digit_and_punctuation() {
         assert_eq!(
             all("System.TimeoutException"),
-            ["system", "timeoutexception", "timeout", "exception"]
+            [
+                "system",
+                "timeoutexception",
+                "timeout",
+                "exception",
+                "systemtimeout",
+                "systemtimeoutexception"
+            ]
         );
         assert_eq!(
             all("HTTPServer v2beta"),
             ["httpserver", "http", "server", "v2beta", "v", "2", "beta"]
         );
-        assert_eq!(all("snake_case/path\\to"), ["snake", "case", "path", "to"]);
+        assert_eq!(
+            all("snake_case/path\\to"),
+            [
+                "snake",
+                "case",
+                "path",
+                "to",
+                "snakecase",
+                "casepath",
+                "pathto",
+                "snakecasepath",
+                "casepathto"
+            ]
+        );
         assert_eq!(all("ALLCAPS lower 42"), ["allcaps", "lower", "42"]);
         assert_eq!(all("Grüße Ärger"), ["grüße", "ärger"]);
         // Letters without case (CJK) are neither upper nor lower: they split from digits only.
@@ -238,6 +327,24 @@ mod tests {
         let long = "a".repeat(MAX_RUN + 1);
         assert!(all(&long).is_empty(), "an over-long run is not a word");
         assert_eq!(all(&format!("{long}X")), ["x"], "its parts still are");
+    }
+
+    #[test]
+    fn names_with_separators_are_joined() {
+        let w = all("CompanyA.Graphic.Builder.exe");
+        for j in ["graphicbuilder", "builderexe", "companyagraphic", "graphicbuilderexe"] {
+            assert!(w.contains(&j.to_string()), "{j} in {w:?}");
+        }
+        assert!(!w.contains(&"companyagraphicbuilder".to_string()), "at most three parts: {w:?}");
+        assert_eq!(all("graphic builder").len(), 2, "spaces do not connect");
+        assert_eq!(all("a.b"), ["a", "b", "ab"]);
+        assert!(all("x/y").contains(&"xy".to_string()));
+        assert!(all("3f25-04e0-4f89").iter().all(|w| !w.contains("3f2504")), "digits break the join");
+        assert!(WordQuery::parse("GraphicBuilder").matches(&["Graphic.Builder.exe"]));
+        let long: String = (0..30).map(|i| format!("p{}.", "x".repeat(i % 3 + 1))).collect();
+        assert!(all(&long).len() < 200, "bounded");
+        let big = format!("{}.{}", "a".repeat(40), "b".repeat(40));
+        assert!(!all(&big).iter().any(|w| w.len() > MAX_RUN), "a join is not longer than a word");
     }
 
     #[test]

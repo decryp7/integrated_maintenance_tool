@@ -1683,6 +1683,10 @@ impl Query for DuckStore {
     fn export(&self, req: &ExportRequest) -> StoreResult<ExportResult> {
         self.inner.export(req)
     }
+
+    fn catalogue(&self, req: &debrief_core::catalogue::CatalogueRequest) -> StoreResult<debrief_core::catalogue::CatalogueReply> {
+        self.inner.catalogue(req)
+    }
 }
 
 /// The fields of a statement plus the word hits of its smart search (kept alive with the filter).
