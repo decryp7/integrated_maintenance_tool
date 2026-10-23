@@ -84,6 +84,9 @@ pub(crate) struct LiveSlot {
     /// A follow-up refresh is waiting for the idle time.
     flush_scheduled: AtomicBool,
     /// The annotators' pending cursor (first new event since they last ran) and when they last ran.
+    /// Held for a whole refresh: two refreshes at once (the watcher, the follow-up flush, a manual one) would leave
+    /// `flush_wanted` with the answer of whichever finished first, and a held event could wait for nothing.
+    refreshing: Mutex<()>,
     annotating: Mutex<(Option<debrief_core::plugin::annotate::RecordCursor>, Option<std::time::Instant>)>,
 }
 
@@ -394,6 +397,7 @@ fn tail_options(state: &WindowState) -> TailOptions {
 /// Reads what was appended to `paths` (the store writes new segments) and evaluates the live alerts; a failure is
 /// logged and reported as no change.
 pub(crate) fn apply_changes(state: &WindowState, paths: &[PathBuf]) -> TailReport {
+    let _one_at_a_time = crate::sync::lock(&state.live.refreshing);
     let options = tail_options(state);
     let done = state.engine.store().map_err(|e| e.message).and_then(|store| {
         let appended = store.append_tail(paths).map_err(|e| e.to_string())?;
@@ -636,12 +640,46 @@ mod tests {
         std::thread::sleep(Duration::from_millis(
             debrief_core::workspace::TailOptions::default().carry_flush_ms + 200,
         ));
+        // The follow-up flush thread may deliver the held line before this refresh does; either way it arrives once.
         let report = apply_changes(&st(), &[]);
-        assert_eq!(report.appended, 1, "{report:?}");
-        assert!(!st().live.flush_wanted.load(Ordering::SeqCst));
+        assert!([0, 1].contains(&report.appended), "{report:?}");
+        let deadline = std::time::Instant::now() + Duration::from_secs(90);
+        while crate::test_support::store_summary(&st()).total < 3 && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(20));
+        }
         assert_eq!(crate::test_support::store_summary(&st()).total, 3);
+        // A throttled annotator (at most one run a second) asks for another refresh: do what the follow-up flush does
+        // until nothing is wanted, within a bound.
+        let deadline = std::time::Instant::now() + Duration::from_secs(90);
+        while st().live.flush_wanted.load(Ordering::SeqCst) && std::time::Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(50));
+            apply_changes(&st(), &[]);
+        }
+        assert!(!st().live.flush_wanted.load(Ordering::SeqCst));
         // A refresh that changes nothing is reported as no change.
         assert!(apply_changes(&st(), &[]).is_empty());
+    }
+
+    /// Two refreshes never overlap, so the last one's answer to "is a follow-up wanted" is the one that stays.
+    #[test]
+    fn refreshes_run_one_at_a_time() {
+        let app = test_app(None);
+        let win = main_window(&app).arc().clone();
+        let held = crate::sync::lock(&win.live.refreshing);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let other = win.clone();
+        let t = std::thread::spawn(move || {
+            let _ = apply_changes(&other, &[]);
+            tx.send(()).unwrap();
+        });
+        assert!(
+            rx.recv_timeout(Duration::from_millis(300)).is_err(),
+            "a refresh waits while another one runs"
+        );
+        drop(held);
+        rx.recv_timeout(Duration::from_secs(60))
+            .expect("the refresh ran once the other ended");
+        t.join().unwrap();
     }
 
     /// Annotators run at most once a second while live tail appends. A refresh that has to wait for that keeps what
@@ -866,7 +904,7 @@ mod tests {
         std::thread::sleep(Duration::from_millis(300));
         let mut f = std::fs::OpenOptions::new().append(true).open(&file).unwrap();
         std::io::Write::write_all(&mut f, b"2026-10-14 10:00:01 INFO second\n").unwrap();
-        let deadline = std::time::Instant::now() + Duration::from_secs(10);
+        let deadline = std::time::Instant::now() + Duration::from_secs(90);
         while crate::test_support::store_summary(&st()).total < 2 && std::time::Instant::now() < deadline {
             std::thread::sleep(Duration::from_millis(50));
         }

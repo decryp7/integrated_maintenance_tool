@@ -15,6 +15,7 @@ use debrief_core::ports::StoreError;
 use debrief_core::ql::{QlError, QlResult, QueryControl, QueryProgress};
 use serde::Serialize;
 use std::sync::mpsc::{self, RecvTimeoutError};
+use std::sync::{Arc, Mutex as StdMutex};
 use std::time::Duration;
 use tauri::ipc::Channel;
 use tauri::{AppHandle, Runtime};
@@ -109,7 +110,8 @@ pub async fn run_controlled<R: Runtime>(
     request: QueryRequest,
     on_progress: Channel<QueryStreamEvent>,
 ) -> CmdResult<QueryOutcome> {
-    let _ticker = Ticker::start(control.clone(), on_progress.clone());
+    // The ticker starts once the job is announced: the job's id is the channel's first event, whatever the load.
+    let ticker = Arc::new(StdMutex::new(None::<Ticker>));
     let watched = control.clone();
     let (stop, probe) = (control.clone(), control.clone());
     let controls = Controls::cancel(move || stop.cancel()).with_probe(move || {
@@ -119,8 +121,12 @@ pub async fn run_controlled<R: Runtime>(
     let ql = request.query.ql.clone();
     let view = state.host.redacted_view();
     let started = on_progress.clone();
-    let announce = move |id: crate::jobs::JobId| {
-        let _ = started.send(QueryStreamEvent::Started { job_id: id.0 });
+    let announce = {
+        let (ticker, control, channel) = (ticker.clone(), control.clone(), on_progress.clone());
+        move |id: crate::jobs::JobId| {
+            let _ = started.send(QueryStreamEvent::Started { job_id: id.0 });
+            *crate::sync::lock(&ticker) = Some(Ticker::start(control, channel));
+        }
     };
     let out = crate::jobs::analysis_announced(app, state, "Run a query", "query", Some(ql), controls, announce, move |store, _| {
         let mut out = store.run_query_with(&request, &watched);
@@ -129,7 +135,9 @@ pub async fn run_controlled<R: Runtime>(
         }
         Ok(out)
     })
-    .await?;
+    .await;
+    drop(crate::sync::lock(&ticker).take());
+    let out = out?;
     if matches!(out, Err(StoreError::Cancelled)) {
         log::info!(Stage = format!("{:?}", control.progress().stage).as_str(); "Query cancelled by the user");
     } else {
@@ -163,7 +171,6 @@ mod tests {
     use crate::test_support::{block, main_window, samples, test_app};
     use debrief_core::query::Query;
     use serde_json::{json, Value};
-    use std::sync::{Arc, Mutex as StdMutex};
     use tauri::ipc::InvokeResponseBody;
     use tauri::Manager;
 

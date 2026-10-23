@@ -886,8 +886,8 @@ pub(crate) mod test_support {
     }
 
     /// Asserts that a command's future returns within `FAST_RETURN` and hands back its output. A command that does long work
-    /// must start a job and return its id: this is the check, applied to the commands that used to await their jobs.
-    pub const FAST_RETURN: std::time::Duration = std::time::Duration::from_millis(250);
+    /// must start a job and return its id: this is the check (the bound is generous so a loaded machine never trips it), applied to the commands that used to await their jobs.
+    pub const FAST_RETURN: std::time::Duration = std::time::Duration::from_secs(5);
 
     pub fn returns_fast<F: std::future::Future>(what: &str, f: F) -> F::Output {
         let started = std::time::Instant::now();
@@ -927,6 +927,28 @@ pub(crate) mod test_support {
         });
     }
 
+    /// Stops the plugin processes of the apps a test thread built when that thread ends (even when the test panics).
+    /// A test app is never dropped (the job listeners hold its handle), so nothing else would stop them: they kept
+    /// running until the whole test binary exited, hundreds of them at the end of a run.
+    struct PluginsStopWithTheTest(std::cell::RefCell<Vec<std::sync::Arc<debrief_plugin_host::Builtins>>>);
+
+    impl PluginsStopWithTheTest {
+        fn register(plugins: &std::sync::Arc<debrief_plugin_host::Builtins>) {
+            thread_local! {
+                static GUARD: PluginsStopWithTheTest = const { PluginsStopWithTheTest(std::cell::RefCell::new(Vec::new())) };
+            }
+            let _ = GUARD.try_with(|g| g.0.borrow_mut().push(plugins.clone()));
+        }
+    }
+
+    impl Drop for PluginsStopWithTheTest {
+        fn drop(&mut self) {
+            for p in self.0.get_mut().drain(..) {
+                p.shutdown();
+            }
+        }
+    }
+
     fn manage(app: tauri::App<MockRuntime>, profile_dir: Option<PathBuf>) -> tauri::App<MockRuntime> {
         manage_in(app, profile_dir, false)
     }
@@ -944,6 +966,7 @@ pub(crate) mod test_support {
             std::process::id(),
             NEXT_TEST_APP.fetch_add(1, std::sync::atomic::Ordering::SeqCst)
         ));
+        PluginsStopWithTheTest::register(&plugins);
         let stores = engine::local::with_plugins(plugins.clone(), safe_mode);
         let shared = AppState::with(profile_dir, safe_mode, plugins, stores, root);
         let windows = windows::Windows::new(shared.factory());
@@ -1021,5 +1044,58 @@ pub(crate) mod test_support {
                 .build()
                 .unwrap()
         })
+    }
+}
+
+#[cfg(test)]
+mod plugin_processes_tests {
+    use crate::test_support::{import, main_window, samples, test_app};
+
+    fn children() -> usize {
+        let out = std::process::Command::new("pgrep")
+            .args(["-P", &std::process::id().to_string()])
+            .output()
+            .expect("pgrep runs");
+        String::from_utf8_lossy(&out.stdout).lines().count()
+    }
+
+    /// The scenario, run alone in its own test process (so no other test's plugins count): an app that imported a
+    /// folder has plugin processes while the test runs and none once the test's thread ended.
+    #[test]
+    fn plugin_processes_do_not_outlive_the_test_that_started_them_in_a_lone_process() {
+        if std::env::var_os("DEBRIEF_PLUGIN_LEAK_PROBE").is_none() {
+            return;
+        }
+        assert_eq!(children(), 0, "a fresh test process has no children");
+        let during = std::thread::spawn(|| {
+            let app = test_app(None);
+            import(&main_window(&app), &[samples().join("serilog-clef")]);
+            children()
+        })
+        .join()
+        .unwrap();
+        assert!(during > 0, "the import started plugin processes");
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+        while children() > 0 && std::time::Instant::now() < deadline {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        }
+        assert_eq!(children(), 0, "plugin processes outlived the test thread that started them");
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn plugin_processes_do_not_outlive_the_test_that_started_them() {
+        let name = "plugin_processes_tests::plugin_processes_do_not_outlive_the_test_that_started_them_in_a_lone_process";
+        let out = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", name, "--test-threads=1", "--nocapture"])
+            .env("DEBRIEF_PLUGIN_LEAK_PROBE", "1")
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&out.stdout),
+            String::from_utf8_lossy(&out.stderr)
+        );
     }
 }

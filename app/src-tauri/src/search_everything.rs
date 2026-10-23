@@ -51,8 +51,16 @@ fn end(label: &str, id: u64) {
 }
 
 /// A window is gone: forgets its search (a search still running for it stops at its next step).
-pub fn forget_window<R: Runtime>(_: &AppHandle<R>, label: &str) {
-    with_newest(|m| m.remove(label));
+pub fn forget_window<R: Runtime>(app: &AppHandle<R>, label: &str) {
+    with_newest(|m| m.remove(&key(app, label)));
+}
+
+/// The registry key of a window: its label within its app (apps of one process, as in tests, share the labels, and a
+/// window closing in one must not cancel the search of the same-named window of another).
+fn key<R: Runtime>(app: &AppHandle<R>, label: &str) -> String {
+    use tauri::Manager;
+    let app_id = app.try_state::<crate::windows::Windows>().map_or(0, |w| &*w as *const _ as usize);
+    format!("{app_id:x}/{label}")
 }
 
 /// A note's title: its first line, shortened.
@@ -103,7 +111,7 @@ pub async fn search_everything<R: Runtime>(
     state: CurrentWindow,
     request: SearchAllRequest,
 ) -> CmdResult<Option<SearchAllReply>> {
-    let label = state.label().to_string();
+    let label = key(&app, state.label());
     let id = begin(&label);
     let corpus = corpus(&app, &state);
     let store = state.engine.store()?;
@@ -217,6 +225,22 @@ mod tests {
     }
 
     #[test]
+    fn another_apps_closing_window_does_not_cancel_a_search() {
+        let a = test_app(None);
+        let b = test_app(None);
+        let (ka, kb) = (key(a.handle(), "main"), key(b.handle(), "main"));
+        assert_ne!(ka, kb, "apps do not share window keys");
+        let running = begin(&ka);
+        forget_window(b.handle(), "main");
+        assert!(
+            is_newest(&ka, running),
+            "closing the other app's main window leaves this search running"
+        );
+        forget_window(a.handle(), "main");
+        assert!(!is_newest(&ka, running));
+    }
+
+    #[test]
     fn a_newer_search_of_the_window_replaces_the_older_one() {
         let first = begin("w-search");
         assert!(is_newest("w-search", first));
@@ -236,22 +260,20 @@ mod tests {
     #[test]
     fn a_closed_window_forgets_its_search() {
         let app = test_app(None);
-        let running = begin("w-closing");
-        let other = begin("w-staying");
+        let (closing, staying) = (key(app.handle(), "w-closing"), key(app.handle(), "w-staying"));
+        let running = begin(&closing);
+        let other = begin(&staying);
         forget_window(app.handle(), "w-closing");
-        assert!(
-            !is_newest("w-closing", running),
-            "the running search of a closed window is cancelled"
-        );
-        assert!(with_newest(|m| !m.contains_key("w-closing")), "and its entry is gone");
-        assert!(is_newest("w-staying", other), "other windows keep theirs");
+        assert!(!is_newest(&closing, running), "the running search of a closed window is cancelled");
+        assert!(with_newest(|m| !m.contains_key(&closing)), "and its entry is gone");
+        assert!(is_newest(&staying, other), "other windows keep theirs");
         // Closing through the window teardown reaches it too (the scope is registered with the app).
         crate::window_scoped::destroyed(app.handle(), "w-staying");
         let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while is_newest("w-staying", other) && std::time::Instant::now() < deadline {
+        while is_newest(&staying, other) && std::time::Instant::now() < deadline {
             std::thread::sleep(std::time::Duration::from_millis(10));
         }
-        assert!(!is_newest("w-staying", other));
+        assert!(!is_newest(&staying, other));
     }
 
     #[test]

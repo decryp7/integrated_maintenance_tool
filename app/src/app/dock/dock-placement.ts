@@ -16,7 +16,7 @@ const TIMELINE_HEIGHT = 300;
 /** The timeline row's height once an analysis panel shares the dock (the grid keeps the rest). */
 const TIMELINE_COMPACT_HEIGHT = 210;
 /** The share of the dock's height the events grid keeps when a document opens beside the timeline (it is the main artefact). */
-const DOCUMENT_GRID_SHARE = 0.4;
+const DOCUMENT_GRID_SHARE = 0.6;
 /** A document that opens beside the timeline takes at most this share of the dock's width, and at most `DOCUMENT_MAX_WIDTH` px. */
 const DOCUMENT_WIDTH_SHARE = 0.4;
 const DOCUMENT_MAX_WIDTH = 640;

@@ -1051,6 +1051,11 @@ pub(crate) mod tests {
         quarantined.store(false, Ordering::SeqCst);
         jobs.pump(); // Reset AI
         assert_eq!(h.wait(), Ok(Ok(1)));
+        // The job's result is out before the pause is recomputed: wait (bounded) for the snapshot to settle.
+        let deadline = Instant::now() + Duration::from_secs(60);
+        while !jobs.snapshot(None).paused.is_empty() && Instant::now() < deadline {
+            std::thread::sleep(Duration::from_millis(5));
+        }
         assert!(jobs.snapshot(None).paused.is_empty());
         // A gate that panics pauses rather than letting jobs run unchecked.
         jobs.set_gate(JobKind::Ai, || panic!("health check bug"));
