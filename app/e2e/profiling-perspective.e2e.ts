@@ -44,7 +44,8 @@ test.describe('profiling perspective', () => {
     // Opened again from Investigate: it does not switch a second time.
     await chooseMenu(page, 'File', 'Open performance capture…');
     await expect(page.getByRole('tab', { name: 'Captures' })).toHaveCount(1);
-    await expect(page.locator('debrief-timeline-panel')).toBeVisible();
+    // The opened capture's view shares the timeline's strip (a tab: there is no room beside the timeline at 1440 px, ADR 0056).
+    await expect(page.getByRole('tab', { name: 'Timeline', exact: true })).toBeVisible();
     await expect(toast(page)).toHaveCount(0);
   });
 

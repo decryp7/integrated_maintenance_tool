@@ -38,6 +38,8 @@ for (const size of SIZES) {
     test('pinning the Inspector keeps the grid rows', async ({ page }) => {
       await page.addInitScript(() => localStorage.clear());
       await openApp(page);
+      // The Explorer is beside the dock; at 1024 px a pinned Inspector (320 px) next to the grid (560 px) needs its room (ADR 0056).
+      if (size.width < 1200) await page.keyboard.press('ControlOrMeta+b');
       await ensureInspector(page);
       await expect.poll(() => visibleGridRows(page)).toBeGreaterThanOrEqual(size.rows);
     });

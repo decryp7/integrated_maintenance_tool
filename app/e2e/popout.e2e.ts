@@ -74,6 +74,9 @@ test.describe('pop-out windows', () => {
     expect(column.y + column.height).toBeGreaterThanOrEqual(events.y + events.height - 2);
   });
 
+  test.describe('on a wide window', () => {
+  // Beside the timeline needs room for the timeline (560), Metrics (420), the Registry column (420) and the docked Inspector (372): ADR 0056.
+  test.use({ viewport: { width: 2560, height: 1300 } });
   test('closing the pop-out window docks the panel back; it is never lost', async ({ page, context }) => {
     // It comes back where it was: in a group with the same tabs, at the same place (not wherever there is room).
     const tabsOf = async (name: string) => (await groupOf(page, name).locator('.debrief-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
@@ -90,6 +93,7 @@ test.describe('pop-out windows', () => {
     const timeline = (await page.locator('debrief-timeline-panel').boundingBox())!;
     const metrics = (await page.locator('debrief-metrics-view').boundingBox())!;
     expect(metrics.x).toBeGreaterThanOrEqual(timeline.x + timeline.width - 2);
+  });
   });
 
   test('the View menu shows a popped-out panel as open; closing it there closes the window', async ({ page, context }) => {
