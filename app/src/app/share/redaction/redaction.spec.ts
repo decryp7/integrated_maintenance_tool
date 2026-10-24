@@ -208,6 +208,24 @@ describe('RedactionDialog', () => {
   });
 });
 
+describe('RedactionDialog closed while a preview is pending', () => {
+  // Regression (CI, dialog-commands-boot.spec): the debounced preview still asked the engine after the dialog was
+  // destroyed, a call made by a window that is already gone (it landed in the next test's window).
+  it('cancels the pending preview when the dialog is destroyed', async () => {
+    await setup();
+    const preview = vi.spyOn(TestBed.inject(ShareBackend), 'previewRedaction');
+    const fixture = TestBed.createComponent(RedactionDialog);
+    await settle(fixture);
+    preview.mockClear();
+    fixture.componentInstance['sample'].set('another sample');
+    fixture.detectChanges();
+    await settle(fixture);
+    fixture.destroy();
+    await wait(300);
+    expect(preview).not.toHaveBeenCalled();
+  });
+});
+
 describe('RedactionSummaryView', () => {
   it('shows a placeholder, then the hits and samples', async () => {
     TestBed.configureTestingModule({});

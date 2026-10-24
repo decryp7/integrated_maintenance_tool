@@ -1,5 +1,5 @@
 import { formatCount } from '../../shared/format/units';
-import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, inject, signal, untracked } from '@angular/core';
 import { RedactDetector, REDACT_DETECTORS, RedactionPreview } from '../../core/api.types';
 import { ProfileModel } from '../../core/profile.model';
 import { ProfileEdits } from '../../profile/profile-edits';
@@ -136,6 +136,11 @@ export class RedactionDialog {
   private seq = 0;
 
   constructor() {
+    // A closed dialog asks nothing more: its pending preview is cancelled.
+    inject(DestroyRef).onDestroy(() => {
+      clearTimeout(this.timer);
+      this.seq++;
+    });
     void this.load();
     effect(() => {
       const form = this.form();
