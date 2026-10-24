@@ -71,6 +71,12 @@ export type AiDriver = { kind: 'agent'; sessionId: string } | { kind: 'research'
 /** What the AI's browser window is doing (`activity` events): the window title reads "<product> AI — <activity>: <host>". */
 export type BrowserActivityKind = 'reading' | 'searching' | 'waitingForYou';
 
+/** Where a window's AI browser is in its life; the engine owns it (`lifecycle` events). */
+export type BrowserLifecycleState = 'none' | 'launching' | 'ready' | 'closing' | 'gone';
+
+/** Why the AI browser is gone: the user closed its window, it quit or crashed, its connection ended, Debrief ended it, or it did not start. */
+export type BrowserGoneReason = 'windowClosed' | 'exited' | 'disconnected' | 'ended' | 'launchFailed';
+
 /** `debrief://browser`, to the window that owns the browser and its pop-out panels. */
 export type BrowserEvent =
   | { type: 'sources'; sessionId: string; sources: SourceInfo[] }
@@ -79,6 +85,8 @@ export type BrowserEvent =
   | { type: 'driving'; by: AiDriver | null }
   /** Research ended but its browser window stays open because the user took part in it; offer `closeResearchBrowser()`. */
   | { type: 'researchBrowserKept' }
+  /** The AI browser moved in its life cycle; `kept` while research left it open. Once gone, the next research opens a new one. */
+  | { type: 'lifecycle'; state: BrowserLifecycleState; reason?: BrowserGoneReason; kept: boolean }
   /** A line like "Reading 3 of 5 results". */
   | { type: 'status'; text: string }
   | { type: 'activity'; activity: BrowserActivityKind; host: string; title: string };

@@ -171,6 +171,8 @@ struct Entry {
     input: Option<Value>,
     bounds: Option<Bounds>,
     asked: Option<Instant>,
+    /// The window watchdog found its page not answering: nobody can make the required choice, so the OS close may.
+    unresponsive: bool,
 }
 
 /// Which dialog windows exist, keyed by label. Managed as Tauri state.
@@ -403,6 +405,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
         input: request.input.clone(),
         bounds: None,
         asked: None,
+        unresponsive: false,
     })?;
     let (w, h, min_w, min_h) = geometry(&request, &contract);
     // The placement policy (ADR 0054): on the parent's monitor, sized by the kind's rule.
@@ -581,8 +584,8 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, label: &str) -> bool {
     let mut map = dialogs.lock();
     let Some(entry) = map.get_mut(label) else { return true };
     if entry.required_choice {
-        // No Cancel to map the request to: the dialog stays until it is answered.
-        return false;
+        // No Cancel to map the request to: the dialog stays until it is answered, unless its page cannot answer.
+        return entry.unresponsive;
     }
     let now = Instant::now();
     if entry.asked.is_some_and(|t| now.duration_since(t) >= CLOSE_GRACE) {
@@ -592,6 +595,18 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, label: &str) -> bool {
     drop(map);
     let _ = app.emit_to(label, CLOSE_REQUESTED_EVENT, ());
     false
+}
+
+/// The window watchdog (ADR 0058) found a dialog's page not answering, or answering again. A required-choice dialog
+/// whose page hangs can then be closed by the OS close (rule 19: the way out never depends on the hung page).
+// TODO(integration): the startup watchdog of fix/blank-start calls this when it decides a dialog page is unresponsive.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn page_unresponsive<R: Runtime>(app: &AppHandle<R>, label: &str, unresponsive: bool) {
+    if let Some(d) = app.try_state::<Dialogs>() {
+        if let Some(e) = d.lock().get_mut(label) {
+            e.unresponsive = unresponsive;
+        }
+    }
 }
 
 /// A dialog moved or was resized: remember where it is.
@@ -1119,6 +1134,23 @@ mod tests {
         let asked2 = recorder(&window(&app, "d-main-2"), CLOSE_REQUESTED_EVENT);
         assert!(!close_requested(&h, "d-main-2"));
         assert_eq!(asked2.lock().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_required_choice_modal_whose_page_hangs_can_still_be_closed() {
+        let app = app();
+        let h = app.handle().clone();
+        let mut required = request("close-prompt", Modality::Modal);
+        required.required_choice = true;
+        open(&h, MAIN, required).unwrap();
+        assert!(!close_requested(&h, "d-main-1"), "a live page keeps its required choice");
+        // The window watchdog decided the page does not answer: nothing could ever answer the choice.
+        page_unresponsive(&h, "d-main-1", true);
+        assert!(close_requested(&h, "d-main-1"), "the OS close ends it");
+        // A page that answers again keeps its choice.
+        page_unresponsive(&h, "d-main-1", false);
+        assert!(!close_requested(&h, "d-main-1"));
+        page_unresponsive(&h, "d-main-9", true);
     }
 
     #[test]

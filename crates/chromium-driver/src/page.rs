@@ -31,6 +31,8 @@ impl Page {
         let target = str_of(&t, "targetId")?;
         let s = conn.call(None, "Target.attachToTarget", json!({"targetId": target, "flatten": true}), CALL)?;
         let session = str_of(&s, "sessionId")?;
+        conn.watch(&session);
+        conn.watch(&target);
         let p = Page { conn, session, target };
         p.call("Page.enable", json!({}))?;
         p.call("Network.enable", json!({}))?;
@@ -39,8 +41,48 @@ impl Page {
         Ok(p)
     }
 
+    /// The page is gone: its window or tab was closed (by the user), it crashed, or the browser connection ended.
+    pub fn is_closed(&self) -> bool {
+        self.conn.is_closed() || self.conn.is_gone(&self.session) || self.conn.is_gone(&self.target)
+    }
+
+    /// Asks the browser whether this page still exists (for a close the browser did not report as an event).
+    /// `Ok(false)`: it is gone; an error says nothing either way.
+    pub fn exists(&self) -> Result<bool> {
+        if self.is_closed() {
+            return Ok(false);
+        }
+        let r = self.conn.call(None, "Target.getTargets", json!({}), CALL)?;
+        Ok(r.get("targetInfos")
+            .and_then(Value::as_array)
+            .is_some_and(|t| t.iter().any(|i| i.get("targetId").and_then(Value::as_str) == Some(&self.target))))
+    }
+
+    /// A call on the page: [`Error::Closed`] once the page is gone, whatever the browser answers.
     fn call(&self, method: &str, params: Value) -> Result<Value> {
-        self.conn.call(Some(&self.session), method, params, CALL)
+        if self.is_closed() {
+            return Err(Error::Closed);
+        }
+        self.closed_wins(self.conn.call(Some(&self.session), method, params, CALL))
+    }
+
+    fn closed_wins<T>(&self, r: Result<T>) -> Result<T> {
+        if self.is_closed() {
+            return Err(Error::Closed);
+        }
+        r
+    }
+
+    /// Waits for the page's load event; a page closed meanwhile ends the wait at once.
+    fn wait_load(&self, since: u64, timeout: Duration) -> Result<()> {
+        let (s, t) = (self.session.clone(), self.target.clone());
+        let ev = self.conn.wait_event(since, timeout, |e| {
+            (e.method == "Page.loadEventFired" && e.session.as_deref() == Some(&s)) || ends(e, &s, &t)
+        });
+        if self.is_closed() {
+            return Err(Error::Closed);
+        }
+        ev.map(|_| ()).ok_or(Error::Timeout("the page load"))
     }
 
     /// Loads `url` and waits for the load event (or `timeout`).
@@ -50,13 +92,7 @@ impl Page {
         if let Some(e) = r.get("errorText").and_then(Value::as_str) {
             return Err(Error::Protocol(format!("the page did not load: {e}")));
         }
-        let s = self.session.clone();
-        self.conn
-            .wait_event(since, timeout, |e| {
-                e.method == "Page.loadEventFired" && e.session.as_deref() == Some(&s)
-            })
-            .map(|_| ())
-            .ok_or(Error::Timeout("the page load"))
+        self.wait_load(since, timeout)
     }
 
     pub fn back(&self, timeout: Duration) -> Result<()> {
@@ -70,11 +106,10 @@ impl Page {
             .ok_or_else(|| Error::Protocol("there is no earlier page".into()))?;
         let since = self.conn.mark();
         self.call("Page.navigateToHistoryEntry", json!({"entryId": id}))?;
-        let s = self.session.clone();
-        let _ = self.conn.wait_event(since, timeout, |e| {
-            e.method == "Page.loadEventFired" && e.session.as_deref() == Some(&s)
-        });
-        Ok(())
+        match self.wait_load(since, timeout) {
+            Err(Error::Closed) => Err(Error::Closed),
+            _ => Ok(()),
+        }
     }
 
     /// Evaluates a JavaScript expression in the page and returns its value.
@@ -95,9 +130,7 @@ impl Page {
     }
 
     pub fn info(&self) -> Result<Info> {
-        let r = self
-            .conn
-            .call(None, "Target.getTargetInfo", json!({"targetId": self.target}), CALL)?;
+        let r = self.closed_wins(self.conn.call(None, "Target.getTargetInfo", json!({"targetId": self.target}), CALL))?;
         let g = |k: &str| {
             r.pointer(&format!("/targetInfo/{k}"))
                 .and_then(Value::as_str)
@@ -137,6 +170,15 @@ impl Page {
         let urls: &[&str] = if on { HEAVY } else { &[] };
         self.call("Network.setBlockedURLs", json!({"urls": urls})).map(|_| ())
     }
+}
+
+/// An event that ends the page with this session and target.
+fn ends(e: &crate::cdp::Event, session: &str, target: &str) -> bool {
+    let id = |k: &str| e.params.get(k).and_then(Value::as_str);
+    matches!(
+        e.method.as_str(),
+        "Target.detachedFromTarget" | "Target.targetDestroyed" | "Target.targetCrashed"
+    ) && (id("sessionId") == Some(session) || id("targetId") == Some(target))
 }
 
 fn str_of(v: &Value, k: &str) -> Result<String> {

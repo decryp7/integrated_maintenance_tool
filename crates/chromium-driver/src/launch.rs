@@ -20,6 +20,16 @@ pub enum Profile {
     Persistent(PathBuf),
 }
 
+/// Where the browser window opens, in the screen units the browser reads its `--window-position`/`--window-size` in
+/// (points on macOS, device-independent pixels elsewhere). The caller decides (the display of the window that asked).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WindowBounds {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct LaunchOptions {
     pub profile: Profile,
@@ -27,6 +37,8 @@ pub struct LaunchOptions {
     pub accent: Option<u32>,
     /// The browser is ended after this long, whatever it does.
     pub max_lifetime: Duration,
+    /// Where its window opens; the browser's own choice when `None`.
+    pub window: Option<WindowBounds>,
 }
 
 impl Default for LaunchOptions {
@@ -35,14 +47,15 @@ impl Default for LaunchOptions {
             profile: Profile::Throwaway,
             accent: None,
             max_lifetime: Duration::from_secs(30 * 60),
+            window: None,
         }
     }
 }
 
 /// The command-line arguments. `--enable-automation` keeps Chrome's "controlled by automated test software"
-/// banner and `navigator.webdriver = true`; nothing hides either. The window opens on screen like any other:
-/// no off-screen position and no headless mode.
-pub fn args(data_dir: &Path) -> Vec<String> {
+/// banner and `navigator.webdriver = true`; nothing hides either. The window opens on screen like any other: no
+/// headless mode, and a position only where the caller placed it (on a display, never off screen).
+pub fn args(data_dir: &Path, window: Option<WindowBounds>) -> Vec<String> {
     let mut a = vec![
         "--remote-debugging-port=0".to_string(),
         format!("--user-data-dir={}", data_dir.display()),
@@ -53,8 +66,14 @@ pub fn args(data_dir: &Path) -> Vec<String> {
         "--disable-extensions".into(),
         "--password-store=basic".into(),
         "--use-mock-keychain".into(),
-        "--window-size=1100,800".into(),
     ];
+    match window {
+        Some(w) => {
+            a.push(format!("--window-position={},{}", w.x, w.y));
+            a.push(format!("--window-size={},{}", w.width.max(1), w.height.max(1)));
+        }
+        None => a.push("--window-size=1100,800".into()),
+    }
     a.push("about:blank".into());
     a
 }
@@ -96,6 +115,18 @@ fn merge(into: &mut Value, from: Value) {
     }
 }
 
+/// Why a launched browser can no longer be used. Each is final: the browser is ended and a new one started.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gone {
+    /// The process ended (the user quit the browser, or it crashed).
+    Exited,
+    /// The DevTools connection ended while the process still runs.
+    Disconnected,
+    /// The page Debrief drives was closed (the user closed its window or tab); on macOS the browser keeps running
+    /// without a window.
+    PageClosed,
+}
+
 /// A running browser. Dropping it ends the process and removes a throwaway profile.
 pub struct Chromium {
     // Field order matters: the connection closes before the process is killed and the profile removed.
@@ -108,12 +139,16 @@ pub struct Chromium {
     pub exe: Browser,
 }
 
+/// A profile folder no other launch uses: the clock alone is not enough (macOS reads it in microseconds, so two
+/// launches at once got the same folder and one browser's port file was read by the other).
 fn unique_dir() -> PathBuf {
+    static LAUNCHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    std::env::temp_dir().join(format!("chromium-driver-{}-{n}", std::process::id()))
+    let k = LAUNCHES.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("chromium-driver-{}-{n}-{k}", std::process::id()))
 }
 
 impl Chromium {
@@ -130,7 +165,7 @@ impl Chromium {
             }
         }
         let mut cmd = std::process::Command::new(&exe.path);
-        cmd.args(args(&dir))
+        cmd.args(args(&dir, opts.window))
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
@@ -186,6 +221,18 @@ impl Chromium {
 
     pub fn is_running(&mut self) -> bool {
         self.process.is_running() && !self.conn.is_closed()
+    }
+
+    /// Why the browser and its `page` can no longer be used, if so. No round trip to the browser (see
+    /// [`Page::exists`] for one).
+    pub fn gone(&mut self, page: &Page) -> Option<Gone> {
+        if !self.process.is_running() {
+            Some(Gone::Exited)
+        } else if self.conn.is_closed() {
+            Some(Gone::Disconnected)
+        } else {
+            page.is_closed().then_some(Gone::PageClosed)
+        }
     }
 
     pub fn profile_dir(&self) -> &Path {
@@ -283,8 +330,14 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_launch_gets_its_own_profile_folder() {
+        let dirs: std::collections::HashSet<PathBuf> = (0..1000).map(|_| unique_dir()).collect();
+        assert_eq!(dirs.len(), 1000);
+    }
+
+    #[test]
     fn keeps_the_automation_banner_and_hides_nothing() {
-        let a = args(Path::new("/tmp/p"));
+        let a = args(Path::new("/tmp/p"), None);
         assert!(a.contains(&"--enable-automation".to_string()));
         assert!(a
             .iter()
@@ -294,9 +347,21 @@ mod tests {
 
     #[test]
     fn the_window_opens_on_screen() {
-        assert!(!args(Path::new("/p"))
+        assert!(!args(Path::new("/p"), None)
             .iter()
             .any(|x| x.starts_with("--window-position") || x.contains("headless") || x.contains("offscreen")));
+        let placed = args(
+            Path::new("/p"),
+            Some(WindowBounds {
+                x: -1800,
+                y: 40,
+                width: 1100,
+                height: 800,
+            }),
+        );
+        assert!(placed.contains(&"--window-position=-1800,40".to_string()), "{placed:?}");
+        assert!(placed.contains(&"--window-size=1100,800".to_string()));
+        assert_eq!(placed.iter().filter(|a| a.starts_with("--window-size")).count(), 1);
     }
 
     #[test]
@@ -371,6 +436,76 @@ mod tests {
     fn page_count_sees_the_pages_the_browser_has() {
         let (_d, _fake, b) = launch_fake(crate::fake::Mode::Obey, 3);
         assert_eq!(b.page_count().unwrap(), 3);
+    }
+
+    #[cfg(unix)]
+    fn wait_gone(b: &mut Chromium, p: &Page) -> Gone {
+        let end = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(g) = b.gone(p) {
+                return g;
+            }
+            assert!(Instant::now() < end, "the end of the browser was not seen");
+            std::thread::yield_now();
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_user_closing_the_window_ends_the_page_while_the_process_runs() {
+        let (_d, fake, mut b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.new_page().unwrap();
+        assert_eq!(b.gone(&p), None);
+        assert!(p.exists().unwrap());
+        fake.act(crate::fake::UserAction::CloseWindow).unwrap();
+        assert_eq!(wait_gone(&mut b, &p), Gone::PageClosed);
+        assert!(b.is_running(), "the browser itself still runs (macOS keeps it without a window)");
+        assert!(!p.exists().unwrap());
+        assert!(matches!(p.evaluate("1"), Err(Error::Closed)), "every call says the page was closed");
+        assert!(matches!(p.info(), Err(Error::Closed)));
+        assert!(matches!(
+            p.navigate("http://127.0.0.1:9/", Duration::from_secs(5)),
+            Err(Error::Closed)
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_load_in_progress_ends_at_once_when_the_window_is_closed() {
+        let (_d, fake, b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.new_page().unwrap();
+        fake.act(crate::fake::UserAction::StallLoads).unwrap();
+        let started = Instant::now();
+        let load = std::thread::spawn(move || p.navigate("http://127.0.0.1:9/", Duration::from_secs(20)));
+        fake.act(crate::fake::UserAction::CloseWindow).unwrap();
+        let r = load.join().unwrap();
+        assert!(matches!(r, Err(Error::Closed)), "{r:?}");
+        assert!(started.elapsed() < Duration::from_secs(5), "no wait for the load timeout");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn quitting_the_browser_is_seen_as_exited() {
+        let (_d, fake, mut b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.new_page().unwrap();
+        fake.act(crate::fake::UserAction::Quit).unwrap();
+        assert!(matches!(wait_gone(&mut b, &p), Gone::Exited | Gone::Disconnected));
+        let end = Instant::now() + Duration::from_secs(5);
+        while b.gone(&p) != Some(Gone::Exited) {
+            assert!(Instant::now() < end, "the process end is seen");
+            std::thread::yield_now();
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_lost_connection_is_seen_while_the_process_runs() {
+        let (_d, fake, mut b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.new_page().unwrap();
+        fake.act(crate::fake::UserAction::DropConnection).unwrap();
+        assert_eq!(wait_gone(&mut b, &p), Gone::Disconnected);
+        assert!(matches!(p.evaluate("1"), Err(Error::Closed)));
+        b.kill();
     }
 
     #[test]

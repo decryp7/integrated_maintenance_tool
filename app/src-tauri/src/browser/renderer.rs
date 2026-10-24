@@ -5,20 +5,20 @@
 //! Nothing here depends on Tauri, so it is tested (and live-tested) without an app. Indicators that the AI drives the
 //! page are all outside the page: Chrome's automation banner, the frame colour, the status chip (with Stop) and the
 //! research log. Nothing is ever injected into a page.
+//!
+//! The browsers themselves and their life cycle are [`super::sessions`] (ADR 0057).
 
+use super::sessions::{Lease, Renderers, Session};
 use chromium_driver::cue::{window_title, Activity};
-use chromium_driver::launch::{LaunchOptions, Profile};
-use chromium_driver::{Chromium, Error as DriverError, Page};
+use chromium_driver::Error as DriverError;
 use debrief_ai::browser::policy::ScrollDirection;
 use debrief_ai::browser::{
     capture_from, scripts, snapshot_from, BrowserError, ChatBrowser, DomSnapshot, Element, Nonce, PageCapture, PageDriver, PageReader,
     ReplyError, ReplyGate, ResultsPage, ResultsReader, WebUrl,
 };
 use serde_json::{Map, Value};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::Ordering;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// The frame colour of the AI's browser window (Debrief's accent).
@@ -26,210 +26,16 @@ pub const ACCENT: u32 = 0x2F6FE0;
 const LOAD_TIMEOUT: Duration = Duration::from_secs(30);
 const SETTLE: Duration = Duration::from_millis(400);
 const ACT_LOAD_TIMEOUT: Duration = Duration::from_secs(15);
-/// How long a closing browser may take to exit by itself before it is ended by force.
-#[cfg(not(test))]
-const CLOSE_GRACE: Duration = Duration::from_secs(3);
-#[cfg(test)]
-const CLOSE_GRACE: Duration = Duration::from_millis(600);
-/// The shorter grace when Debrief itself is quitting (the teardown step has a limit).
-pub const QUIT_GRACE: Duration = Duration::from_millis(1200);
 /// How long a challenge page may wait for the user.
 #[cfg(not(test))]
 const CHALLENGE_WAIT: Duration = Duration::from_secs(10 * 60);
 #[cfg(test)]
 const CHALLENGE_WAIT: Duration = Duration::from_secs(25);
 
-/// Where a browser may come from, in order: the user's setting, the one Debrief installed, one found on the machine.
-#[derive(Debug, Clone, Default)]
-pub struct Sources {
-    pub configured: Option<PathBuf>,
-    pub installed: Option<PathBuf>,
-}
-
-impl Sources {
-    pub fn resolve(&self) -> Option<chromium_driver::BrowserExe> {
-        let mk = |p: &PathBuf| {
-            p.is_file().then(|| chromium_driver::BrowserExe {
-                flavor: chromium_driver::Flavor::Chromium,
-                path: p.clone(),
-            })
-        };
-        self.configured
-            .as_ref()
-            .and_then(mk)
-            .or_else(|| self.installed.as_ref().and_then(mk))
-            .or_else(fallback_browser)
-    }
-}
-
-/// One window's running browser and its page. The window is a normal one on screen; Debrief never moves or hides it.
-pub struct Session {
-    chromium: Mutex<Chromium>,
-    page: Page,
-    /// A page needed the user (a check, consent, a sign-in): they used the window, so it is not closed behind their back.
-    handed_off: AtomicBool,
-    /// The address the AI last navigated to (after redirects); a different one later means the user navigated.
-    last_url: Mutex<Option<String>>,
-}
-
-impl Session {
-    #[cfg(test)]
-    pub fn page(&self) -> &Page {
-        &self.page
-    }
-
-    fn running(&self) -> bool {
-        crate::sync::lock(&self.chromium).is_running()
-    }
-
-    fn kill(&self) {
-        crate::sync::lock(&self.chromium).kill();
-    }
-
-    /// Closes the browser (gracefully, then by force) and removes its throwaway profile.
-    fn close(&self, grace: Duration) {
-        crate::sync::lock(&self.chromium).close_gracefully(grace);
-    }
-
-    fn remember_url(&self) {
-        if let Ok(i) = self.page.info() {
-            *crate::sync::lock(&self.last_url) = Some(i.url);
-        }
-    }
-
-    /// The user took part in this browser: a page needed them, they navigated the page, or they opened another one.
-    fn user_took_part(&self) -> bool {
-        if self.handed_off.load(Ordering::SeqCst) {
-            return true;
-        }
-        let moved = match (crate::sync::lock(&self.last_url).as_ref(), self.page.info()) {
-            (Some(last), Ok(now)) => *last != now.url,
-            _ => false,
-        };
-        moved || crate::sync::lock(&self.chromium).page_count().is_ok_and(|n| n > 1)
-    }
-
-    #[cfg(test)]
-    pub fn pid(&self) -> Option<u32> {
-        crate::sync::lock(&self.chromium).pid()
-    }
-}
-
-/// What happened to a window's browser when its work ended.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Finish {
-    /// There was no browser.
-    NotRunning,
-    /// The browser was closed and its profile removed.
-    Closed,
-    /// The user took part (a page needed them, or they used the window): it stays open until they close it.
-    KeptOpen,
-}
-
-/// The renderers of the open windows.
-#[derive(Default)]
-pub struct Renderers {
-    sessions: Mutex<HashMap<String, Arc<Session>>>,
-    sources: RwLock<Sources>,
-}
-
-impl Renderers {
-    #[cfg(test)]
-    pub fn set_sources(&self, s: Sources) {
-        *crate::sync::write(&self.sources) = s;
-    }
-
-    pub fn set_configured(&self, p: Option<PathBuf>) {
-        crate::sync::write(&self.sources).configured = p;
-    }
-
-    pub fn set_installed(&self, p: Option<PathBuf>) {
-        crate::sync::write(&self.sources).installed = p;
-    }
-
-    /// The window's session, started on screen when needed.
-    pub fn session(&self, owner: &str) -> Result<Arc<Session>, BrowserError> {
-        let mut map = crate::sync::lock(&self.sessions);
-        if let Some(s) = map.get(owner).filter(|s| s.running()).cloned() {
-            return Ok(s);
-        }
-        map.remove(owner);
-        let exe = crate::sync::read(&self.sources).resolve().ok_or_else(|| {
-            let why = "no Chromium-based browser was found: install Edge, Chrome or Chromium, or download one in Settings ▸ Web browser";
-            crate::health::hub::report_browser_missing(why);
-            BrowserError::Failed(why.into())
-        })?;
-        let opts = LaunchOptions {
-            profile: Profile::Throwaway,
-            accent: Some(ACCENT),
-            ..LaunchOptions::default()
-        };
-        let chromium = Chromium::launch(&exe, &opts).map_err(failed)?;
-        let page = chromium.new_page().map_err(failed)?;
-        let s = Arc::new(Session {
-            chromium: Mutex::new(chromium),
-            page,
-            handed_off: AtomicBool::new(false),
-            last_url: Mutex::new(None),
-        });
-        map.insert(owner.to_string(), s.clone());
-        Ok(s)
-    }
-
-    pub fn current(&self, owner: &str) -> Option<Arc<Session>> {
-        crate::sync::lock(&self.sessions).get(owner).filter(|s| s.running()).cloned()
-    }
-
-    /// Ends the window's browser at once; true when one was running.
-    pub fn kill(&self, owner: &str) -> bool {
-        let s = crate::sync::lock(&self.sessions).remove(owner);
-        s.map(|s| s.kill()).is_some()
-    }
-
-    /// Research ended: closes the window's browser unless the user took part in it.
-    pub fn finish(&self, owner: &str) -> Finish {
-        let Some(s) = self.current(owner) else { return Finish::NotRunning };
-        if s.user_took_part() {
-            return Finish::KeptOpen;
-        }
-        crate::sync::lock(&self.sessions).remove(owner);
-        s.close(CLOSE_GRACE);
-        Finish::Closed
-    }
-
-    /// Closes the window's browser whatever happened in it (the user asked); true when one was running.
-    pub fn close(&self, owner: &str) -> bool {
-        let s = crate::sync::lock(&self.sessions).remove(owner);
-        s.map(|s| s.close(CLOSE_GRACE)).is_some()
-    }
-
-    /// Debrief quits: every browser is closed (gracefully for `grace`, then by force).
-    pub fn close_all(&self, grace: Duration) {
-        let all: Vec<_> = crate::sync::lock(&self.sessions).drain().map(|(_, s)| s).collect();
-        let handles: Vec<_> = all.into_iter().map(|s| std::thread::spawn(move || s.close(grace))).collect();
-        for h in handles {
-            let _ = h.join();
-        }
-    }
-
-    pub fn kill_all(&self) {
-        let all: Vec<_> = crate::sync::lock(&self.sessions).drain().map(|(_, s)| s).collect();
-        for s in all {
-            s.kill();
-        }
-    }
-}
-
-impl Drop for Renderers {
-    fn drop(&mut self) {
-        self.kill_all();
-    }
-}
-
-fn failed(e: DriverError) -> BrowserError {
+pub(super) fn failed(e: DriverError) -> BrowserError {
     match e {
         DriverError::Timeout(_) => BrowserError::Timeout,
-        DriverError::Closed => BrowserError::Failed("the browser was closed".into()),
+        DriverError::Closed => BrowserError::Closed,
         other => BrowserError::Failed(other.to_string()),
     }
 }
@@ -252,11 +58,18 @@ pub struct ChromiumPage {
     pub rules: Option<Arc<ChatBrowser>>,
     pub product: String,
     pub notify: Arc<dyn Fn(Cue) + Send + Sync>,
+    /// The run this page belongs to (a research): once its browser is gone, the page fails instead of starting another.
+    pub lease: Lease,
 }
 
 impl ChromiumPage {
+    /// The same page under a run's lease (see [`Lease`]).
+    pub fn with_lease(self, lease: Lease) -> Self {
+        ChromiumPage { lease, ..self }
+    }
+
     fn session(&self) -> Result<Arc<Session>, BrowserError> {
-        self.renderers.session(&self.owner)
+        self.renderers.session_in(&self.owner, &self.lease)
     }
 
     fn cue(&self, activity: Activity, url: &str) {
@@ -303,8 +116,8 @@ impl ChromiumPage {
         let end = Instant::now() + CHALLENGE_WAIT;
         loop {
             std::thread::sleep(Duration::from_secs(1));
-            if !s.running() {
-                return Err(BrowserError::Failed("the browser was closed".into()));
+            if s.gone().is_some() {
+                return Err(BrowserError::Closed);
             }
             match s.page.challenge() {
                 Ok(None) => break,
@@ -403,21 +216,12 @@ impl PageDriver for ChromiumPage {
     }
 }
 
-/// The machine's own browser when nothing is configured or installed. Under test only the pinned test browser
-/// counts: a test run never launches the user's installed Chrome.
-#[cfg(not(test))]
-pub(crate) fn fallback_browser() -> Option<chromium_driver::BrowserExe> {
-    chromium_driver::find()
-}
-
-#[cfg(test)]
-pub(crate) fn fallback_browser() -> Option<chromium_driver::BrowserExe> {
-    chromium_driver::find_for_tests()
-}
-
 #[cfg(test)]
 mod tests {
+    use super::super::lifecycle::{GoneReason, Lifecycle, Phase};
+    use super::super::sessions::{Finish, Sources, QUIT_GRACE};
     use super::*;
+    use std::sync::Mutex;
 
     #[test]
     fn no_browser_gives_a_message_that_says_what_to_do() {
@@ -427,7 +231,7 @@ mod tests {
             installed: None,
         });
         if chromium_driver::find_for_tests().is_none() {
-            let e = r.session("main").err().unwrap();
+            let e = r.session_in("main", &Lease::default()).err().unwrap();
             assert!(e.to_string().contains("Settings"));
         }
         assert!(!r.kill("main"));
@@ -462,7 +266,7 @@ mod tests {
     #[cfg(unix)]
     mod fake {
         use super::*;
-        use chromium_driver::fake::{FakeBrowser, Mode};
+        use chromium_driver::fake::{FakeBrowser, Mode, UserAction};
 
         struct Rig {
             _dir: tempfile::TempDir,
@@ -486,6 +290,7 @@ mod tests {
                 rules: None,
                 product: "Debrief".into(),
                 notify: Arc::new(|_| {}),
+                lease: Lease::default(),
             };
             Rig {
                 _dir: dir,
@@ -499,7 +304,10 @@ mod tests {
             r.page
                 .navigate(&WebUrl::parse("http://127.0.0.1:9/results").unwrap())
                 .expect("navigates");
-            let s = r.renderers.current("main").expect("running");
+            let s = r
+                .renderers
+                .current("main")
+                .unwrap_or_else(|| panic!("running: {:?}", r.renderers.lifecycle("main")));
             let dir = crate::sync::lock(&s.chromium).profile_dir().to_path_buf();
             (dir, s.pid().unwrap())
         }
@@ -523,6 +331,29 @@ mod tests {
                     .any(|a| a.contains("window-position") || a.contains("headless") || a.contains("-32000")),
                 "{args:?}"
             );
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn the_browser_opens_where_the_owner_window_s_display_says() {
+            let r = rig(Mode::Obey, 1);
+            let asked = Arc::new(Mutex::new(Vec::new()));
+            let a2 = asked.clone();
+            r.renderers.set_placer(Arc::new(move |owner: &str| {
+                a2.lock().unwrap().push(owner.to_string());
+                Some(chromium_driver::WindowBounds {
+                    x: -1650,
+                    y: 100,
+                    width: 1100,
+                    height: 800,
+                })
+            }));
+            research_step(&r);
+            assert_eq!(*asked.lock().unwrap(), ["main"], "placed for the window that started it");
+            let args = r.fake.args();
+            assert!(args.contains(&"--window-position=-1650,100".to_string()), "{args:?}");
+            assert!(args.contains(&"--window-size=1100,800".to_string()), "{args:?}");
+            assert!(!args.iter().any(|a| a.contains("headless") || a.contains("-32000")), "{args:?}");
             r.renderers.kill_all();
         }
 
@@ -580,6 +411,217 @@ mod tests {
             r.renderers.kill_all();
         }
 
+        const SEEN: Duration = Duration::from_secs(5);
+
+        fn page_with(r: &Rig, lease: Lease) -> ChromiumPage {
+            ChromiumPage {
+                renderers: r.renderers.clone(),
+                owner: "main".into(),
+                may_drive: Some(Box::new(|| true)),
+                rules: None,
+                product: "Debrief".into(),
+                notify: Arc::new(|_| {}),
+                lease,
+            }
+        }
+
+        /// Waits until the listener heard `phase` (it hears a change right after waiters see it).
+        fn heard(seen: &Mutex<Vec<Lifecycle>>, phase: Phase) -> Lifecycle {
+            let end = Instant::now() + SEEN;
+            loop {
+                if let Some(l) = seen.lock().unwrap().last().copied().filter(|l| l.phase == phase) {
+                    return l;
+                }
+                assert!(Instant::now() < end, "{phase:?} was not reported");
+                std::thread::yield_now();
+            }
+        }
+
+        /// The user does `action` to the browser; returns the phase it ends in (the watcher sees it without any use).
+        fn user(r: &Rig, action: UserAction) -> Phase {
+            r.fake.act(action).unwrap();
+            r.renderers.wait_for("main", SEEN, |p| matches!(p, Phase::Gone { .. }))
+        }
+
+        fn records(r: &Rig) -> Arc<Mutex<Vec<Lifecycle>>> {
+            let seen = Arc::new(Mutex::new(Vec::new()));
+            let s2 = seen.clone();
+            r.renderers.listen(Arc::new(move |owner, l| {
+                assert_eq!(owner, "main");
+                s2.lock().unwrap().push(l);
+            }));
+            seen
+        }
+
+        const WINDOW_CLOSED: Phase = Phase::Gone {
+            reason: GoneReason::WindowClosed,
+        };
+
+        #[test]
+        fn research_works_again_after_the_user_closed_the_window() {
+            let r = rig(Mode::Obey, 1);
+            let seen = records(&r);
+            let (dir, pid) = research_step(&r);
+            assert_eq!(user(&r, UserAction::CloseWindow), WINDOW_CLOSED, "seen while idle");
+            heard(&seen, WINDOW_CLOSED);
+            assert!(gone(pid), "the browser left without a window is ended");
+            assert!(!dir.exists(), "its profile is removed");
+            assert!(r.renderers.current("main").is_none());
+            let (dir2, pid2) = research_step(&r);
+            assert_ne!(pid, pid2, "a fresh browser");
+            assert!(dir2.exists());
+            let phases: Vec<Phase> = seen.lock().unwrap().iter().map(|l| l.phase).collect();
+            assert_eq!(
+                phases,
+                [Phase::Launching, Phase::Ready, WINDOW_CLOSED, Phase::Launching, Phase::Ready],
+                "every step is reported"
+            );
+            r.renderers.kill_all();
+            assert!(gone(pid2));
+        }
+
+        #[test]
+        fn a_kept_open_browser_the_user_closed_is_forgotten_and_research_starts_afresh() {
+            let r = rig(Mode::Obey, 1);
+            let seen = records(&r);
+            let (dir, pid) = research_step(&r);
+            r.renderers.current("main").unwrap().handed_off.store(true, Ordering::SeqCst);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert!(r.renderers.lifecycle("main").kept);
+            assert!(seen.lock().unwrap().last().unwrap().kept, "the window hears it was kept");
+            assert_eq!(user(&r, UserAction::CloseWindow), WINDOW_CLOSED);
+            let now = r.renderers.lifecycle("main");
+            assert!(!now.kept, "the kept mark is gone with the browser");
+            assert_eq!(heard(&seen, WINDOW_CLOSED), now, "and the window hears that too");
+            assert!(gone(pid) && !dir.exists());
+            assert!(!r.renderers.close("main"), "Close has nothing left to close");
+            let (_, pid2) = research_step(&r);
+            assert_ne!(pid, pid2);
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn quitting_the_browser_or_losing_its_connection_ends_it_and_the_next_use_starts_a_new_one() {
+            for action in [UserAction::Quit, UserAction::DropConnection] {
+                let r = rig(Mode::Obey, 1);
+                let (dir, pid) = research_step(&r);
+                let phase = user(&r, action);
+                assert!(
+                    matches!(
+                        phase,
+                        Phase::Gone {
+                            reason: GoneReason::Exited | GoneReason::Disconnected
+                        }
+                    ),
+                    "{action:?}: {phase:?}"
+                );
+                assert!(gone(pid), "{action:?}: no process is left");
+                assert!(!dir.exists(), "{action:?}: no profile is left");
+                let (_, pid2) = research_step(&r);
+                assert_ne!(pid, pid2, "{action:?}");
+                r.renderers.kill_all();
+            }
+        }
+
+        #[test]
+        fn a_closed_window_is_noticed_on_use_even_before_the_watcher() {
+            let r = rig(Mode::Obey, 1);
+            let (_, pid) = research_step(&r);
+            let s = r.renderers.current("main").unwrap();
+            r.fake.act(UserAction::CloseWindow).unwrap();
+            // The page answers no more; the use that finds out moves the browser to gone and starts a new one.
+            while s.gone().is_none() {
+                if let Err(e) = s.page.evaluate("1") {
+                    assert!(matches!(e, DriverError::Closed), "{e:?}");
+                }
+            }
+            let (_, pid2) = research_step(&r);
+            assert_ne!(pid, pid2);
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn a_research_that_loses_its_browser_mid_way_fails_at_once_and_does_not_open_another() {
+            let r = rig(Mode::Obey, 1);
+            let lease = Lease::run();
+            let (reader, driver) = (page_with(&r, lease.clone()), page_with(&r, lease));
+            driver.navigate(&WebUrl::parse("http://127.0.0.1:9/results").unwrap()).unwrap();
+            let pid = r.renderers.current("main").unwrap().pid().unwrap();
+            // The next page never finishes loading, and the user closes the window meanwhile.
+            r.fake.act(UserAction::StallLoads).unwrap();
+            let started = Instant::now();
+            let load = std::thread::spawn(move || driver.navigate(&WebUrl::parse("http://127.0.0.1:9/next").unwrap()));
+            r.fake.act(UserAction::CloseWindow).unwrap();
+            assert_eq!(load.join().unwrap(), Err(BrowserError::Closed), "the step fails");
+            assert!(started.elapsed() < LOAD_TIMEOUT / 3, "without waiting for the load timeout");
+            assert_eq!(reader.capture().err(), Some(BrowserError::Closed), "the rest of the run too");
+            assert_eq!(
+                r.renderers.wait_for("main", SEEN, |p| matches!(p, Phase::Gone { .. })),
+                WINDOW_CLOSED
+            );
+            assert!(gone(pid));
+            assert!(r.renderers.current("main").is_none(), "no other browser was opened for it");
+            // Retry is a new run: it gets a new browser.
+            let retry = page_with(&r, Lease::run());
+            retry.navigate(&WebUrl::parse("http://127.0.0.1:9/results").unwrap()).unwrap();
+            assert_ne!(r.renderers.current("main").unwrap().pid(), Some(pid));
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn a_challenge_wait_ends_when_the_user_closes_the_window() {
+            let r = rig(Mode::Obey, 1);
+            research_step(&r);
+            // A page that needs the user (a human check); they close the window instead of solving it.
+            std::fs::write(&r.fake.url_file, "https://www.google.com/sorry/index?continue=x").unwrap();
+            let s = r.renderers.current("main").unwrap();
+            assert!(s.page.challenge().unwrap().is_some());
+            let ctl = r.fake.ctl_file.clone();
+            let page = ChromiumPage {
+                notify: Arc::new(move |c: Cue| {
+                    if c.activity == Activity::WaitingForYou {
+                        std::fs::write(&ctl, "close-window\n").unwrap();
+                    }
+                }),
+                ..page_with(&r, Lease::default())
+            };
+            let started = Instant::now();
+            assert_eq!(page.hand_off_challenges(&s), Err(BrowserError::Closed));
+            assert!(started.elapsed() < Duration::from_secs(10), "no wait for the user's check");
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn stop_while_the_browser_starts_ends_it_once_it_started() {
+            let r = rig(Mode::Obey, 1);
+            // A browser that starts only when the test lets it.
+            let go = r._dir.path().join("go");
+            let gated = r._dir.path().join("gated.sh");
+            std::fs::write(
+                &gated,
+                format!(
+                    "#!/bin/sh\nwhile [ ! -f '{}' ]; do sleep 0.01; done\nexec '{}' \"$@\"\n",
+                    go.display(),
+                    r.fake.exe.display()
+                ),
+            )
+            .unwrap();
+            std::fs::set_permissions(&gated, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+            r.renderers.set_sources(Sources {
+                configured: Some(gated),
+                installed: None,
+            });
+            let renderers = r.renderers.clone();
+            let start = std::thread::spawn(move || renderers.session_in("main", &Lease::default()).map(|s| s.pid()));
+            assert_eq!(r.renderers.wait_for("main", SEEN, |p| p != Phase::None), Phase::Launching);
+            assert!(r.renderers.kill("main"), "a starting browser counts as running");
+            assert_eq!(r.renderers.lifecycle("main").phase, Phase::Closing);
+            std::fs::write(&go, "").unwrap();
+            assert!(start.join().unwrap().is_err(), "a stopped launch hands out no browser");
+            assert_eq!(r.renderers.lifecycle("main").phase, Phase::Gone { reason: GoneReason::Ended });
+            assert!(r.renderers.current("main").is_none());
+        }
+
         #[test]
         fn quitting_closes_every_browser_even_one_the_user_kept() {
             let r = rig(Mode::Obey, 1);
@@ -634,6 +676,7 @@ mod tests {
             rules: None,
             product: "Debrief".into(),
             notify: Arc::new(move |c| s2.lock().unwrap().push(c)),
+            lease: Lease::default(),
         };
         Some((renderers, page, seen))
     }

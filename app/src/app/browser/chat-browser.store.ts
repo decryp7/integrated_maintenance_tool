@@ -57,6 +57,9 @@ export const ChatBrowserStore = signalStore(
           setSources(e.sessionId, e.sources);
         } else if (e.type === 'researchBrowserKept') {
           patchState(store, { researchBrowserKept: true });
+        } else if (e.type === 'lifecycle' && e.state !== 'ready') {
+          // The kept window is closing or gone (the user may have closed it by hand): nothing is left to offer.
+          patchState(store, { researchBrowserKept: false });
         }
       },
 

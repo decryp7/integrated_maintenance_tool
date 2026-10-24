@@ -1,9 +1,11 @@
 //! A minimal synchronous DevTools-protocol client: one thread owns the WebSocket, callers send a command and wait
-//! for its reply; events go to a bounded log that callers wait on.
+//! for its reply; events go to a bounded log that callers wait on. Sessions and targets a caller watches are marked
+//! gone when the browser reports them detached, destroyed or crashed (the user closed the window), whatever the log
+//! has dropped since.
 
 use crate::{Error, Result};
 use serde_json::{json, Value};
-use std::collections::{HashMap, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 use std::net::TcpStream;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::mpsc::{channel, Receiver, Sender};
@@ -34,7 +36,12 @@ struct Inner {
     events: Mutex<Events>,
     cv: Condvar,
     closed: AtomicBool,
+    /// Watched session and target ids; true once the browser said it is gone.
+    watched: Mutex<HashMap<String, bool>>,
 }
+
+/// Events that end a page: its session detached, its target destroyed or crashed.
+const GONE_EVENTS: &[&str] = &["Target.detachedFromTarget", "Target.targetDestroyed", "Target.targetCrashed"];
 
 fn lock<T>(m: &Mutex<T>) -> MutexGuard<'_, T> {
     m.lock().unwrap_or_else(|e| e.into_inner())
@@ -64,6 +71,7 @@ impl Connection {
             events: Mutex::new(Events::default()),
             cv: Condvar::new(),
             closed: AtomicBool::new(false),
+            watched: Mutex::new(HashMap::new()),
         });
         let (out, rx) = channel();
         let i2 = inner.clone();
@@ -80,6 +88,16 @@ impl Connection {
 
     pub fn is_closed(&self) -> bool {
         self.inner.closed.load(Ordering::Acquire)
+    }
+
+    /// Starts watching a session or target id for its end (see [`Connection::is_gone`]).
+    pub fn watch(&self, id: &str) {
+        lock(&self.inner.watched).entry(id.to_string()).or_insert(false);
+    }
+
+    /// Whether the browser reported a watched session or target detached, destroyed or crashed.
+    pub fn is_gone(&self, id: &str) -> bool {
+        lock(&self.inner.watched).get(id).copied().unwrap_or(false)
     }
 
     /// Sends a command and waits for its reply.
@@ -174,6 +192,9 @@ fn dispatch(inner: &Inner, text: &str) {
             let _ = tx.send(r);
         }
     } else if let Some(m) = v.get("method").and_then(Value::as_str) {
+        if GONE_EVENTS.contains(&m) {
+            mark_gone(inner, v.get("params").unwrap_or(&Value::Null));
+        }
         let mut g = lock(&inner.events);
         g.seq += 1;
         let seq = g.seq;
@@ -190,5 +211,61 @@ fn dispatch(inner: &Inner, text: &str) {
         }
         drop(g);
         inner.cv.notify_all();
+    }
+}
+
+fn mark_gone(inner: &Inner, params: &Value) {
+    let ids: HashSet<&str> = ["sessionId", "targetId"]
+        .iter()
+        .filter_map(|k| params.get(*k).and_then(Value::as_str))
+        .collect();
+    let mut w = lock(&inner.watched);
+    for id in ids {
+        if let Some(gone) = w.get_mut(id) {
+            *gone = true;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn inner() -> Inner {
+        Inner {
+            pending: Mutex::new(HashMap::new()),
+            events: Mutex::new(Events::default()),
+            cv: Condvar::new(),
+            closed: AtomicBool::new(false),
+            watched: Mutex::new(HashMap::new()),
+        }
+    }
+
+    #[test]
+    fn a_watched_session_or_target_is_gone_once_the_browser_says_so() {
+        let i = inner();
+        lock(&i.watched).insert("S1".into(), false);
+        lock(&i.watched).insert("T1".into(), false);
+        dispatch(
+            &i,
+            r#"{"method":"Target.detachedFromTarget","params":{"sessionId":"OTHER","targetId":"T9"}}"#,
+        );
+        assert!(!lock(&i.watched)["S1"], "another page closing is not ours");
+        dispatch(
+            &i,
+            r#"{"method":"Target.detachedFromTarget","params":{"sessionId":"S1","targetId":"T1"}}"#,
+        );
+        assert!(lock(&i.watched)["S1"] && lock(&i.watched)["T1"]);
+        assert!(!lock(&i.watched).contains_key("T9"), "unwatched ids are not kept");
+    }
+
+    #[test]
+    fn a_destroyed_or_crashed_target_is_gone() {
+        for m in ["Target.targetDestroyed", "Target.targetCrashed"] {
+            let i = inner();
+            lock(&i.watched).insert("T1".into(), false);
+            dispatch(&i, &format!(r#"{{"method":"{m}","params":{{"targetId":"T1"}}}}"#));
+            assert!(lock(&i.watched)["T1"], "{m}");
+        }
     }
 }

@@ -6,7 +6,8 @@
 //! - Windows: a job object with KILL_ON_JOB_CLOSE (closed when the worker exits or crashes);
 //! - Linux: `PR_SET_PDEATHSIG` (SIGKILL when the worker dies);
 //! - every Unix: killed on drop and from an `atexit` hook (the worker exits through `exit` when Debrief
-//!   closes its stdin), which is all macOS offers.
+//!   closes its stdin); and it stays in the worker's process group, which Debrief's supervisor kills when it has to
+//!   end the worker by force (`debrief_ipc::process`), so it is not left behind on macOS either.
 
 use crate::http::{Call, Client, HttpError};
 use std::io::{BufRead, BufReader, Read};

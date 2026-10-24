@@ -3,6 +3,7 @@
 
 use std::io::Read;
 use std::process::Stdio;
+use std::sync::{mpsc, Arc, Mutex};
 use std::time::{Duration, Instant};
 use thiserror::Error;
 
@@ -43,15 +44,42 @@ const MAX_STDOUT: u64 = 256 << 20;
 /// Runs real processes with `std::process::Command`.
 pub struct SystemRunner;
 
-fn drain<R: Read + Send + 'static>(r: R, cap: u64) -> std::thread::JoinHandle<Vec<u8>> {
-    std::thread::spawn(move || {
-        let mut buf = Vec::new();
-        let mut limited = r.take(cap);
-        let _ = limited.read_to_end(&mut buf);
-        // Keep draining so the child never blocks on a full pipe.
-        let _ = std::io::copy(&mut limited.into_inner(), &mut std::io::sink());
-        buf
-    })
+/// How long the output is still read after the tool exited: a child it left running (a service it started) may hold
+/// the pipe open for ever, and the answer must not wait for it.
+const AFTER_EXIT: Duration = Duration::from_secs(2);
+
+/// A pipe read on its own thread into a shared buffer, so what was read can be taken without waiting for the end.
+struct Drain {
+    buf: Arc<Mutex<Vec<u8>>>,
+    done: mpsc::Receiver<()>,
+}
+
+impl Drain {
+    fn start<R: Read + Send + 'static>(mut r: R, cap: u64) -> Drain {
+        let buf = Arc::new(Mutex::new(Vec::new()));
+        let (tx, done) = mpsc::channel();
+        let b = buf.clone();
+        std::thread::spawn(move || {
+            let mut chunk = [0u8; 64 * 1024];
+            // Keep reading past the cap (discarding) so the child never blocks on a full pipe.
+            while let Ok(n) = r.read(&mut chunk) {
+                if n == 0 {
+                    break;
+                }
+                let mut g = b.lock().unwrap_or_else(|p| p.into_inner());
+                let room = (cap as usize).saturating_sub(g.len()).min(n);
+                g.extend_from_slice(&chunk[..room]);
+            }
+            let _ = tx.send(());
+        });
+        Drain { buf, done }
+    }
+
+    /// What was read, once the pipe ended or `until` passed (whichever is first).
+    fn take(self, until: Instant) -> Vec<u8> {
+        let _ = self.done.recv_timeout(until.saturating_duration_since(Instant::now()));
+        std::mem::take(&mut *self.buf.lock().unwrap_or_else(|p| p.into_inner()))
+    }
 }
 
 impl CommandRunner for SystemRunner {
@@ -66,8 +94,8 @@ impl CommandRunner for SystemRunner {
                 std::io::ErrorKind::NotFound => CommandError::NotFound(program.into()),
                 _ => CommandError::Io(program.into(), e.to_string()),
             })?;
-        let out = child.stdout.take().map(|s| drain(s, MAX_STDOUT));
-        let err = child.stderr.take().map(|s| drain(s, 1 << 20));
+        let out = child.stdout.take().map(|s| Drain::start(s, MAX_STDOUT));
+        let err = child.stderr.take().map(|s| Drain::start(s, 1 << 20));
         let start = Instant::now();
         let status = loop {
             match child.try_wait() {
@@ -81,12 +109,39 @@ impl CommandRunner for SystemRunner {
                 Err(e) => return Err(CommandError::Io(program.into(), e.to_string())),
             }
         };
-        let stdout = out.and_then(|h| h.join().ok()).unwrap_or_default();
-        let stderr = err.and_then(|h| h.join().ok()).unwrap_or_default();
+        let until = Instant::now() + AFTER_EXIT;
+        let stdout = out.map(|d| d.take(until)).unwrap_or_default();
+        let stderr = err.map(|d| d.take(until)).unwrap_or_default();
         Ok(CommandOutput {
             exit_code: status.code(),
             stdout,
             stderr: String::from_utf8_lossy(&stderr).trim().to_string(),
         })
+    }
+}
+
+// The tests drive `sh`, so the module exists on Unix only.
+#[cfg(all(test, unix))]
+mod tests {
+    use super::*;
+
+    /// A tool that exits but left a child holding its output pipe (a service it started) is still answered in time,
+    /// with what it wrote.
+    #[test]
+    fn a_grandchild_holding_the_pipe_does_not_hold_the_answer() {
+        let start = Instant::now();
+        let out = SystemRunner
+            .run("sh", &["-c".into(), "sleep 30 & echo $!".into()], Duration::from_secs(60))
+            .unwrap();
+        let elapsed = start.elapsed();
+        let text = String::from_utf8_lossy(&out.stdout);
+        let pid: i32 = text.trim().parse().unwrap_or(0);
+        if pid > 0 {
+            // Ends the test's own `sleep` grandchild.
+            #[allow(clippy::disallowed_methods)]
+            let _ = std::process::Command::new("kill").args(["-9", &pid.to_string()]).status();
+        }
+        assert!(pid > 0, "what it wrote is kept: {text:?}");
+        assert!(elapsed < Duration::from_secs(10), "answered after {elapsed:?}");
     }
 }

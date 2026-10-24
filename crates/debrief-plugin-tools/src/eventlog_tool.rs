@@ -6,6 +6,7 @@
 //! Debrief opens, so a new run continues where the last one stopped.
 
 use crate::ids::EVENT_LOG;
+use crate::run_slot::{Run, RunSlot, Seen};
 use anyhow::{anyhow, bail, Result};
 use debrief_plugin_api::clef::ClefFileSink;
 use debrief_plugin_api::tools::{OpSpec, PathAccess, PathKind, Platform, Schema, Tool, ToolCtx, ToolInfo, ToolTask};
@@ -15,7 +16,7 @@ use debrief_plugin_windows::eventlog::query::{offered_channels, Backfill, EventL
 use debrief_plugin_windows::eventlog::{EventLog, Follower, FollowerConfig};
 use serde_json::{json, Value};
 use std::path::PathBuf;
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 use std::time::Duration;
 
 /// Id of the running follower in the background task list.
@@ -23,15 +24,24 @@ pub(crate) const TASK: &str = "eventlog";
 const DEFAULT_FILE_MB: i64 = 10;
 const DEFAULT_FILES: i64 = 10;
 
-struct Session {
-    follower: Follower,
-    dir: PathBuf,
+impl Run for Follower {
+    fn is_running(&self) -> bool {
+        Follower::is_running(self)
+    }
+
+    fn snapshot(&self) -> Value {
+        serde_json::to_value(self.status()).unwrap_or(Value::Null)
+    }
+
+    fn finish(self) -> Result<()> {
+        self.stop()
+    }
 }
 
 pub(crate) struct EventLogTool {
     log: Arc<dyn EventLog>,
     limits: Limits,
-    session: Mutex<Option<Session>>,
+    run: RunSlot<Follower>,
 }
 
 /// The follower settings shared by `validate` and `start`.
@@ -55,12 +65,8 @@ impl EventLogTool {
         EventLogTool {
             log,
             limits,
-            session: Mutex::new(None),
+            run: RunSlot::default(),
         }
-    }
-
-    fn slot(&self) -> MutexGuard<'_, Option<Session>> {
-        self.session.lock().unwrap_or_else(|p| p.into_inner())
     }
 
     fn channels(&self) -> Result<Value> {
@@ -96,10 +102,21 @@ impl EventLogTool {
     }
 
     fn start(&self, args: Value, ctx: &ToolCtx) -> Result<Value> {
-        let mut slot = self.slot();
-        if slot.is_some() {
-            bail!("the event log follower is already running");
-        }
+        let mut reply = Value::Null;
+        self.run.begin("the event log follower is already running", || {
+            self.start_run(args, ctx, &mut reply)
+        })?;
+        ctx.task_started(ToolTask {
+            id: TASK.into(),
+            label: "Event Log follower".into(),
+            kind: "event-log-follower".into(),
+            stoppable: true,
+        });
+        Ok(reply)
+    }
+
+    /// Starts the follower; it and its folder, and the reply to `start` in `reply`.
+    fn start_run(&self, args: Value, ctx: &ToolCtx, reply: &mut Value) -> Result<(Follower, PathBuf)> {
         let config = FollowerConfig::from_json(&args)?;
         let dir = match args.get("dir").and_then(Value::as_str) {
             Some(d) => PathBuf::from(d),
@@ -147,54 +164,51 @@ impl EventLogTool {
             self.limits.clone(),
             Box::new(move || done.task_finished(TASK)),
         )?;
-        *slot = Some(Session {
-            follower,
-            dir: dir.clone(),
-        });
-        drop(slot);
-        ctx.task_started(ToolTask {
-            id: TASK.into(),
-            label: "Event Log follower".into(),
-            kind: "event-log-follower".into(),
-            stoppable: true,
-        });
-        Ok(json!({ "dir": dir.to_string_lossy(), "xpath": xpath, "resumed": resumed }))
+        *reply = json!({ "dir": dir.to_string_lossy(), "xpath": xpath, "resumed": resumed });
+        Ok((follower, dir))
     }
 
     /// Stops the run; its folder, or `None` when nothing was running.
     fn stop_run(&self, ctx: &ToolCtx) -> Result<Option<String>> {
-        let Some(session) = self.slot().take() else {
-            return Ok(None);
-        };
-        let result = session.follower.stop();
-        ctx.task_finished(TASK);
-        result?;
-        Ok(Some(session.dir.to_string_lossy().into_owned()))
+        let r = self.run.end();
+        if !matches!(r, Ok(None)) {
+            ctx.task_finished(TASK);
+        }
+        r
     }
 
     fn set_paused(&self, paused: bool) -> Result<Value> {
-        {
-            let slot = self.slot();
-            let session = slot.as_ref().ok_or_else(|| anyhow!("the event log follower is not running"))?;
-            if paused {
-                session.follower.pause();
-            } else {
-                session.follower.resume();
+        self.run.look(|s| match s {
+            Seen::Running { run, .. } => {
+                if paused {
+                    run.pause();
+                } else {
+                    run.resume();
+                }
+                Ok(())
             }
-        }
+            _ => Err(anyhow!("the event log follower is not running")),
+        })?;
         self.status()
     }
 
     fn status(&self) -> Result<Value> {
-        let slot = self.slot();
-        let Some(session) = slot.as_ref() else {
-            return Ok(json!({ "running": false, "dir": null }));
-        };
-        let mut status = serde_json::to_value(session.follower.status())?;
-        if let Value::Object(map) = &mut status {
-            map.insert("dir".into(), json!(session.dir.to_string_lossy()));
-        }
-        Ok(status)
+        self.run.look(|s| {
+            let (mut status, dir, error) = match s {
+                Seen::Idle => return Ok(json!({ "running": false, "dir": null })),
+                Seen::Running { run, dir } => (serde_json::to_value(run.status())?, dir, None),
+                // The last word of a run that ended on its own, and why.
+                Seen::Ended { dir, error, last } => (last.clone(), dir, Some(error.unwrap_or_default())),
+            };
+            if let Value::Object(map) = &mut status {
+                map.insert("dir".into(), json!(dir.to_string_lossy()));
+                if let Some(e) = error {
+                    map.insert("running".into(), json!(false));
+                    map.insert("error".into(), json!(e));
+                }
+            }
+            Ok(status)
+        })
     }
 }
 

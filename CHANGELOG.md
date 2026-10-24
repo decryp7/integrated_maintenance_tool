@@ -36,6 +36,7 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 - **AI setup:** Pick the model, press Download and set up, and the window closes; the download runs in the background (Jobs, status bar, the assistant pane) and a message says when the assistant is ready or why it failed, with Retry
 - **About:** It shows the real version, fills its window with the notices scrolling inside and a pinned footer, and loads the 15,000-line third-party notices only when asked (no longer part of the app's JavaScript)
 - **Research:** The research browser opens as a normal window and closes itself when research ends, unless you used it; it also closes when you quit
+- **Research:** Closing the research browser window yourself no longer stops research from working: the next research opens a new window, and a research whose window you close stops with a plain message and Retry
 - **AI setup:** Model and runtime downloads are checked while they are written, so the progress no longer restarts for a second pass
 - **AI models:** Whether a model fits is judged from its weights plus the cache for the real context size, against the memory that is free now
 - **Search:** A phrase such as "graphic builder" finds Graphic.Builder whatever the separators or capitalisation

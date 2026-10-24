@@ -16,11 +16,14 @@ mod approvals;
 pub(crate) mod commands;
 pub(crate) mod driving;
 mod hub;
+pub(crate) mod lifecycle;
 #[cfg(test)]
 mod live;
+mod placement;
 pub(crate) mod renderer;
 pub(crate) mod research;
 pub(crate) mod runtime;
+pub(crate) mod sessions;
 mod settings_section;
 #[cfg(test)]
 mod tests;
@@ -92,6 +95,9 @@ pub enum BrowserEvent {
     /// Research ended but its browser window stays open because the user took part in it; the window offers to close it
     /// (`research_browser_close`).
     ResearchBrowserKept,
+    /// The window's AI browser moved in its life cycle (launching, ready, closing, gone and why); `kept` while research
+    /// left it open. A browser the user closed is `gone` (`windowClosed`), and the next research starts a new one.
+    Lifecycle(lifecycle::Lifecycle),
     /// A line of what the AI is doing ("Reading 3 of 5 results"), for the status chip.
     Status {
         text: String,
@@ -105,14 +111,45 @@ pub enum BrowserEvent {
     },
 }
 
+/// Where `owner`'s browser opens: on the display that window is on ([`placement`]). Called from the launching thread,
+/// never the main thread.
+fn placement_of<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<chromium_driver::WindowBounds> {
+    let w = app.get_webview_window(owner)?;
+    let (p, s) = (w.outer_position().ok()?, w.outer_size().ok()?);
+    let owner_rect = placement::Rect {
+        x: f64::from(p.x),
+        y: f64::from(p.y),
+        width: f64::from(s.width),
+        height: f64::from(s.height),
+    };
+    let displays: Vec<placement::Display> = app
+        .available_monitors()
+        .unwrap_or_default()
+        .iter()
+        .map(|m| {
+            let (wp, ws) = (m.work_area().position, m.work_area().size);
+            placement::Display {
+                work: placement::Rect {
+                    x: f64::from(wp.x),
+                    y: f64::from(wp.y),
+                    width: f64::from(ws.width),
+                    height: f64::from(ws.height),
+                },
+                scale: m.scale_factor(),
+            }
+        })
+        .collect();
+    placement::place(&owner_rect, &displays)
+}
+
 /// Sends a browser event to the owner window.
 pub fn emit<R: Runtime>(app: &AppHandle<R>, owner: &str, event: BrowserEvent) {
     crate::windows::emit_to_window(app, owner, BROWSER_EVENT, event);
 }
 
 /// The renderers as managed state.
-pub fn renderers<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<renderer::Renderers>> {
-    app.try_state::<Arc<renderer::Renderers>>().map(|s| s.inner().clone())
+pub fn renderers<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<sessions::Renderers>> {
+    app.try_state::<Arc<sessions::Renderers>>().map(|s| s.inner().clone())
 }
 
 fn product<R: Runtime>(app: &AppHandle<R>) -> String {
@@ -150,6 +187,7 @@ pub(crate) fn page_for<R: Runtime>(
                 },
             );
         }),
+        lease: sessions::Lease::default(),
     })
 }
 
@@ -195,6 +233,10 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     let hub = Arc::new(BrowserHub::default());
     manage_state(app, hub.clone());
     let renderers = renderers(app).unwrap_or_default();
+    let a = app.clone();
+    renderers.listen(Arc::new(move |owner, life| emit(&a, owner, BrowserEvent::Lifecycle(life))));
+    let a = app.clone();
+    renderers.set_placer(Arc::new(move |owner| placement_of(&a, owner)));
     runtime::refresh_sources(app, &hub);
     if let Err(e) = crate::settings::register(
         app,
@@ -211,7 +253,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 /// The managed state alone (the hub and the approvals), for [`init`] and tests.
 pub fn manage_state<R: Runtime>(app: &AppHandle<R>, hub: Arc<BrowserHub>) {
     app.manage(BrowserState(hub));
-    app.manage(Arc::new(renderer::Renderers::default()));
+    app.manage(Arc::new(sessions::Renderers::default()));
     app.manage(Arc::new(Approvals::default()));
 }
 
@@ -228,7 +270,7 @@ pub fn owner_destroyed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
 /// Debrief exits: every browser is closed (gracefully, then by force) and its profile removed, even one kept open for the user.
 pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     if let Some(r) = renderers(app) {
-        r.close_all(renderer::QUIT_GRACE);
+        r.close_all(sessions::QUIT_GRACE);
     }
 }
 

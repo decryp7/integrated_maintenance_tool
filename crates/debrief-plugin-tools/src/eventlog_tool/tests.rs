@@ -1,6 +1,7 @@
 use super::*;
 use debrief_plugin_api::tools::TaskSink;
 use debrief_plugin_windows::eventlog::{Batch, Channel, EventLogError, EventStream, RawEvent};
+use std::sync::Mutex;
 
 fn xml(channel: &str, id: u64) -> String {
     format!(
@@ -305,4 +306,24 @@ fn a_failed_write_ends_the_background_task() {
     let e = t.invoke("stop", json!({}), &ctx).unwrap_err();
     assert!(e.to_string().contains("writing the event log files failed"), "{e}");
     let _ = std::fs::remove_file(&dir);
+}
+
+#[test]
+fn a_run_that_failed_on_its_own_is_over_and_the_next_start_works() {
+    let (t, log) = tool();
+    let dir = temp("again");
+    let ctx = ToolCtx::new(None, Arc::new(Tasks::default())).for_tool(EVENT_LOG);
+    t.invoke("start", json!({ "channels": ["System"], "dir": dir }), &ctx).unwrap();
+    wait_until("live", || t.status().unwrap()["channels"][0]["state"] == "live");
+    std::fs::remove_dir_all(&dir).unwrap();
+    std::fs::write(&dir, b"in the way").unwrap();
+    log.append();
+    wait_until("the end of the run", || t.status().unwrap()["running"] == false);
+    std::fs::remove_file(&dir).unwrap();
+    // Start again without Stop: the failed run does not block it.
+    t.invoke("start", json!({ "channels": ["System"], "dir": dir }), &ctx)
+        .expect("a new run starts");
+    assert_eq!(t.status().unwrap()["running"], true);
+    t.invoke("stop", json!({}), &ctx).unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
 }

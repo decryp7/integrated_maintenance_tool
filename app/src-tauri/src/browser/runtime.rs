@@ -4,7 +4,7 @@
 //! only after the new one passes its self-test, so a failed update keeps the working version.
 
 use super::hub::BrowserHub;
-use super::renderer::Renderers;
+use super::sessions::Renderers;
 use crate::windows::CurrentWindow;
 use crate::CmdResult;
 use chromium_driver::discover::Os;
@@ -96,7 +96,7 @@ pub fn status<R: Runtime>(app: &AppHandle<R>) -> RuntimeStatus {
         ("configured", Some(p))
     } else if let Some(p) = installed {
         ("installed", Some(p))
-    } else if let Some(b) = super::renderer::fallback_browser() {
+    } else if let Some(b) = super::sessions::fallback_browser() {
         ("found", Some(b.path))
     } else {
         ("none", None)
