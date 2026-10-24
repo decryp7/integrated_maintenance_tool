@@ -352,7 +352,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/check-dialog-commands.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs app/e2e/retried-reporter.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/check-dialog-commands.test.mjs app/scripts/window-weight.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs app/e2e/retried-reporter.test.mjs
           node scripts/ci/check-quarantine.mjs
           node scripts/ci/scan-fixtures.mjs
           node scripts/ci/check-icons.mjs
@@ -397,8 +397,18 @@ jobs:
       - name: Dialog command lint tests
         run: node --test scripts/check-dialog-commands.test.mjs
 
+      # --stats-json writes dist/app/browser-stats.json for the window-weight step below (the one build of this job).
       - name: Frontend build
-        run: npx ng build
+        run: npx ng build --stats-json
+
+      # Paddock rule 35: the JS the main window loads before first paint (static closure of main, bootstrap, app and
+      # app.config) stays under its budget (measured + 10%, docs/performance.md); pop-out and dialog are reported, the
+      # About dialog window is bounded too.
+      - name: First-paint JS budget (main window)
+        run: |
+          node scripts/window-weight.mjs main --max 1355
+          node scripts/window-weight.mjs popout
+          node scripts/window-weight.mjs about --max 480
 
       # No inline <style>/<script> (Tauri's CSP nonce would disable the app's styles) and the start-up splash is present.
       - name: Built index.html (no inline elements, splash present)
