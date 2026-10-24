@@ -13,6 +13,7 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 ### Fixed
 
 - **Research browser:** The research browser closes again when research ends, unless you used it; it no longer opens an empty second tab
+- **Profile editor:** Its buttons no longer jump to another line when the profile arrives just after the editor opens, so a click made at once (on Propose…, for example) is no longer lost; the profile's name and path truncate instead
 
 ### Changed
 

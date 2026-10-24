@@ -22,15 +22,18 @@ import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
   host: { '(keydown)': 'onKey($event)' },
   template: `
     <div class="bar">
-      <span class="name">{{ draft.model().name ?? draft.doc()?.name ?? '…' }}</span>
-      <span class="mono faint path ellipsis">{{ draft.importedFrom() ?? draft.doc()?.path ?? builtInDefault }}</span>
-      @if (draft.dirty()) { <span class="unsaved" i18n="@@profile.editor.unsaved">● Unsaved</span> }
-      @if (draft.problem(); as p) {
-        <span class="bad"><debrief-icon name="alert" [size]="13" /> {{ problemText(p) }}</span>
-      } @else if (draft.validation()?.ok) {
-        <span class="good" i18n="@@profile.editor.valid"><debrief-icon name="check" [size]="13" /> Valid</span>
-      }
-      <span class="spacer"></span>
+      <!-- The profile's name and state arrive after the view opens: they fill a slot of fixed basis and truncate, so the
+           controls beside them never move under the pointer when they do (ADR 0061). -->
+      <div class="ident">
+        <span class="name ellipsis" [title]="draft.model().name ?? draft.doc()?.name ?? ''">{{ draft.model().name ?? draft.doc()?.name ?? '…' }}</span>
+        <span class="mono faint path ellipsis" [title]="draft.importedFrom() ?? draft.doc()?.path ?? builtInDefault">{{ draft.importedFrom() ?? draft.doc()?.path ?? builtInDefault }}</span>
+        @if (draft.dirty()) { <span class="unsaved" i18n="@@profile.editor.unsaved">● Unsaved</span> }
+        @if (draft.problem(); as p) {
+          <span class="bad"><debrief-icon name="alert" [size]="13" /> {{ problemText(p) }}</span>
+        } @else if (draft.validation()?.ok) {
+          <span class="good" i18n="@@profile.editor.valid"><debrief-icon name="check" [size]="13" /> Valid</span>
+        }
+      </div>
       <div class="seg" role="tablist">
         <button role="tab" class="btn" [class.active]="mode() === 'form'" [attr.aria-selected]="mode() === 'form'" (click)="mode.set('form')" i18n="@@profile.editor.tab.form">Form</button>
         <button role="tab" class="btn" [class.active]="mode() === 'toml'" [attr.aria-selected]="mode() === 'toml'" (click)="mode.set('toml')">TOML</button>
@@ -78,12 +81,15 @@ import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
     `
     :host { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg-1); }
     .bar { flex: none; display: flex; align-items: center; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
+    /* Basis 0 and a fixed minimum: where the controls sit (and whether they wrap) depends on the panel's width only, never on the name, path or state shown here. */
+    .ident { flex: 1 1 0; min-width: 160px; display: flex; align-items: center; gap: 10px; overflow: hidden; }
+    .ident > * { flex: 0 1 auto; min-width: 0; }
+    .ident > .unsaved, .ident > .good { flex: none; }
     .name { font-weight: 600; }
     .path { font-size: var(--fs-xs); max-width: 280px; }
-    .unsaved { color: var(--warn-text); font-size: var(--fs-sm); }
+    .unsaved { color: var(--warn-text); font-size: var(--fs-sm); white-space: nowrap; }
     .bad { display: inline-flex; align-items: center; gap: 4px; color: var(--danger-text); font-size: var(--fs-sm); max-width: 420px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .good { display: inline-flex; align-items: center; gap: 4px; color: var(--ok); font-size: var(--fs-sm); }
-    .spacer { flex: 1; }
+    .good { display: inline-flex; align-items: center; gap: 4px; color: var(--ok); font-size: var(--fs-sm); white-space: nowrap; }
     .seg { display: flex; gap: 2px; }
     .stale { flex: none; display: flex; align-items: center; gap: 8px; padding: 6px 14px; font-size: var(--fs-sm); color: var(--warn-text); border-bottom: 1px solid var(--border); background: var(--bg-2); }
     .note { flex: none; padding: 6px 14px; font-size: var(--fs-xs); border-bottom: 1px solid var(--border); }
