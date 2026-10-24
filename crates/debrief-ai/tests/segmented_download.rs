@@ -430,6 +430,46 @@ const FILE: &str = "big.gguf";
 
 /// A mock Hugging Face whose CDN honours `Range` and limits every connection to `rate` bytes per second.
 fn hf_server(data: Arc<Vec<u8>>, rate: Option<u64>, ranges: bool) -> Mock {
+    hf_server_gated(data, rate, ranges, None)
+}
+
+/// Holds the CDN's data requests (not the one-byte range probe) until `want` of them are open at the same time, so a
+/// test can tell that the connections overlapped without timing them. A safety net lets a request go after 20 s; `full`
+/// says whether `want` were held at once (no request had to be let go by the safety net).
+struct Gate {
+    want: usize,
+    /// (requests seen, a request was let go by the safety net)
+    state: Mutex<(usize, bool)>,
+    changed: std::sync::Condvar,
+}
+
+impl Gate {
+    fn new(want: usize) -> Arc<Gate> {
+        Arc::new(Gate {
+            want,
+            state: Mutex::new((0, false)),
+            changed: std::sync::Condvar::new(),
+        })
+    }
+
+    fn pass(&self) {
+        let mut st = self.state.lock().unwrap();
+        st.0 += 1;
+        self.changed.notify_all();
+        let (mut st, wait) = self
+            .changed
+            .wait_timeout_while(st, Duration::from_secs(20), |st| st.0 < self.want)
+            .unwrap();
+        st.1 |= wait.timed_out();
+    }
+
+    fn full(&self) -> bool {
+        let st = self.state.lock().unwrap();
+        st.0 >= self.want && !st.1
+    }
+}
+
+fn hf_server_gated(data: Arc<Vec<u8>>, rate: Option<u64>, ranges: bool, gate: Option<Arc<Gate>>) -> Mock {
     let sha = sha256_hex(&data);
     Mock::start(move |req, port| {
         let p = req.path.as_str();
@@ -443,6 +483,9 @@ fn hf_server(data: Arc<Vec<u8>>, rate: Option<u64>, ranges: bool) -> Mock {
         } else if p == format!("/{REPO}/resolve/main/{FILE}") {
             Resp::redirect(&format!("http://localhost:{port}/cdn/{FILE}"))
         } else if p.starts_with("/cdn/") {
+            if let Some(g) = gate.as_ref().filter(|_| range_of(req).is_some_and(|(a, b)| b > a)) {
+                g.pass();
+            }
             let mut r = if ranges {
                 partial(req, &data)
             } else {
@@ -531,20 +574,17 @@ fn a_hugging_face_download_in_segments_matches_the_original() {
     assert_eq!(got, *data);
 }
 
-/// Per-connection limits are what segments beat: 4 connections move the same file about 3-4 times faster.
+/// Per-connection limits are what segments beat: four connections to a throttled CDN are open at the same time (the
+/// speed-up itself is measured by the benchmark below, not asserted, as a loaded machine stretches any timing).
 #[test]
-fn segments_are_faster_than_one_connection_on_a_throttled_server() {
+fn segments_open_several_throttled_connections_at_once() {
     let data = Arc::new(blob(4 << 20));
-    let m = hf_server(data.clone(), Some(4 << 20), true);
+    let gate = Gate::new(4);
+    let m = hf_server_gated(data.clone(), Some(4 << 20), true, Some(gate.clone()));
     let src = hf(&m, 512 * 1024);
-    let (one, a) = hf_download(&src, 1);
-    let (four, b) = hf_download(&src, 4);
-    assert_eq!((&a, &b), (&*data, &*data));
-    eprintln!(
-        "1 connection {one:?}, 4 connections {four:?}, speed-up x{:.1}",
-        one.as_secs_f64() / four.as_secs_f64()
-    );
-    assert!(four.as_secs_f64() * 2.0 < one.as_secs_f64(), "{one:?} vs {four:?}");
+    let (_, got) = hf_download(&src, 4);
+    assert_eq!(got, *data);
+    assert!(gate.full(), "four data requests to the throttled CDN were open at the same time");
 }
 
 /// `cargo test -p debrief-ai --test segmented_download --release -- --ignored --nocapture`
