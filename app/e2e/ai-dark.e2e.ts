@@ -55,9 +55,10 @@ test.describe('AI views in the dark theme', () => {
     await expect(wizard.getByTestId('ai-hardware')).toContainText('8 GB video memory');
     await expectNoSeriousViolations(page, testInfo, 'dark-ai-setup-plan', '[role=dialog]');
     await wizard.getByTestId('ai-setup-start').click();
-    await expect(wizard.getByTestId('ai-setup-ready')).toContainText('Vulkan');
-    await expectNoSeriousViolations(page, testInfo, 'dark-ai-setup-ready', '[role=dialog]');
-    await wizard.getByRole('button', { name: 'Close' }).first().click();
+    await expect(wizard).toHaveCount(0);
+    const ready = page.getByTestId('notification').filter({ hasText: 'AI assistant ready' });
+    await expect(ready).toBeVisible({ timeout: 20_000 });
+    await expectNoSeriousViolations(page, testInfo, 'dark-ai-setup-ready', '[data-testid=notification]');
 
     await runCommand(page, 'AI: Manage models…');
     const models = page.getByRole('dialog', { name: 'AI models' });

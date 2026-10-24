@@ -11,9 +11,9 @@ const CUDA = ['/Downloads/llama-b11669-bin-win-cuda-13-x64.zip', '/Downloads/cud
 test('a runtime download blocked by a TLS-inspecting proxy is installed from the files downloaded by hand', async ({
   page,
 }, testInfo) => {
-  await openAppWith(page, `?mockAi=setup&mockAiRuntime=none&mockAiNet=tls&mockAiStepMs=5&mockOpen=${CUDA.join(',')}`);
-  await runCommand(page, 'Set up AI assistant');
-  const dialog = page.getByRole('dialog', { name: 'Set up the AI assistant' });
+  await openAppWith(page, `?mockAiRuntime=none&mockAiNet=tls&mockAiStepMs=5&mockOpen=${CUDA.join(',')}`);
+  await runCommand(page, 'AI: Manage models');
+  const dialog = page.getByRole('dialog', { name: 'AI models' });
   await dialog.getByTestId('ai-runtime-download-suggested').click();
   await expect(dialog.getByTestId('ai-runtime-error')).toContainText('Zscaler');
 
@@ -36,27 +36,18 @@ test('a runtime download blocked by a TLS-inspecting proxy is installed from the
   await manual.getByTestId('ai-manual-add').click();
   await expect(dialog.getByTestId('ai-runtime-ready')).toContainText('CUDA 13 (NVIDIA) is installed');
   await expect(dialog.getByTestId('ai-manual-download')).toHaveCount(0);
-  await expect(dialog.getByTestId('ai-runtime-continue')).toBeEnabled();
+  await expect(dialog.getByTestId('ai-runtime-cuda-13')).toContainText('Active');
 });
 
-test('a model download blocked by a TLS-inspecting proxy shows the file, its SHA-256 and how to add it', async ({
+test('a model download blocked by a TLS-inspecting proxy ends the background set-up with a message that names the certificate problem and offers Retry', async ({
   page,
-}, testInfo) => {
+}) => {
   await openAppWith(page, '?mockAi=setup&mockAiNet=tls&mockAiStepMs=5');
   await runCommand(page, 'Set up AI assistant');
-  const dialog = page.getByRole('dialog', { name: 'Set up the AI assistant' });
-  await dialog.getByTestId('ai-setup-start').click();
-  await expect(dialog.getByTestId('ai-setup-error')).toContainText('root certificate');
-
-  const manual = dialog.getByRole('region', { name: 'Download manually' });
-  await expect(manual.getByTestId('ai-manual-kind')).toContainText('Certificate problem');
-  await expect(manual.getByTestId('ai-manual-file-0')).toContainText('.gguf');
-  await expect(manual.getByTestId('ai-manual-sha')).toHaveText(/^[0-9a-f]{64}$/);
-  await expect(manual.getByTestId('ai-manual-steps')).toContainText('huggingface.co');
-  await expect(manual.getByTestId('ai-manual-steps')).toContainText('Add local GGUF');
-  await expectNoSeriousViolations(page, testInfo, 'ai-manual-model', '[role=dialog]');
-
-  await manual.getByTestId('ai-manual-add').click();
-  // The file was checked and added; the wizard starts again from the model list.
-  await expect(dialog.getByTestId('ai-setup-start')).toBeVisible();
+  await page.getByRole('dialog', { name: 'Set up the AI assistant' }).getByTestId('ai-setup-start').click();
+  const failed = page.getByTestId('notification').filter({ hasText: 'could not be set up' });
+  await expect(failed).toContainText('root certificate', { timeout: 20_000 });
+  await expect(failed.getByRole('button', { name: 'Retry' })).toBeVisible();
+  // The manual download (file, SHA-256, steps) is no longer offered after a failed first set-up.
+  await expect(page.getByTestId('ai-manual-download')).toHaveCount(0);
 });

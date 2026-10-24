@@ -53,7 +53,7 @@ export function severityLabel(s: NoteSeverity): string {
 
 /** The theme token a note's severity is drawn with. */
 export function severityColor(s: NoteSeverity): string {
-  return s === 'problem' ? 'var(--lvl-error)' : s === 'warning' ? 'var(--lvl-warn)' : 'var(--accent)';
+  return s === 'problem' ? 'var(--lvl-error)' : s === 'warning' ? 'var(--lvl-warn)' : 'var(--accent-text)';
 }
 
 const baseName = (p: string) => p.split(/[\\/]/).filter(Boolean).at(-1) ?? p;
