@@ -22,6 +22,11 @@ beforeEach(() => {
   resetMockNotifications();
 });
 
+// The page is shared the same way: elements a spec left in the body (a dock with an active tab, an overlay) were read by
+// the next spec (the error logger records the active view's title). TestBed has removed its fixtures by now; every test
+// starts with an empty body.
+beforeEach(() => document.body.replaceChildren());
+
 class ResizeObserverStub {
   constructor(private readonly cb: ResizeObserverCallback) {}
   observe(target: Element): void {
