@@ -21,7 +21,11 @@ const LOW_MEMORY_IMPORT_BUDGET_MB: u64 = 400;
 /// resident pages of libduckdb and the system allocator keeps freed pages (no `malloc_trim`), so the worker idles about
 /// 100 MB higher there and queries about 150 MB higher (measured on 1.0.1 and later: idle 304-401 MB, querying 364-522 MB
 /// against 300 MB on Linux CI). That is the platform, not a regression; Linux and Windows keep the 300 MB budget.
-const QUERY_BUDGET_MB: u64 = if cfg!(target_os = "macos") { 550 } else { 300 };
+///
+/// Linux 320 MB since the names catalogue (merge fa135656, human names): measured natively on Linux arm64 the worker
+/// queried at 266-288 MB before it and 295-307 MB after (v1.0.1: 273-284 MB; 1.1.0: 300-307 MB), and the CI runner
+/// at 301-303 MB. The feature's cost, not a leak; the budget follows it (decision to confirm: ADR 0014's budget).
+const QUERY_BUDGET_MB: u64 = if cfg!(target_os = "macos") { 550 } else { 320 };
 /// Growth of the app process allowed while it drives an import and queries (it holds no events).
 const CLIENT_GROWTH_MB: u64 = 64;
 
