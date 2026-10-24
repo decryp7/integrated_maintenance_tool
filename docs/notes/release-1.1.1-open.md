@@ -52,10 +52,8 @@ echo "== $1 $(git -C $B log -1 --format=%s | cut -c1-60) (load $(uptime | sed 's
 for i in $(seq ${2:-4}); do a=$(cd $B && CARGO_TARGET_DIR=$BT m); h=$(m); echo "rev: $a | head: $h"; done
 ```
 
-## 2. Linux run of the tray fix
+## 2. Linux run of the tray fix (done 2026-10-24)
 
-Not yet run on Linux. Plan: one container from `rust:1.99` (arm64), apt packages as in CI (`libwebkit2gtk-4.1-dev
-libgtk-3-dev librsvg2-dev libayatana-appindicator3-dev xvfb`), copy of the tree, `cargo test -p debrief-app --lib --
-tray::tests:: lifecycle::tests::quitting_finishes_with_live_tail_jobs_and_the_tray` under `xvfb-run -a`, without a
-display, and once with `host_available`'s GTK check reverted (must panic in gtk menu.rs). Also
-`cargo check -p debrief-app` for Linux is covered by that build.
+Native arm64 container (`rust:1.99` with the CI job's packages): with the fix, the tray and lifecycle tests pass under
+`xvfb-run` (5/5) and without a display (5/5); with `host_available`'s GTK check reverted, the new tray test and the
+lifecycle test panic in gtk `menu.rs:29` ("GTK has not been initialized"), as on CI.
