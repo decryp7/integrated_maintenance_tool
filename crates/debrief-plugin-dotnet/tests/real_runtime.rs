@@ -92,7 +92,12 @@ impl Drop for Target {
 }
 
 fn run(exe: &Path) -> Target {
-    let mut child = Command::new(exe)
+    let mut cmd = Command::new(exe);
+    // A framework-dependent fixture finds the runtime of a per-user install (`~/.dotnet`) only through DOTNET_ROOT.
+    if let Some(root) = dotnet().and_then(|d| d.parent().map(Path::to_path_buf)).filter(|r| r.is_absolute()) {
+        cmd.env("DOTNET_ROOT", root);
+    }
+    let mut child = cmd
         .arg("120")
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
