@@ -18,6 +18,8 @@ async function setup() {
   TestBed.configureTestingModule({
     providers: [...provideToolsTesting(), { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(ProjectUiState).contributions }],
   });
+  // The workspace loads its summary when it is created (a start-up read, retried: ADR 0058): create it, then let it load.
+  TestBed.inject(WorkspaceStore);
   await settle();
   return {
     workspace: TestBed.inject(WorkspaceStore),

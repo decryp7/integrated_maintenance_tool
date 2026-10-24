@@ -3,6 +3,36 @@ import { ChangelogRelease } from './changelog';
 
 export const CHANGELOG: readonly ChangelogRelease[] = [
   {
+    "version": "1.1.0",
+    "date": "",
+    "groups": [
+      {
+        "title": "Added",
+        "items": [
+          "AI: When Pitwall runs on this computer, Debrief can use it as its AI engine: choose Use Pitwall in the AI set-up, approve the six-digit code in Pitwall, and one model serves all your apps without a second download. Settings ▸ AI ▸ AI engine chooses Automatic, Pitwall or Built-in; if Pitwall stops, Debrief says so and offers the built-in engine instead of switching by itself"
+        ]
+      },
+      {
+        "title": "Changed",
+        "items": [
+          "Notifications: One failure is now one notification. A repeated message updates the one already on screen (with a count) instead of adding another, errors stay until you dismiss them or the problem is gone, and technical details are folded behind Details. Job results, update offers, live alerts, error snapshots and errors all appear in the same place",
+          "Services: When the log store, the AI worker, a plugin, the research browser or a download stops, the status bar shows one chip with a plain explanation, the next step, the technical details and a Try again / Restart / Allow again / Install button. Every window shows the same state, including a window you open while a service is down",
+          "Memory limits: When a memory limit stops the database worker, the AI worker or a plugin, the status chip says so once, with Try again and Raise the cap… (it opens the setting with a suggested value)",
+          "Panels: A panel that needs the log store shows \"Waiting for the log store\" instead of its own red error, and loads by itself when the store is back; the assistant, the research browser, models and runtimes wait for their own service the same way"
+        ]
+      },
+      {
+        "title": "Fixed",
+        "items": [
+          "Dialogs: Every dialog is now one of four kinds (decision, form, viewer, tool) that decides its size, buttons and keys: result windows open at least 680 x 560 and only grow, questions are exactly as big as their text, and every window has a Close or Cancel button that stays in view (What's new no longer scrolls its Got it button out of sight)",
+          "Dialogs: A dialog window may call only the commands it needs, so a bug in one window can no longer do what only the main window should; Restart to apply in Settings and the plugin windows, and Restart as administrator in the profiling and diagnostics windows, now restart through the window that opened them and keep its session",
+          "Dialogs: Open recent project hands the choice back to the window you were working in, which asks about unsaved changes and opens it; What's new always shows the notes of the version that is running",
+          "Dialogs: With several displays, a dialog always opens on the display of the window that opened it, at a size that fits that display; a remembered position is kept relative to that window and only used when the dialog then stays on its display, and short dialogs no longer jump in height after opening"
+        ]
+      }
+    ]
+  },
+  {
     "version": "1.0.2",
     "date": "2026-10-23",
     "groups": [
@@ -24,6 +54,7 @@ export const CHANGELOG: readonly ChangelogRelease[] = [
           "AI setup: Pick the model, press Download and set up, and the window closes; the download runs in the background (Jobs, status bar, the assistant pane) and a message says when the assistant is ready or why it failed, with Retry",
           "About: It shows the real version, fills its window with the notices scrolling inside and a pinned footer, and loads the 15,000-line third-party notices only when asked (no longer part of the app's JavaScript)",
           "Research: The research browser opens as a normal window and closes itself when research ends, unless you used it; it also closes when you quit",
+          "Research: Closing the research browser window yourself no longer stops research from working: the next research opens a new window, and a research whose window you close stops with a plain message and Retry",
           "AI setup: Model and runtime downloads are checked while they are written, so the progress no longer restarts for a second pass",
           "AI models: Whether a model fits is judged from its weights plus the cache for the real context size, against the memory that is free now",
           "Search: A phrase such as \"graphic builder\" finds Graphic.Builder whatever the separators or capitalisation",

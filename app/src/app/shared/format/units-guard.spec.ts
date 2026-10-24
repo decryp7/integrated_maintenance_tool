@@ -16,6 +16,7 @@ const QUANTITY = /(?:bytes|size|ms|millis|count|total|done|percent|pct|rate|dura
 /** `file:expression` -> why printing it as is is right. */
 const ALLOWED = new Map<string, string>([
   ['ai/proposals/parser-verdict.ts:v.zone.offset', 'a UTC offset the engine formats (e.g. +09:00), not a quantity'],
+  ['health/notification-host.ts:n.count', 'how often one notification repeated (×3); health/ is shared-ready for paddock-ui and imports no Debrief formatter'],
 ]);
 
 interface Hit {

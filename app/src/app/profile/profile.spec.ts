@@ -147,6 +147,8 @@ describe('ProfileDraft', () => {
   it('reports load and validation failures', async () => {
     const backend = tinyBackend();
     const { draft, store } = configure(backend);
+    // The workspace's own first load (which clears the error) ends before the failing load is checked.
+    await settle();
     vi.spyOn(backend, 'getProfile').mockRejectedValueOnce('no profile');
     await draft.load();
     expect(store.error()).toBe('no profile');
