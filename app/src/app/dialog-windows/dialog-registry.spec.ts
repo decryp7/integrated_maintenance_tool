@@ -1,4 +1,4 @@
-import { DialogComponent, DIALOG_BACKEND_COMMANDS, DIALOG_BASE_COMMANDS, DIALOG_SYNC_COMMANDS, dialogIdOf } from './dialog-def';
+import { DialogComponent, DIALOG_BACKEND_COMMANDS, DIALOG_BASE_COMMANDS, DIALOG_BOOT_COMMANDS, DIALOG_SYNC_COMMANDS, dialogIdOf } from './dialog-def';
 import { DIALOG_DEFS, dialogDef } from './dialog-registry';
 import { DIALOG_KINDS, KIND_POLICY, KIT_BASE_COMMANDS, VIEWER_MIN, commandCovered, defineDialog, modalityOf, raiseToKindMinimum, resolveSize, type } from './kit';
 
@@ -17,7 +17,7 @@ describe('dialog registry', () => {
       expect(d.width).toBeGreaterThanOrEqual(320);
       expect(d.commands.length, d.id).toBeGreaterThanOrEqual(0);
       expect(new Set(d.commands).size, `${d.id} lists a command twice`).toBe(d.commands.length);
-      const implied = [...KIT_BASE_COMMANDS, ...DIALOG_BASE_COMMANDS, ...DIALOG_SYNC_COMMANDS, ...(d.backends ?? []).flatMap((b) => DIALOG_BACKEND_COMMANDS[b] ?? [])];
+      const implied = [...KIT_BASE_COMMANDS, ...DIALOG_BASE_COMMANDS, ...DIALOG_BOOT_COMMANDS, ...DIALOG_SYNC_COMMANDS, ...(d.backends ?? []).flatMap((b) => DIALOG_BACKEND_COMMANDS[b] ?? [])];
       expect(d.commands.filter((c) => commandCovered(implied, c)), `${d.id} lists a base command`).toEqual([]);
     }
     expect(dialogDef('nope')).toBeUndefined();

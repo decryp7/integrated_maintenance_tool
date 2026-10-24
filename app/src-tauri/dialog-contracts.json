@@ -10,6 +10,8 @@
     "query_timeline",
     "recent_list",
     "save_error_snapshot",
+    "window_boot_error",
+    "window_ready",
     "workspace_summary"
   ],
   "dialogs": {
@@ -61,6 +63,7 @@
         "ai_status",
         "dialog_open",
         "find_values",
+        "health_snapshot",
         "jobs_cancel",
         "jobs_unwait",
         "jobs_wait",
@@ -694,6 +697,7 @@
         "ai_research",
         "ai_research_draft",
         "find_values",
+        "health_snapshot",
         "run_query"
       ]
     },

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { settle } from '../../testing/helpers';
 import { MockAiBackend } from '../core/mock/mock-ai-backend';
 import { dialogAppConfig } from './dialog-bootstrap';
-import { DIALOG_BACKEND_COMMANDS, DIALOG_BASE_COMMANDS, DIALOG_SYNC_COMMANDS } from './dialog-def';
+import { DIALOG_BACKEND_COMMANDS, DIALOG_BASE_COMMANDS, DIALOG_BOOT_COMMANDS, DIALOG_SYNC_COMMANDS } from './dialog-def';
 import { DIALOG_IO } from './dialog-io';
 import { FakeDialogIo } from './dialog-io-fake';
 import { DIALOG_TEST_INPUTS } from './dialog-test-inputs';
@@ -86,7 +86,7 @@ describe('every dialog sends only the commands it declares', () => {
         });
         const fixture = TestBed.createComponent(DialogShell);
         await settle(fixture, 8);
-        const allowed = [...KIT_BASE_COMMANDS, ...DIALOG_BASE_COMMANDS, ...DIALOG_SYNC_COMMANDS, ...def.commands, ...(def.backends ?? []).flatMap((b) => DIALOG_BACKEND_COMMANDS[b] ?? [])];
+        const allowed = [...KIT_BASE_COMMANDS, ...DIALOG_BASE_COMMANDS, ...DIALOG_BOOT_COMMANDS, ...DIALOG_SYNC_COMMANDS, ...def.commands, ...(def.backends ?? []).flatMap((b) => DIALOG_BACKEND_COMMANDS[b] ?? [])];
         const refused = [...new Set(sent)].filter((c) => !commandCovered(allowed, c));
         expect(refused, `${def.id} sent commands its contract does not declare`).toEqual([]);
         fixture.destroy();

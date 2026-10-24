@@ -272,7 +272,7 @@ export const DIALOG_DEFS = [
     width: 720,
     height: 560,
     result: type<void>(),
-    commands: ['ai_research', 'ai_research_draft', 'find_values', 'run_query'],
+    commands: ['ai_research', 'ai_research_draft', 'find_values', 'health_snapshot', 'run_query'],
     load: () => import('../browser/research-dialog').then((m) => m.ResearchDialog),
   }),
   defineDialog({
@@ -301,7 +301,7 @@ export const DIALOG_DEFS = [
       'ai_catalog', 'ai_manual_download', 'ai_manual_download_open', 'ai_model_activate', 'ai_model_add_local',
       'ai_model_add_projector', 'ai_model_delete', 'ai_model_install_projector', 'ai_models', 'ai_reset',
       'ai_runtime_add_archives', 'ai_runtime_choose', 'ai_runtime_delete', 'ai_runtime_install', 'ai_runtimes',
-      'dialog_open', 'find_values', 'jobs_cancel', 'jobs_unwait', 'jobs_wait', 'pick_paths',
+      'dialog_open', 'find_values', 'health_snapshot', 'jobs_cancel', 'jobs_unwait', 'jobs_wait', 'pick_paths',
       'run_query',
     ],
     load: () => import('../ai/models/model-manager').then((m) => m.AiModelManager),

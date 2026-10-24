@@ -18,7 +18,13 @@ export function defineDialog<const Id extends string, C, R>(spec: DialogSpec<Id,
  * answering, sizing): the UI state sync with the host, theme and display settings, logging and the activity log.
  * A dialog never lists these. `check-dialog-commands.mjs` derives them from the shell and the base providers.
  */
-export const DIALOG_BASE_COMMANDS: readonly string[] = ['capture_window_image', 'diagnostics_settings', 'recent_list', 'save_error_snapshot'];
+export const DIALOG_BASE_COMMANDS: readonly string[] = ['capture_window_image', 'diagnostics_settings', 'recent_list', 'save_error_snapshot', 'window_ready'];
+
+/**
+ * What a dialog page sends before Angular boots (`main.ts`, `bootstrap.ts`: uncaught boot errors to the Rust log, ADR
+ * 0058). The analysis starts at the shell, so they are listed here.
+ */
+export const DIALOG_BOOT_COMMANDS: readonly string[] = ['window_boot_error'];
 
 /**
  * What applying the host's synced UI state may call in a dialog window (`sharedUiState` in `popout/shared-state.ts`:
