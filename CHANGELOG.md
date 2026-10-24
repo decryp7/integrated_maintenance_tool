@@ -3,7 +3,7 @@
 What changed for people who use Debrief, one section per release. This file is curated by hand (the in-app "What's new"
 panel reads it at build time); `git cliff` lists every commit if you need the full history.
 
-## 1.1.0
+## 1.1.0 (2026-10-24)
 
 ### Added
 

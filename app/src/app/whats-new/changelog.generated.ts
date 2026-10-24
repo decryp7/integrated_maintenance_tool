@@ -4,7 +4,7 @@ import { ChangelogRelease } from './changelog';
 export const CHANGELOG: readonly ChangelogRelease[] = [
   {
     "version": "1.1.0",
-    "date": "",
+    "date": "2026-10-24",
     "groups": [
       {
         "title": "Added",
