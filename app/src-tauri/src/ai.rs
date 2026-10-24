@@ -112,7 +112,8 @@ pub fn init<R: Runtime>(app: &AppHandle<R>, safe_mode: bool) {
     update_commands::init(app, core.clone());
     // Looks at Pitwall in the background first; the built-in model loads afterwards only when it is the engine.
     pitwall::start(app, core.clone());
-    match core.status() {
+    // The light status: the full one scans every process for the workers' memory, seconds on a busy Mac (start-up).
+    match core.status_light() {
         s if s.available => log::info!(State = format!("{:?}", s.state).as_str(); "AI assistant ready to use"),
         s => log::info!("AI assistant unavailable: {}", s.reason.unwrap_or_default()),
     }

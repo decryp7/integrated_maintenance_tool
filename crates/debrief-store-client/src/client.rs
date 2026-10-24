@@ -343,6 +343,14 @@ impl StoreWorker {
         self.inner.sup.status()
     }
 
+    /// Starts the worker now when it is not running, so the first store call does not wait for its start (Debrief
+    /// does this in the background after the main window's first paint). Blocks while the worker starts: call it on a
+    /// background thread. A worker that cannot start reports why here and again on the first call.
+    pub fn warm_up(&self) -> StoreResult<()> {
+        self.check_available()?;
+        self.inner.sup.lease().map(drop).map_err(ipc_error)
+    }
+
     /// The worker's own report (starts it if needed).
     pub fn worker_status(&self) -> StoreResult<WorkerStatus> {
         self.inner

@@ -18,6 +18,7 @@
 //! - **Events to one window**: [`windows::emit_to_window`]; never `emit` window-specific events to all.
 
 mod activity;
+mod after_first_paint;
 mod agent_commands;
 mod ai;
 mod app_context;
@@ -81,6 +82,7 @@ mod share;
 mod skew_commands;
 mod smart_search;
 mod snapshots;
+mod startup_timings;
 mod startup_watchdog;
 mod storage;
 mod store_pane;
@@ -364,6 +366,8 @@ command_table! {
     Mutation [WINDOW] => window_manager::focus_window,
     Quiet [MAIN] => window_manager::set_window_title,
     Quiet [WINDOW] => startup_watchdog::window_ready,
+    Quiet [MAIN] => startup_timings::startup_mark,
+    Query [WINDOW] => startup_timings::startup_timings,
     Quiet [WINDOW] => startup_watchdog::window_boot_error,
     Quiet [MAIN] limit 16 * MIB => startup_watchdog::ui_checkpoint,
     Mutation [MAIN] => window_manager::resolve_close,
@@ -546,6 +550,8 @@ fn window_state_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // The start-up timings count from here (rule 16).
+    startup_timings::process_started();
     // Debug builds only: test-run overrides (browser arguments, data folder, paths to open); a bad value stops here.
     if let Err(e) = dev_overrides::init() {
         eprintln!("Debrief cannot start: {e}");
@@ -600,9 +606,17 @@ pub fn run() {
 }
 
 fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, single: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let timings = startup_timings::StartupTimings::default();
+    // From the process start to here: argument parsing, the Tauri builder and its plugins, the event loop.
+    timings.step("before setup");
     // Before any window: its first page load arms the start-up watchdog.
     app.manage(startup_watchdog::StartupWatchdog::default());
     create_main_window(app)?;
+    timings.mark(startup_timings::Mark::WindowCreated);
+    timings.step("main window");
+    app.manage(timings);
+    let handle = app.handle().clone();
+    let step = move |name: &'static str| handle.state::<startup_timings::StartupTimings>().step(name);
     // Debrief's folders and run flags, resolved once (see `app_context`).
     let ctx = app_context::AppContext::of(app.handle(), safe_mode, single);
     let diag = diagnostics::load(ctx.config.as_deref());
@@ -613,11 +627,15 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     // Child processes' stderr and start/exit lines (for problem reports): `<logs>/children/<name>.log`.
     if let Some(dir) = &ctx.log {
         debrief_ipc::child_log::set_dir(activity::report::children_dir(dir));
-        diagnostics::prune_old_logs(dir, diag.log.max_age_days, std::time::SystemTime::now());
+        // Old logs are removed in the background (a folder scan the first window does not need).
+        let (dir, days) = (dir.clone(), diag.log.max_age_days);
+        std::thread::spawn(move || diagnostics::prune_old_logs(&dir, days, std::time::SystemTime::now()));
     }
     lifecycle::install_panic_logging();
+    step("logging");
     let life = lifecycle::Lifecycle::begin_in(ctx.data.clone(), ctx.safe_mode, lifecycle::InstanceScope::of(ctx.single_instance));
     let previous_crash = life.previous_crash;
+    step("lifecycle");
     log::info!(Version = env!("CARGO_PKG_VERSION"), SafeMode = safe_mode, PreviousCrash = previous_crash, SingleInstance = single; "Application starting — Debrief {}", env!("CARGO_PKG_VERSION"));
 
     // ---- managed state (app-wide) ----
@@ -630,11 +648,22 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
         ctx.data.as_ref().map(|d| d.join("plugins")),
         ctx.safe_mode,
     )?;
+    step("app state");
     if let Some(problem) = shared.plugins.problem() {
         log::error!("Plugins are unavailable: {problem}");
     }
-    // Plugin processes start in the background, so the first import does not wait for one.
+    // Plugin processes start in the background at once: the stored settings (applied in the background too) talk to
+    // them, and the first import does not wait for one.
     shared.plugins.warm_up();
+    // The store worker starts in the background once the main window painted (its start would compete with the
+    // window's), so the first query does not wait for it.
+    let after_paint = after_first_paint::AfterFirstPaint::default();
+    {
+        let stores = shared.stores.clone();
+        after_paint.later("store-worker", move || stores.warm_up());
+    }
+    app.manage(after_paint);
+    after_first_paint::arm_fallback(app.handle());
     // Scratch stores no window or session will use again (left by a crash) are removed in the background.
     {
         let (root, keep, config) = (shared.store_root.clone(), life.session_stores(), ctx.config.clone());
@@ -643,6 +672,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
             storage::auto_clean_stores(config, &root, &keep);
         });
     }
+    step("plugins warm-up and sweep");
     app_context::install(app.handle(), ctx);
     let windows = windows::Windows::new(shared.factory());
     // The startup window opens the paths given on the command line.
@@ -653,26 +683,40 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     app.manage(dialog_windows::Dialogs::default());
     app.manage(drag_ghost::DragGhosts::default());
     app.manage(life);
+    step("context and windows");
     startup_watchdog::start(app.handle());
     app.manage(background::BackgroundTasks::default());
     app.manage(window_prefs::SharedPrefs::default());
     app.manage(notify::Notifier::default());
     app.manage(tray::TrayState::default());
     jobs::init(app.handle());
+    step("jobs");
     notification_centre::init(app.handle());
+    step("notification centre");
     performance::attach_notifications(app.handle());
+    step("performance");
     health::commands::init(app.handle());
+    step("health");
 
     // ---- settings ----
     settings::init(app.handle());
+    step("settings");
     symbols::init(app.handle());
+    step("symbols");
     plugin_packages::init(app.handle());
+    step("plugin packages");
     window_prefs::register(app.handle())?;
+    step("window prefs");
     updater::init(app.handle());
+    step("updater");
     ai::init(app.handle(), safe_mode);
+    step("ai");
     video::init(app.handle());
+    step("video");
     browser::init(app.handle());
+    step("browser");
     snapshots::prune_on_startup(app.handle());
+    step("snapshots");
 
     // ---- background work, tray and the first window ----
     let handle = app.handle().clone();
@@ -680,15 +724,27 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
         let _ = handle.emit(background::TASKS_EVENT, tasks);
         tray::refresh(&handle);
     });
-    tray::create(app.handle());
+    // The tray icon is not needed for the first window: it is created after the first paint, unless Debrief starts in
+    // the tray (then it is the only way back to the window).
+    let start_minimized = app.state::<window_prefs::SharedPrefs>().get().start_minimized;
+    if start_minimized {
+        tray::create(app.handle());
+    } else {
+        let handle = app.handle().clone();
+        app.state::<after_first_paint::AfterFirstPaint>()
+            .later("tray", move || ui_dispatch::run(&handle, tray::create));
+    }
+    step("tray");
     menu::install(app.handle());
-    let in_tray = app.state::<window_prefs::SharedPrefs>().get().start_minimized && tray::available(app.handle());
+    step("menu");
+    let in_tray = start_minimized && tray::available(app.handle());
     if let Some(main) = app.get_window(windows::MAIN) {
         if !in_tray {
             main.show()?;
             let _ = main.set_focus();
         }
     }
+    step("show window");
     session_notices(app.handle(), previous_crash, safe_mode);
     if previous_crash {
         notify::notify(
@@ -699,6 +755,8 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
             "Open Debrief to restore your last session.",
         );
     }
+    step("notices");
+    startup_timings::mark(app, startup_timings::Mark::SetupDone);
     Ok(())
 }
 

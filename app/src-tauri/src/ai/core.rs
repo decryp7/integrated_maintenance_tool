@@ -700,6 +700,16 @@ impl AiCore {
     }
 
     pub fn status(&self) -> AiStatus {
+        let mut s = self.status_light();
+        if s.state == EngineStateDto::Ready || s.state == EngineStateDto::Loading {
+            s.rss_bytes = worker_rss_bytes();
+        }
+        s
+    }
+
+    /// [`AiCore::status`] without the workers' memory (`rssBytes` 0): no scan of the system's processes, which takes
+    /// up to seconds on a busy Mac. For the start-up log line and other callers that do not show the memory.
+    pub fn status_light(&self) -> AiStatus {
         let mut notes = self.warnings.clone();
         let info = lock(&self.info);
         notes.extend(info.notes.iter().cloned());
@@ -773,9 +783,6 @@ impl AiCore {
                     }
                 };
             }
-        }
-        if s.state == EngineStateDto::Ready || s.state == EngineStateDto::Loading {
-            s.rss_bytes = worker_rss_bytes();
         }
         s
     }
@@ -1233,10 +1240,11 @@ pub(super) fn tree_rss_bytes(me: u32, procs: &[ProcessRow]) -> u64 {
 
 /// Resident memory of this process's inference workers, including their llama-server children.
 pub fn worker_rss_bytes() -> u64 {
-    use sysinfo::{ProcessesToUpdate, System};
+    use sysinfo::{ProcessRefreshKind, ProcessesToUpdate, System};
     let Ok(me) = sysinfo::get_current_pid() else { return 0 };
     let mut sys = System::new();
-    sys.refresh_processes(ProcessesToUpdate::All, true);
+    // Names, parents and memory only: not the command lines, environments, CPU and disk use a full refresh reads.
+    sys.refresh_processes_specifics(ProcessesToUpdate::All, true, ProcessRefreshKind::nothing().with_memory());
     let rows: Vec<ProcessRow> = sys
         .processes()
         .values()
