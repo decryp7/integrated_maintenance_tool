@@ -202,6 +202,67 @@ jobs:
             ~/.cargo/git
           key: test-registry-${{ runner.os }}-${{ hashFiles('Cargo.lock') }}
 
+  # The same tests on the macOS host runner: the contained-plugin sandbox (sandbox-exec profiles, the private socket,
+  # symlinked temp paths) and other platform code only run here; a macOS-only bug once passed the Linux-only suite.
+  # Host mode: the build folder stays on the host between runs; libduckdb as on Linux, through DYLD_LIBRARY_PATH (set
+  # in GITHUB_ENV, never under `nice`/`env`, which macOS's SIP would strip it from).
+  rust-test-macos:
+    name: rust tests (macOS)
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: A persistent build folder on the host
+        shell: bash
+        run: |
+          echo "CARGO_TARGET_DIR=$HOME/.debrief-ci/target-$GITHUB_JOB" >> "$GITHUB_ENV"
+          # The Mac runner is shared with other jobs: two rustc at a time keeps its load reasonable.
+          echo "CARGO_BUILD_JOBS=2" >> "$GITHUB_ENV"
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/debrief-libduckdb
+          key: libduckdb-${{ runner.os }}-${{ hashFiles('crates/debrief-store-duck/scripts/fetch-libduckdb.sh') }}
+
+      - name: libduckdb (prebuilt, pinned SHA-256)
+        shell: bash
+        run: |
+          eval "$(bash crates/debrief-store-duck/scripts/fetch-libduckdb.sh "$HOME/.cache/debrief-libduckdb")"
+          : "${DUCKDB_LIB_DIR:?fetch-libduckdb.sh did not set DUCKDB_LIB_DIR}"
+          echo "DUCKDB_LIB_DIR=$DUCKDB_LIB_DIR" >> "$GITHUB_ENV"
+          echo "DUCKDB_INCLUDE_DIR=$DUCKDB_INCLUDE_DIR" >> "$GITHUB_ENV"
+          echo "DYLD_LIBRARY_PATH=$DUCKDB_LIB_DIR:${DYLD_LIBRARY_PATH:-}" >> "$GITHUB_ENV"
+
+      - name: Temp folders before the tests
+        shell: bash
+        run: node scripts/ci/check-temp-leaks.mjs --snapshot "$RUNNER_TEMP/temp-leaks.json"
+
+      # The pinned Chrome for Testing build, never the host's installed Chrome (Paddock rule 7).
+      - name: Pinned test browser
+        shell: bash
+        run: |
+          node scripts/ci/install-test-browser.mjs "$RUNNER_TEMP/debrief-test-browser"
+          echo "DEBRIEF_REQUIRE_TEST_BROWSER=1" >> "$GITHUB_ENV"
+
+      - name: Tests
+        shell: bash
+        run: cargo nextest run --workspace --no-fail-fast
+
+      - name: Doc tests
+        shell: bash
+        run: cargo test --workspace --doc
+
+      - name: No temp folders left behind
+        shell: bash
+        run: node scripts/ci/check-temp-leaks.mjs --check "$RUNNER_TEMP/temp-leaks.json"
+
   # The plugin SDK as an author uses it: a project of every kind from `cargo debrief-plugin new` builds, and one of them
   # passes `cargo debrief-plugin test` (conformance in the sandbox, then its own tests). The examples themselves are
   # workspace members and run in `rust tests`.
@@ -913,7 +974,7 @@ jobs:
   release:
     name: release
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [bundle, tauri-smoke, rust-lint, rust-test, licences, frontend, e2e]
+    needs: [bundle, tauri-smoke, rust-lint, rust-test, rust-test-macos, licences, frontend, e2e]
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
