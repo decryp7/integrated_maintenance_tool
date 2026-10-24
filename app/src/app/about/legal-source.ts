@@ -49,7 +49,8 @@ export const browserLegalSource: LegalSource = {
         return [
           '# Third-party notices',
           '',
-          'The full list of third-party software, with every licence text, is shown by the desktop app. A sample of it:',
+          'The desktop app shows the full list with every licence text.',
+          'A sample of it:',
           '',
           '## Rust crates',
           '',

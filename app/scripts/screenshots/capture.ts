@@ -160,6 +160,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   });
   await page.keyboard.press('Escape');
 
+  await fresh(page, theme); // the same Explorer in every shot (the format wizard leaves a file selected)
   // Dialogs are OS windows on the desktop (ADR 0050); the browser build shows the same dialogs in the page: a modeless
   // tool beside the work, and a modal question with the page dimmed behind it.
   await shot(page, 'dialog-modeless', async () => {
@@ -297,8 +298,11 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     const panel = page.locator('debrief-monitor-view');
     await panel.getByLabel('Target value 1').fill('OrderService*');
     await panel.getByRole('button', { name: 'Start' }).click();
-    await expect(panel.getByTestId('monitor-live')).toBeVisible();
+    await expect(page.getByTestId('monitor-live')).toBeVisible();
     await page.waitForTimeout(2500);
+    // Opening the samples with live tail brings the timeline to the front of this group: back to the monitor.
+    await page.getByRole('tab', { name: 'Process Monitor', exact: true }).click();
+    await expect(page.getByTestId('monitor-live')).toBeVisible();
   }, 'Process Monitor');
 
   await fresh(page, theme); // a clean tab strip: only this view
@@ -343,7 +347,9 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await fresh(page, theme);
   await shot(page, 'watched-folders', async () => {
     await need(page, 'Show watched folders');
-    for (let i = 0; i < 3; i++) {
+    // The browser build's folder picker answers with ?mockOpen=<path>: pick three invented folders in turn.
+    for (const folder of ['/demo/extra-folder', '/demo/exports/nightly', '/demo/support-cases']) {
+      await page.evaluate((f) => history.replaceState(null, '', `/?mockOpen=${encodeURIComponent(f)}`), folder);
       await page.getByTestId('watch-add').click();
       await page.waitForTimeout(500);
     }
@@ -410,6 +416,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await shot(page, 'dialog-ai-setup', async () => {
     await need(page, 'Set up AI assistant');
     await expect(page.getByTestId('ai-hardware')).toBeVisible();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // no focus ring on the close button
   });
   await page.keyboard.press('Escape');
 
