@@ -134,8 +134,9 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     </div>
   `,
   styles: `
-    /* Basis 340 px (room for the inline buttons and the partial-match note beside a usable text area): the bar wraps before the field falls below a usable width, so the placeholder is never cut. */
-    :host { position: relative; flex: 1 1 340px; min-width: min(340px, 100%); height: 30px; display: block; }
+    /* Basis 280 px: room for the inline buttons and the partial-match note beside a usable text area, and still one row
+       with the level chips, range and tools at 1440 px beside the Explorer; the bar wraps before the field falls below it. */
+    :host { position: relative; flex: 1 1 280px; min-width: min(280px, 100%); height: 30px; display: block; container-type: inline-size; }
     .box {
       position: absolute; inset: 0 0 auto 0; min-height: 30px; box-sizing: border-box; z-index: 5;
       display: flex; align-items: flex-start; gap: 6px; padding: 0 4px 0 10px; border-radius: 6px; background: var(--bg-3); border: 1px solid var(--border-2);
@@ -166,6 +167,11 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     .partial-note { flex: none; margin-top: 6px; font-size: var(--fs-xs); color: var(--text-2); padding: 1px 6px; border-radius: 999px; border: 1px dashed var(--border-2); }
     .toggle { flex: none; margin-top: 4px; height: 20px; padding: 0 5px; font-size: var(--fs-2xs); border-radius: 4px; color: var(--muted); border: 1px solid var(--border-3); background: transparent; cursor: pointer; }
     .toggle.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+    /* A narrow field (1440 px beside the Explorer) packs its inline controls tighter, so the text area keeps its width. */
+    @container (max-width: 340px) {
+      .box { gap: 3px; padding-left: 6px; }
+      .partial-note { padding: 1px 4px; }
+    }
     .ib { flex: none; margin-top: 2px; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
     .ib:hover:not(:disabled) { background: var(--bg-hover); color: var(--text); }
     .ib:disabled { opacity: 0.45; cursor: default; }

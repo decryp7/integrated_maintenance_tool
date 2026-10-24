@@ -104,9 +104,8 @@ test.describe('search field', () => {
     expect((await page.locator('debrief-query-field').boundingBox())!.width).toBeGreaterThanOrEqual(300);
   });
 
-  // Known gap: the level chips, range and buttons leave the field only ~200 px (its minimum) at 1440 px with the
-  // Explorer open, and the inline buttons and the "+N" partial-match note then leave the text area no width at all.
-  // Enable once the inline controls fold or the bar gives the field room.
+  // At 1440 px with the Explorer open the field is narrow (the filter bar stays one row): its inline controls pack
+  // tighter so the text area keeps a usable width beside them and the "+N" partial-match note.
   test('keeps a usable text area: the inline buttons and the partial-match note do not squeeze it out', async ({ page }) => {
     await field(page).fill('imeout');
     await expect(page.getByTestId('partial-note')).toBeVisible();
