@@ -141,6 +141,22 @@ impl OsChild {
         }
     }
 
+    /// Ends the child's whole process group (Unix: every child is the leader of its own group, see
+    /// [`ChildProcess::spawn`]), so what it started (llama-server under the AI worker) ends with it even when its
+    /// own clean-up never runs. Windows children are in a job object that does the same.
+    fn kill_group(&self) {
+        #[cfg(unix)]
+        {
+            // Unix children are all plain ones (`Contained` is Windows only).
+            let OsChild::Std(c) = self;
+            // SAFETY: killpg takes plain integers; the group is the one this child leads (it is not reaped yet, or
+            // its group still has members, so the id is not reused).
+            unsafe {
+                libc::killpg(c.id() as libc::pid_t, libc::SIGKILL);
+            }
+        }
+    }
+
     fn kill(&mut self) -> std::io::Result<()> {
         match self {
             OsChild::Std(c) => c.kill(),
@@ -336,6 +352,9 @@ impl ChildProcess {
         if let Some(d) = &spec.current_dir {
             cmd.current_dir(d);
         }
+        // Its own process group, so a kill reaches what it starts too (posix_spawn supports it; no `pre_exec`).
+        #[cfg(unix)]
+        std::os::unix::process::CommandExt::process_group(&mut cmd, 0);
         #[cfg(windows)]
         {
             use std::os::windows::process::CommandExt;
@@ -549,6 +568,8 @@ impl ChildProcess {
                 }
                 std::thread::sleep(Duration::from_millis(5));
             }
+            // Whatever it started and left behind ends now too.
+            c.kill_group();
             if !ended {
                 let _ = c.kill();
                 let _ = c.wait();
@@ -622,5 +643,44 @@ mod tests {
         assert_eq!(super::unix_nice(&s), 10);
         s.cpu_rate_percent = Some(50);
         assert_eq!(super::unix_nice(&s), 19);
+    }
+
+    /// A child killed after its grace period takes what it started with it (the AI worker's llama-server, which on
+    /// macOS has no parent-death signal and whose exit hook never runs under SIGKILL).
+    #[cfg(unix)]
+    #[test]
+    fn a_child_killed_after_its_grace_takes_its_own_children_with_it() {
+        let d = tempfile::tempdir().unwrap();
+        let pid_file = d.path().join("grandchild.pid");
+        let script = d.path().join("worker.sh");
+        // A fake worker: starts a grandchild (the fake llama-server), ignores its lifeline and SIGTERM, and stays.
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\ntrap '' TERM\nsleep 60 &\necho $! > '{}'\nwhile :; do sleep 1; done\n",
+                pid_file.display()
+            ),
+        )
+        .unwrap();
+        std::fs::set_permissions(&script, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+        let child = super::ChildProcess::spawn(&super::SpawnSpec::new(&script, "fake worker")).unwrap();
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        let grandchild: i32 = loop {
+            if let Some(p) = std::fs::read_to_string(&pid_file).ok().and_then(|s| s.trim().parse().ok()) {
+                break p;
+            }
+            assert!(std::time::Instant::now() < end, "the fake worker started its child");
+            std::thread::yield_now();
+        };
+        child.kill();
+        let alive = |pid: i32| unsafe { libc::kill(pid, 0) == 0 };
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while alive(grandchild) {
+            if std::time::Instant::now() >= end {
+                unsafe { libc::kill(grandchild, libc::SIGKILL) };
+                panic!("the grandchild was left behind");
+            }
+            std::thread::yield_now();
+        }
     }
 }
