@@ -58,14 +58,20 @@ pub struct Session {
     _kept: Option<KeptHold>,
 }
 
-/// The kept research profile is in use by `owner`'s browser until this is dropped.
-struct KeptHold(Arc<Mutex<Option<String>>>);
+/// The kept research profile is in use by `owner`'s browser until this is dropped (then the listeners hear it).
+struct KeptHold(std::sync::Weak<Inner>);
 
 impl Drop for KeptHold {
     fn drop(&mut self) {
-        *crate::sync::lock(&self.0) = None;
+        if let Some(inner) = self.0.upgrade() {
+            *crate::sync::lock(&inner.kept_user) = None;
+            inner.profile_changed();
+        }
     }
 }
+
+/// Hears that the kept research profile changed (taken, released, cleared, the setting changed): Settings re-reads it.
+pub type ProfileListener = Arc<dyn Fn() + Send + Sync>;
 
 /// The kept research profile (Settings ▸ Web browser ▸ Keep a research profile; ADR 0058).
 #[derive(Debug, Clone)]
@@ -282,11 +288,12 @@ struct Inner {
     /// The kept research profile's folder and setting (none: no data folder, as in tests without one).
     kept: RwLock<Option<KeptProfile>>,
     /// The window whose browser uses the kept profile now (one browser per profile; others get a throwaway one).
-    kept_user: Arc<Mutex<Option<String>>>,
+    kept_user: Mutex<Option<String>>,
     /// Why the kept profile was not used last time, until it is fine again or cleared.
     kept_problem: Mutex<Option<String>>,
     /// Reasons already told (each is told once, until the profile is cleared).
     told: Mutex<std::collections::HashSet<String>>,
+    profile_listeners: RwLock<Vec<ProfileListener>>,
 }
 
 impl Inner {
@@ -302,6 +309,14 @@ impl Inner {
         slots.insert(owner.to_string(), to);
         self.changed.notify_all();
         next
+    }
+
+    /// Tells the profile listeners (call without holding a lock of the profile).
+    fn profile_changed(&self) {
+        let listeners = crate::sync::read(&self.profile_listeners).clone();
+        for f in listeners {
+            f();
+        }
     }
 
     fn tell(&self, owner: &str, l: Lifecycle) {
@@ -367,6 +382,12 @@ impl Renderers {
     /// The kept research profile's folder (`dir`; none when there is no data folder) and whether browsers use it.
     pub fn set_kept_profile(&self, dir: Option<PathBuf>, keep: bool, max_bytes: u64) {
         *crate::sync::write(&self.inner.kept) = dir.map(|dir| KeptProfile { dir, keep, max_bytes });
+        self.inner.profile_changed();
+    }
+
+    /// Adds a listener of every change of the kept research profile.
+    pub fn listen_profile(&self, f: ProfileListener) {
+        crate::sync::write(&self.inner.profile_listeners).push(f);
     }
 
     /// The kept research profile as Settings shows it (its size is counted: call off the IPC thread for a big one).
@@ -395,9 +416,11 @@ impl Renderers {
         if let Some(k) = crate::sync::read(&self.inner.kept).as_ref() {
             super::profile::clear(&k.dir)?;
         }
+        drop(user);
         *crate::sync::lock(&self.inner.kept_problem) = None;
         crate::sync::lock(&self.inner.told).clear();
         log::info!("The research profile was cleared");
+        self.inner.profile_changed();
         Ok(())
     }
 
@@ -416,8 +439,10 @@ impl Renderers {
         match super::profile::check(&kept.dir, kept.max_bytes) {
             super::profile::Check::Usable => {
                 *user = Some(owner.to_string());
+                drop(user);
                 *crate::sync::lock(&self.inner.kept_problem) = None;
-                let hold = KeptHold(self.inner.kept_user.clone());
+                self.inner.profile_changed();
+                let hold = KeptHold(Arc::downgrade(&self.inner));
                 (Profile::Persistent(kept.dir), Some(hold), None)
             }
             bad => {
@@ -432,6 +457,7 @@ impl Renderers {
     fn problem(&self, why: String) -> Option<String> {
         log::warn!("{why}");
         *crate::sync::lock(&self.inner.kept_problem) = Some(why.clone());
+        self.inner.profile_changed();
         crate::sync::lock(&self.inner.told).insert(why.clone()).then_some(why)
     }
 

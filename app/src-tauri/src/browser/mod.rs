@@ -129,6 +129,9 @@ fn placement_of<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<chromium_
     placement::place(&owner_rect, &displays)
 }
 
+/// The kept research profile changed (taken, released, cleared, the setting); to every window, no payload.
+pub const RESEARCH_PROFILE_EVENT: &str = "debrief://research-profile";
+
 /// Sends a browser event to the owner window.
 pub fn emit<R: Runtime>(app: &AppHandle<R>, owner: &str, event: BrowserEvent) {
     crate::windows::emit_to_window(app, owner, BROWSER_EVENT, event);
@@ -222,6 +225,11 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     let renderers = renderers(app).unwrap_or_default();
     let a = app.clone();
     renderers.listen(Arc::new(move |owner, life| emit(&a, owner, BrowserEvent::Lifecycle(life))));
+    // Every window (Settings shows the profile): it changed, read it again.
+    let a = app.clone();
+    renderers.listen_profile(Arc::new(move || {
+        let _ = tauri::Emitter::emit(&a, RESEARCH_PROFILE_EVENT, ());
+    }));
     watch_health(app, &renderers);
     let a = app.clone();
     renderers.set_placer(Arc::new(move |owner| placement_of(&a, owner)));

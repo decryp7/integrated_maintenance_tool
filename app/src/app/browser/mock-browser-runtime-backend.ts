@@ -1,5 +1,6 @@
 import { BrowserRuntimeBackend } from './browser-runtime-backend';
 import { ResearchProfileStatus, RuntimeStatus } from './browser.types';
+import { Unlisten } from '../windowing/window-events';
 
 const PINNED = '131.0.6778.204';
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -14,6 +15,7 @@ export class MockBrowserRuntimeBackend extends BrowserRuntimeBackend {
   private status: RuntimeStatus;
   private readonly fail: boolean;
   private profile: ResearchProfileStatus;
+  private readonly profileListeners = new Set<() => void>();
 
   constructor(search = '') {
     super();
@@ -61,7 +63,23 @@ export class MockBrowserRuntimeBackend extends BrowserRuntimeBackend {
     await delay(0);
     if (this.profile.inUse) throw new Error('The research profile is in use by the AI browser. Close its window (or wait for the research to finish), then clear it.');
     this.profile = { ...this.profile, sizeBytes: 0, problem: null };
+    this.profileChanged();
     return { ...this.profile };
+  }
+
+  onResearchProfileChanged(handler: () => void): Promise<Unlisten> {
+    this.profileListeners.add(handler);
+    return Promise.resolve(() => this.profileListeners.delete(handler));
+  }
+
+  /** Plays the engine: the kept profile changed (`patch`), and every window hears it. */
+  setResearchProfile(patch: Partial<ResearchProfileStatus>): void {
+    this.profile = { ...this.profile, ...patch };
+    this.profileChanged();
+  }
+
+  private profileChanged(): void {
+    for (const f of this.profileListeners) f();
   }
 
   private installed(version: string): RuntimeStatus {

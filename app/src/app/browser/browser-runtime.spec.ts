@@ -28,14 +28,25 @@ const q = (f: { nativeElement: unknown }, id: string) => (f.nativeElement as HTM
 describe('TauriBrowserRuntimeBackend', () => {
   it('maps every method to its command', async () => {
     const calls: string[] = [];
-    const b = new TauriBrowserRuntimeBackend((async (cmd: string) =>
-      (calls.push(cmd), cmd === 'jobs_wait' ? { state: 'done', result: { type: 'value', value: 'installed' } } : cmd === 'browser_runtime_install' ? 3 : cmd)) as never);
+    const heard: string[] = [];
+    let fire: (() => void) | null = null;
+    const listen = async (event: string, h: (p: unknown) => void) => (heard.push(event), (fire = () => h(null)), () => undefined);
+    const b = new TauriBrowserRuntimeBackend(
+      (async (cmd: string) =>
+        (calls.push(cmd), cmd === 'jobs_wait' ? { state: 'done', result: { type: 'value', value: 'installed' } } : cmd === 'browser_runtime_install' ? 3 : cmd)) as never,
+      listen,
+    );
     expect(await b.getRuntimeStatus()).toBe('browser_runtime_status');
     // The install is a download job: the command returns its id and the new status is the job's value.
     expect(await b.installRuntime()).toBe('installed');
     expect(await b.removeRuntime()).toBe('browser_runtime_remove');
     expect(await b.getResearchProfile()).toBe('browser_research_profile_status');
     expect(await b.clearResearchProfile()).toBe('browser_research_profile_clear');
+    let changed = 0;
+    await b.onResearchProfileChanged(() => changed++);
+    (fire as unknown as () => void)();
+    expect(changed).toBe(1);
+    expect(heard).toEqual(['debrief://research-profile']);
     expect(calls).toEqual(['browser_runtime_status', 'browser_runtime_install', 'jobs_wait', 'browser_runtime_remove', 'browser_research_profile_status', 'browser_research_profile_clear']);
   });
 });
@@ -158,6 +169,33 @@ describe('ResearchProfileSettings', () => {
     f.detectChanges();
     expect(clear).toHaveBeenCalledTimes(1);
     expect(q(f, 'research-profile-size')!.textContent).toContain('0 MB of 500 MB');
+  });
+
+  it('reads the profile again as soon as the engine says it changed, and stops listening when closed', async () => {
+    const backend = setup();
+    const f = await render();
+    expect(q(f, 'research-profile-off')).not.toBeNull();
+    // The user turns the setting on: the engine says the profile changed.
+    backend.setResearchProfile({ keep: true, sizeBytes: 3 << 20 });
+    await settle();
+    f.detectChanges();
+    expect(q(f, 'research-profile-size')!.textContent).toContain('3 MB of 500 MB');
+    // A research's browser takes it: Clear is no longer offered.
+    backend.setResearchProfile({ inUse: true });
+    await settle();
+    f.detectChanges();
+    expect((q(f, 'research-profile-clear') as HTMLButtonElement).disabled).toBe(true);
+    expect(q(f, 'research-profile-in-use')).not.toBeNull();
+    // ... and releases it.
+    backend.setResearchProfile({ inUse: false });
+    await settle();
+    f.detectChanges();
+    expect((q(f, 'research-profile-clear') as HTMLButtonElement).disabled).toBe(false);
+    const load = vi.spyOn(backend, 'getResearchProfile');
+    f.destroy();
+    backend.setResearchProfile({ sizeBytes: 0 });
+    await settle();
+    expect(load).not.toHaveBeenCalled();
   });
 
   it('offers Clear as the repair of a damaged profile', async () => {

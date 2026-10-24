@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnInit } from '@angular/core';
+import { BrowserRuntimeBackend } from './browser-runtime-backend';
 import { ResearchProfileStore } from './research-profile.store';
 
 const mb = (bytes: number) => Math.ceil(bytes / (1 << 20));
@@ -6,7 +7,8 @@ const mb = (bytes: number) => Math.ceil(bytes / (1 << 20));
 /**
  * Settings ▸ Web browser ▸ Research profile: whether research keeps a profile of its own (cookies and consent between
  * researches), its size against its limit, why it was not used last time, and Clear (also the repair of a damaged
- * one). The engine refuses Clear while a research runs or a browser uses the profile; the reason shows inline.
+ * one). The engine refuses Clear while a research runs or a browser uses the profile; the reason shows inline. It is
+ * read again whenever the engine says the profile changed (the setting, a browser taking or releasing it, Clear).
  */
 @Component({
   selector: 'debrief-research-profile-settings',
@@ -54,6 +56,8 @@ const mb = (bytes: number) => Math.ceil(bytes / (1 << 20));
 })
 export class ResearchProfileSettings implements OnInit {
   protected readonly store = inject(ResearchProfileStore);
+  private readonly backend = inject(BrowserRuntimeBackend);
+  private readonly destroyRef = inject(DestroyRef);
 
   protected readonly sizeText = computed(() => {
     const s = this.store.status();
@@ -62,5 +66,18 @@ export class ResearchProfileSettings implements OnInit {
 
   ngOnInit(): void {
     void this.store.load();
+    let stop: (() => void) | null = null;
+    let destroyed = false;
+    this.destroyRef.onDestroy(() => {
+      destroyed = true;
+      stop?.();
+    });
+    void this.backend
+      .onResearchProfileChanged(() => void this.store.load())
+      .then((unlisten) => {
+        if (destroyed) unlisten();
+        else stop = unlisten;
+      })
+      .catch(() => undefined);
   }
 }

@@ -581,6 +581,27 @@ mod tests {
         }
 
         #[test]
+        fn settings_hear_every_change_of_the_kept_profile() {
+            let r = rig(Mode::Obey, 1);
+            let heard = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+            let h2 = heard.clone();
+            r.renderers.listen_profile(Arc::new(move || {
+                h2.fetch_add(1, Ordering::SeqCst);
+            }));
+            let count = || heard.load(Ordering::SeqCst);
+            let kept = r._dir.path().join("research-profile");
+            r.renderers
+                .set_kept_profile(Some(kept), true, crate::browser::profile::DEFAULT_MAX_BYTES);
+            assert_eq!(count(), 1, "the setting");
+            research_step(&r);
+            assert_eq!(count(), 2, "taken by a browser");
+            assert_eq!(r.renderers.finish("main"), Finish::Closed);
+            assert_eq!(count(), 3, "released when it closed");
+            r.renderers.clear_kept_profile().unwrap();
+            assert_eq!(count(), 4, "cleared");
+        }
+
+        #[test]
         fn without_the_setting_every_browser_gets_a_throwaway_profile() {
             let r = rig(Mode::Obey, 1);
             let (dir, _) = research_step(&r);

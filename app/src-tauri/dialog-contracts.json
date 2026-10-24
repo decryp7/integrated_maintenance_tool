@@ -752,6 +752,8 @@
         "ai_updates_check",
         "ai_updates_skip",
         "ai_updates_status",
+        "browser_research_profile_clear",
+        "browser_research_profile_status",
         "browser_runtime_install",
         "browser_runtime_remove",
         "browser_runtime_status",
