@@ -52,3 +52,4 @@ Thumbs.db
 # i18n extraction check (CI)
 .i18n-check/
 .i18n-check.log
+/playwright-report.linux/

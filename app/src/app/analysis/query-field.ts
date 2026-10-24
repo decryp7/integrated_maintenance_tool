@@ -171,6 +171,7 @@ export function focusSoon(el: HTMLElement, attempts = 20): void {
     @container (max-width: 340px) {
       .box { gap: 3px; padding-left: 6px; }
       .partial-note { padding: 1px 4px; }
+      .lead { display: none; }
     }
     .ib { flex: none; margin-top: 2px; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 4px; background: transparent; color: var(--muted); cursor: pointer; }
     .ib:hover:not(:disabled) { background: var(--bg-hover); color: var(--text); }

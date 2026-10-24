@@ -184,6 +184,8 @@ export const SHARES = {
   width: 0.4,
   /** A document beside the timeline takes at most this share of the window height (the events grid keeps the rest). */
   documentHeight: 0.4,
+  /** No row asks for more than this share of the dock's height by default, so the events grid keeps most of a short window (1024x768 with a wrapped filter bar). */
+  rowHeight: 0.45,
   /** The timeline row's height once an analysis row shares the column, px (the events grid keeps the rest). */
   compactRowHeight: 210,
 } as const;
@@ -306,7 +308,7 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
       const rowItems: Item[] = rowKeys.map((key) => {
         const vs = rowViews.get(key)!;
         const shared = new Set(vs.map((v) => v.group ?? v.id)).size > 1;
-        const cap = shared ? Math.round(viewport.height * SHARES.documentHeight) : Infinity;
+        const cap = Math.min(Math.round(viewport.height * SHARES.rowHeight), shared ? Math.round(viewport.height * SHARES.documentHeight) : Infinity);
         const compact = analysisBelow && key !== 'analysis' && key !== 'events';
         const pref = Math.max(...vs.map((v) => hinted(v, saved, 'height', cap)));
         return {

@@ -21,6 +21,9 @@ export interface FitOptions {
 }
 
 /** Grow-back hysteresis: a view the plan moved away returns only once the window is this much larger than where it first fits (px). */
+/** How often, and how far apart, `watchResize` re-checks that dockview has measured the container before it plans. */
+export const RESIZE_SETTLE_TRIES = 20;
+export const RESIZE_SETTLE_MS = 50;
 export const GROW_BACK_MARGIN = { width: 64, height: 48 } as const;
 
 /**
@@ -290,9 +293,19 @@ export class DockLayout {
       if (now === last) return;
       last = now;
       clearTimeout(timer);
-      timer = setTimeout(() => {
-        if (this.ctx.api === api && !this.ctx.restoring) onResize();
-      }, delayMs);
+      const run = (retries: number) => {
+        if (this.ctx.api !== api) return;
+        // dockview measures the container with an observer of its own: planning before it has caught up would fit the
+        // old size, and no later resize event comes to correct it (WebKit sometimes delivers ours first and is slow with
+        // the other). Wait until it agrees with the container, a bounded number of times.
+        const b = container.getBoundingClientRect();
+        if (retries > 0 && (Math.abs(api.width - b.width) > 1 || Math.abs(api.height - b.height) > 1)) {
+          timer = setTimeout(() => run(retries - 1), RESIZE_SETTLE_MS);
+          return;
+        }
+        if (!this.ctx.restoring) onResize();
+      };
+      timer = setTimeout(() => run(RESIZE_SETTLE_TRIES), delayMs);
     });
     observer.observe(container);
     return () => {

@@ -825,7 +825,14 @@ export class DockService {
       this.layout.constrain(api);
     }
     this.growBack(api);
+    this.keepFullScreen();
     this.windowListeners.forEach((l) => l());
+  }
+
+  /** A fit moves panels, which makes dockview leave the maximized state: full screen keeps its document well maximized. */
+  private keepFullScreen(): void {
+    const group = this.fullScreenGroup;
+    if (this.fullScreen() && group && !group.api.isMaximized()) group.api.maximize();
   }
 
   /** Views the plan moved away return to where they were once the window has room for them (plus the hysteresis margin). */
