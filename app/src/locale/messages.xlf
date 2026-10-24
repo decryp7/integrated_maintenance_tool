@@ -10463,7 +10463,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dialog-windows/dialog-shell.ts</context>
-          <context context-type="linenumber">69,72</context>
+          <context context-type="linenumber">73,75</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dialogWindow.loading" datatype="html">
@@ -10473,11 +10473,18 @@
           <context context-type="linenumber">61,63</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="dialogWindow.cancel" datatype="html">
+        <source>Cancel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/dialog-windows/dialog-shell.ts</context>
+          <context context-type="linenumber">71,72</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="dialogWindow.unknown" datatype="html">
         <source>This dialog is not known to this version of Debrief: <x id="id" equiv-text="this.route.id"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dialog-windows/dialog-shell.ts</context>
-          <context context-type="linenumber">195</context>
+          <context context-type="linenumber">207</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.panel.failed" datatype="html">
@@ -16227,72 +16234,83 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">13</context>
         </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+        <note priority="1" from="description">Command category</note>
+      </trans-unit>
+      <trans-unit id="lifecycle.commands.restartKeepingSession" datatype="html">
+        <source>Restart and reopen this session</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
           <context context-type="linenumber">13</context>
         </context-group>
-        <note priority="1" from="description">Command category</note>
       </trans-unit>
       <trans-unit id="lifecycle.commands.restartSafeMode" datatype="html">
         <source>Restart in safe mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
-          <context context-type="linenumber">12</context>
+          <context context-type="linenumber">14</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.commands.restartNormally" datatype="html">
         <source>Restart normally</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle-commands.ts</context>
-          <context context-type="linenumber">13</context>
+          <context context-type="linenumber">15</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.noSession" datatype="html">
         <source>There is no saved session to restore</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">58</context>
+          <context context-type="linenumber">61</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.restoreFailed" datatype="html">
         <source>Could not restore the last session: <x id="error" equiv-text="errorMessage(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">69</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.reopenFailed" datatype="html">
         <source>Could not reopen the other windows: <x id="error" equiv-text="errorMessage(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">69</context>
+          <context context-type="linenumber">72</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.safeModeFailed" datatype="html">
         <source>Could not restart in safe mode: <x id="error" equiv-text="error"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">74</context>
+          <context context-type="linenumber">77</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.restartFailed" datatype="html">
         <source>Could not restart: <x id="error" equiv-text="error"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">81</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">83</context>
+          <context context-type="linenumber">87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.service.elevatedFailed" datatype="html">
         <source>Could not restart as administrator: <x id="error" equiv-text="error"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/lifecycle/lifecycle.service.ts</context>
-          <context context-type="linenumber">88</context>
+          <context context-type="linenumber">93</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.titleExtras.unsaved" datatype="html">
@@ -28951,7 +28969,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">21</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/menu/recent-opener.ts</context>
@@ -29028,35 +29046,35 @@
         <source>Recent projects</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">14</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.list" datatype="html">
         <source>Recent projects</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.empty" datatype="html">
         <source>No recent projects. Save a project to see it here.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">36,39</context>
+          <context context-type="linenumber">43,46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.clear" datatype="html">
         <source>Clear list</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">39,40</context>
+          <context context-type="linenumber">46,47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">40,43</context>
+          <context context-type="linenumber">47,50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.cmd.savedQueries.show" datatype="html">
@@ -33171,33 +33189,33 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">33</context>
+          <context context-type="linenumber">32</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.dashboardCommands.show" datatype="html">
         <source>Show dashboards</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">14</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.commands.categoryView" datatype="html">
         <source>View</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">15</context>
+          <context context-type="linenumber">14</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">19</context>
+          <context context-type="linenumber">18</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">30</context>
+          <context context-type="linenumber">29</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">40</context>
+          <context context-type="linenumber">39</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/redaction/redaction.commands.ts</context>
@@ -33212,21 +33230,21 @@
         <source>Dashboard: toggle edit mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">18</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.dashboardCommands.addTile" datatype="html">
         <source>Dashboard: add tile…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">29</context>
+          <context context-type="linenumber">28</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.dashboardCommands.wall" datatype="html">
         <source>Dashboard: wall mode</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/dashboard/dashboard.commands.ts</context>
-          <context context-type="linenumber">39</context>
+          <context context-type="linenumber">38</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.dashboardStore.newTitle" datatype="html">
@@ -43409,35 +43427,35 @@
         <source>Version <x id="INTERPOLATION" equiv-text="{{ r.version }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">18,19</context>
+          <context context-type="linenumber">19,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.none" datatype="html">
         <source>There are no release notes for this version.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">37,39</context>
+          <context context-type="linenumber">39,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.earlier" datatype="html">
         <source>Earlier releases</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">41,42</context>
+          <context context-type="linenumber">43,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.close" datatype="html">
         <source>Got it</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">50,53</context>
+          <context context-type="linenumber">53,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.title" datatype="html">
         <source>What&apos;s new</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">87</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.backgroundWork.trigger" datatype="html">

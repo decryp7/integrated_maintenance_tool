@@ -9,7 +9,7 @@ const encoder = new TextEncoder();
 
 /** Opens the editor on `file`, or on a new file of `scope` when `file` is null. */
 export function openKnowledgeEditor(dialogs: DialogService, file: KnowledgeInfo | null, scope: KnowledgeScope, maxBytes: number) {
-  return dialogs.open<boolean>(KnowledgeEditor, {
+  return dialogs.open(KnowledgeEditor, {
     title: file ? $localize`:@@ai.knowledge.editor.editTitle:Edit knowledge file` : $localize`:@@ai.knowledge.editor.newTitle:New knowledge file`,
     width: 720,
     inputs: { file, scope, maxBytes },

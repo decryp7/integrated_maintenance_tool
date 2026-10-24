@@ -105,22 +105,32 @@ the filter bar folds the time range and time zone into a ⋯ menu.
 
 Every dialog in Debrief (Settings, the AI set-up and model manager, What's new, About, Export, Share a redacted copy,
 pickers such as the time range or the text encoding, ...) opens as a window of its own, with the operating system's title
-bar, owned by the Debrief window you opened it from and centred on it. Drag it to another monitor, resize it: Debrief
-remembers the size and place of each dialog. Yes/no questions ("Delete this source?") use the system's message box.
+bar, owned by the Debrief window you opened it from and centred on it, always on the display that window is on. Resize it or
+move it beside the window: Debrief remembers its size and its place relative to the window, and uses that place next time only
+when the whole dialog then fits on the window's display (otherwise it is centred on the window again). Yes/no questions ("Delete this source?") use the system's message box.
 
 Dialog windows have **no close, minimise or zoom buttons** in the title bar: each one closes from its own content, with a
 Close or Cancel button (or its answer). You can still move and resize it, and Debrief remembers its size and place.
 
-Two kinds:
+Every dialog is one of four kinds, and the kind decides how it looks and behaves:
 
-- **Dialogs you must answer** (confirmations, unsaved changes, pickers that feed the next step, plugin permissions, the AI
-  set-up choice) are *modal*: the Debrief window behind them is dimmed and does not react until you answer, and the dialog
-  stays above it. `Esc` and `Cmd+W` / `Ctrl+W` are their Cancel; the few that have no Cancel (such as "Close Debrief?",
-  which is a choice between two ways forward) ignore them.
-- **Tools you keep beside the work** (Settings, models, What's new, About, Export, editors such as the note, knowledge,
-  parser and format editors, the incident summary, Search the web, Report export, ...) are *modeless*: the Debrief window stays
-  usable, and opening the same dialog again brings the open window to the front. `Esc` and `Cmd+W` / `Ctrl+W` are the same as
-  their Close button.
+- **Decisions** (confirmations, unsaved changes, "Close Debrief?", pickers that feed the next step such as the time range or
+  the text encoding, plugin permissions) are *modal*: the Debrief window behind them is dimmed and does not react until you
+  answer. The window is exactly as big as its question, with no scroll bar. `Esc` and `Cmd+W` / `Ctrl+W` are their Cancel;
+  the few that have no Cancel ("Close Debrief?", a choice between two ways forward) ignore them.
+- **Forms** (rules created from an event such as Drop, Mark, Mask, Extract and Infer, Paste as log, Add tile, the redaction
+  settings) have a comfortable fixed size, a scrolling body and buttons that stay in view. Forms that act on a snapshot of
+  the selected event, and the first-start AI set-up choice, are modal; forms you keep beside the work (Export, Share a redacted copy, Report a problem, the alert
+  rules, the clock adjustment, the editors for notes, knowledge, parsers and formats, the AI query and the profiling
+  launchers) are *modeless*: the Debrief window stays usable, and opening the same dialog again brings the open window to
+  the front. A modal never waits for long work; anything that takes more than a moment runs as a job (see Jobs).
+- **Viewers** (Explain event and the other AI results, the incident summary, What's new, About, Keyboard shortcuts, Check
+  for updates) open at least 680 x 560 and only ever grow while their content streams in; they never shrink under you.
+  They are modeless and have a Close button that is always in view.
+- **Tools** (Settings, the AI model manager, Research) are large modeless windows that remember their size.
+
+`Esc` and `Cmd+W` / `Ctrl+W` close a modeless dialog (Close) and cancel a modal one (Cancel). A window that offers no Close or
+Cancel of its own (still loading, an error) gets one from Debrief, so no dialog can be left without a way out.
 
 **First-start AI set-up.** The set-up window is only a choice: pick the model and press **Download and set up**. The window
 closes at once and the rest runs in the background as a job: the inference runtime first when none is installed, then the
@@ -140,7 +150,7 @@ the assistant**; if it fails one plain message says why, with **Retry**. Cancel 
 
 The screenshots come from the browser build, which draws the same dialogs inside the page; on the desktop each is a real window.
 
-`Esc` and `Cmd+W` / `Ctrl+W` close a dialog window as described above (Settings asks first when edits are unapplied), `Enter` runs its default
+Settings asks first when edits are unapplied; `Enter` runs a dialog's default
 button, and focus returns to the window you came from. The command palette and the Search everything list, menus,
 drop-downs and tooltips are not dialogs; they stay inside the window.
 

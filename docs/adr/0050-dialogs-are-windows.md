@@ -143,8 +143,8 @@ window or a dialog); `dialog_take_input` and `dialog_close` only from a dialog w
 new window class `DIALOG` in the command table (ADR 0016) gets the window commands plus the settings, storage and plugin
 commands the dialogs need, and not the session, window-management, pop-out, drag-ghost or menu commands. The
 capability `dialog.json` grants dialog webviews nothing beyond the default set; the CSP is unchanged and no remote
-content is loaded. Per-dialog command allow-lists are not done: the dialogs are the same UI code as their host
-with the host's data, so the class is the boundary.
+content is loaded. Per-dialog command allow-lists were not done here (the class was the boundary); ADR 0054 added them: a
+dialog window may call only what its own declared contract names, and the `DIALOG` class only opens a command to contracts.
 
 **Persistence.** Size and position per dialog id, in `localStorage` under `debrief.dialog.bounds` with a version;
 missing, corrupt or foreign data falls back to the default placement.

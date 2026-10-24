@@ -37,7 +37,7 @@ export class ImportRange {
   async pickAndOpen(directory: boolean): Promise<void> {
     const paths = await this.platform.pickPaths(directory);
     if (!paths.length) return;
-    const range = await this.dialogs.open<{ from: number | null; to: number | null }>(ImportRangeDialog, {
+    const range = await this.dialogs.open(ImportRangeDialog, {
       title: $localize`:@@import.range.title:Open a time range`,
       width: 520,
     }).closed;

@@ -1,9 +1,9 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { CommandRegistry } from '../extensions/command-registry';
 import { DEBRIEF_COMMANDS } from '../extensions/tokens';
 import { provideTinyBackendBare } from '../../testing/helpers';
-import { DIALOG_REF, DialogService } from '../ui/dialog.service';
+import { DIALOG_REF, DialogOptions, DialogRef, DialogService } from '../ui/dialog.service';
 import { ConfirmDialog } from '../ui/confirm-dialog';
 import { DialogPresenter } from './dialog-presenter';
 import { ConfirmQuestion, DialogSession, DialogShowRequest } from './dialog-session';
@@ -21,6 +21,11 @@ class ModelessX {
 }
 @Component({ selector: 'debrief-overlay-x', template: '' })
 class OverlayX {}
+
+/** Opens the test component, which borrows a registered id, with an answer type the test chooses. */
+function openAs<R>(dialogs: DialogService, component: Type<unknown>, options: DialogOptions): DialogRef<R> {
+  return dialogs.open(component as never, options as never) as unknown as DialogRef<R>;
+}
 
 /** A windowed backend that records what it was asked to show; each session is resolved by the test. */
 class FakeWindows implements DialogPresenter {
@@ -52,7 +57,7 @@ describe('DialogService with windows', () => {
 
   it('passes the typed inputs and the registered size to the backend and returns the result', async () => {
     const dialogs = TestBed.inject(DialogService);
-    const ref = dialogs.open<string>(ModalX, { title: 'Unsaved', inputs: { name: 'a.debriefz' } });
+    const ref = openAs<string>(dialogs, ModalX, { title: 'Unsaved', inputs: { name: 'a.debriefz' } });
     expect(windows.shown[0]).toMatchObject({ title: 'Unsaved', inputs: { name: 'a.debriefz' }, width: 440 });
     expect(windows.shown[0]!.def?.id).toBe('unsaved-changes');
     windows.sessions[0]!.resolve('yes');
@@ -128,7 +133,7 @@ describe('DialogService with windows', () => {
 describe('DialogService in the page', () => {
   it('shows the dialog in the page backend, modal with a backdrop semantics, and answers', async () => {
     const dialogs = TestBed.inject(DialogService);
-    const ref = dialogs.open<string>(ModalX, { title: 'Q', inputs: {} });
+    const ref = openAs<string>(dialogs, ModalX, { title: 'Q', inputs: {} });
     expect(dialogs.stack()).toHaveLength(1);
     expect(dialogs.stack()[0]!.modality).toBe('modal');
     expect(dialogs.parentBlocked()).toBe(false);

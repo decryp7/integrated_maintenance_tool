@@ -1,24 +1,25 @@
 import { InjectionToken } from '@angular/core';
 import { invoke } from '../core/activity/ipc';
 import { isTauri } from '../core/platform';
-import { Rect } from '../dock/dock-geometry';
-import { WorkArea } from '../popout/bounds';
+import { RememberedPlace } from './dialog-bounds';
 import { currentWindowLabel, listenHere, Unlisten } from '../windowing/window-events';
 import { ConfirmQuestion } from './dialog-session';
 
-/** Wire contract of the dialog commands (camelCase JSON), mirroring `app/src-tauri/src/dialog_windows.rs`. */
+/**
+ * Wire contract of the dialog commands (camelCase JSON), mirroring `app/src-tauri/src/dialog_windows.rs`. The kind, modality and
+ * required choice are not sent: Rust takes them from the dialog's declared contract (`dialog-contracts.json`).
+ */
 export interface DialogOpenRequest {
   dialogId: string;
   instance?: string;
   title: string;
-  modality: 'modal' | 'modeless';
-  requiredChoice?: boolean;
   input?: unknown;
   width?: number;
   height?: number;
   minWidth?: number;
   minHeight?: number;
-  bounds?: Rect;
+  /** Its remembered size and offset from the parent; the shell places it on the parent's monitor. */
+  remembered?: RememberedPlace;
 }
 export interface DialogInfo {
   label: string;
@@ -39,7 +40,8 @@ export interface DialogResultEvent {
 export interface DialogClosedEvent {
   label: string;
   dialogId: string;
-  bounds: Rect | null;
+  /** Its size and offset from the parent when it closed, for next time. */
+  remembered: RememberedPlace | null;
 }
 
 export const DIALOG_RESULT_EVENT = 'debrief://dialog-result';
@@ -55,7 +57,6 @@ export interface DialogIo {
   /** Asks the dialog window `label` to close (it may refuse). */
   requestClose(label: string): Promise<void>;
   ask(question: ConfirmQuestion): Promise<boolean>;
-  workAreas(): Promise<WorkArea[]>;
   windowLabel(): Promise<string>;
   /** Sizes this dialog window's height to `contentPx` px of content (the engine bounds it); the width stays. */
   fitHeight(contentPx: number): Promise<void>;
@@ -76,15 +77,6 @@ export function tauriDialogIo(): DialogIo {
     ask: async (q) => {
       const { ask } = await import('@tauri-apps/plugin-dialog');
       return ask(q.message, { title: q.title, kind: q.danger ? 'warning' : 'info', okLabel: q.ok, cancelLabel: q.cancel });
-    },
-    workAreas: async () => {
-      const { availableMonitors, primaryMonitor } = await import('@tauri-apps/api/window');
-      const [monitors, primary] = await Promise.all([availableMonitors(), primaryMonitor()]);
-      return monitors.map((m) => {
-        const s = m.scaleFactor || 1;
-        const wa = m.workArea ?? { position: m.position, size: m.size };
-        return { name: m.name ?? null, primary: !!primary && primary.name === m.name, x: wa.position.x / s, y: wa.position.y / s, width: wa.size.width / s, height: wa.size.height / s };
-      });
     },
     windowLabel: currentWindowLabel,
     fitHeight: (content) => invoke<void>('dialog_fit_height', { content }),
@@ -130,9 +122,13 @@ export function browserDialogIo(): DialogIo {
     listen: async () => () => undefined,
     requestClose: async () => undefined,
     ask: async (q) => window.confirm(q.message),
-    workAreas: async () => [],
     windowLabel: async () => route().get('label') ?? '',
-    // The browser build has no window to size: it publishes the height a native window would get (the e2e checks the fit with it).
-    fitHeight: async (px) => void (document.documentElement.dataset['fittedHeight'] = String(px)),
+    // The browser build has no window to size: it publishes the height a native window would get, and every height asked
+    // for in order (the e2e checks the fit, and that a dialog with static content is fitted once, without a second jump).
+    fitHeight: async (px) => {
+      const data = document.documentElement.dataset;
+      data['fittedHeight'] = String(px);
+      data['fitHistory'] = data['fitHistory'] ? `${data['fitHistory']},${px}` : String(px);
+    },
   };
 }

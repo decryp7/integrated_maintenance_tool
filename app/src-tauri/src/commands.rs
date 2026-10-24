@@ -9,7 +9,7 @@
 
 use crate::{CmdError, ErrorCode};
 use tauri::ipc::{Invoke, InvokeBody};
-use tauri::Runtime;
+use tauri::{Manager, Runtime};
 
 /// How a command is logged and what it does.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,7 +28,9 @@ pub type Windows = u8;
 pub const MAIN: Windows = 1;
 /// Panels popped out of a window (`p-<host>-<n>`).
 pub const POPOUT: Windows = 2;
-/// Dialogs of a window (`d-<host>-<n>`): they act for their host, with the host's workspace.
+/// Dialogs of a window (`d-<host>-<n>`): they act for their host, with the host's workspace. The bit only opens a
+/// command to dialogs; which dialog may call it is the dialog's own contract (`dialog-contracts.json`, ADR 0054), so a
+/// command without this bit (`resolve_close`, the session, window management) can never be reached from any dialog.
 pub const DIALOG: Windows = 4;
 /// A window, its pop-outs and its dialogs.
 pub const WINDOW: Windows = MAIN | POPOUT | DIALOG;
@@ -94,8 +96,13 @@ pub fn class_of(label: &str) -> Option<Windows> {
     }
 }
 
-/// Whether window `label` may call `command` with a request of `size` bytes; why not.
-pub fn check(command: &str, label: &str, size: usize) -> Result<(), CmdError> {
+/// What a dialog window is allowed: the contracts of the app and the id of the dialog the window shows (ADR 0054).
+pub type DialogGrant = (std::sync::Arc<crate::dialog_contracts::Contracts>, String);
+
+/// Whether window `label` may call `command` with a request of `size` bytes; why not. A dialog window (`dialog` is its
+/// grant) may call only what its own contract names (plus the base commands) and only a command the table opens to
+/// dialogs at all (`DIALOG`); a dialog window with no grant (unknown to the dialog state) may call nothing.
+pub fn check(command: &str, label: &str, dialog: Option<&DialogGrant>, size: usize) -> Result<(), CmdError> {
     if command.starts_with("plugin:") {
         // Plugin commands are governed by the capabilities (`capabilities/*.json`).
         return Ok(());
@@ -103,10 +110,18 @@ pub fn check(command: &str, label: &str, size: usize) -> Result<(), CmdError> {
     let Some(spec) = spec(command) else {
         return Ok(()); // Unknown: Tauri answers that the command does not exist.
     };
-    if !class_of(label).is_some_and(|c| spec.windows & c != 0) {
+    let class = class_of(label);
+    if !class.is_some_and(|c| spec.windows & c != 0) {
         return Err(CmdError::new(
             ErrorCode::Denied,
             format!("{command} is not available in this window"),
+        ));
+    }
+    if class == Some(DIALOG) && !dialog.is_some_and(|(contracts, id)| contracts.allows(id, command)) {
+        let which = dialog.map_or("an unknown dialog", |(_, id)| id.as_str());
+        return Err(CmdError::new(
+            ErrorCode::Denied,
+            format!("{command} is not available in the {which} dialog (its contract does not declare it)"),
         ));
     }
     if size > spec.limit {
@@ -156,6 +171,33 @@ fn json_size(v: &serde_json::Value, cap: usize) -> usize {
     }
 }
 
+/// How a refused call is logged: a dialog window calling what its contract does not declare is a bug in Debrief (an
+/// error naming the dialog and the command, also shown as the dialog's inline alert); anything else is a warning.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Refusal<'a> {
+    pub level: log::Level,
+    pub dialog: &'a str,
+    pub message: String,
+}
+
+pub fn refusal<'a>(command: &str, dialog: Option<&'a str>, e: &CmdError) -> Refusal<'a> {
+    match dialog {
+        Some(id) if e.code == ErrorCode::Denied => Refusal {
+            level: log::Level::Error,
+            dialog: id,
+            message: format!(
+                "The {id} dialog called {command}, which its contract does not declare: {}",
+                e.message
+            ),
+        },
+        _ => Refusal {
+            level: log::Level::Warn,
+            dialog: dialog.unwrap_or(""),
+            message: format!("A command was refused: {}", e.message),
+        },
+    }
+}
+
 /// Wraps the invoke handler with the table's checks (window class, request size); a refused call is
 /// answered with the [`CmdError`] and logged.
 pub fn guard<R: Runtime>(inner: impl Fn(Invoke<R>) -> bool + Send + Sync + 'static) -> impl Fn(Invoke<R>) -> bool + Send + Sync + 'static {
@@ -164,8 +206,15 @@ pub fn guard<R: Runtime>(inner: impl Fn(Invoke<R>) -> bool + Send + Sync + 'stat
         let label = invoke.message.webview().label().to_string();
         let cap = spec(&command).map_or(DEFAULT_LIMIT, |s| s.limit);
         let size = body_size(invoke.message.payload(), cap.saturating_add(1));
-        if let Err(e) = check(&command, &label, size) {
-            log::warn!(Command = command.as_str(), Window = label.as_str(), ErrorCode = format!("{:?}", e.code).as_str(); "A command was refused: {}", e.message);
+        let grant = invoke
+            .message
+            .webview()
+            .app_handle()
+            .try_state::<crate::dialog_windows::Dialogs>()
+            .and_then(|d| d.grant_of(&label));
+        if let Err(e) = check(&command, &label, grant.as_ref(), size) {
+            let r = refusal(&command, grant.as_ref().map(|(_, id)| id.as_str()), &e);
+            log::log!(r.level, Command = command.as_str(), Window = label.as_str(), Dialog = r.dialog, ErrorCode = format!("{:?}", e.code).as_str(); "{}", r.message);
             invoke.resolver.reject(e);
             return true;
         }
@@ -198,40 +247,77 @@ mod tests {
         assert_eq!(kind_of("plugin:window|title"), Kind::Query);
     }
 
+    /// The grant of the window of dialog `id`, as the guard builds it from the dialog state.
+    fn grant(id: &str) -> DialogGrant {
+        (crate::dialog_windows::debrief_contracts(), id.to_string())
+    }
+
+    #[test]
+    fn a_dialog_calling_an_undeclared_command_is_logged_as_an_error_naming_the_dialog_and_the_command() {
+        let about = grant("about");
+        let e = check("query_page", "d-main-1", Some(&about), 10).unwrap_err();
+        let r = refusal("query_page", Some("about"), &e);
+        assert_eq!((r.level, r.dialog), (log::Level::Error, "about"));
+        assert!(r.message.contains("about") && r.message.contains("query_page"), "{}", r.message);
+        // The UI's inline alert recognises the refusal by this wording (`core/denied-command.ts`).
+        assert!(e.message.contains("query_page is not available in "), "{}", e.message);
+        // A refusal outside a dialog (or for size) stays a warning.
+        let main = check("dialog_close", "main", None, 10).unwrap_err();
+        assert_eq!(refusal("dialog_close", None, &main).level, log::Level::Warn);
+        let big = CmdError::new(ErrorCode::Limit, "too large");
+        assert_eq!(refusal("query_page", Some("about"), &big).level, log::Level::Warn);
+    }
+
     #[test]
     fn windows_get_their_own_set_and_requests_are_bounded() {
         assert_eq!(class_of("main"), Some(MAIN));
         assert_eq!(class_of("w-3"), Some(MAIN));
         assert_eq!(class_of("p-main-1"), Some(POPOUT));
         assert_eq!(class_of("d-main-1"), Some(DIALOG));
-        assert!(check("query_page", "d-main-1", 10).is_ok());
-        // A dialog cannot move the session, quit or open another window's panels.
-        assert_eq!(check("save_session", "d-main-1", 10).unwrap_err().code, ErrorCode::Denied);
-        assert!(check("dialog_close", "main", 10).is_err() && check("dialog_close", "d-main-1", 10).is_ok());
-        assert!(check("dialog_fit_height", "main", 10).is_err() && check("dialog_fit_height", "d-main-1", 10).is_ok());
+        let about = grant("about");
+        // A dialog can call the base commands and its own, nothing else of the table (ADR 0054).
+        assert!(check("dialog_take_input", "d-main-1", Some(&about), 10).is_ok());
+        assert!(check("legal_text", "d-main-1", Some(&about), 10).is_ok());
+        assert_eq!(
+            check("query_page", "d-main-1", Some(&about), 10).unwrap_err().code,
+            ErrorCode::Denied
+        );
+        assert!(check("query_page", "d-main-1", Some(&grant("export")), 10).is_ok());
+        // A dialog window the dialog state does not know may call nothing.
+        assert_eq!(
+            check("dialog_take_input", "d-main-1", None, 10).unwrap_err().code,
+            ErrorCode::Denied
+        );
+        // A dialog cannot move the session, quit or open another window's panels, whatever its contract.
+        assert_eq!(
+            check("save_session", "d-main-1", Some(&about), 10).unwrap_err().code,
+            ErrorCode::Denied
+        );
+        assert!(check("dialog_close", "main", None, 10).is_err() && check("dialog_close", "d-main-1", Some(&about), 10).is_ok());
+        assert!(check("dialog_fit_height", "main", None, 10).is_err() && check("dialog_fit_height", "d-main-1", Some(&about), 10).is_ok());
         assert_eq!(class_of("bw-main"), None);
-        assert!(check("query_page", "p-main-1", 10).is_ok());
+        assert!(check("query_page", "p-main-1", None, 10).is_ok());
         // A pop-out panel cannot restart Debrief or answer its host's prompts.
-        let e = check("restart_app", "p-main-1", 10).unwrap_err();
+        let e = check("restart_app", "p-main-1", None, 10).unwrap_err();
         assert_eq!(e.code, ErrorCode::Denied);
-        assert!(check("restart_app", "main", 10).is_ok());
+        assert!(check("restart_app", "main", None, 10).is_ok());
         // A page webview of the browser is no window class: nothing of the table is callable from it.
         assert_eq!(class_of("browser-main"), None);
         for s in crate::COMMANDS {
             assert_eq!(
-                check(s.name(), "browser-main", 10).unwrap_err().code,
+                check(s.name(), "browser-main", None, 10).unwrap_err().code,
                 ErrorCode::Denied,
                 "{}",
                 s.name()
             );
         }
-        assert!(check("query_page", "unknown-window", 10).is_err());
-        assert!(check("plugin:log|log", "main", 10).is_ok());
-        assert!(check("no_such_command", "main", 10).is_ok());
-        let e = check("query_page", "main", DEFAULT_LIMIT + 1).unwrap_err();
+        assert!(check("query_page", "unknown-window", None, 10).is_err());
+        assert!(check("plugin:log|log", "main", None, 10).is_ok());
+        assert!(check("no_such_command", "main", None, 10).is_ok());
+        let e = check("query_page", "main", None, DEFAULT_LIMIT + 1).unwrap_err();
         assert_eq!(e.code, ErrorCode::Limit);
         assert!(
-            check("save_session", "main", DEFAULT_LIMIT + 1).is_ok(),
+            check("save_session", "main", None, DEFAULT_LIMIT + 1).is_ok(),
             "the session carries the UI state"
         );
         let big = serde_json::json!({ "ui": "x".repeat(1000), "n": [1, 2, true, null] });
@@ -240,6 +326,54 @@ mod tests {
         let many = serde_json::Value::Array(vec![serde_json::Value::from("a".repeat(100)); 100]);
         assert!(json_size(&many, 500) < 1000, "stops past the cap");
         assert_eq!(body_size(&InvokeBody::Raw(vec![0; 7]), 10), 7);
+    }
+
+    /// The dialog contracts (generated from the TypeScript registry) and the command table agree: every command a
+    /// dialog may call exists and is open to dialogs, none is one that must stay with the main window, and each
+    /// dialog's command is declared by the dialogs that need it only (a command nobody lists is not reachable).
+    #[test]
+    fn dialog_contracts_name_only_commands_the_table_opens_to_dialogs() {
+        let contracts = crate::dialog_windows::debrief_contracts();
+        assert!(contracts.ids().count() >= 50, "the contract file is empty or stale");
+        let opens = |name: &str| spec(name).is_some_and(|s| s.windows & DIALOG != 0);
+        for name in contracts.base() {
+            assert!(opens(name), "base command {name} is not in the table or is not open to dialogs");
+        }
+        // Commands that act for the window as a whole: no dialog may hold them (it asks its host instead).
+        const HOST_ONLY: &[&str] = &[
+            "resolve_close",
+            "resolve_open",
+            "save_session",
+            "new_window",
+            "close_window",
+            "quit_app",
+            "popout_panel",
+            "dock_panel",
+            "list_popouts",
+            "set_window_title",
+        ];
+        for id in contracts.ids() {
+            let c = contracts.get(id).expect("listed");
+            for name in &c.commands {
+                if name.ends_with('*') {
+                    assert!(
+                        crate::COMMANDS.iter().any(|s| s.name().starts_with(&name[..name.len() - 1])),
+                        "{id}: {name} matches nothing"
+                    );
+                    continue;
+                }
+                assert!(spec(name).is_some(), "{id} declares {name}, which is not in the command table");
+                assert!(opens(name), "{id} declares {name}, which the table does not open to dialogs");
+                assert!(
+                    !HOST_ONLY.contains(&name.as_str()),
+                    "{id} declares {name}: that stays with the host window"
+                );
+            }
+        }
+        // The main-only class of bug: the close prompt answers by returning its choice to the opener, never by calling
+        // `resolve_close` itself.
+        assert!(!contracts.allows("close-prompt", "resolve_close") && !contracts.allows("open-ask", "resolve_open"));
+        assert_eq!(spec("resolve_close").map(|s| s.windows & DIALOG), Some(0));
     }
 
     /// The CSP refuses plugins, base and form targets and framing; no capability grants all of `core`.

@@ -17,7 +17,7 @@ export class BrowserLauncher {
    */
   async searchEvent(recordId: number): Promise<void> {
     const { SearchWebDialog } = await import('./search-web-dialog');
-    const ref = this.dialogs.open<boolean>(SearchWebDialog, {
+    const ref = this.dialogs.open(SearchWebDialog, {
       title: $localize`:Dialog title@@browser.searchDialog.title:Search the web for this error`,
       width: 560,
       inputs: { recordId },

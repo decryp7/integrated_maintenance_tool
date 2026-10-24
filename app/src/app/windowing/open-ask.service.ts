@@ -18,7 +18,7 @@ export class OpenAskService {
    * backdrop); a dismissal tells Rust to drop the waiting files.
    */
   open(ask: OpenAsk): DialogRef<OpenTarget> {
-    const ref = this.dialogs.open<OpenTarget>(OpenAskDialog, { title: openAskTitle(ask.count), width: 460, inputs: { ask } });
+    const ref = this.dialogs.open(OpenAskDialog, { title: openAskTitle(ask.count), width: 460, inputs: { ask } });
     void ref.closed.then((choice) => this.resolve(choice ?? 'cancel'));
     return ref;
   }

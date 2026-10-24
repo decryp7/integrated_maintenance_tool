@@ -10,8 +10,15 @@ import { UnsavedChangesGuard } from './unsaved-changes';
 @Injectable({ providedIn: 'root' })
 export class RecentProjectsDialogService {
   private readonly dialogs = inject(DialogService);
-  open(): void {
-    this.dialogs.open(RecentProjectsDialog, { title: $localize`:@@projects.recent.title:Recent projects`, width: 520 });
+  private readonly guard = inject(UnsavedChangesGuard);
+  private readonly projects = inject(ProjectService);
+  /**
+   * Shows the list and opens the project chosen. The dialog only returns the path: the window that opened it asks about
+   * unsaved changes and opens the project (a dialog window has no project of its own to save or replace).
+   */
+  async open(): Promise<void> {
+    const path = await this.dialogs.open(RecentProjectsDialog, { title: $localize`:@@projects.recent.title:Recent projects`, width: 520 }).closed;
+    if (path && (await this.guard.confirm($localize`:Completes "Save the changes before you ..."|@@projects.cmd.actionOpen:open another project`))) await this.projects.open(path);
   }
 }
 
@@ -24,7 +31,7 @@ export class RecentProjectsDialogService {
       <ul class="list" aria-label="Recent projects" i18n-aria-label="@@projects.recent.list">
         @for (p of projects.recent(); track p.path) {
           <li>
-            <button type="button" class="item" (click)="open(p.path)">
+            <button type="button" class="item" (click)="choose(p.path)">
               <strong>{{ p.name }}</strong>
               <debrief-path-text class="faint mono" [value]="folder(p.path)" [full]="p.path" />
               <span class="faint when" data-testid="recent-when">{{ when(p.openedAt) }}</span>
@@ -55,7 +62,6 @@ export class RecentProjectsDialog {
   static readonly dialogId = 'recent-projects';
   protected readonly ref = inject(DIALOG_REF);
   protected readonly projects = inject(ProjectService);
-  private readonly guard = inject(UnsavedChangesGuard);
 
   protected when(openedAt: number): string {
     return formatOpenedAt(openedAt);
@@ -65,8 +71,8 @@ export class RecentProjectsDialog {
     return path.slice(0, path.length - baseName(path).length) || path;
   }
 
-  protected async open(path: string): Promise<void> {
-    this.ref.close();
-    if (await this.guard.confirm($localize`:Completes "Save the changes before you ..."|@@projects.cmd.actionOpen:open another project`)) await this.projects.open(path);
+  /** Answers the opener with the chosen project's path. */
+  protected choose(path: string): void {
+    this.ref.close(path);
   }
 }

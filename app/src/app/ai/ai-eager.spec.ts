@@ -178,7 +178,7 @@ describe('AiLauncher', () => {
     await l.askQuery();
     expect(await l.suggestRegex(['a'])).toBeNull();
     await l.propose('extractors', {});
-    expect(open.mock.calls.every(([c]) => c === lazy.AiSetupWizard)).toBe(true);
+    expect(open.mock.calls.every(([c]) => (c as unknown) === lazy.AiSetupWizard)).toBe(true);
     expect(open).toHaveBeenCalledTimes(6);
   });
 });

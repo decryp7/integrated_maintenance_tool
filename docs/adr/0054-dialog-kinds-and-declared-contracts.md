@@ -1,6 +1,6 @@
 # 54. Dialog kinds and declared contracts
 
-- Status: Accepted (2026-10-24; user: per-dialog command lists, everything in 1.1; incident-summary becomes a modeless viewer; a saved layout that does not fit is fitted with one Undo notification; shared crates `paddock-dialogs` and `paddock-health`)
+- Status: Accepted and implemented in 1.1 (2026-10-24; user: per-dialog command lists, everything in 1.1; incident-summary becomes a modeless viewer; a saved layout that does not fit is fitted with one Undo notification; shared crates `paddock-dialogs` and `paddock-health`)
 - Date: 2026-10-24
 - Amends: ADR 0050 (dialogs are real OS windows). Related: ADR 0016 (command table), Paddock rules 17 and 40
 - Extraction: the kind model, the contract and the checks are written to move into `paddock-ui` and the Paddock Rust
@@ -104,14 +104,14 @@ than the kind's minimum is raised to it.
 | Dialog id | Today | Kind | Note |
 |---|---|---|---|
 | `unsaved-changes`, `close-prompt`, `open-ask` | modal | decision | `close-prompt` is the only dialog allowed `resolve_close` |
-| `parser-import-confirm`, `marker-override`, `encoding`, `open-live`, `import-range`, `save-layout`, `recent-projects` | modal | decision | pickers feeding the next step; `import-range` gates the import |
+| `parser-import-confirm`, `marker-override`, `encoding`, `open-live`, `import-range`, `save-layout`, `recent-projects` | modal | decision | pickers feeding the next step; `import-range` gates the import; `recent-projects` returns the chosen path and the opener opens it |
 | `package-review`, `plugin-permissions` | modal | decision | consent; content-fitted, install runs as a job |
 | `drop`, `mask`, `extract`, `mark`, `infer` | modal | form (modal) | rules created from a record |
-| `parser-editor`, `format-wizard`, `knowledge-editor`, `note-editor`, `redaction` | modal | form (modal) | the three biggest must not hold long work; test-parse runs as a job |
-| `paste`, `add-tile`, `report-export`, `search-web` | modal | form (modal) | small editors; `report-export` returns its options and exports as a job |
+| `redaction`, `paste`, `add-tile`, `ai-setup` | modal | form (modal) | small editors; `redaction` previews one sample string and saves one profile write (short, so it stays modal); `ai-setup` is a quick modal choice whose download runs as a background job |
+| `parser-editor`, `format-wizard`, `knowledge-editor`, `note-editor`, `search-web`, `report-export` | modeless | form (modeless) | tools kept beside the grid (decided in 1.0.2); the opener still awaits the result; test-parse reads a bounded head of one file, which is a quick preview, not a job |
 | `clock`, `alert-rules`, `manage-layouts` | modeless | form (modeless) | edited while watching the grid |
 | `export`, `redacted-copy`, `report-problem`, `collector` | modeless | form (modeless) | start a job with its own progress and may then stay as a status view |
-| `ai-query`, `ai-propose`, `ai-setup`, `folder-setup` | modeless | form (modeless) | the setup wizards keep downloading in the background; closing never cancels the job |
+| `ai-query`, `ai-propose`, `folder-setup` | modeless | form (modeless) | the setup wizard keeps downloading in the background; closing never cancels the job |
 | `profile-native`, `profile-etl`, `profile-dotnet` | modeless | form (modeless) | launchers |
 | `ai-narrative`, `ai-proposal-result`, `ai-regex` | modeless | viewer | "Explain event" and the other results: 680x560, grow |
 | `whats-new`, `about`, `cheat-sheet`, `updates` | modeless | viewer | reference; `updates` shows download progress inside |
@@ -157,6 +157,85 @@ adopter.
    `commands::guard`; remove the `DIALOG` class from the table as commands get declared.
 5. *After 1.1.* Convert modal dialogs that start long work to job-plus-notification (parser editor test-parse,
    `format-wizard`, `knowledge-editor`, `redaction` preview) and lift the helpers to `paddock-ui`.
+
+## Implementation notes (1.1)
+
+Everything in the migration plan shipped together in 1.1, including the steps marked "after 1.1". Where the code differs
+from the text above:
+
+- **Where it lives.** The kind model, `defineDialog`, the contract types and the policy helpers are in
+  `app/src/app/dialog-windows/kit/` (Angular only, no app imports: the folder moves to `paddock-ui` as it is). The Rust half is
+  `dialog_contracts.rs` (parse and validate the contract file, `allows(dialog, command)`; no Debrief dependency, ready to be the
+  `paddock-dialogs` crate) plus the window creation and the guard hook in `dialog_windows.rs` and `commands.rs`. The 51
+  registry entries, `DIALOG_BASE_COMMANDS`, `DIALOG_SYNC_COMMANDS`, the host-only service list and the command table stay in
+  Debrief. The shared packages are not created yet.
+- **The `DIALOG` bit stays, its meaning changed.** The table's `DIALOG` flag no longer says "any dialog may call this"; it says
+  "a dialog contract may name this". A command without it (`resolve_close`, `save_session`, window management) cannot be
+  reached from any dialog whatever a contract says, and a Rust test fails when a contract names one. The guard allows a call from a
+  dialog window only when the table opens the command to dialogs **and** that window's own contract (or the base set) names it.
+  The dialog id comes from the `Dialogs` state by window label, never from the webview.
+- **Rust owns kind and modality.** `dialog_open` takes no modality or required choice any more (the request type rejects them);
+  it reads kind, modality, required choice, instancing and the minimum size from the contract, refuses an id with no contract,
+  and refuses an instance key for a dialog that is not instanced. `dialog_fit_height` never goes below the contract's floor and
+  never shrinks a viewer.
+- **`resolve_close` stays MAIN-only.** The close prompt (and the open-ask dialog) already return their answer to the opener,
+  which runs the command, so `close-prompt` needs no exception; the table above that said otherwise is superseded.
+- **The contract file** is `app/src-tauri/dialog-contracts.json`, written by `DEBRIEF_WRITE_CONTRACTS=1 npx ng test
+  --include=src/app/dialog-windows/dialog-contracts.spec.ts` and compared by the same spec on every run (the TS and Rust sides
+  cannot drift). `commands` lists are not typed by hand: `scripts/check-dialog-commands.mjs` walks the type-checked TypeScript
+  call graph from each dialog component (members, template references, imported components, injected classes, abstract
+  backends to their implementations, store methods by use) and fails in both directions: a command a dialog reaches and does not
+  declare, and a declared command nothing reaches. It also fails a command that is not in the table or that the table does not open to
+  dialogs. Three things the walk does not enter are listed by hand with their reason: the synced UI state
+  (`DIALOG_SYNC_COMMANDS`), host-only services (`HOST_ONLY_SERVICES`: the dock, the pop-out service, the session, and the two
+  restarts that a dialog window hands to its host). The lint runs in `npm run lint`, as `pretest` and in CI.
+- **Commands found mis-classed.** Settings' and the plugin windows' "Restart to apply", and "Restart as administrator" in the
+  profiling and diagnostics windows, saved the session from a dialog window (`save_session` is MAIN-only and the session is the
+  host's): the restart failed or reopened the dialog's empty session. A dialog window now hands both restarts to its host
+  (`app.restartKeepingSession`, `app.restartElevated`) through `HOST_COMMAND_FORWARD`.
+- **Typed results.** `DialogService.open(Component, options)` is typed from the registry: the answer is the entry's `result`, the
+  inputs are the component's `input()` signals (an unknown input or a wrong answer type is a compile error). Only components that
+  are not registered (`ConfirmDialog`, the in-page palette) use the untyped overload.
+- **Long work in modals.** Parser editor, format wizard, knowledge editor, note editor, Search the web and Report export were made
+  modeless in 1.0.2 on purpose (tools beside the grid) and stay `form` modeless (the table above now says so). Their "test parse"
+  reads a bounded head of one file (`read_file_head`, `preview_parse`), which is a quick preview, not a job. The redaction dialog is
+  a modal form whose preview is one sample string and whose save is one profile write: short, so it stays modal. `ai-setup` stays a
+  modal form by explicit decision (a quick choice; the download is a background job).
+- **Dialogs hand work back to the opener.** `recent-projects` only returns the chosen path (`result: string`); the window that opened
+  it asks about unsaved changes and opens the project (it no longer holds `open_project` or `save_project`). What's New reads the
+  running version from the engine (`app_status`).
+- **Backend-group commands.** Providers of a backend group send commands by themselves when a window boots (the AI status store asks
+  for `ai_status`). `DIALOG_BACKEND_COMMANDS` lists them per group; every dialog naming the group gets them in its contract. They were
+  found by `dialog-commands-boot.spec.ts`, which the call-graph lint could not see.
+- **The boot spec enforces the list.** `dialog-commands-boot.spec.ts` boots every registry entry over the real Tauri backends with a
+  fake `window.__TAURI_INTERNALS__.invoke` (the seam Tauri's own `invoke` calls) and fails when a dialog sends a command its contract
+  does not name. A refusal in the real app is logged at error level with the dialog id and the command, and shown by the dialog's
+  inline alert (`dialog-denied`), which has a test for the contract wording.
+- **Sizes.** `form` with no declared height is fitted to its content (grow-only) as before; it is not forced to a fixed height.
+  The shell now measures the bottom of the last child, so its own Close footer is part of the fitted height (a decision that got the
+  shell footer used to open with a scroll bar). A viewer's content scrolls inside while its Close stays pinned (What's new did not).
+- **Placement policy (multi-display bug, 1.0.2 DMG).** Dialogs opened on another display than the main window, and sometimes at
+  the wrong size: the UI remembered *absolute* screen bounds and sent them as the place to open (pulling the dialog onto whatever
+  display it was on last time), the fallback without parent bounds was (100, 100) on the primary display, and the sizes were
+  bounded by the monitor's full size in logical px of one monitor while the window could be created on another with a different
+  scale. The shell now owns placement as part of the kind contract (`dialog_placement.rs`, a pure function with table tests):
+  a dialog always opens on its parent's monitor (the platform's current monitor, else the one the parent overlaps most or is
+  nearest to; never the primary display as such). Its size is remembered always, its place only as an offset from the parent,
+  and that offset is used only when the whole dialog then lies inside the parent monitor's work area; otherwise it is centred on
+  the parent and moved into the work area, and a dialog bigger than the work area is shrunk to it. The computation is in physical
+  px of that monitor; macOS gets the position in points (one global space), Windows and Linux get the exact physical position set
+  after the build. What a kind keeps of the memory is its size rule: a decision keeps nothing (exactly as big as its question,
+  centred), a fitted form keeps width and offset (its height comes from the content), viewers and tools keep it all. A re-fit
+  (`dialog_fit_height`) is bounded by the work area of the dialog's own monitor and moves the window up rather than off its bottom.
+  Every placement and fit is logged at info (dialog, monitor name and work area, chosen rectangle, whether the memory was used).
+  The first fit waits for the fonts the content's layout requested (taking the layout first), so a fitted dialog is fitted once
+  (`dialog-window.e2e.ts` checks one dialog per fitted kind; the paste form jumped 419 -> 433 in WebKit before). Pop-out panels
+  keep their own policy (they are meant to live on any display; the UI clamps them to a visible work area by monitor name).
+- **Not done.** Creating a fitted window hidden and showing it after its first fit would remove the last visible jump for content
+  that loads after opening; it is not done because an owned (child) window on macOS is ordered in when it is attached to its
+  parent, which could not be verified without opening windows on the desktop. The browser build's mock backends are plain classes, not an `invoke` seam, so the Playwright boot cannot enforce the
+  list; the Vitest boot over the Tauri backends does. It sees what a window sends while it starts, not what a click would send (the
+  lint covers that). `dialog_resize` / `dialog_grow` as separate commands were not added; `dialog_fit_height` does both jobs per kind.
 
 ## Alternatives considered
 

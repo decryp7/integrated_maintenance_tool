@@ -2,6 +2,7 @@ import { computed, inject, Injectable, signal } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { LifecycleBackend } from '../core/tools-backend';
 import { AppStatus, ElevationInfo, Platform } from '../core/tools.types';
+import { HOST_COMMAND_FORWARD } from '../dialog-windows/host-commands';
 import { ProjectService } from '../projects/project.service';
 import { errorMessage } from '../tools/tool-errors';
 import { SessionService } from './session.service';
@@ -18,6 +19,8 @@ export class LifecycleService {
   private readonly session = inject(SessionService);
   private readonly projects = inject(ProjectService);
   private readonly windowing = inject(WindowingBackend);
+  /** In a dialog window: hands a command to the window that opened it (the session and the restart are the host's). */
+  private readonly forward = inject(HOST_COMMAND_FORWARD);
 
   readonly status = signal<AppStatus | null>(null);
   readonly elevation = signal<ElevationInfo | null>(null);
@@ -80,11 +83,13 @@ export class LifecycleService {
 
   /** Relaunches the app keeping its mode, reopening the session (after a plugin was enabled or disabled). */
   async restartKeepingSession(): Promise<void> {
+    if (this.forward('app.restartKeepingSession')) return;
     await this.run((error) => $localize`:@@lifecycle.service.restartFailed:Could not restart: ${error}:error:`, async () => this.backend.restartApp(this.safeMode(), await this.sessionSaved()));
   }
 
   /** Saves the session, then relaunches as administrator (Windows UAC prompt) reopening it. */
   async restartElevated(): Promise<void> {
+    if (this.forward('app.restartElevated')) return;
     await this.run((error) => $localize`:@@lifecycle.service.elevatedFailed:Could not restart as administrator: ${error}:error:`, async () => this.backend.restartElevated(await this.sessionSaved()));
   }
 

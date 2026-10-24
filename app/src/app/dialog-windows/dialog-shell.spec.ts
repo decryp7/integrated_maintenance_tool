@@ -7,7 +7,7 @@ import { UiSync } from '../popout/ui-sync';
 import { el, settle } from '../../testing/helpers';
 import { provideTinyBackend } from '../../testing/helpers';
 import { DIALOG_REF } from '../ui/dialog.service';
-import { DialogDef } from './dialog-def';
+import { DialogDef, defineDialog, type } from './dialog-def';
 import { DIALOG_CLOSE_REQUESTED_EVENT, DIALOG_IO } from './dialog-io';
 import { FakeDialogIo } from './dialog-io-fake';
 import { DIALOG_LOOKUP } from './dialog-registry';
@@ -29,12 +29,13 @@ class Content {
   readonly name = input('none');
 }
 
-const def: DialogDef = { id: 'shell-test', modality: 'modal', width: 400, load: async () => Content };
+const base = { id: 'shell-test', width: 400, result: type<void>(), commands: [], load: async () => Content } as const;
+const def: DialogDef = defineDialog({ ...base, kind: 'decision' });
 
-async function setup(over: { lookup?: (id: string) => DialogDef | undefined; failTake?: boolean; onLog?: (m: string, p: unknown) => void } = {}) {
+async function setup(over: { lookup?: (id: string) => DialogDef | undefined; failTake?: boolean; modality?: 'modal' | 'modeless'; onLog?: (m: string, p: unknown) => void } = {}) {
   allow = true;
   const io = new FakeDialogIo();
-  io.start = { dialogId: 'shell-test', title: 'Shell test', modality: 'modal', input: { name: 'Ada' } };
+  io.start = { dialogId: 'shell-test', title: 'Shell test', modality: over.modality ?? 'modal', input: { name: 'Ada' } };
   if (over.failTake) io.take = () => Promise.reject(new Error('gone'));
   TestBed.configureTestingModule({
     providers: [
@@ -60,7 +61,7 @@ describe('DialogShell', () => {
       const { io } = await setup();
       expect(io.fitted).toEqual([152]);
       TestBed.resetTestingModule();
-      const { io: fixed } = await setup({ lookup: () => ({ ...def, height: 600 }) });
+      const { io: fixed } = await setup({ lookup: () => defineDialog({ ...base, kind: 'form', modality: 'modal', height: 600 }) });
       expect(fixed.fitted).toEqual([]);
     } finally {
       rect.mockRestore();
@@ -111,7 +112,7 @@ describe('DialogShell', () => {
   });
 
   it('ignores Escape, Cmd+W and a close request in a required-choice modal, and closes with its answer', async () => {
-    const required: DialogDef = { ...def, requiredChoice: true };
+    const required: DialogDef = defineDialog({ ...base, kind: 'decision', requiredChoice: true });
     const { fixture, io } = await setup({ lookup: (id) => (id === 'shell-test' ? required : undefined) });
     key(el(fixture, '#in'), 'Escape');
     key(el(fixture, '#in'), 'w', { metaKey: true });
@@ -184,7 +185,7 @@ describe('DialogShell', () => {
     }
     for (const [component, reason] of [[Ctor, 'No provider found'], [Render, 'render failed']] as const) {
       const logged: unknown[][] = [];
-      const { fixture, io } = await setup({ lookup: () => ({ ...def, load: async () => component }), onLog: (m, p) => logged.push([m, p]) });
+      const { fixture, io } = await setup({ lookup: () => defineDialog({ ...base, kind: 'decision', load: async () => component as never }), onLog: (m, p) => logged.push([m, p]) });
       expect(el(fixture, '.failed-title').textContent).toContain("This window couldn't open");
       expect(el(fixture, '[data-testid=dialog-error-reason]').textContent).toContain(reason);
       expect(fixture.nativeElement.querySelector('[data-testid=dialog-loading]')).toBeNull();
@@ -210,7 +211,73 @@ describe('DialogShell', () => {
     await settle(fixture);
     expect(el(fixture, '[data-testid=dialog-denied]').textContent).toContain('resolve_close');
     deniedCommand.set(null);
+    // The engine's refusal of a dialog whose contract does not declare the command (ADR 0054) is shown the same way.
+    reportRefusedCommand('query_page', new CmdError({ code: 'denied', message: 'query_page is not available in the about dialog (its contract does not declare it)', retryable: false }));
+    await settle(fixture);
+    expect(el(fixture, '[data-testid=dialog-denied]').textContent).toContain('query_page');
+    deniedCommand.set(null);
     reportRefusedCommand('x', new CmdError({ code: 'denied', message: 'Access is denied.', retryable: false }));
     expect(deniedCommand()).toBeNull();
+  });
+
+  describe('by kind', () => {
+    it('only ever asks for a taller window: a viewer that streams grows, and one whose content shrinks keeps its size', async () => {
+      let bottom = 300;
+      const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(() => ({ height: bottom, top: 0, bottom }) as DOMRect);
+      const original = globalThis.ResizeObserver;
+      let notify: () => void = () => undefined;
+      globalThis.ResizeObserver = class {
+        constructor(cb: () => void) {
+          notify = cb;
+        }
+        observe() {}
+        disconnect() {}
+        unobserve() {}
+      } as unknown as typeof ResizeObserver;
+      try {
+        const { io } = await setup({ lookup: () => defineDialog({ ...base, kind: 'viewer' }) });
+        const first = io.fitted.at(-1)!;
+        for (const next of [700, 400, 900, 200]) {
+          bottom = next;
+          notify();
+          await new Promise((r) => setTimeout(r, 90));
+        }
+        expect(io.fitted.every((h, i) => i === 0 || h > io.fitted[i - 1]!), `asked for ${io.fitted}`).toBe(true);
+        expect(io.fitted[0]).toBe(first);
+        expect(Math.max(...io.fitted)).toBeGreaterThan(900);
+        expect(io.fitted.at(-1)).toBeGreaterThanOrEqual(900);
+      } finally {
+        rect.mockRestore();
+        globalThis.ResizeObserver = original;
+      }
+    });
+
+    const viewer = () => defineDialog({ ...base, kind: 'viewer' });
+
+    it('fits a viewer to its content too, which the engine only lets grow from 680x560', async () => {
+      const rect = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({ height: 900, top: 0, bottom: 916 } as DOMRect);
+      try {
+        const { io } = await setup({ lookup: viewer });
+        expect(io.fitted).toEqual([932]);
+      } finally {
+        rect.mockRestore();
+      }
+    });
+
+    it('draws a Cancel for a modal and a Close for a modeless window when the content has no way out', async () => {
+      for (const [lookup, modality, label] of [
+        [() => defineDialog({ ...base, kind: 'decision' }), 'modal', 'Cancel'],
+        [viewer, 'modeless', 'Close'],
+      ] as const) {
+        const { fixture } = await setup({ lookup, modality });
+        await new Promise((r) => setTimeout(r, 80));
+        await settle(fixture);
+        const button = fixture.nativeElement.querySelector('[data-testid=dialog-shell-close]') as HTMLButtonElement | null;
+        // The modality comes from Rust's contract (`dialog_take_input`); the shell shows what it was told.
+        expect(button?.textContent?.trim(), modality).toBe(label);
+        expect(button?.hasAttribute('data-dialog-close'), modality).toBe(true);
+        TestBed.resetTestingModule();
+      }
+    });
   });
 });

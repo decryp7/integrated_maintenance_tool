@@ -1,0 +1,823 @@
+{
+  "version": 1,
+  "base": [
+    "capture_window_image",
+    "diagnostics_settings",
+    "dialog_close",
+    "dialog_fit_height",
+    "dialog_take_input",
+    "live_state",
+    "query_timeline",
+    "recent_list",
+    "save_error_snapshot",
+    "workspace_summary"
+  ],
+  "dialogs": {
+    "about": {
+      "kind": "viewer",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": {
+        "width": 680,
+        "height": 560
+      },
+      "commands": [
+        "app_status",
+        "elevation",
+        "legal_text"
+      ]
+    },
+    "add-tile": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "ai-models": {
+      "kind": "tool",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_catalog",
+        "ai_manual_download",
+        "ai_manual_download_open",
+        "ai_model_activate",
+        "ai_model_add_local",
+        "ai_model_add_projector",
+        "ai_model_delete",
+        "ai_model_install_projector",
+        "ai_models",
+        "ai_reset",
+        "ai_runtime_add_archives",
+        "ai_runtime_choose",
+        "ai_runtime_delete",
+        "ai_runtime_install",
+        "ai_runtimes",
+        "ai_status",
+        "dialog_open",
+        "find_values",
+        "jobs_cancel",
+        "jobs_unwait",
+        "jobs_wait",
+        "pick_paths",
+        "run_query"
+      ]
+    },
+    "ai-narrative": {
+      "kind": "viewer",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": true,
+      "minSize": {
+        "width": 680,
+        "height": 560
+      },
+      "commands": [
+        "ai_open_link",
+        "ai_status",
+        "check_query",
+        "complete_query",
+        "dialog_open",
+        "find_values",
+        "jobs_cancel",
+        "run_query",
+        "run_query_stream"
+      ]
+    },
+    "ai-proposal-result": {
+      "kind": "viewer",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": true,
+      "minSize": {
+        "width": 680,
+        "height": 560
+      },
+      "commands": [
+        "ai_status",
+        "check_query",
+        "complete_query",
+        "dialog_open",
+        "get_profile",
+        "jobs_cancel",
+        "jobs_wait",
+        "parser_save",
+        "parsers_reread",
+        "run_query",
+        "run_query_stream",
+        "save_profile"
+      ]
+    },
+    "ai-propose": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": true,
+      "minSize": null,
+      "commands": [
+        "ai_start",
+        "ai_status",
+        "check_query",
+        "complete_query",
+        "dialog_open",
+        "find_values",
+        "get_profile",
+        "jobs_cancel",
+        "jobs_list",
+        "jobs_unwait",
+        "jobs_wait",
+        "parser_save",
+        "parsers_reread",
+        "run_query",
+        "run_query_stream",
+        "save_profile"
+      ]
+    },
+    "ai-query": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_start",
+        "ai_status",
+        "check_query",
+        "complete_query",
+        "dialog_open",
+        "find_values",
+        "get_profile",
+        "jobs_cancel",
+        "jobs_list",
+        "jobs_unwait",
+        "jobs_wait",
+        "parser_save",
+        "parsers_reread",
+        "run_query",
+        "run_query_stream",
+        "save_profile"
+      ]
+    },
+    "ai-regex": {
+      "kind": "viewer",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": true,
+      "minSize": {
+        "width": 680,
+        "height": 560
+      },
+      "commands": [
+        "ai_start",
+        "ai_status",
+        "check_query",
+        "complete_query",
+        "dialog_open",
+        "find_values",
+        "get_profile",
+        "jobs_cancel",
+        "jobs_list",
+        "jobs_unwait",
+        "jobs_wait",
+        "parser_save",
+        "parsers_reread",
+        "run_query",
+        "run_query_stream",
+        "save_profile"
+      ]
+    },
+    "ai-setup": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_refine_fit",
+        "ai_runtime_add_archives",
+        "ai_runtime_choose",
+        "ai_runtime_delete",
+        "ai_runtime_install",
+        "ai_runtimes",
+        "ai_setup_background",
+        "ai_setup_plan",
+        "ai_status",
+        "find_values",
+        "jobs_cancel",
+        "run_query"
+      ]
+    },
+    "alert-rules": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "check_query",
+        "complete_query",
+        "get_profile",
+        "jobs_wait",
+        "save_profile",
+        "validate_profile"
+      ]
+    },
+    "cheat-sheet": {
+      "kind": "viewer",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": {
+        "width": 680,
+        "height": 560
+      },
+      "commands": [
+        "dialog_open"
+      ]
+    },
+    "clock": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": true,
+      "minSize": null,
+      "commands": [
+        "set_source_offset",
+        "suggest_offsets"
+      ]
+    },
+    "close-prompt": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": true,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "collector": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "dialog_open",
+        "jobs_wait",
+        "open_paths",
+        "pick_paths",
+        "tool_invoke",
+        "tools_list"
+      ]
+    },
+    "drop": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "get_profile",
+        "jobs_wait",
+        "query_page",
+        "save_profile",
+        "validate_profile"
+      ]
+    },
+    "encoding": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "jobs_wait",
+        "list_encodings",
+        "set_source_encoding"
+      ]
+    },
+    "export": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "dialog_open",
+        "export_events",
+        "get_profile",
+        "notifications_list",
+        "pick_paths",
+        "query_page",
+        "redaction_summary"
+      ]
+    },
+    "extract": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "get_profile",
+        "jobs_wait",
+        "preview_extractor",
+        "save_profile",
+        "validate_profile"
+      ]
+    },
+    "folder-setup": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_start",
+        "ai_status",
+        "dialog_open",
+        "find_values",
+        "folder_setup_compose",
+        "folder_survey",
+        "get_profile",
+        "jobs_cancel",
+        "jobs_wait",
+        "parser_save",
+        "parsers_reread",
+        "query_facet",
+        "run_query",
+        "save_profile"
+      ]
+    },
+    "format-wizard": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_status",
+        "dialog_open",
+        "find_values",
+        "jobs_wait",
+        "parser_draft",
+        "parser_save",
+        "parsers_list",
+        "parsers_reread",
+        "preview_parse",
+        "read_file_head",
+        "run_query"
+      ]
+    },
+    "import-range": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "incident-summary": {
+      "kind": "viewer",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": {
+        "width": 680,
+        "height": 560
+      },
+      "commands": [
+        "ai_status",
+        "find_values",
+        "incident_narrative",
+        "incident_report_build",
+        "known_issues_match",
+        "query_page",
+        "run_query"
+      ]
+    },
+    "infer": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_status",
+        "dialog_open",
+        "explain_regex",
+        "find_values",
+        "get_profile",
+        "infer_regex",
+        "jobs_wait",
+        "run_query",
+        "save_profile",
+        "validate_profile"
+      ]
+    },
+    "knowledge-editor": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_knowledge_create",
+        "ai_knowledge_get",
+        "ai_knowledge_list",
+        "ai_knowledge_project_record",
+        "ai_knowledge_update"
+      ]
+    },
+    "manage-layouts": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "mark": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "explain_regex",
+        "get_profile",
+        "jobs_wait",
+        "query_page",
+        "save_profile",
+        "validate_profile"
+      ]
+    },
+    "marker-override": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "mask": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "get_profile",
+        "jobs_wait",
+        "query_page",
+        "save_profile",
+        "validate_profile"
+      ]
+    },
+    "note-editor": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "notes_add",
+        "notes_list",
+        "notes_record",
+        "notes_update"
+      ]
+    },
+    "open-ask": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "open-live": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "jobs_wait",
+        "open_paths",
+        "open_paths_live",
+        "pick_paths",
+        "set_live"
+      ]
+    },
+    "package-review": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "plugin_package_install",
+        "plugin_packages_list"
+      ]
+    },
+    "parser-editor": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "dialog_open",
+        "get_profile",
+        "parser_save",
+        "parser_validate",
+        "preview_parse",
+        "read_file_head",
+        "validate_profile"
+      ]
+    },
+    "parser-import-confirm": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "paste": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "jobs_wait",
+        "paste_log"
+      ]
+    },
+    "plugin-permissions": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "plugin_package_set_permissions"
+      ]
+    },
+    "profile-dotnet": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "jobs_cancel",
+        "profiling_list",
+        "profiling_open",
+        "tool_invoke",
+        "tool_poll",
+        "tool_task_job"
+      ]
+    },
+    "profile-etl": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": true,
+      "minSize": null,
+      "commands": [
+        "profiling_list",
+        "profiling_open",
+        "tool_invoke"
+      ]
+    },
+    "profile-native": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "jobs_cancel",
+        "profiling_list",
+        "profiling_open",
+        "tool_invoke",
+        "tool_poll",
+        "tool_task_job"
+      ]
+    },
+    "recent-projects": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "recent_clear"
+      ]
+    },
+    "redacted-copy": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": {
+        "width": 560,
+        "height": 420
+      },
+      "commands": [
+        "dialog_open",
+        "export_redacted_copy",
+        "get_profile",
+        "jobs_wait",
+        "pick_paths",
+        "query_page",
+        "redacted_copy_choices",
+        "redacted_copy_preview"
+      ]
+    },
+    "redaction": {
+      "kind": "form",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "get_profile",
+        "jobs_wait",
+        "preview_redaction",
+        "save_profile",
+        "validate_profile"
+      ]
+    },
+    "report-export": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "dialog_open",
+        "export_report",
+        "get_profile",
+        "notifications_list",
+        "pick_paths",
+        "preview_redaction"
+      ]
+    },
+    "report-problem": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "dialog_open",
+        "notifications_list",
+        "pick_paths",
+        "problem_report_preview",
+        "save_problem_report"
+      ]
+    },
+    "research": {
+      "kind": "tool",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_research",
+        "ai_research_draft",
+        "find_values",
+        "run_query"
+      ]
+    },
+    "save-layout": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "search-web": {
+      "kind": "form",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "browser_event_query",
+        "browser_open"
+      ]
+    },
+    "settings": {
+      "kind": "tool",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": [
+        "ai_knowledge_export",
+        "ai_knowledge_import",
+        "ai_knowledge_list",
+        "ai_knowledge_project_record",
+        "ai_knowledge_remove",
+        "ai_knowledge_update",
+        "ai_manual_download",
+        "ai_manual_download_open",
+        "ai_model_add_local",
+        "ai_runtime_add_archives",
+        "ai_runtime_choose",
+        "ai_runtime_delete",
+        "ai_runtime_install",
+        "ai_runtimes",
+        "ai_status",
+        "ai_updates_apply",
+        "ai_updates_check",
+        "ai_updates_skip",
+        "ai_updates_status",
+        "browser_runtime_install",
+        "browser_runtime_remove",
+        "browser_runtime_status",
+        "dialog_open",
+        "export_settings",
+        "find_values",
+        "import_settings",
+        "jobs_cancel",
+        "jobs_unwait",
+        "jobs_wait",
+        "parsers_list",
+        "performance_preset",
+        "performance_suggest",
+        "pick_paths",
+        "reset_settings",
+        "run_query",
+        "set_live",
+        "set_settings",
+        "settings_sections",
+        "storage_clear",
+        "storage_policy",
+        "storage_reveal",
+        "storage_set_policy",
+        "storage_stores",
+        "storage_stores_clear",
+        "storage_usage",
+        "updates_check",
+        "updates_status",
+        "video_runtime",
+        "video_runtime_clear_custom",
+        "video_runtime_delete",
+        "video_runtime_install",
+        "video_runtime_rollback",
+        "video_runtime_set_custom"
+      ]
+    },
+    "unsaved-changes": {
+      "kind": "decision",
+      "modality": "modal",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": null,
+      "commands": []
+    },
+    "updates": {
+      "kind": "viewer",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": {
+        "width": 680,
+        "height": 560
+      },
+      "commands": [
+        "jobs_cancel",
+        "updates_check",
+        "updates_discard",
+        "updates_download",
+        "updates_install_on_quit",
+        "updates_open_releases",
+        "updates_restart",
+        "updates_status"
+      ]
+    },
+    "whats-new": {
+      "kind": "viewer",
+      "modality": "modeless",
+      "requiredChoice": false,
+      "instanced": false,
+      "minSize": {
+        "width": 680,
+        "height": 560
+      },
+      "commands": [
+        "app_status"
+      ]
+    }
+  }
+}

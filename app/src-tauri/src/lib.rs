@@ -33,6 +33,8 @@ mod config_store;
 mod demo;
 mod dev_overrides;
 mod diagnostics;
+mod dialog_contracts;
+mod dialog_placement;
 mod dialog_windows;
 mod drag_ghost;
 mod dumps;
@@ -133,8 +135,9 @@ macro_rules! command_table {
 }
 
 // Every command the UI can invoke: one line each (ADR 0016). Kind: Query (read-only), Mutation, Quiet
-// (polling and bookkeeping). Windows: MAIN (`main`, `w-*`), POPOUT (`p-*`), DIALOG (`d-*`), WINDOW =
-// MAIN | POPOUT | DIALOG. Limit: the largest request in bytes (default `commands::DEFAULT_LIMIT`).
+// (polling and bookkeeping). Windows: MAIN (`main`, `w-*`), POPOUT (`p-*`), DIALOG (`d-*`: opens the command to dialog
+// contracts; a dialog window may call it only when its own contract in `dialog-contracts.json` names it, ADR 0054),
+// WINDOW = MAIN | POPOUT | DIALOG. Limit: the largest request in bytes (default `commands::DEFAULT_LIMIT`).
 command_table! {
     Query [WINDOW] => workspace_commands::workspace_summary,
     Mutation [WINDOW] => workspace_commands::open_paths,

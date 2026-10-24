@@ -16,7 +16,7 @@ export class ProjectCommands {
   readonly commands: DebriefCommand[] = [
     { id: 'project.new', title: $localize`:@@projects.cmd.new:New project`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.newProject() },
     { id: 'project.open', title: $localize`:@@projects.cmd.open:Open project…`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.openProject() },
-    { id: 'project.recent', title: $localize`:@@projects.cmd.recent:Open recent project…`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => this.recent.open() },
+    { id: 'project.recent', title: $localize`:@@projects.cmd.recent:Open recent project…`, category: $localize`:Command palette category|@@projects.cmd.fileCategory:File`, run: () => void this.recent.open() },
     {
       id: 'project.openLast',
       title: $localize`:@@projects.cmd.openLast:Open last project`,

@@ -27,7 +27,7 @@ export class ParserDialogs {
 
   /** Importing a parser whose id is in the library: versions and diff, then Update/Replace. */
   async confirmImport(check: ParserImportCheckDto): Promise<boolean> {
-    const ref = this.dialogs.open<boolean>(ParserImportConfirm, {
+    const ref = this.dialogs.open(ParserImportConfirm, {
       title: check.relation === 'newer' ? $localize`:@@settings.parsers.import.titleUpdate:Update parser` : $localize`:@@settings.parsers.import.titleReplace:Replace parser`,
       width: 720,
       inputs: { check },
@@ -37,7 +37,7 @@ export class ParserDialogs {
 
   /** Opens the TOML editor; resolves with the library after a save, or undefined. */
   async edit(doc: ParserDocDto, options: { isNew?: boolean; readSources?: number[] } = {}): Promise<ParserLibraryDto | undefined> {
-    const ref = this.dialogs.open<ParserLibraryDto>(ParserEditor, {
+    const ref = this.dialogs.open(ParserEditor, {
       title: options.isNew ? $localize`:@@settings.parsers.editor.titleNew:New parser` : $localize`:@@settings.parsers.editor.title:Edit parser ${doc.id}:id:`,
       width: 900,
       inputs: { doc, isNew: options.isNew ?? false, readSources: options.readSources ?? [] },

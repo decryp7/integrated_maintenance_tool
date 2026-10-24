@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { CmdError } from './cmd-error';
 
 /** The engine's refusal of a command this window class may not call (`commands::check`). */
-const REFUSED = 'is not available in this window';
+const REFUSED = 'is not available in ';
 
 /** The last command the engine refused for this window, as a plain sentence; a window shows it so the click is never silent. */
 export const deniedCommand = signal<string | null>(null);

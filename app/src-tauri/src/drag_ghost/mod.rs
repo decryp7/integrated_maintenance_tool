@@ -604,12 +604,12 @@ mod tests {
         }
         assert_eq!(crate::commands::class_of(GHOST_LABEL), None);
         for s in crate::COMMANDS {
-            assert!(crate::commands::check(s.name(), GHOST_LABEL, 10).is_err(), "{}", s.name());
+            assert!(crate::commands::check(s.name(), GHOST_LABEL, None, 10).is_err(), "{}", s.name());
         }
         // Only Debrief windows start a ghost; a pop-out has its own drag.
         for cmd in ["drag_ghost_start", "drag_ghost_show", "drag_ghost_end"] {
-            assert!(crate::commands::check(cmd, MAIN, 10).is_ok());
-            assert!(crate::commands::check(cmd, "p-main-1", 10).is_err());
+            assert!(crate::commands::check(cmd, MAIN, None, 10).is_ok());
+            assert!(crate::commands::check(cmd, "p-main-1", None, 10).is_err());
         }
         assert!(crate::window_manager::is_auxiliary(GHOST_LABEL));
     }

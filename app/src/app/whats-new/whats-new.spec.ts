@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { AppStatus } from '../core/tools.types';
+import { LifecycleBackend } from '../core/tools-backend';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { DIALOG_REF, DialogService } from '../ui/dialog.service';
 import { ChangelogRelease, decideWhatsNew, releaseFor } from './changelog';
@@ -27,18 +28,28 @@ describe('whats new decisions', () => {
   });
 });
 
-function dialogFixture() {
+async function dialogFixture() {
   const fixture = TestBed.createComponent(WhatsNewDialog);
+  fixture.detectChanges();
+  await fixture.whenStable();
   fixture.detectChanges();
   return fixture;
 }
 
+let engineVersion: string | null = '';
+
 describe('WhatsNewService', () => {
   beforeEach(() => {
     localStorage.clear();
+    engineVersion = CHANGELOG[0]!.version;
     TestBed.configureTestingModule({ providers: [
         { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } },
         { provide: LifecycleService, useValue: { status: signal<AppStatus | null>(null) } },
+        // The engine's answer, which a dialog window uses: it has no LifecycleService of its own that was ever started.
+        { provide: LifecycleBackend, useValue: { appStatus: async () => {
+          if (engineVersion === null) throw new Error('engine gone');
+          return { version: engineVersion, safeMode: false, previousCrash: false, sessionAvailable: false };
+        } } },
       ],
     });
   });
@@ -90,16 +101,30 @@ describe('WhatsNewService', () => {
     svc.open();
     expect(dialogs.stack().filter((d) => d.component === WhatsNewDialog)).toHaveLength(1);
     dialogs.dismissTop();
-    const fixture = dialogFixture();
+    const fixture = await dialogFixture();
     const el = fixture.nativeElement as HTMLElement;
     expect(el.querySelector('[data-testid=whats-new-current]')?.textContent).toContain(`Version ${version}`);
     expect(el.querySelectorAll('[data-testid=whats-new-current] li').length).toBeGreaterThan(0);
   });
 
-  it('falls back to the newest release for a version without notes', () => {
-    const { svc } = setup('9.9.9');
-    expect(svc).toBeTruthy();
-    const fixture = dialogFixture();
+  it('shows the notes of the version the engine reports even when this window never loaded its own lifecycle status (a dialog window)', async () => {
+    const older = CHANGELOG[1]!.version;
+    engineVersion = older;
+    // The lifecycle service of a dialog window is never initialised: its status stays null.
+    TestBed.inject(LifecycleService).status.set(null);
+    const fixture = await dialogFixture();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid=whats-new-current]')?.textContent).toContain(`Version ${older}`);
+  });
+
+  it('falls back to the newest release when the engine cannot say which version runs', async () => {
+    engineVersion = null;
+    const fixture = await dialogFixture();
+    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid=whats-new-current]')?.textContent).toContain(`Version ${CHANGELOG[0]!.version}`);
+  });
+
+  it('falls back to the newest release for a version without notes', async () => {
+    engineVersion = '9.9.9';
+    const fixture = await dialogFixture();
     expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid=whats-new-current]')?.textContent).toContain(`Version ${CHANGELOG[0]!.version}`);
   });
 });

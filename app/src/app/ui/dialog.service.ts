@@ -1,7 +1,7 @@
 import { computed, inject, Injectable, Injector, InjectionToken, signal, Type } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
-import { DialogModality, dialogIdOf, instanceKey } from '../dialog-windows/dialog-def';
-import { dialogDef } from '../dialog-windows/dialog-registry';
+import { DialogInputsOf, DialogModality, dialogIdOf, instanceKey } from '../dialog-windows/dialog-def';
+import { DialogId, DialogResultOf, dialogDef } from '../dialog-windows/dialog-registry';
 import { DialogPresenter } from '../dialog-windows/dialog-presenter';
 import { DialogSession } from '../dialog-windows/dialog-session';
 import { ModalGate } from '../dialog-windows/modal-gate';
@@ -26,6 +26,12 @@ export interface DialogOptions {
   /** In-page dialogs only: asked before the dialog closes. A window asks the component (`dialogCanClose`). */
   canClose?: () => boolean;
 }
+
+/** A dialog component of the registry: it declares its id as `static readonly dialogId`. */
+export type RegisteredDialog = Type<unknown> & { readonly dialogId: DialogId };
+
+/** The options for opening a registered dialog: its inputs are the component's `input()` signals. */
+export type RegisteredDialogOptions<C extends RegisteredDialog> = Omit<DialogOptions, 'inputs'> & { inputs?: DialogInputsOf<InstanceType<C>> };
 
 export interface OpenDialog {
   id: number;
@@ -62,6 +68,10 @@ export class DialogService {
   /** A modal dialog window is open: its parent must not take input (commands, shortcuts) meanwhile. */
   readonly parentBlocked = computed(() => this.modalWindows() > 0);
 
+  /** A registered dialog: the inputs are the component's, the answer is the `result` its registry entry declares. */
+  open<C extends RegisteredDialog>(component: C, options: RegisteredDialogOptions<C>): DialogRef<DialogResultOf<C['dialogId']>>;
+  /** Anything else (a plain question, `ConfirmDialog`, a dialog shown only in the page): the caller states the answer. */
+  open<R = void>(component: Type<unknown> & { readonly dialogId?: undefined }, options: DialogOptions): DialogRef<R>;
   open<R = void>(component: Type<unknown>, options: DialogOptions): DialogRef<R> {
     if ((component as unknown as NativeConfirm).nativeConfirm && this.backend.windowed && this.backend.confirm) return this.confirm<R>(options);
     const id = dialogIdOf(component);

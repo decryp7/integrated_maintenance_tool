@@ -13,6 +13,7 @@ import { UI_STATE_CONTRIBUTIONS } from './ui-state';
 import { CoreUiState } from './core-ui-state';
 import { WindowingBackend } from '../windowing/windowing-backend';
 import { DiagnosticsExport } from '../diagnostics/diagnostics-export.service';
+import { HOST_COMMAND_FORWARD } from '../dialog-windows/host-commands';
 
 async function setup(options: Partial<MockToolsOptions> = {}) {
   TestBed.configureTestingModule({ providers: [...provideToolsTesting(options), { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => TestBed.inject(CoreUiState).contributions }] });
@@ -261,6 +262,29 @@ describe('LifecycleBanners and TitleExtras', () => {
     const g = TestBed.createComponent(TitleExtras);
     await settle(g);
     expect(fixtureHas(g, 'admin-badge')).toBe(false);
+  });
+
+  describe('in a dialog window', () => {
+    // A dialog window may not save the session or restart the app (the session is the host window's, and `save_session` is a
+    // MAIN-only command): "Restart to apply" in Settings or the plugin dialogs hands the restart to the window that opened it.
+    it('hands "restart keeping the session" and "restart as administrator" to the host, touching nothing itself', async () => {
+      const forwarded: string[] = [];
+      TestBed.configureTestingModule({
+        providers: [...provideToolsTesting(), { provide: HOST_COMMAND_FORWARD, useValue: (id: string) => (forwarded.push(id), true) }],
+      });
+      const tools = mockTools();
+      const life = TestBed.inject(LifecycleService);
+      await life.restartKeepingSession();
+      await life.restartElevated();
+      expect(forwarded).toEqual(['app.restartKeepingSession', 'app.restartElevated']);
+      expect(tools.calls.filter((c) => /saveSession|restart/.test(c))).toEqual([]);
+    });
+
+    it('the host window has a command that restarts keeping the session', () => {
+      TestBed.configureTestingModule({ providers: provideToolsTesting() });
+      const ids = TestBed.inject(LifecycleCommands).commands.map((c) => c.id);
+      expect(ids).toContain('app.restartKeepingSession');
+    });
   });
 });
 
