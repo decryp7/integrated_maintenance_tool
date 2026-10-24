@@ -3,6 +3,8 @@
 How to build, test and release Debrief, and where things live in the repository. Engineering rules for
 contributors are in [AGENTS.md](../AGENTS.md); the design is in [architecture.md](architecture.md).
 
+Machine setup shared by every Paddock app (tools, build cache, worktrees, test runs): [paddock/docs/dev-setup.md](https://dev.decryptology.net/decryp7/paddock/src/branch/main/docs/dev-setup.md). This page adds only what is specific to this app.
+
 - [Building from source](#building-from-source)
 - [Testing and quality gates](#testing-and-quality-gates)
 - [CI/CD](#cicd)

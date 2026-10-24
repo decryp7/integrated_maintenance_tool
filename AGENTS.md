@@ -12,8 +12,9 @@ The family's binding rules, copied from [paddock/docs/rules.md](https://dev.decr
 1. **One app at a time.** Finish the current app before starting another; parallel agents only within that app.
 2. **Every agent works in its own git worktree** with its own `CARGO_TARGET_DIR` and its own e2e port; the main checkout
    stays on `main` for the coordinator.
-3. **Tests in a branch: only the affected ones** (touched crates, touched specs, related Playwright files). The full
-   suite runs once on the combined result before a local build or release, plus CI.
+3. **Tests in a branch: only the affected ones** (touched crates, touched specs, related Playwright files), with
+   Playwright in Chromium only. The full suite, Chromium and WebKit, runs once on the combined result before a local
+   build or release, plus CI. Fix everything locally first; CI confirms, it is not where failures are found.
 4. **When CI fails:** fix and re-run only the failed tests locally, push once; never push fix by fix to see what CI says.
    Lint and type-check the touched files before every push.
 5. **Every bug fix starts with a failing regression test.** A test-only failure is fixed properly (deterministic, no
@@ -61,7 +62,10 @@ The family's binding rules, copied from [paddock/docs/rules.md](https://dev.decr
 
 ### Platform and release
 23. **macOS bundles are ad-hoc sealed** (`signingIdentity: "-"`) and CI verifies them with `codesign --verify --deep
-    --strict` on the .app and the DMG; release verification runs it on the published DMG.
+    --strict` on the .app and the DMG; release verification runs it on the published DMG. While ad-hoc, the hardened
+    runtime is off (ad-hoc code under it cannot load vendor-signed libraries: "different Team IDs"); every bundled
+    Mach-O carries the same TeamIdentifier, and CI starts every sidecar from the built app (`--self-test`). The hardened
+    runtime comes back with a real signing identity.
 24. **Services survive updates:** re-register once per version change (unregister → `launchctl bootout` → wait →
     register) and repair a stale registration automatically.
 25. **Before tagging:** `cargo deny check advisories`, one CI build with bundles, the icon check, strip whitespace from
@@ -82,6 +86,18 @@ The family's binding rules, copied from [paddock/docs/rules.md](https://dev.decr
 37. New forms use Signal Forms; existing reactive forms stay until touched.
 38. Tests: Vitest through the Angular unit-test builder, `await fixture.whenStable()`, store tests via `TestBed`; use CDK harnesses for Material/CDK widgets; each lifecycle effect gets a test that triggers the failure.
 39. A shared store feature or component used by two apps lives in `paddock-ui`, not copied.
+
+**Design (user, 2026-10-24)**
+40. **Recurring bugs mean a missing design rule.** When the same kind of bug shows up again (in one area, across dialogs,
+    panes or apps), stop fixing instances: name the pattern, propose a redesign as an ADR that makes the class impossible
+    or checked (a declared contract, one shared mechanism, a lint or test over every instance), and fix the instances
+    through it. Until v1, check every batch of bug reports for such patterns.
+
+**Throughput (user, 2026-10-24)**
+41. **Scale parallel work to the machine.** The coordinator watches load and free disk continuously and keeps the
+    machine busy but not overloaded: start more agents when load stays low, hold or stop starting them when it stays
+    high (Mac mini, 14 cores: aim for a 1-minute load of about 6–16, at most ~5 heavy jobs, `CARGO_BUILD_JOBS=2` each),
+    use the shared build cache (`sccache`) and copy-on-write target folders, and never let tests crowd out a release.
 
 ## Design principles
 
