@@ -88,6 +88,9 @@ import diagnostics with engine-verified quick fixes (including an AI-proposed fi
   - **Store worker, idle or querying:** under 300 MB. DuckDB `memory_limit` defaults to 256 MB (spilling to its temp
     folder), its buffer pool is not a cache of the whole data, and per-generation analysis results live in the
     database, never in RAM.
+    *Note 2026-10-24 (1.1.0):* on Linux the querying budget is 320 MB for now. The names catalogue (human names,
+    merge fa135656) raised the worker's query peak from 266-288 MB to 295-307 MB (measured natively on Linux arm64,
+    301-303 MB on the CI runner). Follow-up for a later patch: make the catalogue cheaper and return to 300 MB.
   - **Store worker, importing:** under 768 MB whatever the folder size (600 MB until 2026-10-21; raised by user decision
     when mimalloc v3 left little margin, see the notes below; the worker's hard cap is 2 GB). A "Low memory" setting
     (planned) trades 20-40% of the import speed for about 400 MB (freed memory returned at once, fewer batches in flight): batches of at most 8,192 rows, at most 4 batches

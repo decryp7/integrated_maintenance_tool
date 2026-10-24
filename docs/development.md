@@ -208,6 +208,27 @@ cargo deny --workspace check
 (cd app && npm audit --omit=dev --audit-level=high && npx ng build && npx ng test --watch=false)
 ```
 
+### Before a push to main or a tag: the local gate matches CI
+
+CI runs on Linux (in the CI image, as root, without a display), on the macOS host with `DYLD_*` variables dropped
+by the shell (SIP), and on Windows. The checks above do not cover those differences; before pushing a release commit
+or a tag, also run:
+
+```sh
+# macOS, as the macOS CI job runs: no DYLD_LIBRARY_PATH (cargo/nextest put libduckdb on DYLD_FALLBACK_LIBRARY_PATH)
+env -u DYLD_LIBRARY_PATH cargo nextest run --workspace --no-fail-fast
+# the app library without test-only features (cargo test unifies them; a real build does not)
+cargo check -p debrief-app --lib
+# Linux, in the CI image (one container at a time, --cpus 6; on an arm64 Mac the amd64 image runs emulated:
+# layout and metric failures count, timing failures need the native CI run)
+scripts/ci/smoke-linux-docker.sh            # the real-app smoke (WebdriverIO + tauri-driver, Xvfb)
+scripts/ci/e2e-linux-local.sh <specs…>      # Playwright with Linux fonts (whole suite before a tag)
+```
+
+The full suites (Chromium and WebKit) run once on the combined result before a build or tag (Paddock rule 3); in a
+branch, only the affected tests. For a fast iterate loop on Linux use a native arm64 Ubuntu machine (OrbStack) with
+the CI job's packages, and the x86 CI image only to confirm.
+
 - **Coverage targets:** `debrief-core` ≥ 99% lines (`cargo llvm-cov -p debrief-core --summary-only`); Angular
   ≥ 80% lines overall and close to 100% for stores, services and pure utilities.
 - **Engine end-to-end tests** run against [`samples/`](../samples/) (`crates/debrief-core/tests`).

@@ -28,6 +28,10 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 - **Dialogs:** Open recent project hands the choice back to the window you were working in, which asks about unsaved changes and opens it; What's new always shows the notes of the version that is running
 - **Dialogs:** With several displays, a dialog always opens on the display of the window that opened it, at a size that fits that display; a remembered position is kept relative to that window and only used when the dialog then stays on its display, and short dialogs no longer jump in height after opening
 
+### Known issues
+
+- **Memory:** On Linux the log store's worker may use up to about 320 MB while querying (300 MB before the names catalogue); a later update makes the catalogue cheaper
+
 ## 1.0.2 (2026-10-23)
 
 ### Added
