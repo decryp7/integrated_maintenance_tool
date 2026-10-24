@@ -1,9 +1,10 @@
 import { Trigger } from './types';
 
-/** How long a user input explains an operation that starts after it. */
-export const INPUT_WINDOW_MS = 1500;
-/** How long a native menu click explains an operation. */
-export const NATIVE_MENU_WINDOW_MS = 1000;
+// Attribution has no time window (Paddock rule 40, 2026-10-24): an input explains what it leads to,
+// however long that takes on a busy machine. The first operation or user change after an input consumes it; whatever
+// else happens in the same task (one click that pops a panel out and closes another) is the same action; anything in a
+// later task without new input is the program's (a restore, the live tail, a timer).
+
 /** Pointer travel that turns a press into a drag. */
 const DRAG_PX = 8;
 
@@ -37,12 +38,19 @@ export function classifyKey(e: Pick<KeyboardEvent, 'key' | 'ctrlKey' | 'metaKey'
  * call site passing a trigger. Listens in the capture phase, so it sees the input before any handler acts.
  */
 export class TriggerTracker {
-  private last: { trigger: Trigger; at: number } | null = null;
+  /** The latest input and its sequence number (`inputs` when it happened). */
+  private last: { trigger: Trigger; seq: number } | null = null;
   private press: { x: number; y: number; target: EventTarget | null; dragged: boolean } | null = null;
-  private native: { id: string; at: number } | null = null;
+  /** The latest click in the native menu bar (an input too) and its sequence number. */
+  private native: { id: string; seq: number } | null = null;
   private inputs = 0;
+  /** Inputs up to this sequence number have explained an operation or change already. */
+  private consumed = 0;
+  /** The input consumed in the current task (other changes of the same task are the same action), else null. */
+  private explained: Trigger | null = null;
 
-  constructor(private readonly now: () => number = () => Date.now()) {}
+  /** `endOfTask` runs a function once the current task is over (a zero-delay timer; tests pass a fake clock's). */
+  constructor(private readonly endOfTask: (fn: () => void) => void = (fn) => void setTimeout(fn, 0)) {}
 
   /** Starts listening on `doc`; returns the function that stops. */
   install(doc: Document): () => void {
@@ -80,30 +88,44 @@ export class TriggerTracker {
     this.last = null;
     this.native = null;
     this.press = null;
+    this.consumed = this.inputs;
+    this.explained = null;
   }
 
   /** Records an input (exposed for tests and for callers that know better). */
   note(trigger: Trigger): void {
-    this.last = { trigger, at: this.now() };
     this.inputs++;
+    this.last = { trigger, seq: this.inputs };
   }
 
   /** A click in the native (macOS) menu bar, which reaches the webview as an event, not as input. */
   noteNativeMenu(id: string): void {
-    this.native = { id, at: this.now() };
+    this.inputs++;
+    this.native = { id, seq: this.inputs };
   }
 
-  /** The trigger of an operation starting now: the latest input if recent, else `program`. */
+  /** The trigger of an operation starting now: the latest input not yet explained by another, else `program`. */
   infer(): Trigger {
-    const now = this.now();
-    if (this.native && now - this.native.at <= NATIVE_MENU_WINDOW_MS && (!this.last || this.last.at <= this.native.at)) return 'native-menu';
-    if (this.last && now - this.last.at <= INPUT_WINDOW_MS) return this.last.trigger;
-    return 'program';
+    if (this.native && this.native.seq > this.consumed && (!this.last || this.last.seq <= this.native.seq)) return 'native-menu';
+    if (this.last && this.last.seq > this.consumed) return this.last.trigger;
+    return this.explained ?? 'program';
   }
 
-  /** True when the native menu just sent `operation` (checked when an operation ends: the event may arrive late). */
-  nativeMenuSent(operation: string, since: number): boolean {
-    return !!this.native && this.native.id.endsWith(operation) && this.native.at >= since - NATIVE_MENU_WINDOW_MS;
+  /** The inputs so far have explained an operation or a change: what follows in a later task without new input is the program's. */
+  consume(): void {
+    const trigger = this.infer();
+    this.consumed = this.inputs;
+    if (trigger === 'program' || this.explained !== null) {
+      if (trigger !== 'program') this.explained = trigger;
+      return;
+    }
+    this.explained = trigger;
+    this.endOfTask(() => (this.explained = null));
+  }
+
+  /** True when the native menu sent `operation` after an operation started with `inputsAtStart` inputs counted (the event may arrive late). */
+  nativeMenuSent(operation: string, inputsAtStart: number): boolean {
+    return !!this.native && this.native.id.endsWith(operation) && this.native.seq > inputsAtStart;
   }
 
   /** Counts user inputs (to tell whether the user did something since a point in time). */
@@ -111,8 +133,13 @@ export class TriggerTracker {
     return this.inputs;
   }
 
-  /** True when there was user input within the input window. */
-  recentInput(): boolean {
-    return !!this.last && this.now() - this.last.at <= INPUT_WINDOW_MS;
+  /** True when an input was explained in the current task (what else the task changes is the same action). */
+  explainedThisTask(): boolean {
+    return this.explained !== null;
+  }
+
+  /** True when there was user input that no operation or change has explained yet. */
+  pendingInput(): boolean {
+    return (!!this.last && this.last.seq > this.consumed) || (!!this.native && this.native.seq > this.consumed);
   }
 }

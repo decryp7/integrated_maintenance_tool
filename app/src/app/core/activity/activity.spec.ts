@@ -216,6 +216,20 @@ describe('ActivityRuntime', () => {
     expect(rt.breadcrumbs()).toEqual([]);
   });
 
+  // Regression: an operation's trigger came from input within 1.5 s; on a slow machine a click's operation became
+  // "program", and a timer's call right after a click took the click. An input now explains one operation.
+  it('takes its trigger from the input that led to it, once, however late', () => {
+    const { rt, clock } = runtime();
+    rt.triggers.note('button');
+    clock.advance(5000);
+    const op = rt.begin('file.open', 'auto');
+    expect(op.trigger).toBe('button');
+    rt.end(op, 'ok');
+    // A later task with no new input (a timer, the live tail) is the program's.
+    clock.advance(1);
+    expect(rt.begin('tail.poll', 'auto').trigger).toBe('program');
+  });
+
   it('attributes a late native menu event', () => {
     const { rt, clock, out } = runtime();
     const op = rt.begin('file.open', 'auto');
@@ -257,16 +271,21 @@ describe('TriggerTracker', () => {
     expect(key('Enter', el('<div role="menu"><button role="menuitem" id="x"></button></div>', '#x'))).toBe('context-menu');
   });
 
-  it('infers the trigger of an operation from recent DOM input', () => {
-    let now = 0;
-    const t = new TriggerTracker(() => now);
+  it('infers the trigger of an operation from the DOM input not yet explained', () => {
+    let ends: (() => void)[] = [];
+    const t = new TriggerTracker((fn) => ends.push(fn));
+    const endTask = () => {
+      const run = ends;
+      ends = [];
+      run.forEach((fn) => fn());
+    };
     const stop = t.install(document);
     document.body.innerHTML = '<button id="b">Go</button><div id="d"></div>';
     const b = document.getElementById('b')!;
     b.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0, clientY: 0 }));
     b.dispatchEvent(new PointerEvent('pointerup', { bubbles: true }));
     expect(t.infer()).toBe('button');
-    expect(t.recentInput()).toBe(true);
+    expect(t.pendingInput()).toBe(true);
     // A drag.
     const d = document.getElementById('d')!;
     d.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true, clientX: 0, clientY: 0 }));
@@ -287,9 +306,12 @@ describe('TriggerTracker', () => {
     expect(t.infer()).toBe('drag-drop');
     d.dispatchEvent(new Event('input', { bubbles: true }));
     expect(t.infer()).toBe('keyboard');
-    now += 5000;
+    // Explained by an operation: the rest of this task is the same action, a later task the program's.
+    t.consume();
+    expect(t.infer()).toBe('keyboard');
+    endTask();
     expect(t.infer()).toBe('program');
-    expect(t.recentInput()).toBe(false);
+    expect(t.pendingInput()).toBe(false);
     t.noteNativeMenu('help.demo');
     expect(t.infer()).toBe('native-menu');
     stop();

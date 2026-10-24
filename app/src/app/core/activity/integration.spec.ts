@@ -183,6 +183,8 @@ describe('activity: backend calls', () => {
     // Event Log follower reads are queries, not user operations; start/stop are.
     for (const m of ['eventLogChannels', 'eventLogValidate', 'eventLogStatus']) expect(methodKind(m)).toBe('query');
     expect(methodKind('eventLogStart')).toBe('mutation');
+    // The Problems pane's refresh reads; as a "mutation" a refresh right after a click took the click's trigger.
+    for (const m of ['problems', 'indexStatus']) expect(methodKind(m)).toBe('query');
     expect(methodKind('onWorkspaceChanged')).toBe('event');
   });
 });
@@ -252,6 +254,22 @@ describe('activity: observers', () => {
     expect(entries()[0]?.props).toMatchObject({ RangeMs: '1999', Count: '2' });
     expect(entries()[2]?.props['Levels']).toBe('Error');
     expect(JSON.stringify(entries())).not.toContain('secret words');
+  });
+
+  // Regression (activity.e2e on a slow CI runner): attribution came from a 1.5 s wall-clock window, so a user's change
+  // that reached the store late was dropped, and a program change soon after a user's change was taken for the user's.
+  // An input now explains the change it led to however long that took, and only that change.
+  it('attributes a change to the input that led to it, however late, and never a later program change', () => {
+    const { store } = setup();
+    userInput();
+    vi.advanceTimersByTime(5000);
+    store.patchQuery({ text: 'late' });
+    settle(QUERY_DEBOUNCE_MS);
+    expect(entries().map((e) => [e.props['Operation'], e.props['Trigger']])).toEqual([['search.change', 'keyboard']]);
+    // No input since: a live update or a restore is not the user's, even right after.
+    store.patchQuery({ ql: 'program' });
+    settle(QUERY_DEBOUNCE_MS);
+    expect(entries()).toHaveLength(1);
   });
 
   it('ignores programmatic changes and changes made by a running command', async () => {

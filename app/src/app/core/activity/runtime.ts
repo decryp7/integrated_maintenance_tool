@@ -114,7 +114,7 @@ export class ActivityRuntime {
   private readonly listeners = new Set<(b: Breadcrumb) => void>();
 
   constructor(private readonly clock: Clock = REAL_CLOCK) {
-    this.triggers = new TriggerTracker(() => clock.now());
+    this.triggers = new TriggerTracker((fn) => void clock.setTimeout(fn, 0));
   }
 
   /** Binds where entries go; entries recorded before are flushed to it. */
@@ -158,11 +158,14 @@ export class ActivityRuntime {
 
   /** Starts an operation; end it with `end`. */
   begin(operation: string, trigger: Trigger | 'auto', params: ActivityParams = {}, options: { weak?: boolean } = {}): Operation {
+    const inferred = trigger === 'auto' ? this.triggers.infer() : trigger;
+    // The input that led here is explained by this operation: what follows without new input is the program's.
+    this.triggers.consume();
     const op: Operation = {
       ...(options.weak ? { weak: true } : {}),
       id: newOperationId(),
       operation,
-      trigger: trigger === 'auto' ? this.triggers.infer() : trigger,
+      trigger: inferred,
       params: safeParams(params, this.detail),
       started: this.clock.now(),
       view: this.view(),
@@ -226,6 +229,12 @@ export class ActivityRuntime {
     return entry.op.id;
   }
 
+  /** True while the coalesced change `id` still takes changes (its burst has not settled). */
+  coalescing(id: string): boolean {
+    for (const c of this.coalesced.values()) if (c.op.id === id) return true;
+    return false;
+  }
+
   /** Logs every pending coalesced change now (before an error report, or at shutdown). */
   flushCoalesced(): void {
     for (const [key, c] of [...this.coalesced]) {
@@ -248,7 +257,7 @@ export class ActivityRuntime {
 
   private emit(op: Operation, outcome: Outcome, error: unknown, extra: ActivityParams): void {
     // The trigger may only become known after the start: the native menu's event can arrive late.
-    const trigger = op.trigger === 'program' && this.triggers.nativeMenuSent(op.operation, op.started) ? 'native-menu' : op.trigger;
+    const trigger = op.trigger === 'program' && this.triggers.nativeMenuSent(op.operation, op.inputs) ? 'native-menu' : op.trigger;
     const durationMs = Math.max(0, Math.round(this.clock.now() - op.started));
     const code = outcome === 'error' ? errorCode(error) : undefined;
     const params = { ...op.params, ...safeParams(extra, this.detail) };

@@ -4,7 +4,7 @@ import { Query } from '../api.types';
 import { WorkspaceStore } from '../workspace.store';
 import { ActivityLog } from './activity-log';
 import { safeText } from './privacy';
-import { ActivityParams } from './types';
+import { ActivityParams, Trigger } from './types';
 
 /**
  * What the activity log watches of the dock (the port: the dock implements it, `provideDocking` provides it). A window
@@ -98,20 +98,31 @@ export class ActivityObservers {
   }
 
   /**
-   * True when the change is the user's own operation: not caused by another operation (one that is running or
-   * just ended, with no user input since it started), and not programmatic (no recent user input).
+   * The trigger of a change that is the user's own operation, or null when it is not. No time window: an input explains
+   * its change however late it arrives, and a change without new input is the program's (a restore, the live tail).
+   * - the rest of a burst of ours (typing, dragging): its trigger;
+   * - led to by an input nothing has explained yet: inferred from that input;
+   * - what the same input changed in this task (one click that docks a panel back and closes another): its trigger;
+   * - led to by a weak operation (a call the user started with no domain name, e.g. a pop-out): that call's trigger;
+   * - else (made by another operation, or by the program): not the user's.
    */
-  private userCaused(): boolean {
+  private userTrigger(): Trigger | 'auto' | null {
     const runtime = this.log.runtime;
     const current = runtime.current();
-    if (current && (this.own.has(current.id) || current.weak)) return true;
-    if (current && runtime.triggers.inputCount() === current.inputs) return false;
-    return runtime.triggers.recentInput();
+    if (current && this.own.has(current.id) && runtime.coalescing(current.id)) return current.trigger;
+    // A new input explains the change (an input after an operation started is never that operation's).
+    if (runtime.triggers.pendingInput()) return 'auto';
+    if (current && this.own.has(current.id) && runtime.triggers.explainedThisTask()) return current.trigger;
+    if (current?.weak) return current.trigger;
+    return null;
   }
 
   private coalesce(key: string, operation: string, params: ActivityParams, delayMs: number): void {
-    if (!this.userCaused()) return;
-    this.remember(this.log.coalesce(key, operation, 'auto', params, delayMs));
+    const trigger = this.userTrigger();
+    if (trigger === null) return;
+    this.remember(this.log.coalesce(key, operation, trigger, params, delayMs));
+    // Later keystrokes of the same burst explain their own changes; nothing else may claim them.
+    this.log.runtime.triggers.consume();
   }
 
   private remember(id: string): void {
@@ -143,8 +154,9 @@ export class ActivityObservers {
   private setDiff(prev: ReadonlySet<string>, next: ReadonlySet<string>, added: string, removed: string): void {
     // Typing in a field does not open or close panels: a dock change right after typing is the app's own
     // (a view opening for the data that just loaded).
-    if (!this.userCaused() || this.log.runtime.triggers.infer() === 'keyboard') return;
-    for (const id of next) if (!prev.has(id)) this.remember(this.log.record(added, 'auto', { Panel: id }));
-    for (const id of prev) if (!next.has(id)) this.remember(this.log.record(removed, 'auto', { Panel: id }));
+    const trigger = this.userTrigger();
+    if (trigger === null || (trigger === 'auto' ? this.log.runtime.triggers.infer() : trigger) === 'keyboard') return;
+    for (const id of next) if (!prev.has(id)) this.remember(this.log.record(added, trigger, { Panel: id }));
+    for (const id of prev) if (!next.has(id)) this.remember(this.log.record(removed, trigger, { Panel: id }));
   }
 }
