@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import { gridTotal, hideInspectorFlyout, parseCount } from './app';
 import { openQuery } from './analysis-support';
 import { expectNoSeriousViolations } from './axe';
-import { narrativeDialog, openAiApp, rowMenu, runCommand, viewAnswer } from './ai-support';
+import { narrativeDialog, openAiApp, releaseMockHolds, rowMenu, runCommand, viewAnswer } from './ai-support';
 import { menuItem, openMenu, showProfileEditor } from './menu-support';
 
 // The AI entry points outside the chat (query bar, context menu, Overview, Moment, markers manager, profile
@@ -28,12 +28,15 @@ test.describe('AI entry points', () => {
   });
 
   test('Explain this event from the context menu, with a citation that selects the event', async ({ page }, testInfo) => {
-    await openAiApp(page);
+    // The explain job is held at its end (`mockJobsHold=ai`) until the toast saying it runs was seen: with the fast mock
+    // AI it could otherwise finish, and "Explanation ready" replace that toast, before the test looked.
+    await openAiApp(page, 'mockJobsHold=ai');
     const menu = await rowMenu(page);
     await menu.getByRole('menuitem', { name: 'Explain this event (AI)…' }).click();
     // It runs in the background: a toast says so, then "Explanation ready · View" opens the answer.
     await expect(page.getByTestId('notification').filter({ hasText: /Explaining event #\d+ — running in Jobs/ })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
+    await releaseMockHolds(page);
     await viewAnswer(page, 'Explanation ready');
     const dialog = page.getByRole('dialog', { name: /^Explain event \d+$/ });
     const answer = dialog.getByTestId('ai-narrative');

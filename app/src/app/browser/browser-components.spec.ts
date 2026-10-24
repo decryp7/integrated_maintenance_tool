@@ -291,17 +291,31 @@ describe('ChatBrowserBar', () => {
     const backend = TestBed.inject(ChatBrowserBackend);
     const close = vi.spyOn(backend, 'closeResearchBrowser').mockResolvedValue(true);
     expect(root.querySelector('[data-testid=research-browser-kept]')).toBeNull();
-    web.emit({ type: 'researchBrowserKept' });
+    web.emit({ type: 'lifecycle', state: 'ready', kept: false });
+    f.detectChanges();
+    expect(root.querySelector('[data-testid=research-browser-kept]')).toBeNull();
+    web.emit({ type: 'lifecycle', state: 'ready', kept: true });
     await until(f, () => !!root.querySelector('[data-testid=research-browser-kept]'));
     expect(root.textContent).toContain('left open because you used it');
     (root.querySelector('[data-testid=research-browser-keep]') as HTMLButtonElement).click();
     f.detectChanges();
     expect(root.querySelector('[data-testid=research-browser-kept]')).toBeNull();
     expect(close).not.toHaveBeenCalled();
-    web.emit({ type: 'researchBrowserKept' });
+    web.emit({ type: 'lifecycle', state: 'ready', kept: true });
     await until(f, () => !!root.querySelector('[data-testid=research-browser-close]'));
     (root.querySelector('[data-testid=research-browser-close]') as HTMLButtonElement).click();
     await until(f, () => close.mock.calls.length === 1 && !root.querySelector('[data-testid=research-browser-kept]'));
+  });
+
+  it('drops the Close or Keep offer once the next research takes the kept browser', async () => {
+    const f = TestBed.createComponent(ChatBrowserBar);
+    f.componentRef.setInput('sessionId', 'chat-1');
+    f.detectChanges();
+    const root = f.nativeElement as HTMLElement;
+    web.emit({ type: 'lifecycle', state: 'ready', kept: true });
+    await until(f, () => !!root.querySelector('[data-testid=research-browser-kept]'));
+    web.emit({ type: 'lifecycle', state: 'ready', kept: false });
+    await until(f, () => !root.querySelector('[data-testid=research-browser-kept]'));
   });
 
   it('drops the Close or Keep offer once the user closed the kept browser window by hand', async () => {
@@ -309,11 +323,8 @@ describe('ChatBrowserBar', () => {
     f.componentRef.setInput('sessionId', 'chat-1');
     f.detectChanges();
     const root = f.nativeElement as HTMLElement;
-    web.emit({ type: 'researchBrowserKept' });
-    await until(f, () => !!root.querySelector('[data-testid=research-browser-kept]'));
     web.emit({ type: 'lifecycle', state: 'ready', kept: true });
-    f.detectChanges();
-    expect(root.querySelector('[data-testid=research-browser-kept]')).not.toBeNull();
+    await until(f, () => !!root.querySelector('[data-testid=research-browser-kept]'));
     web.emit({ type: 'lifecycle', state: 'gone', reason: 'windowClosed', kept: false });
     await until(f, () => !root.querySelector('[data-testid=research-browser-kept]'));
   });

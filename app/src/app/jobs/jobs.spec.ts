@@ -23,6 +23,7 @@ import { JobsStore } from './jobs.store';
 import { EMPTY_JOBS, JOB_KINDS, JobInfo, JobKind, JobResult, JobsRecord, JobsSnapshot, RestoredJobs } from './jobs.types';
 import { kindLabel, linkLabel, queuedLabel, stateLabel } from './jobs-text';
 import { JobsPanel } from './jobs-panel';
+import { releaseMockHolds } from '../core/mock/mock-hold';
 import { MockJobCancelled, MockJobsOptions, MockJobs, mockJobs, mockJobsOptionsFromSearch, mockSteps, resetMockJobs } from './mock-jobs';
 import { jobsCommands, JobsPersistence, jobsViews, provideJobs } from './provide-jobs';
 
@@ -184,6 +185,19 @@ describe('MockJobs', () => {
     expect([...o.failOnce]).toEqual(['export', 'ai']);
     expect(mockJobsOptionsFromSearch('?mockJobsVisibleMs=abc&mockJobsAttentionMs=1234567').visibleMs).toBe(2000);
     expect(mockJobsOptionsFromSearch('?mockJobsAttentionMs=1234567').attentionMs).toBe(10_000);
+  });
+
+  it('holds the end of a held kind until the test releases it', async () => {
+    expect([...(mockJobsOptionsFromSearch('?mockJobsHold=ai,nope').hold ?? [])]).toEqual(['ai']);
+    expect(mockJobsOptionsFromSearch('?mockJobsHold=nope').hold).toBeUndefined();
+    const jobs = new MockJobs(opts({ hold: new Set<JobKind>(['ai']) }));
+    const ai = jobs.start({ kind: 'ai', title: 'Explain' }, async () => ({ value: 1 }));
+    const other = jobs.start({ kind: 'export', title: 'Export' }, async () => ({ value: 2 }));
+    await flush();
+    expect(await states(jobs)).toEqual([`${ai.id}:running`, `${other.id}:done`]);
+    releaseMockHolds();
+    await expect(ai.done).resolves.toBe(1);
+    expect(await states(jobs)).toContain(`${ai.id}:done`);
   });
 
   it('shares one instance until reset', () => {

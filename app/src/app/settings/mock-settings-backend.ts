@@ -140,6 +140,19 @@ export function mockSections(): SettingsSection[] {
         f('researchResults', 'Results to read per search', options(['5', '5'], ['10', '10'], ['20', '20'], ['30', '30']), '10', {
           description: 'Research reads this many results the AI picked, then answers.',
         }),
+        f('researchPauseMin', 'Shortest pause between searches and pages', { type: 'duration', minMs: 0, maxMs: 30_000 }, 1500, {
+          description: 'Research waits a little before each search and each page it opens, so search engines see a human pace.',
+          advanced: true,
+        }),
+        f('researchPauseMax', 'Longest pause between searches and pages', { type: 'duration', minMs: 0, maxMs: 30_000 }, 4000, { advanced: true }),
+        f('researchMaxSearches', 'Searches per question', int(1, 10), 3, { description: 'The most results pages one research asks the engine for.', advanced: true }),
+        f('researchProfile', 'Keep a research profile (cookies and consent between researches)', { type: 'bool' }, false, {
+          description: "Off: every research browser starts with a throwaway profile. On: research uses a profile of its own in Debrief's data folder (never your browser's).",
+        }),
+        f('researchProfileMax', 'Research profile size limit', { type: 'size', minBytes: 50 << 20, maxBytes: 5 * 1024 ** 3 }, 500 << 20, {
+          description: 'A larger research profile is not used until you clear it.',
+          advanced: true,
+        }),
       ],
     }),
     section({

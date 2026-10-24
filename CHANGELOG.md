@@ -3,6 +3,23 @@
 What changed for people who use Debrief, one section per release. This file is curated by hand (the in-app "What's new"
 panel reads it at build time); `git cliff` lists every commit if you need the full history.
 
+## Unreleased
+
+### Added
+
+- **Research:** Fewer "verify you are human" checks: research waits a short, varying pause before each search and each page (1.5 to 4 seconds by default), makes at most three searches per question, and reuses the results and pages one chat already fetched (the same question gets the earlier answer at once). Another research waits in the Jobs pane ("Waiting for the current research"). The pauses and searches per question are in Settings ▸ Web browser
+- **Research:** Settings ▸ Web browser ▸ Keep a research profile (off by default) keeps cookies and consent between researches in a profile of research's own (never your browser's), with its size, a size limit and Clear research profile
+
+### Fixed
+
+- **Research browser:** The research browser closes again when research ends, unless you used it; it no longer opens an empty second tab
+- **Profile editor:** Its buttons no longer jump to another line when the profile arrives just after the editor opens, so a click made at once (on Propose…, for example) is no longer lost; the profile's name and path truncate instead
+
+### Changed
+
+- **What's new:** The release notes are now a document in the window instead of a dialog. After an update it opens once in the background (it does not take the front or the keyboard focus), and one notification, "Updated to … · See what's new", brings it forward. *Help ▸ What's new* opens it at any time; close it like any other document. It shows the notes of the version that is running and does not open again on later starts of the same version
+- **Notifications:** A notification's button that opens a view or a window (See what's new, Show in Jobs, View, Open the assistant, Open Settings…) now slides the Notifications pane in, and one that opens a view moves the keyboard focus to it; buttons that act in place (Try again, Reset, Later) keep the pane open
+
 ## 1.1.0 (2026-10-24)
 
 ### Added

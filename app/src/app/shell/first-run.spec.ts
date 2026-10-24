@@ -20,15 +20,15 @@ describe('focused first run', () => {
     const notices = TestBed.inject(NotificationsStore);
     const before = notices.unread();
     const ran: string[] = [];
-    notices.postLocal({ key: 'k', source: 'ai', severity: 'info', title: 'T', actionLabel: 'Do', run: () => ran.push('do') });
-    notices.postLocal({ key: 'k', source: 'ai', severity: 'info', title: 'T2', actionLabel: 'Do', run: () => ran.push('do') });
+    notices.postLocal({ key: 'k', source: 'ai', severity: 'info', title: 'T', actionLabel: 'Do', target: null, run: () => ran.push('do') });
+    notices.postLocal({ key: 'k', source: 'ai', severity: 'info', title: 'T2', actionLabel: 'Do', target: null, run: () => ran.push('do') });
     expect(notices.notices().filter((n) => n.cause === 'local:k').map((n) => n.title)).toEqual(['T2']);
     expect(notices.unread()).toBe(before + 1);
     const id = at(notices.notices(), 0).id;
     expect(id).toBeLessThan(0);
     void notices.markRead(id);
     expect(notices.unread()).toBe(before);
-    notices.postLocal({ key: 'j', source: 'ai', severity: 'info', title: 'J', actionLabel: 'Go', run: () => ran.push('go') });
+    notices.postLocal({ key: 'j', source: 'ai', severity: 'info', title: 'J', actionLabel: 'Go', target: null, run: () => ran.push('go') });
     void notices.markAllRead();
     expect(notices.unread()).toBe(before);
     notices.withdrawLocal('j');

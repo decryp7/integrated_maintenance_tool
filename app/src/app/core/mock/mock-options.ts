@@ -4,6 +4,10 @@ import type { MockBackendOptions } from './mock-backend';
 export const FAILABLE = ['workspaceSummary', 'queryPage', 'queryTimeline', 'queryFacet', 'sourceContext', 'readFileHead', 'previewParse', 'annotations', 'queryRuns', 'previewSpans', 'searchPartial'] as const;
 export type Failable = (typeof FAILABLE)[number];
 
+/** Commands that `mockHold` may name (their answers wait until the test releases them). */
+export const HOLDABLE = ['getProfile'] as const;
+export type Holdable = (typeof HOLDABLE)[number];
+
 function positiveInt(v: string | null): number | undefined {
   if (v === null || !/^\d{1,12}$/.test(v)) return undefined;
   const n = Number(v);
@@ -19,6 +23,7 @@ function nonNegativeInt(v: string | null): number | undefined {
  *   ?mockTotal=50000000       synthetic result of that many events (lazily generated)
  *   ?mockFacet=10000          every field has that many distinct values
  *   ?mockFail=queryPage:2     the first N calls of a command reject (comma separated)
+ *   ?mockHold=getProfile      answers of a command wait until `globalThis.__debriefMockRelease()` (comma separated)
  *   ?mockCorrupt=markers      page rows arrive without `markers`, as a buggy backend would send them
  *   ?mockLiveMs=300           interval of the live tail events (default 1500; 250 with mockLive)
  *   ?mockLive=1               realistic live simulation: records across files, rotations, alerts (implies the switches below)
@@ -60,5 +65,7 @@ export function mockOptionsFromSearch(search: string): MockBackendOptions {
     if (name !== undefined && (FAILABLE as readonly string[]).includes(name)) fail[name as Failable] = n;
   }
   if (Object.keys(fail).length) options.fail = fail;
+  const hold = (p.get('mockHold') ?? '').split(',').filter((name): name is Holdable => (HOLDABLE as readonly string[]).includes(name));
+  if (hold.length) options.hold = hold;
   return options;
 }

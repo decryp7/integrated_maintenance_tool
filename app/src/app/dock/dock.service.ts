@@ -1,4 +1,4 @@
-import { ApplicationRef, computed, EnvironmentInjector, inject, Injectable, Injector, signal } from '@angular/core';
+import { afterNextRender, ApplicationRef, computed, EnvironmentInjector, inject, Injectable, Injector, signal } from '@angular/core';
 import type { DockviewApi, DockviewGroupPanel } from 'dockview';
 import { dockview, loadDockview } from './dockview-loader';
 import { Logger } from '../core/logger';
@@ -101,6 +101,8 @@ export class DockService {
   private readonly activeView = signal<string | null>(null);
   /** The view whose tab was brought to the front last (null before any). */
   readonly activeViewId = this.activeView.asReadonly();
+  /** True once the dock has its layout (restored or default): a view shown before then would be dropped. */
+  readonly ready = this.ctx.apiReady.asReadonly();
   /** Ticks on every layout change of the dock (panels that keep native content in place follow it). */
   readonly layoutChanged = this.ctx.layoutVersion.asReadonly();
 
@@ -122,6 +124,28 @@ export class DockService {
   /** The dockview instance (null before attach). */
   private get api(): DockviewApi | null {
     return this.ctx.api;
+  }
+
+  /** Slides the auto-hidden tool window `id` back in when it is the one slid out; a docked, floating or popped-out one stays. */
+  slideIn(id: string): void {
+    if (!this.remote && this.ctx.autoHide().open === id) this.autoHider.event({ type: 'blur' });
+  }
+
+  /**
+   * Moves keyboard focus into the view in front: the slid-out tool window, else the active panel (e.g. the view a
+   * notification's action just opened). Tried now and again after the next render, which shows a view just opened.
+   */
+  focusFront(): void {
+    if (this.remote) return;
+    const focus = () => {
+      const flyout = this.ctx.autoHide().open !== null ? document.getElementById('debrief-ah-flyout') : null;
+      const target = flyout?.querySelector<HTMLElement>('.debrief-panel') ?? flyout ?? this.api?.activePanel?.view.content.element ?? null;
+      if (!target || target.contains(document.activeElement)) return;
+      if (!target.hasAttribute('tabindex')) target.tabIndex = -1;
+      target.focus({ preventScroll: true });
+    };
+    focus();
+    afterNextRender(focus, { injector: this.lazy });
   }
 
   /** Slides the auto-hidden inspector out (see `DockAutoHide.revealInspector`); nothing in a pop-out. */

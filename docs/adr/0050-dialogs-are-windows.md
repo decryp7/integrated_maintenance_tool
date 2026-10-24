@@ -108,7 +108,7 @@ Classification (decisions in bold are judgement calls):
 | `ai-query` | modeless | AI query dialog | The user compares it with the grid while writing |
 | `ai-narrative / ai-proposal-result / ai-propose / ai-regex` | modeless | AI result and proposal windows | Read beside the data they refer to |
 | `research / folder-setup` | modeless | Research, folder setup | Long-running, with their own progress |
-| `whats-new / about / updates / cheat-sheet` | modeless | What's new, About, Check for updates, Keyboard shortcuts | Reference windows |
+| `about / updates / cheat-sheet` | modeless | About, Check for updates, Keyboard shortcuts | Reference windows (What's new was one up to 1.1.0; it is now a document of the dock, ADR 0056) |
 | `report-problem / collector` | modeless | Report a problem, diagnostics bundle | Own progress; the app stays usable |
 | `export / redacted-copy` | modeless | Export events, Share redacted copy | Long work with its own progress; the parent stays usable |
 | `profile-native / profile-etl / profile-dotnet` | modeless | Profiling launchers | Tools beside the work |

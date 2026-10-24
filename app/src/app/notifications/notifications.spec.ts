@@ -492,6 +492,7 @@ describe('NoticeActions', () => {
     TestBed.configureTestingModule({
       providers: [
         { provide: NotificationsBackend, useValue: notices },
+        { provide: DockService, useValue: new FakeDock() },
         { provide: JobsBackend, useValue: jobsBackend },
         { provide: COMMAND_CONTEXT, useValue: ctx },
         { provide: LifecycleBackend, useValue: lifecycle },

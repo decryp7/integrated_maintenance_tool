@@ -520,7 +520,10 @@ impl JobQueue {
             source: j.source.clone(),
             state: j.state(),
             progress: j.progress.clone(),
-            message: j.message.clone(),
+            message: match (j.state(), j.kind.waiting_message()) {
+                (JobState::Queued, Some(waiting)) => Some(waiting.to_string()),
+                _ => j.message.clone(),
+            },
             queued_at: j.queued_at,
             started_at: j.started_at,
             finished_at: j.finished_at,
@@ -632,6 +635,25 @@ mod tests {
         let first = q.startable()[0];
         q.start(first, 0).unwrap();
         q.submit(ai("now fits"), 0).unwrap();
+    }
+
+    #[test]
+    fn research_runs_one_at_a_time_and_a_waiting_one_says_so() {
+        let mut q = JobQueue::new(8);
+        let first = q.submit(JobSpec::new(JobKind::Research, "Research: a"), 0).unwrap();
+        let second = q.submit(JobSpec::new(JobKind::Research, "Research: b"), 0).unwrap();
+        assert_eq!(q.startable(), vec![first], "one research at a time, app-wide");
+        q.start(first, 0).unwrap();
+        let now = 60_000;
+        let shown = q.snapshot(None, now);
+        let of = |id: JobId| shown.jobs.iter().find(|j| j.id == id).unwrap().clone();
+        assert_eq!(of(second).state, JobState::Queued);
+        assert_eq!(of(second).message.as_deref(), Some("Waiting for the current research"));
+        assert_eq!(of(first).message, None, "the running one shows its own phase");
+        q.finish(first, JobEnd::Done(None), now).unwrap();
+        assert_eq!(q.startable(), vec![second]);
+        q.start(second, now).unwrap();
+        assert_eq!(q.snapshot(None, now).jobs.iter().find(|j| j.id == second).unwrap().message, None);
     }
 
     #[test]

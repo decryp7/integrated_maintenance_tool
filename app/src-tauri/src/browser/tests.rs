@@ -98,6 +98,7 @@ fn settings_choose_the_engine_and_the_agent_limits() {
     let section = super::settings_section::BrowserSection {
         hub: hub.clone(),
         renderers: None,
+        profile_dir: None,
     };
     let schema = section.settings_section();
     let values = |v: Value| sanitize(&schema, &v).0;
@@ -159,6 +160,7 @@ fn research_settings_default_to_automatic_with_ten_results_and_are_validated() {
     let section = super::settings_section::BrowserSection {
         hub: hub.clone(),
         renderers: None,
+        profile_dir: None,
     };
     let schema = section.settings_section();
     let values = |v: Value| sanitize(&schema, &v).0;
@@ -178,6 +180,50 @@ fn research_settings_default_to_automatic_with_ten_results_and_are_validated() {
         panic!("a choice: {:?}", field.kind)
     };
     assert_eq!(options.iter().map(|o| o.value.as_str()).collect::<Vec<_>>(), ["10", "20", "30"]);
+}
+
+#[test]
+fn gentle_research_settings_are_validated_and_the_kept_profile_is_off_by_default() {
+    use debrief_core::settings::{sanitize, Configurable};
+    use std::time::Duration;
+    let hub = std::sync::Arc::new(BrowserHub::default());
+    let renderers = std::sync::Arc::new(super::sessions::Renderers::default());
+    let dir = tempfile::tempdir().unwrap();
+    let section = super::settings_section::BrowserSection {
+        hub: hub.clone(),
+        renderers: Some(renderers.clone()),
+        profile_dir: Some(dir.path().join("research-profile")),
+    };
+    let schema = section.settings_section();
+    let values = |v: Value| sanitize(&schema, &v).0;
+    section.apply_settings(&values(json!({}))).unwrap();
+    let p = hub.settings().research.pacing;
+    assert_eq!(
+        (p.pause_min, p.pause_max, p.max_searches),
+        (Duration::from_millis(1500), Duration::from_millis(4000), 3),
+        "sensible defaults"
+    );
+    assert!(
+        !hub.settings().profile.keep && !renderers.kept_profile_status().keep,
+        "throwaway profiles by default"
+    );
+    // Pauses given the wrong way round are swapped; the searches stay within their limits.
+    section
+        .apply_settings(&values(
+            json!({"researchPauseMin": 5000, "researchPauseMax": 2000, "researchMaxSearches": 1, "researchProfile": true}),
+        ))
+        .unwrap();
+    let p = hub.settings().research.pacing;
+    assert_eq!(
+        (p.pause_min, p.pause_max, p.max_searches),
+        (Duration::from_secs(2), Duration::from_secs(5), 1)
+    );
+    let status = renderers.kept_profile_status();
+    assert!(status.keep && !status.in_use && status.problem.is_none());
+    assert_eq!(status.max_bytes, super::profile::DEFAULT_MAX_BYTES);
+    section.apply_settings(&values(json!({"researchMaxSearches": 50}))).unwrap();
+    assert_eq!(hub.settings().research.pacing.max_searches, 3, "out of range: the default");
+    assert!(!renderers.kept_profile_status().keep, "off again");
 }
 
 #[test]
@@ -205,6 +251,7 @@ fn google_is_the_default_engine_of_settings_and_listed_first() {
     let section = super::settings_section::BrowserSection {
         hub: hub.clone(),
         renderers: None,
+        profile_dir: None,
     };
     let schema = section.settings_section();
     let field = schema.fields.iter().find(|f| f.key == "searchEngine").expect("the field");
@@ -298,4 +345,31 @@ fn closing_the_research_browser_reports_whether_one_was_open() {
         json!(false),
         "no research browser was open"
     );
+}
+
+#[test]
+fn the_research_profile_is_not_cleared_while_a_research_runs() {
+    let app = test_app_with_commands(None);
+    let main = window(&app, "main");
+    let s = ipc(&main, "browser_research_profile_status", json!({})).unwrap();
+    assert_eq!((s["keep"].as_bool(), s["inUse"].as_bool()), (Some(false), Some(false)), "{s}");
+    // A research is running (it waits until the test lets it end).
+    let (go, wait) = std::sync::mpsc::channel::<()>();
+    let jobs = app.state::<crate::jobs::Jobs>();
+    let handle = jobs
+        .submit(
+            crate::jobs::JobSpec::new(crate::jobs::JobKind::Research, "Research: x").window("main"),
+            crate::jobs::Controls::default(),
+            move |_| -> Result<crate::jobs::Done<()>, String> {
+                let _ = wait.recv();
+                Ok(crate::jobs::Done::new(()))
+            },
+        )
+        .unwrap();
+    let e = err(ipc(&main, "browser_research_profile_clear", json!({})));
+    assert!(e.contains("A research is running"), "{e}");
+    go.send(()).unwrap();
+    handle.wait().unwrap().unwrap();
+    let s = ipc(&main, "browser_research_profile_clear", json!({})).unwrap();
+    assert_eq!(s["sizeBytes"], 0, "{s}");
 }

@@ -45,7 +45,7 @@ import { WatchedFolderInfo } from '../api.types';
 import { RunsReply, RunsRequest, SpanPreview, SpanPreviewRequest } from '../api.types';
 import { MockEngine, safeRegex } from './mock-engine';
 import { MOCK_PLUGIN_KINDS, MOCK_WINDOWS_PLUGIN, MockPluginKind } from './mock-plugin-markers';
-import type { Failable } from './mock-options';
+import type { Failable, Holdable } from './mock-options';
 import { mockPreviewParse } from './mock-parse';
 import { mockExplainRegex, mockInferRegex } from './mock-regex';
 import { syntheticFacet, syntheticPage } from './mock-synthetic';
@@ -69,6 +69,7 @@ import { MockParserLibrary, MockParserSource } from './mock-parsers';
 import { isImagePath } from '../../ai/vision/image-files';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 import { MockClock, MockTimer, systemMockClock } from './mock-clock';
+import { onMockRelease } from './mock-hold';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
 const MOCK_ICONS: ReadonlySet<string> = new Set(BUILTIN_ICONS.map((i) => i.name));
@@ -106,6 +107,11 @@ export interface MockBackendOptions {
   slowDiscoveryMs?: number;
   /** The clock of every simulated delay, live tick and import step (default: the page's timers). */
   clock?: MockClock;
+  /**
+   * Answers of these commands wait until `globalThis.__debriefMockRelease()` is called (end-to-end tests: a view is
+   * seen, and used, before its data arrives).
+   */
+  hold?: readonly Holdable[];
 }
 
 /** One recorded `setLive` call. */
@@ -164,7 +170,24 @@ export class MockBackend implements DebriefBackend {
     this.liveSim = new MockLiveSim(liveConfig(options), () => this.nextSourceId++);
     this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock, options.slowDiscoveryMs ?? 0) : null;
     if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__debriefMockLiveCalls'] = this.liveCalls;
+    this.holding = new Set(options.hold ?? []);
+    if (this.holding.size) onMockRelease(() => this.release());
     this.apply();
+  }
+
+  private readonly holding: Set<Holdable>;
+  private readonly heldAnswers: (() => void)[] = [];
+
+  /** Answers `command` now, or once the test releases held commands (`hold`). */
+  private held<T>(command: Holdable, answer: () => Promise<T>): Promise<T> {
+    if (!this.holding.has(command)) return answer();
+    return new Promise<void>((resolve) => this.heldAnswers.push(resolve)).then(answer);
+  }
+
+  /** Answers every held call and stops holding. */
+  private release(): void {
+    this.holding.clear();
+    for (const answer of this.heldAnswers.splice(0)) answer();
   }
 
   /** Rejections carry a plain message string, like Tauri command errors, or a `CmdError` where the engine sends a coded one. */
@@ -524,7 +547,7 @@ export class MockBackend implements DebriefBackend {
   }
 
   getProfile(): Promise<ProfileDoc> {
-    return this.delay(() => ({ name: this.profile.name ?? 'Unnamed profile', path: null, toml: this.profileToml }));
+    return this.held('getProfile', () => this.delay(() => ({ name: this.profile.name ?? 'Unnamed profile', path: null, toml: this.profileToml })));
   }
 
   validateProfile(toml: string): Promise<ProfileValidation> {

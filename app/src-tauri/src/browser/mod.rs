@@ -20,6 +20,7 @@ pub(crate) mod lifecycle;
 #[cfg(test)]
 mod live;
 mod placement;
+pub(crate) mod profile;
 pub(crate) mod renderer;
 pub(crate) mod research;
 pub(crate) mod runtime;
@@ -92,11 +93,8 @@ pub enum BrowserEvent {
     Driving {
         by: Option<AiDriver>,
     },
-    /// Research ended but its browser window stays open because the user took part in it; the window offers to close it
-    /// (`research_browser_close`).
-    ResearchBrowserKept,
     /// The window's AI browser moved in its life cycle (launching, ready, closing, gone and why); `kept` while research
-    /// left it open. A browser the user closed is `gone` (`windowClosed`), and the next research starts a new one.
+    /// left it open because the user took part in it (the window offers to close it: `research_browser_close`). A browser the user closed is `gone` (`windowClosed`), and the next research starts a new one.
     Lifecycle(lifecycle::Lifecycle),
     /// A line of what the AI is doing ("Reading 3 of 5 results"), for the status chip.
     Status {
@@ -130,6 +128,9 @@ fn placement_of<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<chromium_
         .collect();
     placement::place(&owner_rect, &displays)
 }
+
+/// The kept research profile changed (taken, released, cleared, the setting); to every window, no payload.
+pub const RESEARCH_PROFILE_EVENT: &str = "debrief://research-profile";
 
 /// Sends a browser event to the owner window.
 pub fn emit<R: Runtime>(app: &AppHandle<R>, owner: &str, event: BrowserEvent) {
@@ -224,6 +225,11 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     let renderers = renderers(app).unwrap_or_default();
     let a = app.clone();
     renderers.listen(Arc::new(move |owner, life| emit(&a, owner, BrowserEvent::Lifecycle(life))));
+    // Every window (Settings shows the profile): it changed, read it again.
+    let a = app.clone();
+    renderers.listen_profile(Arc::new(move || {
+        let _ = tauri::Emitter::emit(&a, RESEARCH_PROFILE_EVENT, ());
+    }));
     watch_health(app, &renderers);
     let a = app.clone();
     renderers.set_placer(Arc::new(move |owner| placement_of(&a, owner)));
@@ -233,6 +239,9 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
         Arc::new(settings_section::BrowserSection {
             hub,
             renderers: Some(renderers),
+            profile_dir: crate::app_dirs::resolve(app, crate::app_dirs::AppDir::Data)
+                .ok()
+                .map(|d| profile::folder(&d)),
         }),
         crate::settings::SectionGroup::App,
     ) {

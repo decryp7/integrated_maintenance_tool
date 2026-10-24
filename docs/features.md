@@ -763,7 +763,8 @@ Settings ▸ Appearance (or *View ▸ Theme*, or the command palette) chooses ho
 - **Keyboard shortcuts.** Settings ▸ Keyboard (or *Help ▸ Keyboard shortcuts ▸ Edit shortcuts…*) lists every
   command with its key; *Change* records a new key, warns when another command or a built-in key already uses
   it (Replace or Cancel), and the cheat sheet (F1), menus and palette show your keys. Overrides are kept for
-  your user. *Help ▸ What's new* shows the release notes (CHANGELOG.md), once automatically after an update.
+  your user. *Help ▸ What's new* opens the release notes (CHANGELOG.md) of the running version as a document of the dock;
+  after an update it opens once in the background, with one "Updated to … · See what's new" notification that brings it forward.
 - **Colour scheme.** Light, dark, or *System* (the default), which follows the operating system as it changes.
 - **Density.** *Comfortable* or *Compact* row and lane heights, in every theme.
 - **Colour lanes by source.** Draws each lane's volume in its source colour instead of neutral grey; each theme

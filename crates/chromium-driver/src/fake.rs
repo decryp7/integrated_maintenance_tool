@@ -12,7 +12,7 @@ use serde_json::{json, Value};
 use std::io::Write;
 use std::net::TcpListener;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::time::Duration;
 use tungstenite::Message;
 
@@ -23,6 +23,7 @@ pub use crate::FAKE_CHILD_ENV as CHILD_ENV;
 const MODE_ENV: &str = "FAKE_BROWSER_MODE";
 const TABS_ENV: &str = "FAKE_BROWSER_TABS";
 const CTL_ENV: &str = "FAKE_BROWSER_CTL";
+const CALLS_ENV: &str = "FAKE_BROWSER_CALLS";
 /// How often the fake looks at its control file and at its sockets.
 const TICK: Duration = Duration::from_millis(10);
 
@@ -69,6 +70,8 @@ pub struct FakeBrowser {
     pub url_file: PathBuf,
     /// The user's actions, one word per line, read by the running fake.
     pub ctl_file: PathBuf,
+    /// The DevTools methods the fake was sent, one per line (`Browser.close`, `Target.createTarget`, ...).
+    pub calls_file: PathBuf,
 }
 
 /// The dynamic-loader variables a test binary may need (cargo and nextest put the native library folders in
@@ -79,32 +82,46 @@ const DYLD_VARS: [&str; 3] = ["DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH",
 /// The fake's start script: the loader variables, the fake's own settings and [`CHILD_ENV`], then the test binary
 /// filtered to the one helper test (`--exact`).
 #[allow(clippy::too_many_arguments)]
-fn script(dyld: &[(String, String)], args: &Path, url: &Path, ctl: &Path, mode: &str, tabs: usize, me: &Path, test_path: &str) -> String {
+fn script(
+    dyld: &[(String, String)],
+    args: &Path,
+    url: &Path,
+    ctl: &Path,
+    calls: &Path,
+    mode: &str,
+    tabs: usize,
+    me: &Path,
+    test_path: &str,
+) -> String {
     let dyld: String = dyld.iter().map(|(k, v)| format!("export {k}='{v}'\n")).collect();
     format!(
-        "#!/bin/sh\n{dyld}printf '%s\\n' \"$@\" > '{args}'\nexport {CHILD_ENV}=1 {ARGS_ENV}='{args}' {MODE_ENV}={mode} {TABS_ENV}={tabs} FAKE_BROWSER_URL='{url}' {CTL_ENV}='{ctl}'\nexec '{me}' '{test_path}' --exact --nocapture\n",
+        "#!/bin/sh\n{dyld}printf '%s\\n' \"$@\" > '{args}'\nexport {CHILD_ENV}=1 {ARGS_ENV}='{args}' {MODE_ENV}={mode} {TABS_ENV}={tabs} FAKE_BROWSER_URL='{url}' {CTL_ENV}='{ctl}' {CALLS_ENV}='{calls}'\nexec '{me}' '{test_path}' --exact --nocapture\n",
         args = args.display(),
         url = url.display(),
         ctl = ctl.display(),
+        calls = calls.display(),
         me = me.display(),
     )
 }
 
 impl FakeBrowser {
     /// Writes the fake into `dir`. `test_path` is the full path of the caller's test function that calls
-    /// [`serve_if_requested`] (for example `browser::renderer::tests::fake_browser_process`); `tabs` is how many pages it reports.
+    /// [`serve_if_requested`] (for example `browser::renderer::tests::fake_browser_process`); `tabs` is how many pages
+    /// the browser has when it starts (its start page, plus any the user opened: 0 for a browser without a window).
+    /// As in Chrome, every `Target.createTarget` adds a page to these.
     pub fn install(dir: &Path, test_path: &str, mode: Mode, tabs: usize) -> std::io::Result<FakeBrowser> {
         let me = std::env::current_exe()?;
         let args_file = dir.join("args.txt");
         let url_file = dir.join("url.txt");
         let ctl_file = dir.join("ctl.txt");
+        let calls_file = dir.join("calls.txt");
         let exe = dir.join("fake-browser.sh");
         let mode = if mode == Mode::Obey { "obey" } else { "ignore" };
         let dyld: Vec<(String, String)> = DYLD_VARS
             .iter()
             .filter_map(|k| std::env::var(k).ok().map(|v| (k.to_string(), v)))
             .collect();
-        let script = script(&dyld, &args_file, &url_file, &ctl_file, mode, tabs, &me, test_path);
+        let script = script(&dyld, &args_file, &url_file, &ctl_file, &calls_file, mode, tabs, &me, test_path);
         std::fs::write(&exe, script)?;
         #[cfg(unix)]
         {
@@ -116,6 +133,7 @@ impl FakeBrowser {
             args_file,
             url_file,
             ctl_file,
+            calls_file,
         })
     }
 
@@ -123,6 +141,13 @@ impl FakeBrowser {
     pub fn act(&self, action: UserAction) -> std::io::Result<()> {
         let mut f = std::fs::OpenOptions::new().create(true).append(true).open(&self.ctl_file)?;
         writeln!(f, "{}", action.word())
+    }
+
+    /// The DevTools methods the fake was sent so far, in order.
+    pub fn calls(&self) -> Vec<String> {
+        std::fs::read_to_string(&self.calls_file)
+            .map(|s| s.lines().map(str::to_string).collect())
+            .unwrap_or_default()
     }
 
     /// The arguments the fake was started with (empty until it started).
@@ -167,6 +192,16 @@ pub fn serve_if_requested() {
 static WINDOW_CLOSED: AtomicBool = AtomicBool::new(false);
 static CONNECTION_DROPPED: AtomicBool = AtomicBool::new(false);
 static LOADS_STALLED: AtomicBool = AtomicBool::new(false);
+/// Pages opened over DevTools (`Target.createTarget`), besides the ones the browser started with.
+static CREATED: AtomicUsize = AtomicUsize::new(0);
+
+/// Notes a method the fake was sent (best effort: a test that reads it waits for what it expects).
+fn record_call(method: &str) {
+    let Ok(path) = std::env::var(CALLS_ENV) else { return };
+    if let Ok(mut f) = std::fs::OpenOptions::new().create(true).append(true).open(path) {
+        let _ = writeln!(f, "{method}");
+    }
+}
 
 /// How much of the control file was there when this fake started: earlier actions were for an earlier browser.
 static CONTROL_START: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
@@ -230,6 +265,7 @@ fn connection(stream: std::net::TcpStream, ignore: bool, tabs: usize, url_file: 
             continue;
         };
         let method = req["method"].as_str().unwrap_or("");
+        record_call(method);
         let url = || std::fs::read_to_string(url_file).unwrap_or_else(|_| "about:blank".into());
         let on_page = req.get("sessionId").is_some() || method == "Target.getTargetInfo";
         let mut reply = if closed && on_page {
@@ -237,12 +273,16 @@ fn connection(stream: std::net::TcpStream, ignore: bool, tabs: usize, url_file: 
             json!({"id": req["id"], "error": {"code": -32001, "message": "No session or target with given id found"}})
         } else {
             let result = match method {
-                "Target.createTarget" => json!({"targetId": "T1"}),
+                "Target.createTarget" => {
+                    let n = tabs + CREATED.fetch_add(1, Ordering::SeqCst) + 1;
+                    json!({"targetId": format!("T{n}")})
+                }
                 "Target.attachToTarget" => json!({"sessionId": "S1"}),
                 "Browser.getWindowForTarget" => json!({"windowId": 1}),
                 "Target.getTargets" => {
-                    let open = if closed { 0 } else { tabs };
-                    json!({"targetInfos": (0..open).map(|i| json!({"targetId": format!("T{}", i + 1), "type": "page"})).collect::<Vec<_>>()})
+                    // The start page(s) first, then the pages opened over DevTools; a closed window has none.
+                    let open = if closed { 0 } else { tabs + CREATED.load(Ordering::SeqCst) };
+                    json!({"targetInfos": (0..open).map(|i| json!({"targetId": format!("T{}", i + 1), "type": "page", "url": "about:blank"})).collect::<Vec<_>>()})
                 }
                 "Target.getTargetInfo" => json!({"targetInfo": {"url": url(), "title": "fake"}}),
                 "Runtime.evaluate" if req["params"]["expression"].as_str() == Some("document.readyState") => {
@@ -288,7 +328,17 @@ mod tests {
             ("DYLD_LIBRARY_PATH".to_string(), "/a".to_string()),
             ("DYLD_FALLBACK_LIBRARY_PATH".to_string(), "/b:/c".to_string()),
         ];
-        let s = script(&dyld, p("/t/args"), p("/t/url"), p("/t/ctl"), "obey", 1, p("/bin/test"), "x::fake");
+        let s = script(
+            &dyld,
+            p("/t/args"),
+            p("/t/url"),
+            p("/t/ctl"),
+            p("/t/calls"),
+            "obey",
+            1,
+            p("/bin/test"),
+            "x::fake",
+        );
         assert!(s.contains("export DYLD_LIBRARY_PATH='/a'\n"), "{s}");
         assert!(s.contains("export DYLD_FALLBACK_LIBRARY_PATH='/b:/c'\n"), "{s}");
         assert!(s.contains(&format!("export {CHILD_ENV}=1 ")), "{s}");

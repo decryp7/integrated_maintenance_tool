@@ -83,9 +83,10 @@ export type BrowserEvent =
   | ({ type: 'chatStatus' } & ChatBrowserStatus)
   /** The AI started (`by`) or stopped (`null`) driving the browser. */
   | { type: 'driving'; by: AiDriver | null }
-  /** Research ended but its browser window stays open because the user took part in it; offer `closeResearchBrowser()`. */
-  | { type: 'researchBrowserKept' }
-  /** The AI browser moved in its life cycle; `kept` while research left it open. Once gone, the next research opens a new one. */
+  /**
+   * The AI browser moved in its life cycle; `kept` while research left it open because the user took part in it (offer
+   * `closeResearchBrowser()`). Once gone, the next research opens a new one.
+   */
   | { type: 'lifecycle'; state: BrowserLifecycleState; reason?: BrowserGoneReason; kept: boolean }
   /** A line like "Reading 3 of 5 results". */
   | { type: 'status'; text: string }
@@ -104,6 +105,18 @@ export interface RuntimeStatus {
   pinnedVersion: string;
   /** There is a pinned download for this platform. */
   canInstall: boolean;
+}
+
+/** `browser_research_profile_status` (and what clearing returns): the kept research profile of Settings ▸ Web browser. */
+export interface ResearchProfileStatus {
+  /** Keep a research profile is on. */
+  keep: boolean;
+  sizeBytes: number;
+  maxBytes: number;
+  /** A browser uses it now: it cannot be cleared. */
+  inUse: boolean;
+  /** Why it was not used last time (damaged, too large), until it is fine again or cleared. */
+  problem: string | null;
 }
 
 /** The user's answer on an agent approval card. */
