@@ -381,3 +381,17 @@ describe('usability shares (ADR 0056 amendment 2026-10-24)', () => {
     expect(plan.hidden.map((h) => h.id)).toEqual(['ai']);
   });
 });
+
+describe('planLayout row height share', () => {
+  const rowHeight = (plan: ReturnType<typeof planLayout>, id: string) => plan.columns.flatMap((c) => c.rows).find((r) => r.views.includes(id))?.height;
+
+  it('a short dock keeps most of its height for the events grid: the timeline row asks for at most 45% of it', () => {
+    const plan = planLayout({ width: 704, height: 585 }, [V.timeline, V.events]);
+    expect(rowHeight(plan, 'timeline')).toBe(263);
+    expect(585 - rowHeight(plan, 'timeline')!).toBeGreaterThan(315);
+  });
+
+  it('a tall dock still gives the timeline its declared 300 px', () => {
+    expect(rowHeight(planLayout({ width: 1440, height: 800 }, [V.timeline, V.events]), 'timeline')).toBe(300);
+  });
+});

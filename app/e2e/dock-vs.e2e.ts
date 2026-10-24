@@ -124,7 +124,11 @@ test.describe('VS-style docking', () => {
     await sideTab.click();
     await flyout.getByRole('button', { name: 'Pin Inspector' }).click();
     await expect(tab(page, 'Inspector')).toBeVisible();
-    await expect(groups(page)).toHaveCount(5);
+    // Pinning re-plans the dock: at 1920 px the Explorer, the timeline beside Metrics, the Registry and the Inspector do not
+    // fit side by side, so Metrics is tabbed into the timeline's group again, as at the start (four groups). The five-group
+    // state in between is transient (macOS saw it by luck; a slower machine does not).
+    await expect(groups(page)).toHaveCount(4);
+    await expect(groupOf(page, 'Timeline').getByRole('tab', { name: 'Metrics', exact: true })).toBeVisible();
     await expect(page.locator('debrief-inspector')).toBeVisible();
     // Back at the right edge of the window, beside the groups it was beside, once the dock layout has settled.
     await expect

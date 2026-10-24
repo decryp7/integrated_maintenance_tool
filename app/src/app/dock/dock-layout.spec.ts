@@ -248,3 +248,61 @@ describe('displaced views and grow-back', () => {
     expect(layout.explorerVerdict(fakeDock(925, 900, { 'timeline+events': { width: 925, height: 900 } }).api, false, 300)).toBe('show');
   });
 });
+
+describe('watchResize', () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  /** A container whose size the test sets, and a ResizeObserver it fires by hand. */
+  function resizing(apiSize: { width: number; height: number }) {
+    let fire: () => void = () => undefined;
+    vi.stubGlobal(
+      'ResizeObserver',
+      class {
+        constructor(cb: () => void) {
+          fire = cb;
+        }
+        observe(): void {}
+        disconnect(): void {}
+      },
+    );
+    const size = { width: 1440, height: 800 };
+    const container = document.createElement('div');
+    container.getBoundingClientRect = () => ({ ...size, x: 0, y: 0, top: 0, left: 0, right: size.width, bottom: size.height, toJSON: () => ({}) }) as DOMRect;
+    const layout = setup();
+    const ctx = TestBed.inject(DockContext);
+    const api = { ...apiSize } as unknown as DockviewApi;
+    ctx.container = container;
+    ctx.api = api;
+    return { layout, api, size, fire: () => fire() };
+  }
+
+  it('plans once dockview has measured the new size, not before (a plan on the old size is never corrected)', () => {
+    vi.useFakeTimers();
+    const { layout, api, size, fire } = resizing({ width: 1440, height: 800 });
+    const onResize = vi.fn();
+    layout.watchResize(api, onResize);
+    size.width = 900;
+    fire();
+    vi.advanceTimersByTime(150);
+    expect(onResize).not.toHaveBeenCalled(); // dockview still reports 1440
+    vi.advanceTimersByTime(100);
+    expect(onResize).not.toHaveBeenCalled();
+    (api as { width: number }).width = 900;
+    vi.advanceTimersByTime(50);
+    expect(onResize).toHaveBeenCalledTimes(1);
+  });
+
+  it('still plans when dockview never agrees (bounded wait)', () => {
+    vi.useFakeTimers();
+    const { layout, api, size, fire } = resizing({ width: 1440, height: 800 });
+    const onResize = vi.fn();
+    layout.watchResize(api, onResize);
+    size.width = 900;
+    fire();
+    vi.advanceTimersByTime(150 + 50 * 20 + 50);
+    expect(onResize).toHaveBeenCalledTimes(1);
+  });
+});
