@@ -22,7 +22,8 @@ const url = (id: string, extra = '') =>
 test('the contract file lists every kind', () => {
   const kinds = new Set(Object.values(CONTRACTS).map((c) => c.kind));
   expect([...kinds].sort()).toEqual(['decision', 'form', 'tool', 'viewer']);
-  expect(Object.keys(CONTRACTS).length).toBeGreaterThanOrEqual(51);
+  // A floor against a generator that drops entries: 50 since What's new became a document of the dock (1.1.1).
+  expect(Object.keys(CONTRACTS).length).toBeGreaterThanOrEqual(50);
 });
 
 for (const [id, contract] of Object.entries(CONTRACTS)) {

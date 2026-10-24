@@ -1,3 +1,4 @@
+import { MockBackend } from './mock-backend';
 import { mockOptionsFromSearch } from './mock-options';
 
 describe('mockOptionsFromSearch', () => {
@@ -36,5 +37,34 @@ describe('mockOptionsFromSearch', () => {
   it('reads the long names switch', () => {
     expect(mockOptionsFromSearch('?mockLongNames=1')).toEqual({ longNames: true });
     expect(mockOptionsFromSearch('?mockLongNames=0')).toEqual({});
+  });
+
+  it('reads the commands to hold, ignoring unknown ones', () => {
+    expect(mockOptionsFromSearch('?mockHold=getProfile,nonsense')).toEqual({ hold: ['getProfile'] });
+    expect(mockOptionsFromSearch('?mockHold=')).toEqual({});
+  });
+});
+
+describe('MockBackend hold', () => {
+  const release = () => (globalThis as unknown as { __debriefMockRelease: () => void }).__debriefMockRelease();
+  afterEach(() => delete (globalThis as Record<string, unknown>)['__debriefMockRelease']);
+
+  it('answers a held command only once the test releases it, and later calls at once', async () => {
+    const backend = new MockBackend({ latency: false, hold: ['getProfile'] });
+    let answered = false;
+    const first = backend.getProfile().then((doc) => ((answered = true), doc));
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+    expect(answered).toBe(false);
+    release();
+    expect((await first).toml).toContain('[');
+    expect(answered).toBe(true);
+    await expect(backend.getProfile()).resolves.toMatchObject({ path: null });
+  });
+
+  it('holds nothing by default and publishes no release hook', async () => {
+    const backend = new MockBackend({ latency: false });
+    await expect(backend.getProfile()).resolves.toMatchObject({ path: null });
+    expect((globalThis as Record<string, unknown>)['__debriefMockRelease']).toBeUndefined();
   });
 });

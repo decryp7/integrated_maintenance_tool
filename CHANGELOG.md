@@ -3,11 +3,13 @@
 What changed for people who use Debrief, one section per release. This file is curated by hand (the in-app "What's new"
 panel reads it at build time); `git cliff` lists every commit if you need the full history.
 
-## 1.1.0 (2026-10-24)
+## 1.1.1 (2026-10-24)
 
 ### Added
 
 - **AI:** When Pitwall runs on this computer, Debrief can use it as its AI engine: choose Use Pitwall in the AI set-up, approve the six-digit code in Pitwall, and one model serves all your apps without a second download. Settings ▸ AI ▸ AI engine chooses Automatic, Pitwall or Built-in; if Pitwall stops, Debrief says so and offers the built-in engine instead of switching by itself
+- **Research:** Fewer "verify you are human" checks: research waits a short, varying pause before each search and each page (1.5 to 4 seconds by default), makes at most three searches per question, and reuses the results and pages one chat already fetched (the same question gets the earlier answer at once). Another research waits in the Jobs pane ("Waiting for the current research"). The pauses and searches per question are in Settings ▸ Web browser
+- **Research:** Settings ▸ Web browser ▸ Keep a research profile (off by default) keeps cookies and consent between researches in a profile of research's own (never your browser's), with its size, a size limit and Clear research profile
 
 ### Changed
 
@@ -18,6 +20,8 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 
 - **Layout:** Panes lay out by the room each one needs: what does not fit is tabbed or auto-hidden instead of squeezed (one notice with Undo), and returns when the window is large enough again; sizes you set by dragging are kept
 - **Research browser:** When the research browser cannot start, the status chip says so with Open Settings… (Settings ▸ Web browser) or, when no browser is installed, Install
+- **What's new:** The release notes are now a document in the window instead of a dialog. After an update it opens once in the background (it does not take the front or the keyboard focus), and one notification, "Updated to … · See what's new", brings it forward. *Help ▸ What's new* opens it at any time; close it like any other document. It shows the notes of the version that is running and does not open again on later starts of the same version
+- **Notifications:** A notification's button that opens a view or a window (See what's new, Show in Jobs, View, Open the assistant, Open Settings…) now slides the Notifications pane in, and one that opens a view moves the keyboard focus to it; buttons that act in place (Try again, Reset, Later) keep the pane open
 
 ### Fixed
 
@@ -27,10 +31,13 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 - **Dialogs:** A dialog window may call only the commands it needs, so a bug in one window can no longer do what only the main window should; Restart to apply in Settings and the plugin windows, and Restart as administrator in the profiling and diagnostics windows, now restart through the window that opened them and keep its session
 - **Dialogs:** Open recent project hands the choice back to the window you were working in, which asks about unsaved changes and opens it; What's new always shows the notes of the version that is running
 - **Dialogs:** With several displays, a dialog always opens on the display of the window that opened it, at a size that fits that display; a remembered position is kept relative to that window and only used when the dialog then stays on its display, and short dialogs no longer jump in height after opening
+- **Research browser:** The research browser closes again when research ends, unless you used it; it no longer opens an empty second tab
+- **Profile editor:** Its buttons no longer jump to another line when the profile arrives just after the editor opens, so a click made at once (on Propose…, for example) is no longer lost; the profile's name and path truncate instead
 
 ### Known issues
 
 - **Memory:** On Linux the log store's worker may use up to about 320 MB while querying (300 MB before the names catalogue); a later update makes the catalogue cheaper
+- **Memory:** On macOS the log store's worker may use up to about 570 MB while querying (about 470 MB in 1.0.1); a later update looks into it
 
 ## 1.0.2 (2026-10-23)
 

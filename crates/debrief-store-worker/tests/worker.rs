@@ -25,7 +25,13 @@ const LOW_MEMORY_IMPORT_BUDGET_MB: u64 = 400;
 /// Linux 320 MB since the names catalogue (merge fa135656, human names): measured natively on Linux arm64 the worker
 /// queried at 266-288 MB before it and 295-307 MB after (v1.0.1: 273-284 MB; 1.1.0: 300-307 MB), and the CI runner
 /// at 301-303 MB. The feature's cost, not a leak; the budget follows it (decision to confirm: ADR 0014's budget).
-const QUERY_BUDGET_MB: u64 = if cfg!(target_os = "macos") { 550 } else { 320 };
+///
+/// macOS 630 MB since 1.1.1: interleaved runs on the macOS host runner (each build run back to back with the branch)
+/// queried at 451-482 MB on v1.0.1 (mean 467) and 503-533 MB on 1.1.1 (mean 521); under a busy machine 1.1.1 reached
+/// 552 MB locally and 570 MB on CI. Bisecting found no single commit (each step within the ±30 MB noise) and A/B tests
+/// of the suspects (streaming import, fingerprints, index pool, walkers, dispatcher) found nothing retained: the cost
+/// of 1.1's features. The budget is that maximum plus 10%; docs/notes/release-1.1.1-open.md keeps the follow-up.
+const QUERY_BUDGET_MB: u64 = if cfg!(target_os = "macos") { 630 } else { 320 };
 /// Growth of the app process allowed while it drives an import and queries (it holds no events).
 const CLIENT_GROWTH_MB: u64 = 64;
 

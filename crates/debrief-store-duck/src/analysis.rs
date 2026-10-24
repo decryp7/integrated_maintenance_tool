@@ -1448,6 +1448,16 @@ mod tests {
     use super::*;
     use debrief_core::ports::{Ingest, Query};
 
+    /// Opens the files one import at a time, so each file's events fill segments of their own. Which keys a segment
+    /// promotes depends on the rows of its first batch (`promote`): opened together, the two files' batches shared
+    /// segments in an order that changed from run to run, and a segment that began with a batch of the file without
+    /// `Host` did not promote it (the results do not change, only whether `Host` is read from its column).
+    fn open_one_by_one(store: &DuckStore, paths: &[std::path::PathBuf]) {
+        for p in paths {
+            store.open(std::slice::from_ref(p)).unwrap().wait().unwrap();
+        }
+    }
+
     /// Two CLEF files of `n` events each whose times interleave (a: even seconds, b: odd).
     fn interleaved(dir: &std::path::Path, n: usize) -> Vec<std::path::PathBuf> {
         ["a", "b"]
@@ -1545,6 +1555,34 @@ mod tests {
         );
     }
 
+    /// Regression: whether `Host` is promoted no longer depends on how the import's threads were scheduled (random
+    /// delays per seed reordered the batches; before, seeds 4, 8, 16, 22 and 24 of 1..25 lost the promotion).
+    #[test]
+    fn the_promoted_key_does_not_depend_on_the_import_schedule() {
+        let mut bad = vec![];
+        for seed in [4u64, 8, 16, 22, 24] {
+            let root = std::env::temp_dir().join(format!("debrief-promote-seed-{}-{seed}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&root);
+            std::fs::create_dir_all(root.join("logs")).unwrap();
+            let paths = interleaved(&root.join("logs"), 3_000);
+            let store = DuckStore::create(
+                &root.join("store"),
+                debrief_core::Profile::default_profile(),
+                debrief_core::PluginRegistry::new(),
+            )
+            .unwrap();
+            store.set_import_jitter(seed);
+            open_one_by_one(&store, &paths);
+            let conn = store.inner.conn().unwrap();
+            let ctx = store.inner.ctx(&conn).unwrap();
+            if !ctx.fields.promoted_text.contains("Host") {
+                bad.push(seed);
+            }
+            let _ = std::fs::remove_dir_all(&root);
+        }
+        assert!(bad.is_empty(), "seeds without Host promoted: {bad:?}");
+    }
+
     #[test]
     fn ordered_streams_read_windows_in_time_order_and_count_the_rest() {
         let root = std::env::temp_dir().join(format!("debrief-ordered-{}", std::process::id()));
@@ -1558,7 +1596,7 @@ mod tests {
             debrief_core::PluginRegistry::new(),
         )
         .unwrap();
-        store.open(&paths).unwrap().wait().unwrap();
+        open_one_by_one(&store, &paths);
         let inner = &store.inner;
         let conn = inner.conn().unwrap();
         let ctx = inner.ctx(&conn).unwrap();

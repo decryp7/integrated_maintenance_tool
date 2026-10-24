@@ -52,6 +52,7 @@ export class ParserSuggestNotice {
       title: $localize`:@@ai.parserSuggest.title:No parser reads ${source.name}:name: well`,
       body: $localize`:@@ai.parserSuggest.body:The local model can draft a parser for it; the engine checks every draft on the file and shows you the result to review.`,
       actionLabel: $localize`:@@ai.parserSuggest.action:Generate a parser with AI…`,
+      target: 'window',
       run: () => this.ai.propose('parser', { sourceId: source.id, fileName: source.name }),
     });
   }

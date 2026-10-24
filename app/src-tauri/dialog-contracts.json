@@ -752,6 +752,8 @@
         "ai_updates_check",
         "ai_updates_skip",
         "ai_updates_status",
+        "browser_research_profile_clear",
+        "browser_research_profile_status",
         "browser_runtime_install",
         "browser_runtime_remove",
         "browser_runtime_status",
@@ -814,19 +816,6 @@
         "updates_open_releases",
         "updates_restart",
         "updates_status"
-      ]
-    },
-    "whats-new": {
-      "kind": "viewer",
-      "modality": "modeless",
-      "requiredChoice": false,
-      "instanced": false,
-      "minSize": {
-        "width": 680,
-        "height": 560
-      },
-      "commands": [
-        "app_status"
       ]
     }
   }

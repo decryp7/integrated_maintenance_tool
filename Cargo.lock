@@ -1671,7 +1671,7 @@ dependencies = [
 
 [[package]]
 name = "debrief-app"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -1700,6 +1700,7 @@ dependencies = [
  "debrief-symbols",
  "debrief-video",
  "dirs",
+ "gtk",
  "image",
  "keyring",
  "log",

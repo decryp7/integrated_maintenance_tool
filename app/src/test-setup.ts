@@ -2,6 +2,8 @@
 import '@angular/localize/init';
 import * as mocks from './app/mock-backends';
 import { installBrowserMocks } from './app/core/mock-registry';
+import { resetMockJobs } from './app/jobs/mock-jobs';
+import { resetMockNotifications } from './app/notifications/mock-notifications';
 
 // The app loads the mock backends before bootstrapping in a browser; specs get them at once.
 installBrowserMocks(mocks);
@@ -11,6 +13,19 @@ installBrowserMocks(mocks);
 const dropTauriStub = () => delete (window as unknown as Record<string, unknown>)['__TAURI_INTERNALS__'];
 beforeEach(dropTauriStub);
 afterEach(dropTauriStub);
+
+// The mock jobs service and notification centre are page-wide singletons, and spec files share the page (the Angular
+// builder runs Vitest with `isolate: false`). A job one test left running held its kind's slot (one import at a time)
+// for whatever spec the worker ran next, so a profile save there never re-imported. Every test starts with fresh ones.
+beforeEach(() => {
+  resetMockJobs();
+  resetMockNotifications();
+});
+
+// The page is shared the same way: elements a spec left in the body (a dock with an active tab, an overlay) were read by
+// the next spec (the error logger records the active view's title). TestBed has removed its fixtures by now; every test
+// starts with an empty body.
+beforeEach(() => document.body.replaceChildren());
 
 class ResizeObserverStub {
   constructor(private readonly cb: ResizeObserverCallback) {}

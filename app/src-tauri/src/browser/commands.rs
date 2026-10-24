@@ -360,3 +360,41 @@ pub async fn research_browser_close<R: Runtime>(app: AppHandle<R>, win: CurrentW
     crate::activity::domain_event("browser.researchClose", None, &[("Closed", if closed { "true" } else { "false" })]);
     Ok(closed)
 }
+
+/// The kept research profile (Settings ▸ Web browser): on or off, its size and limit, whether a browser uses it, and
+/// why it was not used last time. Counting its size runs off the IPC thread.
+#[tauri::command]
+pub async fn browser_research_profile_status<R: Runtime>(
+    app: AppHandle<R>,
+    _win: CurrentWindow,
+) -> CmdResult<super::sessions::ProfileStatus> {
+    let renderers = super::renderers(&app).ok_or("the browser is not available")?;
+    blocking(move || Ok(renderers.kept_profile_status())).await
+}
+
+/// Clears the kept research profile (cookies, consent, the research pages' history). Refused while a research runs or
+/// a browser uses the profile, with the reason and what to do.
+#[tauri::command]
+pub async fn browser_research_profile_clear<R: Runtime>(
+    app: AppHandle<R>,
+    _win: CurrentWindow,
+) -> CmdResult<super::sessions::ProfileStatus> {
+    clear_research_profile(&app).await
+}
+
+pub(super) async fn clear_research_profile<R: Runtime>(app: &AppHandle<R>) -> CmdResult<super::sessions::ProfileStatus> {
+    use crate::jobs::{JobKind, Jobs};
+    let running = app
+        .try_state::<Jobs>()
+        .is_some_and(|j| !j.find_active(|job| job.kind == JobKind::Research).is_empty());
+    if running {
+        return Err("A research is running or waiting. Clear the research profile once it has finished.".into());
+    }
+    let renderers = super::renderers(app).ok_or("the browser is not available")?;
+    blocking(move || {
+        renderers.clear_kept_profile()?;
+        crate::activity::domain_event("browser.researchProfileClear", None, &[]);
+        Ok(renderers.kept_profile_status())
+    })
+    .await
+}

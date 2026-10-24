@@ -7,6 +7,11 @@ export async function openAiApp(page: Page, extra = ''): Promise<void> {
   await expect(page.locator('debrief-events-grid [role=row].row').first()).toBeVisible();
 }
 
+/** Lets everything the mocks hold (`mockHold`, `mockJobsHold`) go on. */
+export async function releaseMockHolds(page: Page): Promise<void> {
+  await page.evaluate(() => (globalThis as unknown as { __debriefMockRelease: () => void }).__debriefMockRelease());
+}
+
 /** Opens the assistant chat from the palette and returns the panel. */
 export async function openChat(page: Page): Promise<Locator> {
   await runCommand(page, 'AI: Open the assistant chat');

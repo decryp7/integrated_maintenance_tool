@@ -518,6 +518,7 @@ impl Researcher for FakeResearcher {
         ResearchSettings {
             auto: self.auto,
             max_results: 5,
+            ..ResearchSettings::default()
         }
     }
     fn research(&self, question: &str, query: &str, max_results: u8) -> debrief_ai::Result<ResearchReport> {
@@ -589,6 +590,31 @@ fn the_model_researches_by_itself_and_the_answer_cites_the_pages() {
     assert!(citations
         .iter()
         .any(|c| matches!(c, Citation::Web { url, .. } if url == "https://learn.microsoft.com/iis/access-denied")));
+}
+
+#[test]
+fn one_question_makes_at_most_the_searches_allowed_per_question() {
+    let call = |q: &str| tool("web_research", json!({"question": "what does it mean?", "query": q}));
+    let a = assistant(vec![
+        call("HRESULT 0x80070005 IIS"),
+        call("0x80070005 app pool"),
+        call("E_ACCESSDENIED IIS"),
+        call("access denied IIS folder"),
+        text("It means access denied [1]."),
+    ]);
+    let b = FakeBrowser::new(docs_page());
+    let c = ChatBrowser::new(AgentLimits::default());
+    let log = MemoryLog::default();
+    let r = FakeResearcher {
+        auto: true,
+        asked: Mutex::new(vec![]),
+        no_results: None,
+    };
+    run(&a, &with_research(env(&b, &c, &DenyAll, &log), &r), vec![], "what does it mean?");
+    assert_eq!(r.asked.lock().unwrap().len(), 3, "the default is three searches per question");
+    let requests = a.provider().requests();
+    let last = &requests[4].messages.last().unwrap().content;
+    assert!(last.contains("already had 3 web researches"), "{last}");
 }
 
 #[test]

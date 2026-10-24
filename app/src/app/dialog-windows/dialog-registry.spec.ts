@@ -9,7 +9,7 @@ describe('dialog registry', () => {
   it('has unique, well-formed ids and a kind for every dialog', () => {
     const ids = DIALOG_DEFS.map((d) => d.id);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(ids.length).toBe(51);
+    expect(ids.length).toBe(50);
     for (const d of DIALOG_DEFS) {
       expect(d.id).toMatch(/^[a-z0-9][a-z0-9-]{0,63}$/);
       expect(DIALOG_KINDS, d.id).toContain(d.kind);
@@ -34,7 +34,7 @@ describe('dialog registry', () => {
 
   it('keeps the decided kinds (ADR 0054): result windows are viewers, incident-summary included, and Settings is a tool', () => {
     const kinds = (kind: string) => DIALOG_DEFS.filter((d) => d.kind === kind).map((d) => d.id).sort();
-    expect(kinds('viewer')).toEqual(['about', 'ai-narrative', 'ai-proposal-result', 'ai-regex', 'cheat-sheet', 'incident-summary', 'updates', 'whats-new']);
+    expect(kinds('viewer')).toEqual(['about', 'ai-narrative', 'ai-proposal-result', 'ai-regex', 'cheat-sheet', 'incident-summary', 'updates']);
     expect(kinds('tool')).toEqual(['ai-models', 'research', 'settings']);
     expect(kinds('decision')).toEqual(
       ['close-prompt', 'encoding', 'import-range', 'marker-override', 'open-ask', 'open-live', 'package-review', 'parser-import-confirm', 'plugin-permissions', 'recent-projects', 'save-layout', 'unsaved-changes'].sort(),
@@ -60,7 +60,8 @@ describe('dialog registry', () => {
       if (d.kind === 'decision') expect(d.height, `${d.id}: a decision is fitted to its content`).toBeUndefined();
     }
     expect(dialogDef('ai-narrative')?.height).toBeGreaterThanOrEqual(560);
-    expect(dialogDef('whats-new')?.width).toBe(680);
+    expect(dialogDef('updates')?.width).toBe(680);
+    expect(dialogDef('whats-new'), "What's new is a document of the dock, not a dialog").toBeUndefined();
     expect(dialogDef('settings')?.height).toBeGreaterThanOrEqual(680);
   });
 

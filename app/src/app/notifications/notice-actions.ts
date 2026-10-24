@@ -6,9 +6,10 @@ import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { JobViewer, JOBS_VIEW } from '../jobs/job-viewer';
 import { JobsBackend } from '../jobs/jobs-backend';
 import { JobsStore } from '../jobs/jobs.store';
+import { DockService } from '../dock/dock.service';
 import { DialogService } from '../ui/dialog.service';
 import { Notice, NoticeAction } from './notifications.types';
-import { NotificationsStore } from './notifications.store';
+import { NoticeTarget, NotificationsStore } from './notifications.store';
 
 export const NOTIFICATIONS_VIEW = 'notifications';
 
@@ -87,6 +88,33 @@ export function jobClearedNote(): string {
   return $localize`:@@notifications.action.jobCleared:This job was cleared from Jobs; the outcome above is all that is kept.`;
 }
 
+/** Where `a` takes the user (see `NoticeTarget`): every action declares it, so none leaves Notifications open over what it opened. */
+export function actionTarget(a: NoticeAction): NoticeTarget {
+  switch (a.type) {
+    case 'viewJob':
+    case 'reviewProposals':
+    case 'retryJob':
+    case 'showJobs':
+    case 'openAssistant':
+    case 'setUpAssistant':
+    case 'updateAi':
+    case 'showAlert':
+      return 'view';
+    case 'setUpFormat':
+    case 'fixTimestamps':
+    case 'openSettings':
+      return 'window';
+    case 'showInFolder':
+    case 'resetPlugin':
+    case 'resetAi':
+    case 'installUpdate':
+    case 'laterAiUpdate':
+    case 'skipAiUpdate':
+    case 'repairService':
+      return null;
+  }
+}
+
 /** Actions that answer the message: once done it is dismissed (an AI update was installed, put off or skipped). */
 function answers(a: NoticeAction): boolean {
   return a.type === 'updateAi' || a.type === 'laterAiUpdate' || a.type === 'skipAiUpdate';
@@ -108,10 +136,28 @@ export class NoticeActions {
     try {
       const err = await this.perform(action);
       if (!err && answers(action) && notice.id > 0) await store.dismiss(notice.id);
+      if (!err) this.leaveFor(actionTarget(action));
       return err;
     } catch (e) {
       return e instanceof Error ? e.message : typeof e === 'string' ? e : $localize`:@@notifications.action.failed:That did not work.`;
     }
+  }
+
+  /** Runs the action of a message of the UI's own (it is done), then goes where it declared. */
+  runLocal(id: number): void {
+    this.leaveFor(this.injector.get(NotificationsStore).runLocal(id));
+  }
+
+  /**
+   * The one place that decides what Notifications does after an action: an action that went somewhere slides the
+   * Notifications window in (a docked or popped-out one stays), and one that opened a view moves the focus to it.
+   * An action that acts in place, or failed, leaves Notifications as it was.
+   */
+  private leaveFor(target: NoticeTarget): void {
+    if (target === null) return;
+    const dock = this.injector.get(DockService, null);
+    dock?.slideIn(NOTIFICATIONS_VIEW);
+    if (target === 'view') dock?.focusFront();
   }
 
   private async perform(a: NoticeAction): Promise<string | null> {

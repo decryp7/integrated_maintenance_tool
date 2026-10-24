@@ -5,7 +5,8 @@ import { reportBackendFailures } from '../core/failure-reporter';
 import { Logger, withFailureLogging } from '../core/logger';
 import { browserMocks } from '../core/mock-registry';
 import { isTauri } from '../core/platform';
-import { RuntimeStatus } from './browser.types';
+import { listenHere, PayloadListenFn, Unlisten } from '../windowing/window-events';
+import { ResearchProfileStatus, RuntimeStatus } from './browser.types';
 
 /**
  * Which Chromium research and the browser modes drive (Settings ▸ Web browser ▸ Browser for research). The engine
@@ -19,12 +20,24 @@ export abstract class BrowserRuntimeBackend {
   abstract installRuntime(): Promise<RuntimeStatus>;
   /** Removes the downloaded Chromium (the machine's own browsers are never touched); resolves with the new status. */
   abstract removeRuntime(): Promise<RuntimeStatus>;
+  /** The kept research profile: on or off, its size, whether a browser uses it, why it was not used. */
+  abstract getResearchProfile(): Promise<ResearchProfileStatus>;
+  /** Clears the kept research profile; the engine refuses while a research runs or a browser uses it. */
+  abstract clearResearchProfile(): Promise<ResearchProfileStatus>;
+  /** The kept research profile changed (a browser took or released it, it was cleared, the setting changed). */
+  abstract onResearchProfileChanged(handler: () => void): Promise<Unlisten>;
 }
+
+/** `debrief://research-profile` (app/src-tauri/src/browser/mod.rs), to every window, no payload. */
+export const RESEARCH_PROFILE_EVENT = 'debrief://research-profile';
 
 /** Talks to `app/src-tauri/src/browser/runtime.rs`. */
 export class TauriBrowserRuntimeBackend extends BrowserRuntimeBackend {
-  /** `call` is Tauri's `invoke`; tests pass a fake. */
-  constructor(private readonly call: typeof invoke = invoke) {
+  /** `call` is Tauri's `invoke` and `listen` the window's event listener; tests pass fakes. */
+  constructor(
+    private readonly call: typeof invoke = invoke,
+    private readonly listen: PayloadListenFn = listenHere,
+  ) {
     super();
   }
   getRuntimeStatus() {
@@ -37,6 +50,15 @@ export class TauriBrowserRuntimeBackend extends BrowserRuntimeBackend {
   }
   removeRuntime() {
     return this.call<RuntimeStatus>('browser_runtime_remove');
+  }
+  getResearchProfile() {
+    return this.call<ResearchProfileStatus>('browser_research_profile_status');
+  }
+  clearResearchProfile() {
+    return this.call<ResearchProfileStatus>('browser_research_profile_clear');
+  }
+  onResearchProfileChanged(handler: () => void) {
+    return this.listen(RESEARCH_PROFILE_EVENT, () => handler());
   }
 }
 

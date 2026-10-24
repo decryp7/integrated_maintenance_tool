@@ -16,8 +16,16 @@ export type ReadFilter = 'all' | 'unread';
 export interface LocalNotice {
   notice: Notice;
   actionLabel: string;
+  target: NoticeTarget;
   run: () => void;
 }
+
+/**
+ * Where a message's action takes the user: a view of the dock, a window of its own (a dialog), or nowhere (it acts in
+ * place, like Try again). An action that goes somewhere slides Notifications in; one that opens a view also moves the
+ * focus to it (`NoticeActions`).
+ */
+export type NoticeTarget = 'view' | 'window' | null;
 
 /** What a feature posts as a local message. `key` replaces an earlier message with the same key. */
 export interface NewLocalNotice {
@@ -27,6 +35,8 @@ export interface NewLocalNotice {
   title: string;
   body?: string;
   actionLabel: string;
+  /** Where the action goes (declared by every message, so none is left behind an open Notifications slide-out). */
+  target: NoticeTarget;
   run: () => void;
 }
 
@@ -172,7 +182,7 @@ export const NotificationsStore = signalStore(
           cause,
           scope: 'project',
         };
-        patchState(store, (s) => ({ local: [{ notice, actionLabel: n.actionLabel, run: n.run }, ...s.local.filter((l) => l.notice.cause !== cause)] }));
+        patchState(store, (s) => ({ local: [{ notice, actionLabel: n.actionLabel, target: n.target, run: n.run }, ...s.local.filter((l) => l.notice.cause !== cause)] }));
       },
 
       /** Removes the local message with this key, if any (what it offered no longer applies). */
@@ -185,12 +195,13 @@ export const NotificationsStore = signalStore(
         return store.local().find((l) => l.notice.id === id)?.actionLabel ?? null;
       },
 
-      /** Runs a local message's action; the message is done. */
-      runLocal(id: number): void {
+      /** Runs a local message's action; the message is done. Returns where the action went (null: nowhere, or no such message). */
+      runLocal(id: number): NoticeTarget {
         const item = store.local().find((l) => l.notice.id === id);
-        if (!item) return;
+        if (!item) return null;
         removeLocal(id);
         item.run();
+        return item.target;
       },
 
       dismissToast,

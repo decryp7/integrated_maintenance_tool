@@ -12,6 +12,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
+/// How long [`Chromium::start_page`] waits for the page the browser opens with.
+#[cfg(not(test))]
+pub const START_PAGE_WAIT: Duration = Duration::from_secs(5);
+#[cfg(test)]
+pub const START_PAGE_WAIT: Duration = Duration::from_millis(300);
+
 #[derive(Debug, Clone)]
 pub enum Profile {
     /// A fresh directory, deleted when the browser ends.
@@ -39,6 +45,8 @@ pub struct LaunchOptions {
     pub max_lifetime: Duration,
     /// Where its window opens; the browser's own choice when `None`.
     pub window: Option<WindowBounds>,
+    /// A limit for the browser's disk cache (for a kept profile, so it does not grow without bound).
+    pub disk_cache_bytes: Option<u64>,
 }
 
 impl Default for LaunchOptions {
@@ -48,6 +56,7 @@ impl Default for LaunchOptions {
             accent: None,
             max_lifetime: Duration::from_secs(30 * 60),
             window: None,
+            disk_cache_bytes: None,
         }
     }
 }
@@ -189,8 +198,13 @@ impl Chromium {
                 log::warn!("The browser frame colour could not be written: {e}");
             }
         }
+        let mut a = args(&dir, opts.window);
+        if let Some(bytes) = opts.disk_cache_bytes {
+            // Before the start page (the last argument).
+            a.insert(a.len() - 1, format!("--disk-cache-size={bytes}"));
+        }
         let mut cmd = std::process::Command::new(&exe.path);
-        cmd.args(args(&dir, opts.window))
+        cmd.args(a)
             .args(no_sandbox_args(std::env::var(NO_SANDBOX_ENV).ok().as_deref(), running_as_root()))
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
@@ -265,9 +279,40 @@ impl Chromium {
         &self.dir
     }
 
-    /// Opens a page (tab) to drive.
+    /// Opens another page (tab) to drive, beside the ones the browser has.
     pub fn new_page(&self) -> Result<Page> {
         Page::attach(self.conn.clone())
+    }
+
+    /// The page the browser opened with (the `about:blank` of its command line), to drive instead of opening a second
+    /// one beside it: the window then has exactly one tab, and any further page is one the user opened. Waits up to
+    /// [`START_PAGE_WAIT`] for it to appear; a browser that shows none by then gets a new page.
+    pub fn start_page(&self) -> Result<Page> {
+        let end = Instant::now() + START_PAGE_WAIT;
+        loop {
+            if let Some(target) = self.first_page_target()? {
+                return Page::adopt(self.conn.clone(), target);
+            }
+            if Instant::now() >= end {
+                log::warn!("The browser showed no start page within {START_PAGE_WAIT:?}; a new one is opened");
+                return self.new_page();
+            }
+            std::thread::sleep(Duration::from_millis(50));
+        }
+    }
+
+    fn first_page_target(&self) -> Result<Option<String>> {
+        let r = self.conn.call(None, "Target.getTargets", json!({}), Duration::from_secs(5))?;
+        let pages: Vec<&Value> = r
+            .get("targetInfos")
+            .and_then(Value::as_array)
+            .map(|t| t.iter().filter(|i| i.get("type").and_then(Value::as_str) == Some("page")).collect())
+            .unwrap_or_default();
+        let blank = pages.iter().find(|i| i.get("url").and_then(Value::as_str) == Some("about:blank"));
+        Ok(blank
+            .or(pages.first())
+            .and_then(|i| i.get("targetId").and_then(Value::as_str))
+            .map(str::to_string))
     }
 
     /// The number of open pages (tabs and windows) of the browser; a page the user opened shows up here.
@@ -471,6 +516,55 @@ mod tests {
     fn page_count_sees_the_pages_the_browser_has() {
         let (_d, _fake, b) = launch_fake(crate::fake::Mode::Obey, 3);
         assert_eq!(b.page_count().unwrap(), 3);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_kept_profile_is_used_with_a_capped_cache_and_survives_the_close() {
+        let d = tempfile::tempdir().unwrap();
+        let fake = crate::fake::FakeBrowser::install(d.path(), "launch::tests::fake_browser_process", crate::fake::Mode::Obey, 1).unwrap();
+        let exe = Browser {
+            flavor: crate::Flavor::Chromium,
+            path: fake.exe.clone(),
+        };
+        let kept = d.path().join("kept-profile");
+        let opts = LaunchOptions {
+            profile: Profile::Persistent(kept.clone()),
+            disk_cache_bytes: Some(1234),
+            ..LaunchOptions::default()
+        };
+        let mut b = Chromium::launch(&exe, &opts).expect("the fake starts");
+        let args = fake.args();
+        assert!(args.contains(&format!("--user-data-dir={}", kept.display())), "{args:?}");
+        assert!(args.contains(&"--disk-cache-size=1234".to_string()), "{args:?}");
+        assert_eq!(args.last().map(String::as_str), Some("about:blank"), "the start page stays last");
+        assert!(b.close_gracefully(Duration::from_secs(2)));
+        assert!(kept.is_dir(), "a kept profile is not removed");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_start_page_is_driven_so_the_window_has_one_tab() {
+        let (_d, fake, b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.start_page().unwrap();
+        assert_eq!(b.page_count().unwrap(), 1, "no second, empty tab beside it");
+        assert!(p.exists().unwrap());
+        assert!(!fake.calls().iter().any(|c| c == "Target.createTarget"), "{:?}", fake.calls());
+        // A page opened besides it counts (the user opening a tab looks the same).
+        b.new_page().unwrap();
+        assert_eq!(b.page_count().unwrap(), 2);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_browser_without_a_start_page_gets_a_new_one_after_a_bounded_wait() {
+        let (_d, fake, b) = launch_fake(crate::fake::Mode::Obey, 0);
+        let started = Instant::now();
+        let p = b.start_page().unwrap();
+        assert!(started.elapsed() < START_PAGE_WAIT + Duration::from_secs(3), "bounded");
+        assert!(fake.calls().iter().any(|c| c == "Target.createTarget"));
+        assert!(p.exists().unwrap());
+        assert_eq!(b.page_count().unwrap(), 1);
     }
 
     #[cfg(unix)]

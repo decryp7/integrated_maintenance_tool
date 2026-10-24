@@ -1,3 +1,4 @@
+import { onMockRelease } from '../core/mock/mock-hold';
 import { mockNotifications } from '../notifications/mock-notifications';
 import { Unlisten } from '../windowing/window-events';
 import { JobsBackend } from './jobs-backend';
@@ -47,6 +48,8 @@ export interface MockJobsOptions {
   attentionMs: number;
   /** Kinds whose first job fails (to try Retry). */
   failOnce: Set<JobKind>;
+  /** Kinds whose jobs, once their work is done, wait to finish until the test releases them (`onMockRelease`). */
+  hold?: Set<JobKind>;
 }
 
 export function mockJobsOptionsFromSearch(search: string): MockJobsOptions {
@@ -55,8 +58,10 @@ export function mockJobsOptionsFromSearch(search: string): MockJobsOptions {
     const v = p.get(name);
     return v !== null && /^\d{1,6}$/.test(v) ? Number(v) : d;
   };
-  const failOnce = new Set((p.get('mockJobsFailOnce') ?? '').split(',').filter((k): k is JobKind => k in LIMITS));
-  return { visibleMs: num('mockJobsVisibleMs', 2000), attentionMs: num('mockJobsAttentionMs', 10_000), failOnce };
+  const kinds = (name: string) => new Set((p.get(name) ?? '').split(',').filter((k): k is JobKind => k in LIMITS));
+  const failOnce = kinds('mockJobsFailOnce');
+  const hold = kinds('mockJobsHold');
+  return { visibleMs: num('mockJobsVisibleMs', 2000), attentionMs: num('mockJobsAttentionMs', 10_000), failOnce, ...(hold.size ? { hold } : {}) };
 }
 
 interface Entry {
@@ -80,7 +85,24 @@ export class MockJobs implements JobsBackend {
   private readonly waiters = new Map<number, ((o: JobOutcome) => void)[]>();
   private ticker: ReturnType<typeof setInterval> | null = null;
 
-  constructor(readonly options: MockJobsOptions = mockJobsOptionsFromSearch(typeof window === 'undefined' ? '' : window.location.search)) {}
+  /** Kinds still held (`options.hold`), and the finishes waiting for the release. */
+  private readonly holding: Set<JobKind>;
+  private readonly heldFinishes: (() => void)[] = [];
+
+  constructor(readonly options: MockJobsOptions = mockJobsOptionsFromSearch(typeof window === 'undefined' ? '' : window.location.search)) {
+    this.holding = new Set(options.hold ?? []);
+    if (this.holding.size) onMockRelease(() => this.release());
+  }
+
+  private release(): void {
+    this.holding.clear();
+    for (const finish of this.heldFinishes.splice(0)) finish();
+  }
+
+  /** `work`'s outcome, delivered once its kind is no longer held. */
+  private afterHold<T>(kind: JobKind, work: Promise<T>): Promise<T> {
+    return work.then((value) => (this.holding.has(kind) ? new Promise<T>((resolve) => this.heldFinishes.push(() => resolve(value))) : value));
+  }
 
   private visible(e: Entry, now: number): boolean {
     const end = e.info.finishedAt ?? now;
@@ -256,7 +278,7 @@ export class MockJobs implements JobsBackend {
           },
         };
         const failNow = this.options.failOnce.delete(spec.kind);
-        const job = failNow ? Promise.reject(new Error('The disk is full (mock failure).')) : work(ctx);
+        const job = failNow ? Promise.reject(new Error('The disk is full (mock failure).')) : this.afterHold(spec.kind, work(ctx));
         job.then(
           ({ value, result }) => {
             if (cancelled) {
@@ -394,6 +416,14 @@ export class MockJobs implements JobsBackend {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
   }
+
+  /** Stops the progress ticker and forgets listeners and waiters (an instance replaced by `resetMockJobs`). */
+  dispose(): void {
+    if (this.ticker) clearInterval(this.ticker);
+    this.ticker = null;
+    this.handlers.clear();
+    this.waiters.clear();
+  }
 }
 
 let instance: MockJobs | null = null;
@@ -404,8 +434,9 @@ export function mockJobs(): MockJobs {
   return instance;
 }
 
-/** Replaces the shared instance (tests). */
+/** Replaces the shared instance (tests); the old one stops ticking, so its jobs cannot reach the next test. */
 export function resetMockJobs(next: MockJobs | null = null): void {
+  if (instance !== next) instance?.dispose();
   instance = next;
 }
 

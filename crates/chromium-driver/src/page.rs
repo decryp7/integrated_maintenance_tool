@@ -26,9 +26,15 @@ pub struct Info {
 }
 
 impl Page {
+    /// Opens a new page (a tab beside the others) and attaches to it.
     pub(crate) fn attach(conn: Arc<Connection>) -> Result<Page> {
         let t = conn.call(None, "Target.createTarget", json!({"url": "about:blank"}), CALL)?;
         let target = str_of(&t, "targetId")?;
+        Page::adopt(conn, target)
+    }
+
+    /// Attaches to the existing page `target` (for example the one the browser opened with).
+    pub(crate) fn adopt(conn: Arc<Connection>, target: String) -> Result<Page> {
         let s = conn.call(None, "Target.attachToTarget", json!({"targetId": target, "flatten": true}), CALL)?;
         let session = str_of(&s, "sessionId")?;
         conn.watch(&session);
