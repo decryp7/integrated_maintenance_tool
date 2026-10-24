@@ -47,6 +47,14 @@ impl WorkerBackend for Backend {
         }
         let mut text = String::new();
         for i in 0..40 {
+            if p.prompt == "until-cancelled" && i == 3 {
+                // A chat that only a cancel ends. The wait has a safety net so a lost cancel fails the test (it then
+                // ends with all 40 tokens) instead of hanging it.
+                let end = Instant::now() + Duration::from_secs(30);
+                while !cancelled() && Instant::now() < end {
+                    std::thread::yield_now();
+                }
+            }
             if cancelled() {
                 return Ok(ChatResult {
                     text,
@@ -221,9 +229,9 @@ fn cancel_stops_a_running_chat_and_a_deaf_worker_times_out() {
     call(&mut t, "load", load("ok")).unwrap();
     let cancel = AtomicBool::new(false);
     let mut n = 0;
-    let started = Instant::now();
+    // The worker streams three tokens and then waits for the cancel: it can only end early through it.
     let r: ChatResult = serde_json::from_value(
-        t.call("chat", chat("slow"), opts(), Some(&cancel), &mut |_| {
+        t.call("chat", chat("until-cancelled"), opts(), Some(&cancel), &mut |_| {
             n += 1;
             if n == 3 {
                 cancel.store(true, Ordering::SeqCst);
@@ -233,7 +241,7 @@ fn cancel_stops_a_running_chat_and_a_deaf_worker_times_out() {
     )
     .unwrap();
     assert_eq!(r.finish, WireFinish::Cancelled);
-    assert!(r.completion_tokens < 40 && started.elapsed() < Duration::from_millis(700));
+    assert_eq!((r.completion_tokens, n), (3, 3), "the chat stopped where it was cancelled");
     // silence longer than the allowed gap is a hang
     let e = t
         .call(

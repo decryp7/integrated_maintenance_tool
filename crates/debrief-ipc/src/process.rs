@@ -676,6 +676,60 @@ mod tests {
         assert_eq!(super::unix_nice(&s), 19);
     }
 
+    /// Whether `pid` is a process that still runs. A zombie has ended already: it only waits for its parent to collect
+    /// its exit status, and a killed child's orphan is collected by PID 1, which never happens in a container whose
+    /// PID 1 reaps nothing (CI's job container runs `sleep`). `kill(pid, 0)` alone counts such a zombie as alive.
+    #[cfg(unix)]
+    fn running(pid: i32) -> bool {
+        // SAFETY: signal 0 only checks that the process exists.
+        if unsafe { libc::kill(pid, 0) } != 0 {
+            return false;
+        }
+        !is_zombie(pid)
+    }
+
+    #[cfg(target_os = "linux")]
+    fn is_zombie(pid: i32) -> bool {
+        // `/proc/<pid>/stat` is "pid (comm) state ..."; comm may hold spaces and parentheses, so read after the last ')'.
+        std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .ok()
+            .and_then(|s| s.rsplit_once(')').and_then(|(_, rest)| rest.trim_start().chars().next()))
+            .is_none_or(|state| state == 'Z' || state == 'X')
+    }
+
+    #[cfg(target_os = "macos")]
+    fn is_zombie(pid: i32) -> bool {
+        // SAFETY: proc_bsdinfo is plain data; proc_pidinfo writes at most the size it is given.
+        let mut info: libc::proc_bsdinfo = unsafe { std::mem::zeroed() };
+        let size = std::mem::size_of::<libc::proc_bsdinfo>() as libc::c_int;
+        let got = unsafe { libc::proc_pidinfo(pid, libc::PROC_PIDTBSDINFO, 0, (&mut info as *mut libc::proc_bsdinfo).cast(), size) };
+        got != size || info.pbi_status == libc::SZOMB
+    }
+
+    #[cfg(all(unix, not(any(target_os = "linux", target_os = "macos"))))]
+    fn is_zombie(_: i32) -> bool {
+        false
+    }
+
+    /// A zombie (ended, not yet collected by its parent) is not running; a live process is.
+    #[cfg(unix)]
+    #[test]
+    fn a_zombie_is_not_running() {
+        // A child that has exited but is not waited for yet is a zombie of this test process.
+        #[allow(clippy::disallowed_methods)]
+        let mut c = std::process::Command::new("sh").args(["-c", "exit 0"]).spawn().unwrap();
+        let pid = c.id() as i32;
+        let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while running(pid) {
+            assert!(std::time::Instant::now() < end, "the exited child is seen as a zombie");
+            std::thread::yield_now();
+        }
+        // SAFETY: signal 0 only checks that the process exists.
+        assert_eq!(unsafe { libc::kill(pid, 0) }, 0, "it still exists until it is reaped");
+        c.wait().unwrap();
+        assert!(running(std::process::id() as i32), "this process runs");
+    }
+
     /// A child killed after its grace period takes what it started with it (the AI worker's llama-server, which on
     /// macOS has no parent-death signal and whose exit hook never runs under SIGKILL).
     #[cfg(unix)]
@@ -704,9 +758,8 @@ mod tests {
             std::thread::yield_now();
         };
         child.kill();
-        let alive = |pid: i32| unsafe { libc::kill(pid, 0) == 0 };
         let end = std::time::Instant::now() + std::time::Duration::from_secs(5);
-        while alive(grandchild) {
+        while running(grandchild) {
             if std::time::Instant::now() >= end {
                 unsafe { libc::kill(grandchild, libc::SIGKILL) };
                 panic!("the grandchild was left behind");

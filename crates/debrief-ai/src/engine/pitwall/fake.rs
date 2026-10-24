@@ -6,7 +6,7 @@ use serde_json::{json, Value};
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, MutexGuard};
 use std::time::Duration;
 
@@ -86,6 +86,8 @@ pub struct FakePitwall {
     pub port: u16,
     state: Arc<Mutex<FakeState>>,
     stop: Arc<AtomicBool>,
+    /// Connections it has started reading a request from.
+    reading: Arc<AtomicUsize>,
 }
 
 impl Drop for FakePitwall {
@@ -101,19 +103,30 @@ impl FakePitwall {
         listener.set_nonblocking(true).expect("non-blocking");
         let state = Arc::new(Mutex::new(state));
         let stop = Arc::new(AtomicBool::new(false));
-        let (s, st) = (state.clone(), stop.clone());
+        let reading = Arc::new(AtomicUsize::new(0));
+        let (s, st, r) = (state.clone(), stop.clone(), reading.clone());
         std::thread::spawn(move || {
             while !st.load(Ordering::Relaxed) {
                 match listener.accept() {
                     Ok((conn, _)) => {
-                        let (s, st) = (s.clone(), st.clone());
-                        std::thread::spawn(move || serve(conn, &s, &st));
+                        // On macOS a connection accepted from a non-blocking listener is non-blocking too (it inherits
+                        // the flag), and a read before the request had arrived dropped it unanswered.
+                        if conn.set_nonblocking(false).is_err() {
+                            continue;
+                        }
+                        let (s, st, r) = (s.clone(), st.clone(), r.clone());
+                        std::thread::spawn(move || serve(conn, &s, &st, &r));
                     }
                     Err(_) => std::thread::sleep(Duration::from_millis(5)),
                 }
             }
         });
-        FakePitwall { port, state, stop }
+        FakePitwall {
+            port,
+            state,
+            stop,
+            reading,
+        }
     }
 
     pub fn state(&self) -> MutexGuard<'_, FakeState> {
@@ -132,6 +145,11 @@ impl FakePitwall {
     /// Stops listening and drops the connections it is serving (Pitwall quit).
     pub fn kill(&self) {
         self.stop.store(true, Ordering::Relaxed);
+    }
+
+    /// How many connections it has started reading a request from.
+    pub fn reading(&self) -> usize {
+        self.reading.load(Ordering::SeqCst)
     }
 
     /// The requests to `path` it saw.
@@ -211,7 +229,8 @@ fn chunk(conn: &mut TcpStream, data: &str) -> bool {
     conn.write_all(format!("{:x}\r\n{frame}\r\n", frame.len()).as_bytes()).is_ok() && conn.flush().is_ok()
 }
 
-fn serve(mut conn: TcpStream, state: &Mutex<FakeState>, stop: &AtomicBool) {
+fn serve(mut conn: TcpStream, state: &Mutex<FakeState>, stop: &AtomicBool, reading: &AtomicUsize) {
+    reading.fetch_add(1, Ordering::SeqCst);
     let Some((method, path, headers, body)) = read_request(&mut conn) else {
         return;
     };
