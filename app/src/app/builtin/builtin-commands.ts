@@ -8,7 +8,7 @@ import { isViewAvailable, ViewRegistry } from '../extensions/view-registry';
 import { DIAGNOSTICS_SECTION, SETTINGS_DIAGNOSTICS_COMMAND, SettingsDialogService } from '../settings/settings-dialog';
 import { CLEAR_CACHE_COMMAND, STORAGE_ID } from '../settings/storage/storage.types';
 import { APPEARANCE_ID } from '../settings/settings-model';
-import { AboutService } from '../about/about-dialog';
+import { AboutService } from '../about/about.service';
 import { TimelineZoom } from '../timeline/zoom';
 import { WelcomeService } from '../welcome/welcome';
 import { SettingsStore } from '../settings/settings.store';

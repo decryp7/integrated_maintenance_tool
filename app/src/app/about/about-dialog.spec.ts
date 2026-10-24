@@ -161,11 +161,12 @@ describe('AboutDialog build info', () => {
 });
 
 describe('AboutService and the bundled sources', () => {
-  it('opens one About dialog', () => {
+  it('opens one About dialog', async () => {
     const dialogs = TestBed.inject(DialogService);
     const svc = TestBed.inject(AboutService);
     svc.open();
     svc.open();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().filter((d) => d.component === AboutDialog)).toHaveLength(1);
     expect(dialogs.stack()[0]?.options.title).toBe('About Debrief');
   });

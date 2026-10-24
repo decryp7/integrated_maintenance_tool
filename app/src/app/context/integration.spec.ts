@@ -56,6 +56,7 @@ describe('Inspector context actions', () => {
     expect(mask.disabled).toBeFalsy();
     mask.run();
     extract.run();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().map((d) => d.component)).toEqual([MaskDialog, ExtractDialog]);
     expect(dialogs.stack()[1]?.options.inputs).toMatchObject({ start: 23, end: 27 });
     // A selection outside the message is ignored; the one inside it stays.
@@ -174,6 +175,7 @@ describe('Explorer additions', () => {
   it('opens the format wizard for an unrecognised file', async () => {
     const { fixture, dialogs } = await render();
     el<HTMLButtonElement>(fixture, '[aria-label="Set up format for export.reg"]').click();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.component).toBe(FormatWizard);
     expect(dialogs.stack()[0]?.options.inputs).toEqual({ path: '/logs/system/export.reg', name: 'export.reg' });
   });

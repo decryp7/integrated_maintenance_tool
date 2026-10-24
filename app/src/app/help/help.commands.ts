@@ -4,7 +4,7 @@ import { SettingsDialogService } from '../settings/settings-dialog';
 import { MANAGE_PARSERS_COMMAND } from '../settings/parsers/parsers.types';
 import { EDIT_SHORTCUTS_COMMAND, KEYBOARD_ID } from '../settings/keyboard/keyboard.types';
 import { DialogService } from '../ui/dialog.service';
-import { WhatsNewService } from '../whats-new/whats-new';
+import { WhatsNewService } from '../whats-new/whats-new.service';
 
 /**
  * F1 opens the cheat sheet. Mod+/ is taken (focus the query bar) and "?" would fire while typing in

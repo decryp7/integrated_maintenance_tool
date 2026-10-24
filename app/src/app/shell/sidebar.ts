@@ -2,7 +2,6 @@ import { RovingTabindex } from '../shared/roving-tabindex';
 import { PathText } from '../shared/path-text';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
-import { FormatWizard } from '../format/format-wizard';
 import { DialogService } from '../ui/dialog.service';
 import { EncodingInfo, SourceInfo, SourceProblem, TailFileState, UnrecognizedFile } from '../core/api.types';
 import { formatCompact, formatCount, formatDateTime } from '../core/format';
@@ -427,6 +426,6 @@ export class Sidebar {
   }
 
   protected setUpFormat(file: UnrecognizedFile): void {
-    this.dialogs.open(FormatWizard, { title: $localize`:@@shell.sidebar.dialog.setUpFormat:Set up format`, inputs: { path: file.path, name: file.name }, width: 760 });
+    this.dialogs.openLazy(() => import('../format/format-wizard').then((m) => m.FormatWizard), { title: $localize`:@@shell.sidebar.dialog.setUpFormat:Set up format`, inputs: { path: file.path, name: file.name }, width: 760 });
   }
 }

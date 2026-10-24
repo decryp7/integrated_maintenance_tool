@@ -215,6 +215,7 @@ describe('folder set-up hint, command and backends', () => {
     const open = vi.spyOn(dialogs, 'open');
     open.mockClear();
     launcher.show();
+    await dialogs.whenLoaded();
     expect(open).toHaveBeenCalledTimes(1);
     expect(store.phase()).toBe('idle');
   });

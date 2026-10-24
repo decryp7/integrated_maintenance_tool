@@ -38,6 +38,7 @@ describe('welcome, settings and export commands', () => {
     expect(await registry.run('file.export')).toBe(false);
     await settle();
     const done = registry.run('file.export');
+    await TestBed.inject(DialogService).whenLoaded();
     expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Export events');
     TestBed.inject(DialogService).dismissTop();
     expect(await done).toBe(true);

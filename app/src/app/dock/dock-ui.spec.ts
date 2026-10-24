@@ -198,6 +198,7 @@ describe('window layouts, dialogs and commands', () => {
     expect(when('window.pinAll')).toBe(false);
     run('window.layout.save');
     run('window.layout.manage');
+    await TestBed.inject(DialogService).whenLoaded();
     expect(open).toHaveBeenCalledTimes(2);
     expect(open.mock.calls.map((c) => c[0])).toEqual([SaveLayoutDialog, ManageLayoutsDialog]);
     perspectives.saveCurrent('A');

@@ -1,4 +1,4 @@
-import { WhatsNewService } from '../whats-new/whats-new';
+import { WhatsNewService } from '../whats-new/whats-new.service';
 import { EnvironmentProviders, inject, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
 import { DROPPED_FILES_HANDLERS } from '../core/dropped-files';
 import { provideToolsBackend } from '../core/tools-backend';
@@ -48,7 +48,7 @@ export function startTools(): void {
   inject(ToolCatalog);
   const whatsNew = inject(WhatsNewService);
   void life.init().then(() => {
-    whatsNew.checkOnStart();
+    void whatsNew.checkOnStart();
     session.start();
     return requests.start();
   });

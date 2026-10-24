@@ -27,18 +27,24 @@ import { RegionNavigator } from './shell/regions';
     <button type="button" class="skip-link" (click)="regions.events()" i18n="@@app.skipToEvents">Skip to events</button>
     <debrief-title-bar />
     <debrief-lifecycle-banners />
-    <debrief-partial-import-banner />
+    @defer (on idle) {
+      <debrief-partial-import-banner />
+    }
     <div class="body">
       <!-- The regions F6 cycles through (shell/regions.ts): each a named landmark that takes focus. -->
       <debrief-activity-bar debriefRoving=".act" rovingAxis="vertical" data-debrief-region="activity" role="navigation" aria-label="Activity bar" i18n-aria-label="@@app.region.activity" tabindex="-1" />
       <!-- The empty Explorer says nothing the welcome page does not: it appears with the first data. -->
       @if (store.sidebarOpen() && !(welcome.visible() && !hasData())) {
-        <debrief-sidebar data-debrief-region="sidebar" role="complementary" aria-label="Side bar" i18n-aria-label="@@app.region.sidebar" tabindex="-1" />
+        @defer (on immediate) {
+          <debrief-sidebar data-debrief-region="sidebar" role="complementary" aria-label="Side bar" i18n-aria-label="@@app.region.sidebar" tabindex="-1" />
+        }
       }
       <main class="center">
         <!-- Nothing to filter until data is open: the welcome page is the whole first screen. -->
         @if (hasData()) {
-          <debrief-filter-bar data-debrief-region="filters" role="search" aria-label="Filters" i18n-aria-label="@@app.region.filters" tabindex="-1" />
+          @defer (on immediate) {
+            <debrief-filter-bar data-debrief-region="filters" role="search" aria-label="Filters" i18n-aria-label="@@app.region.filters" tabindex="-1" />
+          }
         }
         <div class="stage">
           <debrief-dock-host />
@@ -53,11 +59,16 @@ import { RegionNavigator } from './shell/regions';
       <!-- A modal dialog window is open over this one: dim and block it (ADR 0050). -->
       <div class="modal-scrim" data-debrief-overlay data-testid="modal-scrim" aria-hidden="true"></div>
     }
-    <debrief-command-palette />
+    <!-- Opened by the user or by chrome that appears after the first paint: their code arrives when the browser is idle (Paddock rule 35). -->
+    @defer (on idle) {
+      <debrief-command-palette />
+    }
     <debrief-dialog-host />
     <debrief-context-menu-host />
-    <debrief-import-toast />
-    <debrief-tour-overlay />
+    @defer (on idle) {
+      <debrief-import-toast />
+      <debrief-tour-overlay />
+    }
 
     @if (store.dropHover()) {
       <div class="drop" data-debrief-overlay i18n="@@app.drop">Drop files or folders to add them to the workspace</div>

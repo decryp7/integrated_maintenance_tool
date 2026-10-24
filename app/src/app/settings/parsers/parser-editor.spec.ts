@@ -132,10 +132,12 @@ describe('ParserEditor', () => {
     const dialogs = TestBed.inject(DialogService);
     const parserDialogs = TestBed.inject(ParserDialogs);
     const edit = parserDialogs.edit({ id: 'nlog', origin: 'builtin', toml: '' }, { readSources: [1] });
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().at(-1)?.options).toMatchObject({ title: 'Edit parser nlog', inputs: { isNew: false, readSources: [1] } });
     dialogs.stack().at(-1)!.ref.close();
     expect(await edit).toBeUndefined();
     void parserDialogs.edit({ id: '', origin: 'user', toml: '' }, { isNew: true });
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().at(-1)?.options.title).toBe('New parser');
     dialogs.stack().at(-1)!.ref.close();
 
@@ -151,10 +153,12 @@ describe('ParserEditor', () => {
 
     const check = { toml: '', id: 'x', name: 'X', version: '2.0.0', relation: 'newer' as const, existing: null };
     const update = parserDialogs.confirmImport(check);
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().at(-1)?.options.title).toBe('Update parser');
     dialogs.stack().at(-1)!.ref.close(true);
     expect(await update).toBe(true);
     void parserDialogs.confirmImport({ ...check, relation: 'same' });
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().at(-1)?.options.title).toBe('Replace parser');
   });
 });

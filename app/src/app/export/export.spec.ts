@@ -228,6 +228,7 @@ describe('ExportService', () => {
     expect(store.summary()?.exporters).toHaveLength(2);
     const dialogs = TestBed.inject(DialogService);
     const done = service.exportCurrent();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(at(dialogs.stack(), 0).options.title).toBe('Export events');
     dialogs.dismissTop();
     await done;

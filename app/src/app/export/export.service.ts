@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DialogService } from '../ui/dialog.service';
-import { ExportDialog } from './export-dialog';
 
 export { exporterForPath } from './exporters';
 
@@ -13,6 +12,6 @@ export class ExportService {
 
   async exportCurrent(): Promise<void> {
     if (!this.store.summary()?.exporters.length) throw new Error($localize`:@@export.service.noFormats:No export formats are available.`);
-    await this.dialogs.open(ExportDialog, { title: $localize`:@@export.service.title:Export events`, width: 480 }).closed;
+    await this.dialogs.openLazy(() => import('./export-dialog').then((m) => m.ExportDialog), { title: $localize`:@@export.service.title:Export events`, width: 480 }).closed;
   }
 }
