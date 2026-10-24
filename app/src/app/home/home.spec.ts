@@ -370,7 +370,7 @@ describe('provideHome', () => {
     await settle();
     const view = TestBed.inject(ViewRegistry).find('home');
     expect(view?.defaultPosition).toBe('center');
-    expect(view?.area).toBe('document');
+    expect(view?.layout?.area).toBe('document');
     expect(await (await import('../extensions/view-registry')).isViewAvailable(view!, store.summary())).toBe(true);
     expect(await view!.component()).toBe(HomeView);
     expect(dock.calls).toEqual([]);

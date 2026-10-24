@@ -145,3 +145,32 @@ the other apps lay out fixed shells that need the same guarantee (never below a 
 - **Container queries inside each view only (rule 18).** Needed and kept, but cannot decide which view yields; they
   make a view usable at its min, the plan guarantees it gets at least that.
 - **Let the user fix it.** Saved layouts do survive; the defaults and the replanning must be right first.
+
+## Implementation notes (1.1)
+
+What was built, and where it refines the decision above:
+
+- **Planner** (`app/src/app/layout-plan/`, self-contained, moves to `paddock-ui` unchanged). One extra rule: the
+  *anchor* (highest priority column, row or cell) is elastic: it counts at its minimum and takes all leftover room;
+  everything else starts at `pref` (the user's dragged size when there is one) and yields lowest priority first.
+- **Explorer and sidebar.** The Explorer is a view of the plan (`area: 'side'`, `edge: 'left'`, min and pref 300 (the sidebar has a fixed width: the plan opens or closes it, never resizes it),
+  priority 80) that lives outside the dock. `NarrowWindow` asks `DockService.explorerVerdict` and closes or reopens the
+  sidebar; the old window-width constants (1100 px for the Explorer, 1000 px for tool windows) are gone.
+- **Side-by-side documents.** Groups of one row (`OpenView.group`) are cells of the row and share the column's width
+  like columns share the window's; a cell that does not fit is tabbed into the highest-priority cell.
+- **Not saved over, and never blocked.** A fit is not a held state. The views the plan moved away are recorded
+  (`displaced`: where each was docked, and which view's group it joined) and saved with the layout extras, so saving is
+  never suspended; the user's dragged sizes are stored separately (`sizes`, written after a splitter release only, never
+  after a fit) and are what the plan treats as `pref`. Both extras are optional and versioned with the envelope.
+- **Grow-back with hysteresis.** After every re-plan, displaced views return to their recorded place when they would
+  still be placed with 64 px less width and 48 px less height (`restorable`), so a window that wobbles around the
+  threshold cannot flap a view in and out. Undo of the "tabbed to fit" notification restores the saved arrangement.
+- **Outside the plan, explicitly:** floating groups, popped-out OS windows and the slide-out of an auto-hidden tool
+  window. They keep their own size and are never tabbed, hidden or resized by the plan; docking one back puts it through
+  the plan like any other panel.
+- **Plugin contract.** `DebriefView.layout` is optional for plugins (area default), parsed once at registration
+  (`sanitizeViewLayout`), and versioned by `UI_PLUGIN_API_VERSION` (now 2); see `docs/plugins.md`.
+- **Notification.** The "tabbed to fit" message is posted through the notification centre with the cause key
+  `layout.fit`; the delivery (toast or list) belongs to the notification system, not to the dock.
+- **Lint.** `dock/view-contract.spec.ts` checks every view of the real registry (all providers of `app.config.ts`)
+  declares `layout` with `min <= pref` and a positive priority.

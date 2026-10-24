@@ -23,6 +23,18 @@ export interface PoppedOutPanel {
   slot: DockSlot;
 }
 
+/** A view the layout plan moved out of its own place for lack of room, and where it returns when there is room again. */
+export interface DisplacedView {
+  id: string;
+  /** Where it was docked before it was moved. */
+  slot: DockSlot;
+  /** The view whose group it joined as a tab, or null when it was auto-hidden to an edge. */
+  into: string | null;
+}
+
+/** The sizes the user dragged views to (a wish the plan honours, never below a minimum); absent until the user drags. */
+export type UserSizes = Record<string, { width?: number; height?: number }>;
+
 /** What dockview's own JSON does not hold. */
 export interface DockExtras {
   autoHidden: AutoHideItem[];
@@ -30,6 +42,10 @@ export interface DockExtras {
   poppedOut: PoppedOutPanel[];
   /** Side each tool window was last auto-hidden to, so it goes there again (absent in older layouts). */
   autoHideSides?: Record<string, Side>;
+  /** Views the layout plan tabbed or auto-hid for lack of room (absent in older layouts). */
+  displaced?: DisplacedView[];
+  /** The sizes the user dragged views to (absent in older layouts). */
+  sizes?: UserSizes;
 }
 
 /** A complete saved arrangement: the dockview grid and the extras. */
@@ -91,11 +107,27 @@ export function sanitizeExtras(raw: unknown): DockExtras {
     });
   }
   const sides = sanitizeSides(raw['autoHideSides']);
+  const displaced: DisplacedView[] = [];
+  for (const d of Array.isArray(raw['displaced']) ? raw['displaced'] : []) {
+    if (!isRecord(d) || typeof d['id'] !== 'string' || !d['id'] || displaced.some((x) => x.id === d['id'])) continue;
+    displaced.push({ id: d['id'], slot: sanitizeSlot(d['slot']), into: typeof d['into'] === 'string' && d['into'] ? d['into'] : null });
+  }
+  const sizes: UserSizes = {};
+  if (isRecord(raw['sizes'])) {
+    for (const [id, v] of Object.entries(raw['sizes'])) {
+      if (!isRecord(v)) continue;
+      const w = finite(v['width']) && (v['width'] as number) > 0 ? { width: v['width'] as number } : {};
+      const h = finite(v['height']) && (v['height'] as number) > 0 ? { height: v['height'] as number } : {};
+      if (w.width || h.height) sizes[id] = { ...w, ...h };
+    }
+  }
   return {
     autoHidden: sanitizeAutoHide(raw['autoHidden']),
     pinnedTabs: ids(raw['pinnedTabs']),
     poppedOut: popped,
     ...(Object.keys(sides).length ? { autoHideSides: sides } : {}),
+    ...(displaced.length ? { displaced } : {}),
+    ...(Object.keys(sizes).length ? { sizes } : {}),
   };
 }
 

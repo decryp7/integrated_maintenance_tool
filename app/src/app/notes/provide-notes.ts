@@ -11,8 +11,8 @@ const CATEGORY = () => $localize`:Command palette category|@@notes.category:Note
 
 export function notesViews(): DebriefView[] {
   return [
-    { id: NOTES_VIEW, category: 'Analysis', title: $localize`:@@notes.view.notes:Notes`, icon: 'note', defaultPosition: 'right', component: () => import('./notes-panel').then((m) => m.NotesPanel) },
-    { id: NOTE_IMAGE_VIEW, category: 'Analysis', title: $localize`:@@notes.view.image:Image notes`, icon: 'image', defaultPosition: 'center', component: () => import('./image/note-image-view').then((m) => m.NoteImageView) },
+    { id: NOTES_VIEW, category: 'Analysis', title: $localize`:@@notes.view.notes:Notes`, icon: 'note', defaultPosition: 'right', layout: { area: 'side', min: { width: 320, height: 240 }, pref: { width: 372, height: 400 }, priority: 50 }, component: () => import('./notes-panel').then((m) => m.NotesPanel) },
+    { id: NOTE_IMAGE_VIEW, category: 'Analysis', title: $localize`:@@notes.view.image:Image notes`, icon: 'image', defaultPosition: 'center', layout: { area: 'document', min: { width: 420, height: 240 }, pref: { width: 640, height: 400 }, priority: 55 }, component: () => import('./image/note-image-view').then((m) => m.NoteImageView) },
   ];
 }
 

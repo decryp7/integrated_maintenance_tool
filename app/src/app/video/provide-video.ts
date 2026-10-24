@@ -17,7 +17,7 @@ export function videoViews(): DebriefView[] {
       category: 'Diagnostics',
       title: $localize`:@@video.views.video:Video`,
       icon: 'image',
-      defaultPosition: 'center',
+      defaultPosition: 'center', layout: { area: 'document', min: { width: 420, height: 240 }, pref: { width: 640, height: 400 }, priority: 55 },
       component: () => import('./video-view').then((m) => m.VideoView),
     },
   ];

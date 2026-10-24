@@ -10,7 +10,7 @@ export const WATCHED_VIEWS: DebriefView[] = [
     category: 'Tools',
     title: $localize`:@@watched.view.title:Watched folders`,
     icon: 'folder',
-    defaultPosition: 'bottom',
+    defaultPosition: 'bottom', layout: { area: 'analysis', min: { width: 420, height: 180 }, pref: { width: 560, height: 280 }, priority: 50 },
     component: () => import('./watched-folders-view').then((m) => m.WatchedFoldersView),
   },
 ];

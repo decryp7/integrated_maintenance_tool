@@ -12,6 +12,7 @@ export function problemsViews(): DebriefView[] {
       icon: 'alert',
       category: 'core',
       defaultPosition: 'bottom',
+      layout: { area: 'status', min: { width: 320, height: 180 }, pref: { width: 480, height: 360 }, priority: 25 },
       component: () => import('./problems-panel').then((m) => m.ProblemsPanel),
     },
   ];

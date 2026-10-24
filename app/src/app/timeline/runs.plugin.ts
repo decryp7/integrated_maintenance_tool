@@ -12,7 +12,7 @@ export const RUNS_COMMANDS: DebriefCommand[] = [
 export function provideRuns(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideDebriefPlugin({
-      views: [{ id: 'runs', category: 'Analysis', title: $localize`:View title|@@runs.view.viewTitle:Runs`, icon: 'timeline', defaultPosition: 'bottom', component: () => import('./runs-view').then((m) => m.RunsView) }],
+      views: [{ id: 'runs', category: 'Analysis', title: $localize`:View title|@@runs.view.viewTitle:Runs`, icon: 'timeline', defaultPosition: 'bottom', layout: { area: 'analysis', min: { width: 420, height: 180 }, pref: { width: 560, height: 280 }, priority: 50 }, component: () => import('./runs-view').then((m) => m.RunsView) }],
     }),
     { provide: DEBRIEF_COMMANDS, multi: true, useValue: RUNS_COMMANDS },
   ]);

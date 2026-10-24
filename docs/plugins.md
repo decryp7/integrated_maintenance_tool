@@ -562,11 +562,32 @@ points, so whatever a plugin adds behaves like the built-in parts:
 
 | Contribution | Token | What it adds |
 |---|---|---|
-| `DebriefView` | `DEBRIEF_VIEWS` | a dockable panel, loaded lazily, listed in the View menu under its `category`; its optional `area` (`document`, `analysis`, `side`, `status`) says where it opens, derived from `defaultPosition` when left out ([ADR 0035](adr/0035-view-areas-and-perspectives.md)) |
+| `DebriefView` | `DEBRIEF_VIEWS` | a dockable panel, loaded lazily, listed in the View menu under its `category`; its optional `layout` (`area`, `min`, `pref`, `priority`; see below) says where it opens and what it needs ([ADR 0035](adr/0035-view-areas-and-perspectives.md), [ADR 0056](adr/0056-layout-by-declared-constraints.md)) |
 | `DebriefCommand` | `DEBRIEF_COMMANDS` | a palette / menu action with an optional key binding |
 | `DebriefActivityItem` | `DEBRIEF_ACTIVITY_ITEMS` | a button in the left activity bar |
 | `DebriefInspectorSection` | `DEBRIEF_INSPECTOR_SECTIONS` | a block in the event inspector |
 | `DebriefFieldFormatter` | `DEBRIEF_FIELD_FORMATTERS` | display formatting of a field |
+
+**View layout and the UI plugin API version.** `UI_PLUGIN_API_VERSION` (exported from `extensions`) is 2: version 2 added
+`DebriefView.layout`, which replaces `minSize` and the old position-only placement. A plugin may declare
+`apiVersion` in `provideDebriefPlugin({ apiVersion: 2, ... })`; a plugin without it is treated as version 1 and its
+views get the default layout of their area, and one that needs a newer contract than the build provides is refused
+with a message naming both versions.
+
+```ts
+layout: {
+  area: 'side',                      // 'document' | 'analysis' | 'side' | 'status'
+  min:  { width: 320, height: 240 }, // the dock never makes the view smaller than this
+  pref: { width: 372, height: 400 }, // its opening size when there is room
+  priority: 50,                      // 1-100; higher stays visible, lower is tabbed or auto-hidden first
+}
+```
+
+Every part is optional except `area`; a missing part takes the area's default (side 320 x 240 preferring 372, analysis
+420 x 180, document 420 x 240, status 320 x 180). The declaration is parsed once at registration: numbers are bounded,
+`pref` is lifted to `min`, `priority` is clamped to 1-100, and an unusable declaration is ignored (the area default
+applies). When there is no room the dock tabs or auto-hides the lowest-priority view instead of squeezing anything
+below its minimum, and returns it when the window grows again. Floating and popped-out windows are outside the plan.
 
 **Activity-bar buttons.** Every button of the left bar (Explorer, Search, Timeline, Analysis, Metrics, Live tail,
 AI, Tools, Profile editor, Settings) is an `DebriefActivityItem` contributed by the feature that owns it. An item shows

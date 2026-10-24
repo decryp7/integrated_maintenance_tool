@@ -23,8 +23,7 @@ export const LIVE_VIEWS: DebriefView[] = [
     title: $localize`:@@live.views.alerts:Alerts`,
     category: 'Live',
     icon: 'alert',
-    defaultPosition: 'bottom',
-    area: 'analysis',
+    defaultPosition: 'bottom', layout: { area: 'analysis', min: { width: 420, height: 180 }, pref: { width: 560, height: 280 }, priority: 50 },
     component: () => import('./alerts-view').then((m) => m.AlertsView),
   },
   {
@@ -32,8 +31,7 @@ export const LIVE_VIEWS: DebriefView[] = [
     title: $localize`:@@live.views.tailStatus:Tail status`,
     category: 'Live',
     icon: 'refresh',
-    defaultPosition: 'bottom',
-    area: 'analysis',
+    defaultPosition: 'bottom', layout: { area: 'analysis', min: { width: 420, height: 180 }, pref: { width: 560, height: 280 }, priority: 50 },
     component: () => import('./tail-status-view').then((m) => m.TailStatusView),
   },
 ];

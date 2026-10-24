@@ -24,7 +24,8 @@ export { EVENT_ID_FORMATTER, FieldFormatters, findFormatter } from './field-form
 export { fuzzyFilter, fuzzyScore } from './fuzzy';
 export { InspectorSections } from './inspector-sections';
 export { formatKeybinding, matchesKeybinding } from './keybinding';
-export { provideDebriefPlugin, type DebriefPlugin } from './provide';
+export { provideDebriefPlugin, UI_PLUGIN_API_VERSION, type DebriefPlugin } from './provide';
+export type { ViewLayout } from '../layout-plan/layout-plan';
 export {
   flattenContributions,
   DEBRIEF_ACTIVITY_ITEMS,

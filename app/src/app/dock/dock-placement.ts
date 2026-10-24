@@ -7,36 +7,16 @@ import { DockTarget, GroupBox, hitDockTarget, outsideViewport, targetPreview } f
 import { cancelHintRect, FLOAT_ORIGIN, floatedSize, ghostRect, previewSize, TabDropOutcome, tabDropOutcome } from './float-cue';
 import { AutoHideItem, autoHideReduce } from './auto-hide';
 import { DockExtras, EMPTY_EXTRAS } from './layout-store';
+import { DockLayout } from './dock-layout';
 import { analysisTabToClose, viewArea } from './view-area';
+import { viewLayout } from './view-layout';
 
 type AddPanel = { id: string; component: string; title: string; inactive: boolean };
 
-const INSPECTOR_WIDTH = 372;
-const TIMELINE_HEIGHT = 300;
-/** The share of the dock's height the events grid keeps when a document opens beside the timeline. */
-const DOCUMENT_GRID_SHARE = 0.35;
-/** The share of the dock's width a full-height document (Home, Registry) gets in its own column. */
-const FULL_HEIGHT_WIDTH_SHARE = 0.55;
-/** ...but never wider than this, px: on a 2560 px window a sparse tree or a dashboard does not need 1400 px (U15). */
-const FULL_HEIGHT_MAX_WIDTH = 960;
-/** A side tool window (the assistant, notes, problems) is never made narrower than this, px: its text and composer need it. */
-export const SIDE_TOOL_MIN_WIDTH = 320;
-/** The timeline/events column keeps at least this much width, px, when a full-height document opens beside it. */
-const MAIN_MIN_WIDTH = 560;
-/** A full-height document column is not worth opening narrower than this, px (it is tabbed with the events instead). */
-const FULL_HEIGHT_MIN_WIDTH = 420;
-/** A document group counts as full height when it is at least this share of the dock's height. */
+/** A document group counts as full height when it is at least this share of the dock's height (detection, not sizing). */
 const FULL_HEIGHT_MIN_SHARE = 0.9;
 /** Size and position of a group floated with the "Float panel" button: roomy, and inside the window. */
 const floatRect = () => ({ ...floatedSize({ width: window.innerWidth, height: window.innerHeight }), ...FLOAT_ORIGIN });
-/** Size of a new tool window group at a window edge, px (a right-hand column as wide as the inspector's). */
-const TOOL_SIZE = { side: INSPECTOR_WIDTH, bottom: 240 };
-
-/** Height of a new analysis panel below the events grid, px. */
-const ANALYSIS_HEIGHT = 280;
-/** Height of a status tool window sliding out of the bottom edge, px. */
-const STATUS_HEIGHT = 360;
-
 /** The two panels a new view never covers: it opens beside them (documents) or below them (analysis). */
 const MAIN_PANELS: ReadonlySet<string> = new Set([PANEL.timeline, PANEL.events]);
 
@@ -62,7 +42,7 @@ const FIXED: Readonly<Record<string, { referencePanel: string; direction: 'above
  */
 export function defaultAutoHidden(inspector: DebriefView | undefined): AutoHideItem[] {
   if (!inspector) return [];
-  return [{ id: inspector.id, title: inspector.title, side: 'right', size: INSPECTOR_WIDTH, slot: { referencePanel: null, direction: 'within' } }];
+  return [{ id: inspector.id, title: inspector.title, side: 'right', size: viewLayout(inspector).pref.width, slot: { referencePanel: null, direction: 'within' } }];
 }
 
 /**
@@ -73,6 +53,7 @@ export function defaultAutoHidden(inspector: DebriefView | undefined): AutoHideI
 @Injectable({ providedIn: 'root' })
 export class DockPlacement {
   private readonly ctx = inject(DockContext);
+  private readonly layout = inject(DockLayout);
 
   /**
    * The minimal default (the Investigate perspective): the timeline over the events; the inspector is an auto-hidden
@@ -88,28 +69,12 @@ export class DockPlacement {
     add(PANEL.timeline);
     add(PANEL.events, { referencePanel: PANEL.timeline, direction: 'below' });
     api.getPanel(PANEL.timeline)?.api.setActive();
-    this.whenSized(api, () => api.getPanel(PANEL.timeline)?.group.api.setSize({ height: TIMELINE_HEIGHT }));
-    return { ...EMPTY_EXTRAS, autoHidden: defaultAutoHidden(views.find(PANEL.inspector)) };
-  }
-
-  /**
-   * Runs `apply` once the dock has a measured size. A size set before the container is measured is rescaled
-   * proportionally when dockview first lays out, so the split landed on a different height from run to run; applied
-   * after that layout it is exactly the requested one.
-   */
-  private whenSized(api: DockviewApi, apply: () => void): void {
-    const container = this.ctx.container;
-    const sized = () => api.width > 0 && api.height > 0;
-    if (sized() || !container || typeof ResizeObserver === 'undefined') {
-      apply();
-      return;
-    }
-    const observer = new ResizeObserver(() => {
-      if (!sized()) return;
-      observer.disconnect();
-      if (this.ctx.api === api) apply();
+    const timeline = views.find(PANEL.timeline);
+    this.layout.whenSized(api, () => {
+      if (timeline) api.getPanel(PANEL.timeline)?.group.api.setSize({ height: viewLayout(timeline).pref.height });
+      this.layout.constrain(api);
     });
-    observer.observe(container);
+    return { ...EMPTY_EXTRAS, autoHidden: defaultAutoHidden(views.find(PANEL.inspector)) };
   }
 
   /**
@@ -121,10 +86,8 @@ export class DockPlacement {
    */
   addView(api: DockviewApi, view: DebriefView, inactive: boolean, id = view.id): IDockviewPanel | null {
     const panel = this.place(api, view, inactive, id);
-    // The view's minimum size (A4): the dock refuses a split that would make the group smaller.
-    const min = view.minSize;
-    const minWidth = viewArea(view) === 'side' ? Math.max(min?.width ?? 0, SIDE_TOOL_MIN_WIDTH) : (min?.width ?? 0);
-    if (panel && (min || minWidth)) panel.group.api.setConstraints({ ...(minWidth ? { minimumWidth: minWidth } : {}), ...(min?.height ? { minimumHeight: min.height } : {}) });
+    // Every group is constrained from the views it holds, and what does not fit yields (tabbed or auto-hidden) before anything is squeezed.
+    if (panel) this.layout.fit(api, { sizes: true, fresh: [id] });
     return panel;
   }
 
@@ -138,7 +101,7 @@ export class DockPlacement {
       case 'status': {
         const docked = this.toolGroupFor(api, 'bottom');
         if (docked) return api.addPanel({ ...base, position: { referencePanel: docked, direction: 'within' } });
-        this.slideOut(id, view.title, inactive);
+        this.slideOut(id, view, inactive);
         return null;
       }
       case 'analysis':
@@ -152,32 +115,13 @@ export class DockPlacement {
   private addTool(api: DockviewApi, base: AddPanel): IDockviewPanel {
     const sameKind = this.toolGroupFor(api, 'right');
     if (sameKind) return api.addPanel({ ...base, position: { referencePanel: sameKind, direction: 'within' } });
-    this.makeRoomForTool(api);
-    const panel = api.addPanel({ ...base, position: { direction: 'right' } });
-    panel.group.api.setSize({ width: TOOL_SIZE.side });
-    return panel;
-  }
-
-  /**
-   * A new side tool column takes its width from the timeline column, which must stay readable: the full-height document
-   * column (Home, Registry) beside it gives up the difference, or, when it cannot stay readable either, is tabbed into the
-   * events group. So the tool windows are never squeezed into slivers between narrow document columns.
-   */
-  private makeRoomForTool(api: DockviewApi): void {
-    const main = api.getPanel(PANEL.events)?.group ?? api.getPanel(PANEL.timeline)?.group;
-    if (!main || main.api.location.type !== 'grid' || main.width <= 0) return;
-    const deficit = MAIN_MIN_WIDTH + TOOL_SIZE.side - main.width;
-    if (deficit <= 0) return;
-    const column = api.groups.find((g) => g !== main && g.api.location.type === 'grid' && g.panels.length > 0 && g.height >= api.height * FULL_HEIGHT_MIN_SHARE && g.panels.every((p) => this.isDocument(p.id) && !MAIN_PANELS.has(p.id)));
-    if (!column) return;
-    if (column.width - deficit >= FULL_HEIGHT_MIN_WIDTH) column.api.setSize({ width: column.width - deficit });
-    else column.api.moveTo({ group: main, position: 'center' });
+    return api.addPanel({ ...base, position: { direction: 'right' } });
   }
 
   /** A status tool window as a tab on the bottom side bar, slid out unless opened in the background. */
-  private slideOut(id: string, title: string, inactive: boolean): void {
+  private slideOut(id: string, view: DebriefView, inactive: boolean): void {
     const anchor = this.ctx.api?.getPanel(PANEL.events) ? PANEL.events : null;
-    const item: AutoHideItem = { id, title, side: 'bottom', size: STATUS_HEIGHT, slot: { referencePanel: anchor, direction: anchor ? 'below' : 'within' } };
+    const item: AutoHideItem = { id, title: view.title, side: 'bottom', size: viewLayout(view).pref.height, slot: { referencePanel: anchor, direction: anchor ? 'below' : 'within' } };
     this.ctx.autoHide.update((s) => {
       const hidden = autoHideReduce(s, { type: 'unpin', item });
       return inactive ? hidden : autoHideReduce(hidden, { type: 'activate', id });
@@ -201,9 +145,7 @@ export class DockPlacement {
     }
     const below = api.getPanel(PANEL.events) ?? this.documentWell()?.activePanel;
     if (!below) return api.addPanel(base);
-    const panel = api.addPanel({ ...base, position: { referenceGroup: below.group.id, direction: 'below' } });
-    panel.group.api.setSize({ height: ANALYSIS_HEIGHT });
-    return panel;
+    return api.addPanel({ ...base, position: { referenceGroup: below.group.id, direction: 'below' } });
   }
 
   /** The docked group holding analysis views (the most recently used one when the user made several). */
@@ -226,9 +168,7 @@ export class DockPlacement {
     if (well) return api.addPanel({ ...base, position: { referenceGroup: well.id, direction: 'within' } });
     const main = api.getPanel(PANEL.timeline) ?? api.getPanel(PANEL.events);
     if (main && main.group.api.location.type === 'grid') {
-      const panel = api.addPanel({ ...base, position: { referenceGroup: main.group.id, direction: 'right' } });
-      this.giveDocumentsRoom(api);
-      return panel;
+      return api.addPanel({ ...base, position: { referenceGroup: main.group.id, direction: 'right' } });
     }
     const ref = this.anchorFor(api, 'center');
     return api.addPanel({ ...base, ...(ref ? { position: { referencePanel: ref, direction: 'within' as const } } : {}) });
@@ -244,30 +184,12 @@ export class DockPlacement {
     const column = api.groups.find((g) => tall(g) && g.panels.length > 0 && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.isDocument(p.id)));
     if (column) return api.addPanel({ ...base, position: { referenceGroup: column.id, direction: 'within' } });
     if (!api.getPanel(PANEL.timeline) && !api.getPanel(PANEL.events)) return api.addPanel(base);
-    // The timeline/events column must stay readable: a new column only gets the width that column can spare, else the
-    // document shares the events group as a tab (the tool windows are never squeezed to make room).
-    const main = api.getPanel(PANEL.events)?.group ?? api.getPanel(PANEL.timeline)?.group;
-    const spare = main && main.api.location.type === 'grid' && main.width > 0 ? main.width - MAIN_MIN_WIDTH : Number.POSITIVE_INFINITY;
-    if (main && spare < FULL_HEIGHT_MIN_WIDTH) return api.addPanel({ ...base, position: { referenceGroup: main.id, direction: 'within' } });
-    const panel = api.addPanel({ ...base, position: { direction: 'right' } });
-    if (api.width > 0) panel.group.api.setSize({ width: Math.min(FULL_HEIGHT_MAX_WIDTH, Math.round(api.width * FULL_HEIGHT_WIDTH_SHARE), spare) });
-    return panel;
+    // Its width, and whether it fits beside the timeline column at all, is the plan's (`DockLayout.fit` after the add).
+    return api.addPanel({ ...base, position: { direction: 'right' } });
   }
 
   private isDocument(id: string): boolean {
     return this.ctx.kindOf(id) === 'document' && viewArea(this.ctx.views.find(id)) === 'document';
-  }
-
-  /**
-   * A document opened beside the timeline shares the timeline's row, which is a strip (300 px) next to the grid. Dumps,
-   * registries and reports need height, so the row grows to the share of the dock the grid gives up (the grid keeps
-   * its share when it is already smaller). Only the grid's height is set: dockview resizes along the split's own axis.
-   */
-  private giveDocumentsRoom(api: DockviewApi): void {
-    const events = api.getPanel(PANEL.events)?.group;
-    if (!events || events.api.location.type !== 'grid' || api.height <= 0) return;
-    const wanted = Math.round(api.height * DOCUMENT_GRID_SHARE);
-    if (events.height > wanted) events.api.setSize({ height: wanted });
   }
 
   /** A docked tool window already open on that side, to tab a new one with. */

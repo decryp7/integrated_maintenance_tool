@@ -1,4 +1,5 @@
 import { InjectionToken, InputSignal, Type } from '@angular/core';
+import type { ViewLayout } from '../layout-plan/layout-plan';
 import { FieldFilter, Query, RecordView, WorkspaceSummary } from '../core/api.types';
 
 /** Where a new view opens when the user has not placed it yet. */
@@ -29,15 +30,19 @@ export interface DebriefView {
   /** Lazily loads the standalone component rendered inside the panel. */
   component: () => Promise<Type<unknown>>;
   defaultPosition?: ViewPosition;
-  /** Its home area (see `ViewArea`); derived from the kind and `defaultPosition` when left out (`viewArea`). */
+  /** Its home area (see `ViewArea`); `layout.area` wins; derived from the kind and `defaultPosition` when both are left out (`viewArea`). */
   area?: ViewArea;
   /**
    * A document that needs the full height of the window (a home screen, a tree): it opens in its own group at the
    * window's edge, not in the timeline's 300 px row, and only shares that group with other full-height views.
    */
   fullHeight?: boolean;
-  /** The smallest the view's dock group may be made, px (a drag that would go below it is refused). Absent = dockview's default. */
-  minSize?: { width?: number; height?: number };
+  /**
+   * What the view needs (ADR 0056): area, min and preferred size, priority. One declaration per view; the dock's
+   * `planLayout` reads it and never goes below `min`, tabbing or auto-hiding the lowest priority instead. Absent = the
+   * conservative default for its area (`viewLayout`).
+   */
+  layout?: ViewLayout;
   /** Its place in the View menu (see `ViewCategory`). Defaults to the Plugins submenu. */
   category?: ViewCategory;
   /** Name of the plugin that contributes the view; groups plugin views in View ▸ Plugins. */

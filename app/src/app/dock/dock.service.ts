@@ -6,11 +6,12 @@ import { CommandRegistry } from '../extensions/command-registry';
 import { formatKeybinding } from '../extensions/keybinding';
 import { ContextMenuService } from '../ui/context-menu.service';
 import { AngularContentRenderer, MissingViewRenderer } from './angular-panel';
-import { AutoHideEvent, EMPTY_AUTO_HIDE } from './auto-hide';
+import { AutoHideEvent, autoHideReduce, EMPTY_AUTO_HIDE } from './auto-hide';
 import { DockAutoHide } from './dock-auto-hide';
 import { DockContext } from './dock-context';
 import { keepGroupsUnscrolled, labelTabOverflow, observeFloatingAria } from './dock-dom';
 import { DockSlot, isLayoutTarget, Point, Rect, resolveGuideDrop, Side } from './dock-geometry';
+import { DockLayout } from './dock-layout';
 import { DockPersistence } from './dock-persistence';
 import { DockPlacement } from './dock-placement';
 import { DockPolicy } from './dock-policy';
@@ -55,6 +56,7 @@ export class DockService {
   private readonly placement = inject(DockPlacement);
   private readonly autoHider = inject(DockAutoHide);
   private readonly persistence = inject(DockPersistence);
+  private readonly layout = inject(DockLayout);
   private readonly views = this.ctx.views;
   private readonly appRef = inject(ApplicationRef);
   private readonly injector = inject(EnvironmentInjector);
@@ -63,8 +65,12 @@ export class DockService {
   private readonly menus = inject(ContextMenuService);
 
   private disposers: { dispose(): void }[] = [];
+  private stopResize: (() => void) | null = null;
+  private readonly windowListeners = new Set<() => void>();
   /** True when the layout was built from defaults rather than restored from the store. */
   private fresh = false;
+  /** The arrangement before the last fit to a small window (the saved one), for Undo; null when nothing was fitted. */
+  private fitted: SavedLayout | null = null;
   /** Conditional views that were available at the last check, to detect "became available". */
   private readonly wasAvailable = new Set<string>();
   private evaluated = false;
@@ -266,12 +272,14 @@ export class DockService {
     ];
     this.ctx.restoring = true;
     let extras: DockExtras;
+    let loaded: SavedLayout | null = null;
     try {
       const saved = this.persistence.load();
       if (saved) {
         try {
           api.fromJSON(saved.layout);
           extras = saved.extras;
+          loaded = saved;
         } catch (e) {
           this.logger.warn('ui.layout', 'Saved layout could not be restored; using the default', { Error: String(e) });
           this.persistence.clear();
@@ -291,6 +299,16 @@ export class DockService {
     this.evaluated = false;
     this.wasAvailable.clear();
     this.ctx.apiReady.set(true);
+    const stopResize = this.layout.watchResize(api, () => this.fitToWindow(api, null));
+    const stopDrag = this.layout.watchSashDrag(() => {
+      this.layout.rememberSizes(api);
+      this.persistence.schedule();
+    });
+    this.stopResize = () => {
+      stopResize();
+      stopDrag();
+    };
+    this.layout.whenSized(api, () => this.fitToWindow(api, loaded));
     if (extras.poppedOut.length) void this.ctx.windows()?.restore(extras.poppedOut);
   }
 
@@ -299,6 +317,9 @@ export class DockService {
     this.persistence.cancel();
     this.disposers.forEach((d) => d.dispose());
     this.disposers = [];
+    this.stopResize?.();
+    this.stopResize = null;
+    this.fitted = null;
     this.ctx.api?.dispose();
     this.ctx.api = null;
     this.ctx.container = null;
@@ -310,6 +331,9 @@ export class DockService {
 
   /** Restores the default arrangement (Investigate) and forgets the saved one. */
   reset(): void {
+    this.fitted = null;
+    this.ctx.displaced.clear();
+    this.ctx.userSizes = {};
     this.persistence.clear();
     this.rebuild((api) => this.placement.buildDefault(api));
   }
@@ -325,6 +349,9 @@ export class DockService {
   private rebuild(build: (api: DockviewApi) => DockExtras): void {
     const api = this.api;
     if (!api) return;
+    this.fitted = null;
+    this.ctx.displaced.clear();
+    this.ctx.userSizes = {};
     const windows = this.ctx.windows();
     for (const id of [...(windows?.poppedIds() ?? [])]) void windows?.discard(id);
     this.ctx.restoring = true;
@@ -381,6 +408,7 @@ export class DockService {
       return;
     }
     if (!this.views.available().includes(view)) return;
+    this.fitted = null;
     this.placement.addView(api, view, options.inactive ?? false, id);
   }
 
@@ -400,6 +428,7 @@ export class DockService {
   }
 
   close(id: string): void {
+    this.ctx.displaced.delete(id);
     const windows = this.ctx.windows();
     if (windows?.poppedIds().has(id)) {
       void windows.discard(id);
@@ -758,6 +787,116 @@ export class DockService {
 
   /* --------------------------------------------------------------- layouts */
 
+  /**
+   * Fits the arrangement to the window (ADR 0056): when a minimum would be violated, lower-priority views are tabbed or
+   * auto-hidden (and remembered in `ctx.displaced`, which is saved with the layout), groups are constrained; when there is
+   * room again, displaced views return (`growBack`, with hysteresis). The arrangement before the fit (`before`, else the
+   * current one) is kept for Undo; one notification (cause `layout.fit`) says so. Nothing here blocks saving: the saved
+   * layout carries the displaced records, so a later, larger window restores the arrangement.
+   */
+  private fitToWindow(api: DockviewApi, before: SavedLayout | null): void {
+    if (this.ctx.api !== api || this.ctx.restoring) return;
+    const plan = this.layout.plan(api);
+    if (!plan) {
+      this.layout.constrain(api);
+      return;
+    }
+    if (this.layout.needsFit(api, plan)) {
+      const snapshot = this.fitted ?? before ?? this.persistence.current();
+      this.ctx.restoring = true;
+      try {
+        this.layout.fit(api, { sizes: true, capture: (id) => this.placement.captureSlot(id) });
+      } finally {
+        this.ctx.restoring = false;
+      }
+      this.ctx.refreshOpen();
+      if (snapshot) {
+        this.fitted = snapshot;
+        this.layout.notifyFitted(() => this.undoFit());
+      }
+    } else {
+      this.layout.constrain(api);
+    }
+    this.growBack(api);
+    this.windowListeners.forEach((l) => l());
+  }
+
+  /** Views the plan moved away return to where they were once the window has room for them (plus the hysteresis margin). */
+  private growBack(api: DockviewApi): void {
+    for (const [id, d] of [...this.ctx.displaced]) {
+      const stale = d.into === null ? !this.ctx.isAutoHidden(id) : !api.getPanel(id);
+      if (stale) this.ctx.displaced.delete(id);
+    }
+    const ids = this.layout.growBackIds(api);
+    if (!ids.length) return;
+    this.ctx.restoring = true;
+    try {
+      const ordered = this.layout.restoreOrder(ids);
+      for (const id of ordered) {
+        const d = this.ctx.displaced.get(id);
+        if (!d) continue;
+        this.ctx.displaced.delete(id);
+        if (d.into === null) {
+          this.ctx.autoHide.update((st) => autoHideReduce(st, { type: 'pin', id }));
+          this.placement.restoreSlot(id, d.slot, { inactive: true });
+        } else {
+          const how = this.layout.moveBack(api, d);
+          // A view that was a column of its own at a window edge is docked there again (a panel cannot be moved to the root by itself).
+          if (how === 'readd') {
+            const panel = api.getPanel(id);
+            if (panel) api.removePanel(panel);
+            this.placement.restoreSlot(id, d.slot, { inactive: true });
+          }
+        }
+      }
+      this.layout.fit(api, { sizes: true, capture: (id) => this.placement.captureSlot(id) });
+    } finally {
+      this.ctx.restoring = false;
+    }
+    this.ctx.refreshOpen();
+    this.persistence.schedule();
+    if (!this.ctx.displaced.size) {
+      this.fitted = null;
+      this.layout.withdrawFitted();
+    }
+  }
+
+  /** Calls `listener` after every window re-plan (the Explorer follows it); returns the disposer. */
+  onWindowPlan(listener: () => void): () => void {
+    this.windowListeners.add(listener);
+    return () => this.windowListeners.delete(listener);
+  }
+
+  /**
+   * Would the Explorer (a side column outside the dock, `explorerWidth` px wide when open) fit beside what is docked?
+   * `hide`: it is open and the plan has no room for it; `show`: it is closed and fits with the grow-back margin;
+   * `keep`: nothing to do. The plan decides, with the same priorities as everything else.
+   */
+  explorerVerdict(open: boolean, explorerWidth: number): 'hide' | 'show' | 'keep' {
+    const api = this.api;
+    if (!api) return 'keep';
+    return this.layout.explorerVerdict(api, open, explorerWidth);
+  }
+
+  /** Undo of "Some panes were tabbed to fit": the saved arrangement, unclamped, for this session. */
+  private undoFit(): void {
+    const api = this.api;
+    const saved = this.fitted;
+    this.fitted = null;
+    if (!api || !saved) return;
+    this.ctx.restoring = true;
+    try {
+      api.fromJSON(saved.layout);
+      this.applyExtras(saved.extras);
+    } catch (e) {
+      this.logger.warn('ui.layout', 'The saved layout could not be restored', { Error: String(e) });
+    } finally {
+      this.ctx.restoring = false;
+    }
+    this.ctx.refreshOpen();
+    this.persistence.schedule();
+  }
+
   /** The whole arrangement (grid, auto-hidden tool windows, pinned tabs, pop-outs), or null before attach. */
   currentLayout(): SavedLayout | null {
     return this.persistence.current();
@@ -767,6 +906,7 @@ export class DockService {
   applyLayout(saved: SavedLayout): boolean {
     const api = this.api;
     if (!api) return false;
+    this.fitted = null;
     const windows = this.ctx.windows();
     for (const id of [...(windows?.poppedIds() ?? [])]) if (!saved.extras.poppedOut.some((p) => p.id === id)) void windows?.discard(id);
     this.ctx.restoring = true;
@@ -788,6 +928,7 @@ export class DockService {
     this.ctx.refreshOpen();
     this.syncConditionalViews();
     this.persistence.schedule();
+    if (ok) this.layout.whenSized(api, () => this.fitToWindow(api, saved));
     const popped = windows?.poppedIds() ?? new Set<string>();
     if (ok) void windows?.restore(saved.extras.poppedOut.filter((p) => !popped.has(p.id)));
     return ok;
@@ -798,6 +939,9 @@ export class DockService {
     const known = (id: string) => !!this.views.find(id);
     this.ctx.autoHide.set({ items: extras.autoHidden.filter((i) => known(i.id) && !docked.has(i.id)), open: null, openedBy: null });
     this.ctx.autoHideSides.set({ ...(extras.autoHideSides ?? {}) });
+    this.ctx.displaced.clear();
+    for (const d of extras.displaced ?? []) if (known(d.id)) this.ctx.displaced.set(d.id, d);
+    this.ctx.userSizes = { ...(extras.sizes ?? {}) };
     this.ctx.pinned.set(new Set(extras.pinnedTabs.filter((id) => docked.has(id))));
     this.ctx.markPinnedTabs();
   }

@@ -32,9 +32,10 @@ const DOCUMENT_VIEWS: ReadonlySet<string> = new Set(['events', 'query-results', 
  * Is the view a tool window or a document? Views whose home is a side or status area are tool windows; then known
  * ids; otherwise right-hand views are tools.
  */
-export function viewKind(view: Pick<DebriefView, 'id' | 'defaultPosition' | 'area'> | undefined | null): ViewKind {
+export function viewKind(view: Pick<DebriefView, 'id' | 'defaultPosition' | 'area' | 'layout'> | undefined | null): ViewKind {
   if (!view) return 'document';
-  if (view.area === 'side' || view.area === 'status' || TOOL_VIEWS.has(view.id)) return 'tool';
-  if (view.area === 'document' || DOCUMENT_VIEWS.has(view.id)) return 'document';
+  const area = view.layout?.area ?? view.area;
+  if (area === 'side' || area === 'status' || TOOL_VIEWS.has(view.id)) return 'tool';
+  if (area === 'document' || DOCUMENT_VIEWS.has(view.id)) return 'document';
   return view.defaultPosition === 'right' ? 'tool' : 'document';
 }

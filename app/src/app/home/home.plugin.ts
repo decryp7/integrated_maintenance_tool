@@ -16,7 +16,7 @@ export const HOME_VIEWS: DebriefView[] = [
     icon: 'home',
     // The app's home screen and dashboard: a document beside the timeline (a right-hand tool window is too cramped).
     defaultPosition: 'center',
-    area: 'document',
+    layout: { area: 'document', min: { width: 420, height: 300 }, pref: { width: 700, height: 600 }, priority: 60 },
     fullHeight: true,
     component: () => import('./home-view').then((m) => m.HomeView),
   },

@@ -3,93 +3,72 @@ import { describe, expect, it, vi } from 'vitest';
 import { WorkspaceStore } from '../core/workspace.store';
 import { provideTinyBackend } from '../../testing/helpers';
 import { DockService } from '../dock/dock.service';
-import { DOCKS_AUTO_HIDE_PX, EXPLORER_AUTO_HIDE_PX, NarrowWindow } from './narrow-window';
+import { NarrowWindow } from './narrow-window';
+
+type Verdict = 'hide' | 'show' | 'keep';
 
 function setup() {
   TestBed.configureTestingModule({ providers: [provideTinyBackend()] });
-  return { narrow: TestBed.inject(NarrowWindow), store: TestBed.inject(WorkspaceStore) };
+  const dock = TestBed.inject(DockService);
+  let verdict: Verdict = 'keep';
+  const verdicts = vi.spyOn(dock, 'explorerVerdict').mockImplementation(() => verdict);
+  const listeners: (() => void)[] = [];
+  vi.spyOn(dock, 'onWindowPlan').mockImplementation((l) => {
+    listeners.push(l);
+    return () => undefined;
+  });
+  return { narrow: TestBed.inject(NarrowWindow), store: TestBed.inject(WorkspaceStore), set: (v: Verdict) => (verdict = v), listeners, verdicts };
 }
 
-describe('NarrowWindow: side docks (H1)', () => {
-  it('auto-hides the docked tool windows when the window narrows and pins them back when it widens', () => {
-    const { narrow } = setup();
-    const dock = TestBed.inject(DockService);
-    const hide = vi.spyOn(dock, 'autoHideAll').mockReturnValue(['markers', 'notes']);
-    const pin = vi.spyOn(dock, 'pinIds').mockImplementation(() => undefined);
-    narrow.applyDocks(true);
-    expect(hide).toHaveBeenCalledTimes(1);
-    expect(pin).not.toHaveBeenCalled();
-    narrow.applyDocks(false);
-    expect(pin).toHaveBeenCalledWith(['markers', 'notes']);
-    // Nothing is pinned twice: the list was handed over.
-    narrow.applyDocks(false);
-    expect(pin).toHaveBeenLastCalledWith([]);
-  });
-
-  it('keeps what it hid across repeated narrowing', () => {
-    const { narrow } = setup();
-    const dock = TestBed.inject(DockService);
-    vi.spyOn(dock, 'autoHideAll').mockReturnValueOnce(['a']).mockReturnValueOnce(['b']);
-    const pin = vi.spyOn(dock, 'pinIds').mockImplementation(() => undefined);
-    narrow.applyDocks(true);
-    narrow.applyDocks(true);
-    narrow.applyDocks(false);
-    expect(pin).toHaveBeenCalledWith(['a', 'b']);
-  });
-});
-
-describe('NarrowWindow', () => {
-  it('closes the Explorer when the window narrows and brings it back when it widens', () => {
-    const { narrow, store } = setup();
+describe('NarrowWindow (the Explorer follows the layout plan)', () => {
+  it('closes the Explorer when the plan has no room for it and brings it back when there is', () => {
+    const { narrow, store, set } = setup();
     expect(store.sidebarOpen()).toBe(true);
-    narrow.apply(true);
+    set('hide');
+    narrow.evaluate();
     expect(store.sidebarOpen()).toBe(false);
-    narrow.apply(false);
+    set('keep');
+    narrow.evaluate();
+    expect(store.sidebarOpen()).toBe(false);
+    set('show');
+    narrow.evaluate();
     expect(store.sidebarOpen()).toBe(true);
   });
 
-  it('does not reopen an Explorer the user had closed, nor close one twice', () => {
-    const { narrow, store } = setup();
+  it('does not reopen an Explorer the user had closed', () => {
+    const { narrow, store, set } = setup();
     store.toggleSidebar();
-    narrow.apply(true);
-    narrow.apply(false);
+    set('hide');
+    narrow.evaluate();
+    set('show');
+    narrow.evaluate();
     expect(store.sidebarOpen()).toBe(false);
   });
 
-  it('leaves the user\'s choice alone: opened by hand while narrow, it stays open when the window widens', () => {
-    const { narrow, store } = setup();
-    narrow.apply(true);
+  it('leaves an Explorer the user opened by hand while there is no room, until it fits again', () => {
+    const { narrow, store, set } = setup();
+    set('hide');
+    narrow.evaluate();
     store.toggleSidebar();
-    narrow.apply(false);
+    narrow.evaluate();
     expect(store.sidebarOpen()).toBe(true);
-    narrow.apply(false);
+    narrow.evaluate();
     expect(store.sidebarOpen()).toBe(true);
+    set('keep');
+    narrow.evaluate();
+    set('hide');
+    narrow.evaluate();
+    expect(store.sidebarOpen()).toBe(false);
   });
 
-  it('follows the media query', () => {
-    const { narrow, store } = setup();
-    const listeners: ((e: MediaQueryListEvent) => void)[] = [];
-    const query = { matches: true, addEventListener: (_: string, l: (e: MediaQueryListEvent) => void) => void listeners.push(l), removeEventListener: vi.fn() };
-    const matchMedia = vi.spyOn(window, 'matchMedia').mockReturnValue(query as unknown as MediaQueryList);
+  it('re-evaluates after every dock re-plan, and starts once', () => {
+    const { narrow, store, set, listeners, verdicts } = setup();
     narrow.start();
     narrow.start();
-    expect(matchMedia).toHaveBeenCalledTimes(2);
-    expect(matchMedia).toHaveBeenCalledWith(`(max-width: ${DOCKS_AUTO_HIDE_PX - 1}px)`);
-    expect(matchMedia).toHaveBeenCalledWith(`(max-width: ${EXPLORER_AUTO_HIDE_PX - 1}px)`);
+    expect(listeners).toHaveLength(1);
+    set('hide');
+    listeners[0]?.();
     expect(store.sidebarOpen()).toBe(false);
-    listeners[0]?.({ matches: false } as MediaQueryListEvent);
-    expect(store.sidebarOpen()).toBe(true);
-    matchMedia.mockRestore();
-  });
-
-  it('does nothing without matchMedia', () => {
-    const { narrow, store } = setup();
-    const spy = vi.spyOn(window, 'matchMedia').mockImplementation(undefined as never);
-    try {
-      narrow.start();
-      expect(store.sidebarOpen()).toBe(true);
-    } finally {
-      spy.mockRestore();
-    }
+    expect(verdicts).toHaveBeenCalled();
   });
 });

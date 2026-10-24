@@ -10,8 +10,7 @@ export function storePaneViews(): DebriefView[] {
       title: $localize`:@@store.view.title:Store`,
       icon: 'metrics',
       category: 'core',
-      defaultPosition: 'bottom',
-      area: 'status',
+      defaultPosition: 'bottom', layout: { area: 'status', min: { width: 320, height: 180 }, pref: { width: 480, height: 360 }, priority: 20 },
       component: () => import('./store-pane').then((m) => m.StorePane),
     },
   ];
