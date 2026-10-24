@@ -47,6 +47,24 @@ const escape = (fixture: Parameters<typeof el>[0]) => {
 };
 
 describe('SettingsScreen', () => {
+  // Regression (ai-pitwall.e2e:24 on a loaded machine): the AI section's controls waited for the browser to be idle
+  // (@defer on idle), which a busy page may never be within the user's patience; the chosen section shows at once.
+  it('shows the AI section controls without waiting for the browser to be idle', async () => {
+    const w = window as unknown as { requestIdleCallback?: unknown; cancelIdleCallback?: unknown };
+    const saved = { request: w.requestIdleCallback, cancel: w.cancelIdleCallback };
+    w.requestIdleCallback = () => 0; // never idle
+    w.cancelIdleCallback = () => undefined;
+    try {
+      const { fixture } = await setup();
+      nav(fixture, 'AI assistant').click();
+      await settle(fixture, 8);
+      expect(fixture.nativeElement.querySelector('debrief-ai-settings-extras')).not.toBeNull();
+    } finally {
+      w.requestIdleCallback = saved.request;
+      w.cancelIdleCallback = saved.cancel;
+    }
+  });
+
   it('shows the browser for research under Web browser, below the generated fields, with the Browser to use field', async () => {
     const { fixture } = await setup();
     nav(fixture, 'Web browser').click();

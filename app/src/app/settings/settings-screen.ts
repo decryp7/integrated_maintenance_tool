@@ -180,7 +180,8 @@ import { SettingField, SettingsSection } from './settings.types';
             <debrief-performance-extras />
           }
           @if (s.id === 'ai') {
-            @defer {
+            <!-- Lazy (its own chunk), but the chosen section never waits for the browser to be idle. -->
+            @defer (on immediate) {
               <debrief-ai-settings-extras />
               <debrief-knowledge-settings />
             }
