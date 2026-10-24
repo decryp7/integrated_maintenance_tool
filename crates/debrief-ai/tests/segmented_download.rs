@@ -270,24 +270,35 @@ fn throttling_lowers_the_connections() {
 
 #[test]
 fn cancelling_stops_every_connection_quickly_and_keeps_the_resumable_state() {
+    const BUFFER: u64 = 16 * 1024;
     let mut src = Fake::new(blob(SIZE));
     src.delay = Some(Box::new(|_, _| Duration::from_millis(5)));
     let dir = tempfile::tempdir().unwrap();
     let p = Arc::new(Progress::new());
-    let (p2, d2) = (p.clone(), dir.path().to_path_buf());
+    // The cancel comes from inside the source at a known point (the first buffer past 512 KiB), so what was served
+    // after it is measured in buffers, not in time a loaded machine can stretch.
+    let at_cancel = Arc::new(AtomicU64::new(0));
+    let (p1, a1) = (p.clone(), at_cancel.clone());
+    src.on_data = Some(Box::new(move |total| {
+        if total >= 512 * 1024 && a1.compare_exchange(0, total, Ordering::SeqCst, Ordering::SeqCst).is_ok() {
+            p1.cancel();
+        }
+    }));
     let src = Arc::new(src);
-    let s2 = src.clone();
-    let h = std::thread::spawn(move || download(&*s2, &d2, opts(), &p2));
-    while p.snapshot().bytes < 512 * 1024 {
-        std::thread::sleep(Duration::from_millis(2));
-    }
-    let t = Instant::now();
-    p.cancel();
-    let r = h.join().unwrap();
-    assert!(t.elapsed() < Duration::from_millis(250), "stopped after {:?}", t.elapsed());
+    let r = download(&*src, dir.path(), opts(), &p);
     assert!(matches!(r, Err(AiError::Cancelled)), "{r:?}");
+    let (at, served) = (at_cancel.load(Ordering::SeqCst), src.served.load(Ordering::SeqCst));
+    assert!(at > 0, "the cancel was made");
+    // Quickly: every connection stops at its next buffer, so at most the buffers already being read when the cancel
+    // came (one per other connection) are served after it, out of the megabytes left.
+    let after = served - at;
+    assert!(
+        after <= (opts().connections as u64 - 1) * BUFFER,
+        "{after} bytes were served after the cancel"
+    );
+    assert!(served < SIZE as u64 / 2, "the download stopped early: {served} of {SIZE} bytes");
+    assert_eq!(src.in_flight.load(Ordering::SeqCst), 0, "every connection is closed");
     assert!(dir.path().join("big.gguf.part").exists() && dir.path().join("big.gguf.part.ranges").exists());
-    assert!(src.in_flight.load(Ordering::SeqCst) == 0);
 }
 
 #[test]
