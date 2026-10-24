@@ -174,3 +174,31 @@ What was built, and where it refines the decision above:
   `layout.fit`; the delivery (toast or list) belongs to the notification system, not to the dock.
 - **Lint.** `dock/view-contract.spec.ts` checks every view of the real registry (all providers of `app.config.ts`)
   declares `layout` with `min <= pref` and a positive priority.
+
+## Amendment 2026-10-24: usability shares, recency and what 1.1's pixel rules became
+
+The 1.1 usability work (full-height column 40% of the dock capped, the document beside the timeline 40% wide and 40% high,
+a compact timeline row under an analysis row, a tool window that keeps its width) tuned `dock-placement.ts` with pixel rules.
+Those rules are now planner rules, so there is still one mechanism (`planLayout`), and `dock-placement.ts` still only
+decides where a view goes:
+
+- **Shares cap `pref`, never `min`, never a size the user dragged to** (`SHARES` in `layout-plan.ts`): a full-height column and
+  a document cell take at most 40% of the window width; a row that holds a document beside the timeline takes at most 40% of
+  the height (the events grid keeps 60%); an analysis row compacts the other non-anchor rows to 210 px.
+- **Side-by-side need.** The main column's minimum is the width its widest row needs side by side. A full-height column gives
+  way to that, down to its own minimum, before a document is tabbed, but never by being dropped itself in favour of a
+  lower-priority document.
+- **Recency.** A side tool that the user opened or worked with outranks an idle document column of similar rank
+  (priority + 24, minus 8 per place in the most-recently-used list, never above 89, so never over the timeline or the
+  events). The idle column is tabbed with the grid instead of the tool sliding out. Documents get no such lift: they do not
+  outrank a tool window or a column.
+- **Background opens** (auto-open of a viewer) never take the front from the view they join.
+- A second instance of a view (a second timeline) is stacked in a row of its own; a view the plan tabbed away is planned as a
+  group of its own, so grow-back asks whether it would be placed.
+
+Where 1.1 contradicts this ADR by design, the ADR wins and the tests say so: 1.1 squeezed the timeline to 323 px, the grid
+to 360 px and a full-height column to 188 to 280 px to keep everything visible. Under the declared minimums
+(timeline and events 560, full-height column 420, tool 320) a document beside the timeline needs about 1400 px of dock beside the Registry column,
+and a tool beside the column and the grid about 1300 px; below that the lowest-priority view is tabbed (a document with the
+timeline, an idle column with the grid) or auto-hidden. The affected e2e tests (`view-areas`, `popout`, `dock-full-height`,
+`ux-layout`, `profiling-perspective`, `dock-overflow`) assert that outcome, and run the "beside" cases on a window wide enough.
