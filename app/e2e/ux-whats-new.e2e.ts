@@ -31,8 +31,11 @@ test.describe("What's new", () => {
     await openApp(page);
     await expect(tab(page)).toHaveCount(1);
     // In the background: it does not take the front, and no dialog window opens.
-    await expect(tab(page)).toHaveAttribute('aria-selected', 'false');
-    await expect(page.getByRole('tab', { name: 'Timeline', exact: true })).toHaveAttribute('aria-selected', 'true');
+    // (It may join a group behind another full-height view, or start a group of its own when it is the first there:
+    // either way the active group stays the timeline's.)
+    const activeGroup = page.locator('.dv-groupview.dv-active-group');
+    await expect(activeGroup.getByRole('tab', { name: 'Timeline', exact: true })).toHaveAttribute('aria-selected', 'true');
+    await expect(activeGroup.getByRole('tab', { name: "What's new", exact: true })).toHaveCount(0);
     await expect(page.getByRole('dialog', { name: "What's new" })).toHaveCount(0);
     expect(await page.evaluate(() => !!document.activeElement?.closest('debrief-whats-new'))).toBe(false);
     await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), SEEN)).toBe(APP_VERSION);
@@ -41,6 +44,9 @@ test.describe("What's new", () => {
     await expect(notices(page)).toContainText(`Updated to ${APP_VERSION}`);
     await notices(page).getByRole('button', { name: "See what's new" }).click();
     await expect(tab(page)).toHaveAttribute('aria-selected', 'true');
+    // An action that opens a view slides Notifications in and moves the focus to the view.
+    await expect(notices(page)).toBeHidden();
+    await expect.poll(() => page.evaluate(() => !!document.activeElement?.closest('.debrief-panel')?.querySelector('debrief-whats-new'))).toBe(true);
     await expect(view(page).getByTestId('whats-new-current')).toContainText(`Version ${APP_VERSION}`);
     await expect(view(page).getByTestId('whats-new-current').locator('li').first()).toBeVisible();
     await expectNoSeriousViolations(page, testInfo, 'whats-new', 'debrief-whats-new');

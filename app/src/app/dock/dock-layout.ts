@@ -349,6 +349,7 @@ export class DockLayout {
       title: $localize`:@@dock.layout.fit.title:Some panes were tabbed to fit this window`,
       body: $localize`:@@dock.layout.fit.body:Your saved layout is kept; it returns when the window is large enough.`,
       actionLabel: $localize`:@@dock.layout.fit.undo:Undo`,
+      target: null,
       run: undo,
     });
   }

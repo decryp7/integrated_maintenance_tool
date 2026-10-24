@@ -64,6 +64,7 @@ export class WhatsNewService {
       severity: 'info',
       title: $localize`:@@whatsNew.notice.title:Updated to ${version}:version:`,
       actionLabel: $localize`:@@whatsNew.notice.action:See what's new`,
+      target: 'view',
       run: () => this.open(),
     });
   }

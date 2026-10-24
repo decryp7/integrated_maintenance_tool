@@ -766,6 +766,9 @@ Everything Debrief tells you appears as a notification in the corner of the wind
 list (the bell). One problem is one notification: if the same thing happens again, the notification you already have is
 updated (with a count) instead of a new one appearing. Errors stay until you dismiss them or the cause is gone; other
 messages disappear after a few seconds. Technical text is folded behind **Details**.
+A button that takes you somewhere (*See what's new*, *Show in Jobs*, *View*, *Open Settings…*) closes the
+Notifications pane and, for a view, puts the keyboard focus in it; a button that acts in place (*Try again*, *Reset*,
+*Later*) leaves the pane open so you can see the result.
 
 When one of Debrief's own services stops, you see a single chip at the right of the status bar instead of a message in
 every panel:

@@ -91,6 +91,8 @@ export class FakeDock {
   toggle = (id: string) => void this.calls.push(`toggle:${id}`);
   close = (id: string) => void this.calls.push(`close:${id}`);
   reset = () => void this.calls.push('reset');
+  slideIn = (id: string) => void this.calls.push(`slideIn:${id}`);
+  focusFront = () => void this.calls.push('focusFront');
   // A method (not a field): some specs replace it on the prototype.
   setTitle(id: string, title: string): void {
     this.calls.push(`title:${id}:${title}`);
