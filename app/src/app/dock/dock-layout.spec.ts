@@ -157,6 +157,16 @@ describe('displaced views and grow-back', () => {
     expect(TestBed.inject(DockContext).displaced.get('home')).toEqual({ id: 'home', slot, into: 'events' });
   });
 
+  it('records a view opened just now as a guest of its host too, so the next plan does not take the host for a full-height column', () => {
+    const layout = setup();
+    const { api, groups } = grid();
+    layout.fit(api, { sizes: true, fresh: ['home'] });
+    expect(TestBed.inject(DockContext).displaced.get('home')?.into).toBe('events');
+    // The panel now lives in the events group (as dockview would have moved it): planning again leaves the timeline alone.
+    groups[0]!.panels.push({ id: 'home' });
+    expect(layout.plan(api)!.tabbed.map((t) => t.id)).toEqual(['home']);
+  });
+
   it('records an auto-hidden side tool with no host', () => {
     const layout = setup();
     const { api } = fakeDock(800, 700, { 'timeline+events': { width: 428, height: 700 }, 'ai-chat': { width: 372, height: 700 } });

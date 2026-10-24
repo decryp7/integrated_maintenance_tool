@@ -23,7 +23,7 @@ describe('DockPlacement.addView: the plan decides sizes, tabs and constraints (A
   it('re-plans after every add, with the new panel marked fresh so its own size is not taken as a wish', () => {
     const { placement, fit } = setup(panel);
     expect(placement.addView(api, view(), false, 'v#2')).toBe(panel);
-    expect(fit).toHaveBeenCalledWith(api, { sizes: true, fresh: ['v#2'] });
+    expect(fit).toHaveBeenCalledWith(api, { sizes: true, fresh: ['v#2'], background: false });
   });
 
   it('does not re-plan when the view went to a side bar instead of a panel', () => {
@@ -50,7 +50,7 @@ describe('DockPlacement.addView: fullHeight documents (Home, Registry)', () => {
     const { dock, addPanel, fit, placement } = fakeDock();
     placement.addView(dock, full(), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
-    expect(fit).toHaveBeenCalledWith(dock, { sizes: true, fresh: ['full'] });
+    expect(fit).toHaveBeenCalledWith(dock, { sizes: true, fresh: ['full'], background: false });
   });
 
   it('does not land in a document group that is only the timeline row\'s strip: it gets its own column', () => {

@@ -143,7 +143,9 @@ export class DockLayout {
       const panel = api.getPanel(t.id);
       const target = api.getPanel(t.into);
       if (!panel || !target || panel.group === target.group) continue;
-      if (!this.ctx.displaced.has(t.id) && !fresh.includes(t.id)) this.record({ id: t.id, slot: options.capture?.(t.id) ?? NO_SLOT, into: t.into });
+      // A view opened just now has no earlier place to capture, but it is still recorded as a guest of its host (so the host is not
+      // mistaken for a full-height column on the next plan) and can return to its default place when there is room.
+      if (!this.ctx.displaced.has(t.id)) this.record({ id: t.id, slot: fresh.includes(t.id) ? NO_SLOT : (options.capture?.(t.id) ?? NO_SLOT), into: t.into });
       // A view that yields joins the group as a background tab; the tab in front stays, unless the user just opened it.
       const front = target.group.activePanel;
       panel.api.moveTo({ group: target.group, position: 'center' });
