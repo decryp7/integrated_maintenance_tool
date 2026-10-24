@@ -47,10 +47,16 @@ test.describe('AI entry points', () => {
   test('Root causes from Home and Summarize from the Moment view', async ({ page }) => {
     await openAiApp(page);
     await page.locator('debrief-sidebar').getByRole('button', { name: 'Open files' }).click();
-    // Review on the timeline header's headline opens Home.
-    // The headline redraws while the timeline settles; on a slow WebKit runner it is never "stable" for Playwright's click, so click it directly.
-    await page.getByRole('toolbar', { name: 'Health check' }).getByRole('button', { name: 'Review' }).dispatchEvent('click', undefined, { timeout: 30_000 });
+    // The import opens Home by itself (Home ▸ show when files open). The timeline's headline offers Review only while Home
+    // is closed: close it, then Review opens it again. (Clicking Review before Home opened raced the import.)
     const home = page.locator('debrief-home-view');
+    await expect(home).toBeVisible({ timeout: 10_000 });
+    await page.locator('.debrief-tab').filter({ hasText: 'Home' }).locator('.debrief-tab-close').click();
+    await expect(home).toHaveCount(0);
+    const review = page.getByRole('toolbar', { name: 'Health check' }).getByRole('button', { name: 'Review' });
+    await expect(review).toBeVisible({ timeout: 10_000 });
+    // The headline redraws while the timeline settles; on a slow WebKit runner it is never "stable" for Playwright's click, so click it directly.
+    await review.dispatchEvent('click');
     await expect(home).toBeVisible({ timeout: 10_000 });
     await home.getByTestId('ai-root-causes').click();
     await viewAnswer(page, 'Root causes ready');
