@@ -32,7 +32,7 @@ test.describe('AI entry points', () => {
     const menu = await rowMenu(page);
     await menu.getByRole('menuitem', { name: 'Explain this event (AI)…' }).click();
     // It runs in the background: a toast says so, then "Explanation ready · View" opens the answer.
-    await expect(page.getByTestId('notice-toast').filter({ hasText: /Explaining event #\d+ — running in Jobs/ })).toBeVisible();
+    await expect(page.getByTestId('notification').filter({ hasText: /Explaining event #\d+ — running in Jobs/ })).toBeVisible();
     await expect(page.getByRole('dialog')).toHaveCount(0);
     await viewAnswer(page, 'Explanation ready');
     const dialog = page.getByRole('dialog', { name: /^Explain event \d+$/ });

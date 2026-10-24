@@ -10,8 +10,6 @@ export const MAX_ALERTS = 500;
 export const MAX_TOASTS = 3;
 /** "Mute this kind" lasts this long. */
 export const MUTE_MS = 15 * 60_000;
-/** Warning and info toasts disappear after this long; critical ones stay until dismissed. */
-export const TOAST_MS = 10_000;
 
 export interface AlertEntry {
   id: number;
@@ -90,11 +88,8 @@ export const AlertsStore = signalStore(
   })),
   withMethods((store, backend = inject(DebriefBackend), logger = inject(Logger)) => {
     let nextId = 1;
-    const timers = new Map<number, ReturnType<typeof setTimeout>>();
 
     const dismissToast = (id: number) => {
-      clearTimeout(timers.get(id));
-      timers.delete(id);
       patchState(store, (s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }));
     };
 
@@ -114,7 +109,6 @@ export const AlertsStore = signalStore(
           toasts: entry.muted ? s.toasts : [...s.toasts, entry],
           mutes,
         }));
-        if (!entry.muted && alert.severity !== 'critical') timers.set(entry.id, setTimeout(() => dismissToast(entry.id), TOAST_MS));
         return entry;
       },
       dismissToast,

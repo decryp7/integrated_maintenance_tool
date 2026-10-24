@@ -17,7 +17,6 @@ export abstract class PerformanceBackend {
   abstract memory(): Promise<ProcessMemory[]>;
   /** Sets (`mb`) or removes (`null`) a plugin's own cap; answers the processes with their caps now. */
   abstract setPluginMemory(pluginId: string, mb: number | null): Promise<ProcessMemory[]>;
-  abstract retryStoreWorker(): Promise<void>;
 }
 
 export class TauriPerformanceBackend implements PerformanceBackend {
@@ -34,9 +33,6 @@ export class TauriPerformanceBackend implements PerformanceBackend {
   setPluginMemory(pluginId: string, mb: number | null) {
     return this.call<ProcessMemory[]>('performance_set_plugin_memory', { pluginId, mb });
   }
-  retryStoreWorker() {
-    return this.call<void>('performance_retry_store_worker');
-  }
 }
 
 export function createPerformanceBackend(): PerformanceBackend {
@@ -52,6 +48,5 @@ function lazyMock(): PerformanceBackend {
     preset: (p) => get().then((b) => b.preset(p)),
     memory: () => get().then((b) => b.memory()),
     setPluginMemory: (id, mb) => get().then((b) => b.setPluginMemory(id, mb)),
-    retryStoreWorker: () => get().then((b) => b.retryStoreWorker()),
   };
 }

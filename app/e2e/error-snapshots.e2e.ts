@@ -6,7 +6,7 @@ import { openAppWith } from './mock-url';
 // against the real capture code in every project. Under "prod-csp" the production build is served with
 // the Tauri CSP, which proves the capture needs no blob:, remote or inline-script permission.
 
-const toast = (page: Page) => page.locator('[data-testid=snapshot-toast]');
+const toast = (page: Page) => page.locator('[data-testid=notification][data-cause="diagnostics.snapshot"]');
 
 /** Raises an uncaught error the way a bug would: from a timer, outside Angular's zone of control. */
 async function throwUncaught(page: Page, message: string): Promise<void> {
@@ -60,9 +60,9 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
 
   await expect(toast(page)).toContainText('Something went wrong.', { timeout: CAPTURE_TIMEOUT });
   // The short toast; what Debrief did about the error is under Details.
-  await expect(page.locator('[data-testid=snapshot-notice]')).toHaveCount(0);
+  await expect(page.locator('[data-testid=notification-details]')).toHaveCount(0);
   await toast(page).getByRole('button', { name: 'Details' }).click();
-  await expect(page.locator('[data-testid=snapshot-notice]')).toContainText('Debrief saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.');
+  await expect(page.locator('[data-testid=notification-details]')).toContainText('Debrief saved a screenshot of this error locally to help diagnose it. Nothing is sent anywhere.');
   await toast(page).getByRole('button', { name: 'View snapshot' }).click();
 
   const view = page.locator('debrief-error-snapshots-view');
@@ -88,7 +88,7 @@ test('an uncaught error saves a snapshot, shows the toast and the notice, and th
   // reports the result.
   await view.getByRole('button', { name: 'Export diagnostics…' }).click();
   await expect(view.getByRole('status')).toContainText('Exporting 1 snapshot');
-  const exported = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Export diagnostics to' });
+  const exported = page.getByTestId('notification').filter({ hasText: 'Finished: Export diagnostics to' });
   await expect(exported).toContainText('files zipped.', { timeout: 15_000 });
 
   await view.getByRole('button', { name: 'Delete', exact: true }).click();
@@ -170,7 +170,7 @@ test('toasts stack one above the other instead of on top of each other', async (
   await throwUncaught(page, 'stacked boom');
   await expect(toast(page)).toContainText('Something went wrong', { timeout: CAPTURE_TIMEOUT });
   await page.keyboard.press('ControlOrMeta+s');
-  const notice = page.locator('.debrief-toast-stack .toast.info');
+  const notice = page.locator('[data-testid=notification][data-cause="workspace.notice"]');
   await expect(notice).toContainText('Saved');
   const a = (await toast(page).boundingBox())!;
   const b = (await notice.boundingBox())!;

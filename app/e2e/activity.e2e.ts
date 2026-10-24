@@ -93,7 +93,7 @@ test('a user journey is logged once per operation, in order, with triggers and w
   const dialog = page.getByRole('dialog', { name: 'Export events' });
   await dialog.getByRole('button', { name: 'Export…' }).click();
   // A job writes the file; its message reports the result.
-  await expect(page.getByTestId('notice-toast').filter({ hasText: 'Finished: Export events' })).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByTestId('notification').filter({ hasText: 'Finished: Export events' })).toBeVisible({ timeout: 15_000 });
 
   // In order, each with its trigger.
   const steps: Partial<Record<string, string | RegExp>>[] = [

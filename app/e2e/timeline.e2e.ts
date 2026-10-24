@@ -103,7 +103,7 @@ test.describe('timeline and analysis', () => {
     const card = page.locator('debrief-timeline-panel .err-card');
     await expect(card).toContainText("Couldn't load the timeline.");
     await expect(card).toContainText('Simulated queryTimeline failure');
-    await expect(page.locator('.debrief-toast-stack .toast[role=alert]')).toHaveCount(0);
+    await expect(page.locator('[data-testid=notification][data-cause="workspace.error"]')).toHaveCount(0);
     await expect(async () => {
       if (await card.count()) await card.getByRole('button', { name: 'Retry' }).click();
       await expect(card).toHaveCount(0, { timeout: 1500 });

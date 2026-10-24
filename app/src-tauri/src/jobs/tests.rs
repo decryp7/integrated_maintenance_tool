@@ -203,6 +203,82 @@ fn failures_always_ask_for_attention_with_retry() {
     assert_eq!(ipc(&main, "jobs_mark_seen", json!({"id": id.0})).unwrap(), true);
 }
 
+/// A download job that fails (or succeeds) at once.
+fn download(app: &tauri::App<MockRuntime>, title: &str, outcome: Result<(), String>) -> JobId {
+    spawn(
+        app.handle(),
+        JobSpec::new(JobKind::Download, title).retry_with(json!({"op": "download"})),
+        Controls::default(),
+        move |_: &JobCtx| -> Result<Done<()>, String> { outcome.clone().map(|()| Done::new(())) },
+    )
+    .expect("the job is accepted")
+}
+
+#[test]
+fn a_failed_download_is_the_downloads_service_down_with_one_message_that_retries() {
+    let app = test_app_with_commands(None);
+    let main = window(&app, "main");
+    let health = |app: &tauri::App<MockRuntime>| {
+        let h = ipc(&window(app, "main"), "health_snapshot", json!({})).unwrap();
+        h["services"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|s| s["service"] == "downloads")
+            .unwrap()
+            .clone()
+    };
+    for i in 0..3 {
+        let id = download(&app, "Download Qwen", Err(format!("the download server answered 503 ({i})")));
+        wait_until("failed", || jobs(&app).state_of(id) == Some(JobState::Failed));
+    }
+    wait_until("the service to be down", || health(&app)["state"] == "down");
+    let h = health(&app);
+    assert_eq!(
+        (h["repair"].as_str(), h["cause"]["message"].as_str()),
+        (Some("retry"), Some("A download failed: Download Qwen."))
+    );
+    // One message for the failure, whichever job failed; no second "Failed: ..." message of the job.
+    let notices = ipc(&main, "notifications_list", json!({})).unwrap();
+    let all = notices["notices"].as_array().unwrap();
+    assert_eq!(all.iter().filter(|n| n["cause"] == "health:downloads").count(), 1, "{notices}");
+    assert!(
+        all.iter().all(|n| !n["cause"].as_str().unwrap_or_default().starts_with("job:")),
+        "{notices}"
+    );
+    assert_eq!(
+        all.iter().find(|n| n["cause"] == "health:downloads").unwrap()["primary"],
+        json!({"type": "repairService", "service": "downloads"})
+    );
+    // A download that works clears it, and the message with it.
+    // (A quick job that succeeds is not kept in the list, so the service's state is what to wait for.)
+    download(&app, "Download Qwen", Ok(()));
+    wait_until("ok again", || health(&app)["state"] == "ok");
+    let notices = ipc(&main, "notifications_list", json!({})).unwrap();
+    assert!(
+        notices["notices"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .all(|n| n["cause"] != "health:downloads"),
+        "{notices}"
+    );
+}
+
+/// Regression: a command that only starts a job was judged by a 250 ms wall-clock bound, which a loaded machine broke.
+#[test]
+fn a_command_that_returns_its_job_id_passes_however_slowly_the_machine_runs() {
+    let app = test_app_with_commands(None);
+    let out = crate::test_support::returns_while_its_job_is_queued(&app, "main", JobKind::Import, "slow start", async {
+        tokio::time::sleep(std::time::Duration::from_millis(600)).await;
+        7u64
+    });
+    assert_eq!(out, 7);
+    // The occupied queue is free again once the command returned.
+    let again = crate::test_support::returns_while_its_job_is_queued(&app, "main", JobKind::Import, "second", async { 8u64 });
+    assert_eq!(again, 8);
+}
+
 #[test]
 fn a_window_acts_only_on_its_own_and_app_wide_jobs() {
     let app = test_app_with_commands(None);

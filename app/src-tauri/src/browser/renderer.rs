@@ -155,9 +155,9 @@ impl Renderers {
         }
         map.remove(owner);
         let exe = crate::sync::read(&self.sources).resolve().ok_or_else(|| {
-            BrowserError::Failed(
-                "no Chromium-based browser was found: install Edge, Chrome or Chromium, or download one in Settings ▸ Web browser".into(),
-            )
+            let why = "no Chromium-based browser was found: install Edge, Chrome or Chromium, or download one in Settings ▸ Web browser";
+            crate::health::hub::report_browser_missing(why);
+            BrowserError::Failed(why.into())
         })?;
         let opts = LaunchOptions {
             profile: Profile::Throwaway,

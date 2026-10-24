@@ -48,6 +48,4 @@ export class MockPerformanceBackend implements PerformanceBackend {
     this.plugins = this.plugins.map((p) => (p.process.kind === 'plugin' && p.process.pluginId === pluginId ? { ...p, overrideMb: mb, capMb: mb ?? 1024 } : p));
     return this.memory();
   }
-
-  async retryStoreWorker(): Promise<void> {}
 }

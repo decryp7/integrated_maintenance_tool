@@ -2,6 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, input, un
 import { WorkspaceStore } from '../core/workspace.store';
 import { chatBrowserMode } from './browser.types';
 import { ChatBrowserStore } from './chat-browser.store';
+import { ServiceHealthStore } from '../health/service-health.store';
+import { WaitingFor } from '../health/waiting-for';
 import { BrowserLauncher } from './provide-browser';
 
 /**
@@ -13,6 +15,7 @@ import { BrowserLauncher } from './provide-browser';
 @Component({
   selector: 'debrief-chat-browser-bar',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [WaitingFor],
   template: `
     <div class="bar" data-testid="chat-browser-bar">
       @if (sources().length) {
@@ -47,7 +50,11 @@ import { BrowserLauncher } from './provide-browser';
         </p>
       }
       @if (store.error(); as e) {
-        <p class="err small" role="alert">{{ e }} <button type="button" class="link" (click)="retry()" i18n="@@browser.chatBar.retry">Retry</button></p>
+        @if (health.isServing('browser')) {
+          <p class="err small" role="alert">{{ e }} <button type="button" class="link" (click)="retry()" i18n="@@browser.chatBar.retry">Retry</button></p>
+        } @else {
+          <debrief-waiting-for service="browser" />
+        }
       }
     </div>
   `,
@@ -68,6 +75,7 @@ import { BrowserLauncher } from './provide-browser';
   `,
 })
 export class ChatBrowserBar {
+  protected readonly health = inject(ServiceHealthStore);
   protected readonly store = inject(ChatBrowserStore);
   private readonly launcher = inject(BrowserLauncher);
   private readonly workspace = inject(WorkspaceStore);

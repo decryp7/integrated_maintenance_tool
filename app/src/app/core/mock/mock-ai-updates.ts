@@ -107,7 +107,7 @@ export class MockAiUpdates {
           primary: { type: 'updateAi', key: u.key },
           secondary: { type: 'laterAiUpdate', key: u.key },
           tertiary: { type: 'skipAiUpdate', key: u.key },
-          dedupeKey: `ai-update:${u.kind}:${u.id}`,
+          cause: `ai-update:${u.kind}:${u.id}`,
         });
       }
     }

@@ -23,7 +23,7 @@ import { at, must } from '../../testing/must';
 import { actionLabel, NoticeActions } from './notice-actions';
 import { MockNotifications, mockNotifications, resetMockNotifications } from './mock-notifications';
 import { NotificationsBackend, TauriNotificationsBackend } from './notifications-backend';
-import { MAX_TOASTS, NotificationsStore, TOAST_MS } from './notifications.store';
+import { MAX_TOASTS, NotificationsStore } from './notifications.store';
 import { EMPTY_NOTICES, Notice, NoticeAction, NoticesEvent, NoticesRecord, NoticesSnapshot, NOTICE_SOURCES } from './notifications.types';
 import { sourceLabel, titleWithCount } from './notifications-text';
 import { NotificationsPanel } from './notifications-panel';
@@ -43,7 +43,7 @@ function notice(p: Partial<Notice> & { id: number }): Notice {
     secondary: null,
     tertiary: null,
     link: { window: 'main', jobId: null, recordId: null, pluginId: null, path: null },
-    dedupeKey: null,
+    cause: `fixture:${p.id}`,
     scope: 'project',
     ...p,
   };
@@ -139,9 +139,9 @@ describe('MockNotifications', () => {
     const m = new MockNotifications();
     const events: NoticesEvent[] = [];
     await m.onChange((e) => events.push(e));
-    const a = m.post({ source: 'plugin', severity: 'warning', title: 'A' });
-    const b = m.post({ source: 'job', severity: 'error', title: 'B', body: 'why', primary: { type: 'showJobs' }, link: { jobId: 4 }, scope: 'app' });
-    expect(a).toMatchObject({ id: 1, body: '', count: 1, read: false, primary: null, secondary: null, scope: 'project', dedupeKey: null });
+    const a = m.post({ cause: 'c1', source: 'plugin', severity: 'warning', title: 'A' });
+    const b = m.post({ cause: 'c2', source: 'job', severity: 'error', title: 'B', body: 'why', primary: { type: 'showJobs' }, link: { jobId: 4 }, scope: 'app' });
+    expect(a).toMatchObject({ id: 1, body: '', count: 1, read: false, primary: null, secondary: null, scope: 'project', cause: 'c1' });
     expect(a.link).toEqual({ window: 'main', jobId: null, recordId: null, pluginId: null, path: null });
     expect(b.link.jobId).toBe(4);
     const snap = await m.list();
@@ -154,30 +154,30 @@ describe('MockNotifications', () => {
     vi.useFakeTimers();
     vi.setSystemTime(1000);
     const m = new MockNotifications();
-    const first = m.post({ source: 'liveAlert', severity: 'warning', title: 'Spike', dedupeKey: 'k', body: 'one' });
+    const first = m.post({ cause: 'k', source: 'liveAlert', severity: 'warning', title: 'Spike', body: 'one' });
     await m.markRead(first.id);
     vi.setSystemTime(5000);
-    const second = m.post({ source: 'liveAlert', severity: 'error', title: 'Spike again', dedupeKey: 'k', body: 'two', primary: { type: 'showAlert', alertId: 'a' } });
+    const second = m.post({ cause: 'k', source: 'liveAlert', severity: 'error', title: 'Spike again', body: 'two', primary: { type: 'showAlert', alertId: 'a' } });
     expect(second.id).toBe(first.id);
     expect(second).toMatchObject({ count: 2, read: false, title: 'Spike again', body: 'two', severity: 'error', at: 5000, firstAt: 1000, primary: { type: 'showAlert', alertId: 'a' } });
     const { notices, unread } = await m.list();
     expect(notices).toHaveLength(1);
     expect(unread).toBe(1);
-    m.post({ source: 'liveAlert', severity: 'info', title: 'Other', dedupeKey: 'other' });
+    m.post({ cause: 'other', source: 'liveAlert', severity: 'info', title: 'Other' });
     expect((await m.list()).notices).toHaveLength(2);
   });
 
   it('keeps at most 200 messages and drops read ones first', async () => {
     const m = new MockNotifications();
-    for (let i = 0; i < 200; i++) m.post({ source: 'job', severity: 'info', title: `n${i}` });
+    for (let i = 0; i < 200; i++) m.post({ cause: `n${i}`, source: 'job', severity: 'info', title: `n${i}` });
     await m.markRead(5);
-    m.post({ source: 'job', severity: 'info', title: 'extra' });
+    m.post({ cause: 'c7', source: 'job', severity: 'info', title: 'extra' });
     let ids = (await m.list()).notices.map((n) => n.id);
     expect(ids).toHaveLength(200);
     expect(ids).not.toContain(5);
     expect(ids).toContain(1);
     // Nothing read left: the oldest goes.
-    m.post({ source: 'job', severity: 'info', title: 'extra 2' });
+    m.post({ cause: 'c8', source: 'job', severity: 'info', title: 'extra 2' });
     ids = (await m.list()).notices.map((n) => n.id);
     expect(ids).toHaveLength(200);
     expect(ids).not.toContain(1);
@@ -186,9 +186,9 @@ describe('MockNotifications', () => {
 
   it('marks read, marks all read and dismisses, reporting what changed', async () => {
     const m = new MockNotifications();
-    const a = m.post({ source: 'job', severity: 'info', title: 'A' });
-    const b = m.post({ source: 'job', severity: 'info', title: 'B' });
-    m.post({ source: 'job', severity: 'info', title: 'C' });
+    const a = m.post({ cause: 'c9', source: 'job', severity: 'info', title: 'A' });
+    const b = m.post({ cause: 'c10', source: 'job', severity: 'info', title: 'B' });
+    m.post({ cause: 'c11', source: 'job', severity: 'info', title: 'C' });
     const events: NoticesEvent[] = [];
     await m.onChange((e) => events.push(e));
     expect(await m.markRead(a.id)).toBe(true);
@@ -204,14 +204,14 @@ describe('MockNotifications', () => {
 
   it('records only the project messages and restores them next to the app ones', async () => {
     const m = new MockNotifications();
-    m.post({ source: 'job', severity: 'info', title: 'project' });
-    m.post({ source: 'update', severity: 'info', title: 'app', scope: 'app' });
+    m.post({ cause: 'c12', source: 'job', severity: 'info', title: 'project' });
+    m.post({ cause: 'c13', source: 'update', severity: 'info', title: 'app', scope: 'app' });
     const record = await m.record();
     expect(record.version).toBe(1);
     expect(record.notices).toHaveLength(1);
 
     const other = new MockNotifications();
-    other.post({ source: 'update', severity: 'info', title: 'app', scope: 'app' });
+    other.post({ cause: 'c14', source: 'update', severity: 'info', title: 'app', scope: 'app' });
     const restored = await other.restore(record);
     expect(restored.warning).toBeNull();
     expect(restored.snapshot.notices.map((n) => n.title).sort()).toEqual(['app', 'project']);
@@ -223,8 +223,8 @@ describe('MockNotifications', () => {
 
   it('reports a damaged record and keeps the app messages', async () => {
     const m = new MockNotifications();
-    m.post({ source: 'job', severity: 'info', title: 'project' });
-    m.post({ source: 'update', severity: 'info', title: 'app', scope: 'app' });
+    m.post({ cause: 'c15', source: 'job', severity: 'info', title: 'project' });
+    m.post({ cause: 'c16', source: 'update', severity: 'info', title: 'app', scope: 'app' });
     for (const bad of [{ version: 9, notices: [] }, { version: 1, notices: 'x' }]) {
       const r = await m.restore(bad);
       expect(r.warning).toContain('damaged');
@@ -243,7 +243,7 @@ describe('MockNotifications', () => {
     const events: NoticesEvent[] = [];
     const offChange = await m.onChange((e) => events.push(e));
     offChange();
-    m.post({ source: 'job', severity: 'info', title: 'x' });
+    m.post({ cause: 'c17', source: 'job', severity: 'info', title: 'x' });
     expect(events).toEqual([]);
   });
 
@@ -303,74 +303,21 @@ describe('NotificationsStore', () => {
     expect(at(store.toasts(), 2).count).toBe(2);
   });
 
-  it('shows a toast of its own (negative id, not in the centre) that goes away by itself', async () => {
+  it('shows a toast of its own (negative id, not in the centre) that stays until dismissed (the host times it out)', async () => {
     const { fake, store } = setupStore();
     await settle();
     vi.useFakeTimers();
     store.showLocal({ severity: 'info', title: 'Exporting to a.csv — running in Jobs', primary: { type: 'showJobs' } });
-    store.showLocal({ severity: 'error', title: 'Did not start', body: 'queue is full' });
+    store.showLocal({ severity: 'warning', title: 'Did not start', body: 'queue is full' });
     const [first, second] = store.toasts();
     expect([first?.id, second?.id]).toEqual([-1, -2]);
     expect([first?.title, first?.body, first?.primary]).toEqual(['Exporting to a.csv — running in Jobs', '', { type: 'showJobs' }]);
-    expect([second?.severity, second?.body, second?.primary]).toEqual(['error', 'queue is full', null]);
+    expect([second?.severity, second?.body, second?.primary]).toEqual(['warning', 'queue is full', null]);
     expect(store.notices()).toEqual([]);
     expect(fake.markRead).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(TOAST_MS);
+    store.dismissToast(-1);
+    store.dismissToast(-2);
     expect(store.toasts()).toEqual([]);
-  });
-
-  it('dismisses a toast by itself after TOAST_MS', async () => {
-    const { fake, store } = setupStore();
-    await settle();
-    vi.useFakeTimers();
-    const a = notice({ id: 1 });
-    fake.push(event([a], a));
-    vi.advanceTimersByTime(TOAST_MS - 1);
-    expect(store.toasts()).toHaveLength(1);
-    vi.advanceTimersByTime(1);
-    expect(store.toasts()).toHaveLength(0);
-    expect(store.notices()).toHaveLength(1);
-  });
-
-  it('restarts the timer when a message is posted again and keeps a held toast open', async () => {
-    const { fake, store } = setupStore();
-    await settle();
-    vi.useFakeTimers();
-    const a = notice({ id: 1 });
-    fake.push(event([a], a));
-    vi.advanceTimersByTime(TOAST_MS - 1000);
-    fake.push(event([a], a));
-    vi.advanceTimersByTime(TOAST_MS - 1000);
-    expect(store.toasts()).toHaveLength(1);
-    vi.advanceTimersByTime(1000);
-    expect(store.toasts()).toHaveLength(0);
-
-    fake.push(event([a], a));
-    store.holdToast(1);
-    vi.advanceTimersByTime(TOAST_MS * 5);
-    expect(store.toasts()).toHaveLength(1);
-    store.dismissToast(1);
-    expect(store.toasts()).toHaveLength(0);
-    store.holdToast(99);
-  });
-
-  // Regression: a toast the pointer had passed over stayed until it was closed by hand.
-  it('a held toast goes after the usual time once released', async () => {
-    const { fake, store } = setupStore();
-    await settle();
-    vi.useFakeTimers();
-    const a = notice({ id: 1 });
-    fake.push(event([a], a));
-    store.holdToast(1);
-    vi.advanceTimersByTime(TOAST_MS * 3);
-    store.releaseToast(1);
-    vi.advanceTimersByTime(TOAST_MS - 1);
-    expect(store.toasts()).toHaveLength(1);
-    vi.advanceTimersByTime(1);
-    expect(store.toasts()).toHaveLength(0);
-    store.releaseToast(1); // gone already: nothing to restart
-    vi.advanceTimersByTime(TOAST_MS);
-    expect(store.toasts()).toHaveLength(0);
   });
 
   it('dismissing a message removes its toast and asks the engine', async () => {
@@ -490,7 +437,7 @@ describe('NotificationsStore', () => {
 
 describe('notifications-text', () => {
   it('names every source', () => {
-    expect(NOTICE_SOURCES.map(sourceLabel)).toEqual(['Jobs', 'Live alerts', 'Imports', 'Plugins', 'AI', 'Updates', 'Session', 'Performance', 'Workspace']);
+    expect(NOTICE_SOURCES.map(sourceLabel)).toEqual(['Jobs', 'Live alerts', 'Imports', 'Plugins', 'AI', 'Updates', 'Session', 'Performance', 'Workspace', 'Services']);
   });
 
   it('adds the count only when a message repeated', () => {
@@ -784,7 +731,6 @@ describe('NotificationsPersistence', () => {
 
 describe('provide-notifications', () => {
   afterEach(() => {
-    document.querySelectorAll('debrief-notification-toasts').forEach((e) => e.remove());
     TestBed.resetTestingModule();
   });
 
@@ -808,7 +754,7 @@ describe('provide-notifications', () => {
     expect(fake.markAllRead).toHaveBeenCalled();
   });
 
-  it('mounts the toasts and shows Notifications when a message gets the focus', async () => {
+  it('shows Notifications when a message gets the focus', async () => {
     const dock = new FakeDock();
     const fake = new FakeNotices();
     TestBed.configureTestingModule({
@@ -821,7 +767,6 @@ describe('provide-notifications', () => {
       ],
     });
     TestBed.runInInjectionContext(() => startNotifications());
-    expect(document.querySelectorAll('debrief-notification-toasts')).toHaveLength(1);
     TestBed.tick();
     expect(dock.calls).toEqual([]);
     TestBed.inject(NotificationsStore).setFocus(4);

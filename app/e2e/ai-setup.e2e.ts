@@ -34,8 +34,8 @@ test('the set-up is a quick modal choice: Download and set up closes it and the 
   // The window is gone at once; there is no progress, step or cancel in it.
   await expect(dialog).toHaveCount(0);
   // The assistant pane says how far it is, and a message announces the end.
-  await expect(page.getByTestId('notice-toast').filter({ hasText: 'AI assistant ready' })).toBeVisible({ timeout: 20_000 });
-  await expect(page.getByTestId('notice-toast').filter({ hasText: 'AI assistant ready' }).getByRole('button', { name: 'Open the assistant' })).toBeVisible();
+  await expect(page.getByTestId('notification').filter({ hasText: 'AI assistant ready' })).toBeVisible({ timeout: 20_000 });
+  await expect(page.getByTestId('notification').filter({ hasText: 'AI assistant ready' }).getByRole('button', { name: 'Open the assistant' })).toBeVisible();
 });
 
 test('the assistant pane shows "Setting up — 1.2 of 5.6 GB" while the background set-up runs', async ({ page }) => {

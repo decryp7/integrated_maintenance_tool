@@ -51,6 +51,6 @@ describe('mock timestamp diagnosis', () => {
     expect(summary.sources.filter((x) => x.timestampIssue).length).toBe(1);
     await backend.openPaths(['/logs/legacy-no-timestamps.csv']);
     const { notices } = await mockNotifications().list();
-    expect(notices.filter((n) => n.dedupeKey === 'import:timestamps:/logs/legacy-no-timestamps.csv')).toHaveLength(1);
+    expect(notices.filter((n) => n.cause === 'import:timestamps:/logs/legacy-no-timestamps.csv')).toHaveLength(1);
   });
 });

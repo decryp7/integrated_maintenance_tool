@@ -381,6 +381,19 @@ fn unavailable(e: &StoreError) -> CmdError {
 /// The error of a store worker that cannot start or stopped: a plain message and next step by cause, the raw chain and
 /// the worker's recent standard error as the technical detail, and retryable (opening a store lifts a quarantine).
 fn worker_failure(raw: &str) -> CmdError {
+    let (cause, detail) = classify_worker_failure(raw);
+    // Service health states the outage once (status bar, one notification); the error only points at it.
+    crate::health::hub::report_store_failed(cause, &detail);
+    let mut err = CmdError::new(ErrorCode::Unavailable, cause.message())
+        .hint(cause.hint())
+        .detail(Some(detail))
+        .caused_by(crate::error::ServiceCause::Store);
+    err.retryable = true;
+    err
+}
+
+/// The cause of a store worker failure and its technical detail (the raw chain and the worker's recent standard error).
+pub(crate) fn classify_worker_failure(raw: &str) -> (store_failure::StoreFailure, String) {
     let stderr = debrief_ipc::child_log::find("store-worker")
         .map(|l| l.tail_text())
         .unwrap_or_default();
@@ -390,11 +403,7 @@ fn worker_failure(raw: &str) -> CmdError {
     } else {
         format!("{raw}\n\n{}", stderr.trim_end())
     };
-    let mut err = CmdError::new(ErrorCode::Unavailable, cause.message())
-        .hint(cause.hint())
-        .detail(Some(detail));
-    err.retryable = true;
-    err
+    (cause, detail)
 }
 
 /// Whether an engine error is the store worker's own failure (it did not start, stopped or was quarantined).

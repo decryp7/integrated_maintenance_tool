@@ -125,6 +125,42 @@ pub struct CmdError {
     #[serde(skip_serializing_if = "Option::is_none")]
     #[cfg_attr(test, ts(optional))]
     pub detail: Option<String>,
+    /// The service failure this error is a symptom of (`health:store`): the engine reports that once through service
+    /// health, so the UI does not show it again as an error of the request. (A one-byte enum: the error stays small.)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    #[cfg_attr(test, ts(optional))]
+    pub cause: Option<ServiceCause>,
+}
+
+/// A service whose outage an error is a symptom of; serialised as the notification cause key (`health:<service>`). One per service of
+/// [`crate::health`]; set on an error only while that service is not working (see [`CmdError::in_outage_of`]).
+#[cfg_attr(test, derive(ts_rs::TS))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+pub enum ServiceCause {
+    #[serde(rename = "health:store")]
+    Store,
+    #[serde(rename = "health:ai")]
+    Ai,
+    #[serde(rename = "health:plugins")]
+    Plugins,
+    #[serde(rename = "health:browser")]
+    Browser,
+    #[serde(rename = "health:downloads")]
+    Downloads,
+}
+
+impl ServiceCause {
+    /// The cause of a service id of [`crate::health`].
+    pub fn of(service: &str) -> Option<ServiceCause> {
+        match service {
+            crate::health::hub::STORE => Some(ServiceCause::Store),
+            crate::health::hub::AI => Some(ServiceCause::Ai),
+            crate::health::hub::PLUGINS => Some(ServiceCause::Plugins),
+            crate::health::hub::BROWSER => Some(ServiceCause::Browser),
+            crate::health::hub::DOWNLOADS => Some(ServiceCause::Downloads),
+            _ => None,
+        }
+    }
 }
 
 /// The result of a command.
@@ -150,7 +186,23 @@ impl CmdError {
             line: None,
             hint: None,
             detail: None,
+            cause: None,
         }
+    }
+
+    /// Marks the error as a symptom of `service`'s outage, but only while service health says that service is not working
+    /// (decided from its state, never from the error text). The UI then waits for the service instead of reporting again.
+    pub fn in_outage_of(mut self, service: &str) -> CmdError {
+        if crate::health::hub::is_in_outage(service) {
+            self.cause = ServiceCause::of(service);
+        }
+        self
+    }
+
+    /// Marks the error as a symptom of a service outage (see [`crate::health`]).
+    pub fn caused_by(mut self, cause: ServiceCause) -> CmdError {
+        self.cause = Some(cause);
+        self
     }
 
     pub fn failed(message: impl Into<String>) -> CmdError {

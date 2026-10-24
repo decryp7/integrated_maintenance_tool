@@ -30,16 +30,22 @@ impl Assistant {
 }
 
 fn ready<R: Runtime>(app: &AppHandle<R>, name: &str) {
-    let notice = NewNotice::new(NoticeSource::Ai, NoticeSeverity::Success, "AI assistant ready", NoticeScope::App)
-        .body(format!("{name} is set up and runs on this computer."))
-        .primary(NoticeAction::OpenAssistant)
-        .dedupe("ai-setup");
+    let notice = NewNotice::new(
+        "ai-setup",
+        NoticeSource::Ai,
+        NoticeSeverity::Success,
+        "AI assistant ready",
+        NoticeScope::App,
+    )
+    .body(format!("{name} is set up and runs on this computer."))
+    .primary(NoticeAction::OpenAssistant);
     crate::notification_centre::post(app, None, notice, Some(NotificationKind::JobFinished));
 }
 
 /// One plain message for a failed set-up, whichever step failed.
 pub(crate) fn failed<R: Runtime>(app: &AppHandle<R>, model_id: &str, reason: &str) {
     let notice = NewNotice::new(
+        "ai-setup",
         NoticeSource::Ai,
         NoticeSeverity::Error,
         "The AI assistant could not be set up",
@@ -48,8 +54,7 @@ pub(crate) fn failed<R: Runtime>(app: &AppHandle<R>, model_id: &str, reason: &st
     .body(reason)
     .primary(NoticeAction::SetUpAssistant {
         model_id: model_id.to_string(),
-    })
-    .dedupe("ai-setup");
+    });
     crate::notification_centre::post(app, None, notice, Some(NotificationKind::JobFailed));
 }
 

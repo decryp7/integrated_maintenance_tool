@@ -13,6 +13,8 @@ import { formatBytes } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
 import { AiErrorCode, AiInstalledRuntime, AiRuntimeEntry } from '../ai.types';
 import { AiManualDownload } from '../manual/manual-download';
+import { ServiceHealthStore } from '../../health/service-health.store';
+import { WaitingFor } from '../../health/waiting-for';
 import { offersManualDownload } from '../manual/manual-download-view';
 import { AiRuntimeStore } from './ai-runtime.store';
 import {
@@ -32,7 +34,7 @@ import {
  */
 @Component({
   selector: 'debrief-ai-runtime-panel',
-  imports: [AiManualDownload],
+  imports: [WaitingFor, AiManualDownload],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="intro muted">
@@ -55,10 +57,14 @@ import {
       </p>
     }
     @if (store.error(); as err) {
-      <p class="err" role="alert" data-testid="ai-runtime-load-error">
-        {{ err }}
-        <button type="button" class="btn ghost" (click)="store.load()" i18n="@@ai.runtime.retry">Retry</button>
-      </p>
+      @if (health.isServing('downloads')) {
+        <p class="err" role="alert" data-testid="ai-runtime-load-error">
+          {{ err }}
+          <button type="button" class="btn ghost" (click)="store.load()" i18n="@@ai.runtime.retry">Retry</button>
+        </p>
+      } @else {
+        <debrief-waiting-for service="downloads" />
+      }
     }
     @if (store.job(); as i) {
       <div class="progress" data-testid="ai-runtime-progress">
@@ -388,6 +394,7 @@ import {
   `,
 })
 export class AiRuntimePanel implements OnInit {
+  protected readonly health = inject(ServiceHealthStore);
   protected readonly store = inject(AiRuntimeStore);
   private readonly status = inject(AiStatusStore);
   private readonly dialogs = inject(DialogService);

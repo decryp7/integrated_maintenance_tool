@@ -103,11 +103,11 @@ test.describe('live tail: alerts', () => {
     // The first alert (an error spike) is due 1.5 s of live ticks after live tail starts.
     await page.clock.runFor(2_000);
     // The toast stack shows the newest three: take a visible error spike (an older toast may be folded away meanwhile).
-    const toast = page.getByTestId('alert-toast').filter({ hasText: 'Error spike', visible: true }).last();
+    const toast = page.getByTestId('notification').filter({ hasText: 'Error spike', visible: true }).last();
     await expect(toast).toBeVisible();
     await expect(toast).toContainText('Critical');
     await expect(toast).toContainText('Error spike');
-    await expectNoSeriousViolations(page, testInfo, 'alert-toast', 'debrief-alert-toasts');
+    await expectNoSeriousViolations(page, testInfo, 'notification', 'debrief-notification-host');
     await toast.getByRole('button', { name: 'Show' }).click();
     // The evidence: errors and fatals in the alert's time range (which pauses following).
     const level = (l: string) => page.getByRole('toolbar', { name: 'Levels' }).locator(`button[data-level=${l}]`);
@@ -127,20 +127,20 @@ test.describe('live tail: alerts', () => {
     await liveOn(page);
     // One alert a second, in turn: error spike, rule, silence.
     await page.clock.runFor(1_500);
-    const toast = page.getByTestId('alert-toast').filter({ hasText: 'Error spike' }).first();
+    const toast = page.getByTestId('notification').filter({ hasText: 'Error spike' }).first();
     await expect(toast).toBeVisible();
     await toast.getByRole('button', { name: 'Mute this kind for 15 min' }).click();
-    await expect(page.getByTestId('alert-toast').filter({ hasText: 'Error spike' })).toHaveCount(0);
+    await expect(page.getByTestId('notification').filter({ hasText: 'Error spike' })).toHaveCount(0);
     // The next alerts of other kinds still toast.
     await page.clock.runFor(1_000);
-    await expect(page.getByTestId('alert-toast').filter({ hasText: /Rule: payment errors|Silence/ }).first()).toBeVisible();
+    await expect(page.getByTestId('notification').filter({ hasText: /Rule: payment errors|Silence/ }).first()).toBeVisible();
     // Two more rule alerts mean an error spike was due in between, and it was not toasted (the engine holds muted
     // kinds back).
     const ruleRows = page.locator('debrief-alerts-view').getByTestId('alert-row').filter({ hasText: 'Rule: payment errors' });
     const rules = await ruleRows.count();
     await page.clock.runFor(6_000);
     await expect.poll(() => ruleRows.count()).toBeGreaterThanOrEqual(rules + 2);
-    await expect(page.getByTestId('alert-toast').filter({ hasText: 'Error spike' })).toHaveCount(0);
+    await expect(page.getByTestId('notification').filter({ hasText: 'Error spike' })).toHaveCount(0);
   });
 
   test('the alerts panel lists, filters, clears, counts on its tab, and passes axe', async ({ page }, testInfo) => {
@@ -159,7 +159,7 @@ test.describe('live tail: alerts', () => {
     await liveButton(page).click();
     await expect(liveButton(page)).toHaveAttribute('aria-pressed', 'false');
     // The toasts float over the panel (critical ones stay until closed): close them so they cannot cover its buttons.
-    const dismiss = page.getByRole('button', { name: 'Dismiss alert' });
+    const dismiss = page.getByRole('button', { name: 'Dismiss notification' });
     // (A warning toast may time out on its own between the count and the click.)
     while (await dismiss.count()) await dismiss.first().click({ timeout: 2_000 }).catch(() => undefined);
     const filters = panel.getByRole('group', { name: 'Filter by severity' });

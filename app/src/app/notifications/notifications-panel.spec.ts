@@ -10,10 +10,13 @@ import { JobsBackend } from '../jobs/jobs-backend';
 import { JobsStore } from '../jobs/jobs.store';
 import { JobInfo } from '../jobs/jobs.types';
 import { NoticeActions } from './notice-actions';
-import { NotificationToasts } from './notification-toasts';
+import { NotificationHost } from '../health/notification-host';
+import { provideNotificationSource } from '../health/provide-notification-host';
+import { NotificationsSource } from './notifications-source';
 import { NotificationsBackend } from './notifications-backend';
 import { NotificationsPanel } from './notifications-panel';
-import { NotificationsStore, TOAST_MS } from './notifications.store';
+import { NotificationsStore } from './notifications.store';
+import { TOAST_MS } from '../health/notification-host.model';
 import { EMPTY_NOTICES, Notice, NoticeAction, NoticesEvent, NoticesSnapshot } from './notifications.types';
 
 function notice(p: Partial<Notice> & { id: number }): Notice {
@@ -30,7 +33,7 @@ function notice(p: Partial<Notice> & { id: number }): Notice {
     secondary: null,
     tertiary: null,
     link: { window: 'main', jobId: null, recordId: null, pluginId: null, path: null },
-    dedupeKey: null,
+    cause: `fixture:${p.id}`,
     scope: 'project',
     ...p,
   };
@@ -148,7 +151,7 @@ describe('NotificationsPanel', () => {
     f.detectChanges();
     const labels = Array.from(document.querySelectorAll('[data-testid=kind-filter-list] [role=option]')).map((l) => l.textContent?.replace(/\s+/g, ' ').trim());
     expect(labels.some((l) => l?.includes('Updates1'))).toBe(true);
-    expect(labels).toHaveLength(9);
+    expect(labels).toHaveLength(10);
     document.querySelector<HTMLElement>('[data-testid=kind-update]')!.click();
     f.detectChanges();
     expect(all(f, 'h3').map((h) => h.textContent)).toEqual(['Updates']);
@@ -305,7 +308,7 @@ describe('NotificationsPanel', () => {
   });
 });
 
-describe('NotificationToasts', () => {
+describe('notification toasts in the host', () => {
   afterEach(() => {
     vi.useRealTimers();
     TestBed.resetTestingModule();
@@ -315,44 +318,25 @@ describe('NotificationToasts', () => {
     const fake = new FakeNotices();
     const ctx = new FakeContext();
     const actions = makeActions();
-    TestBed.configureTestingModule({ providers: providers(fake, ctx, actions) });
-    const f = TestBed.createComponent(NotificationToasts);
+    TestBed.configureTestingModule({ providers: [...providers(fake, ctx, actions), provideNotificationSource(NotificationsSource)] });
+    const f = TestBed.createComponent(NotificationHost);
     return { f, fake, ctx, actions, store: TestBed.inject(NotificationsStore) };
   }
-
-  it('holds a toast under the pointer or focus and releases it once both have left', async () => {
-    const { f, fake, store } = setup();
-    await render(f);
-    const n = notice({ id: 1, primary: { type: 'showJobs' } });
-    fake.push(event([n], n));
-    f.detectChanges();
-    const toast = el(f, '[data-testid=notice-toast]');
-    const hold = vi.spyOn(store, 'holdToast');
-    const release = vi.spyOn(store, 'releaseToast');
-    toast.dispatchEvent(new MouseEvent('mouseenter'));
-    expect(hold).toHaveBeenCalledWith(1);
-    el<HTMLButtonElement>(f, '[data-testid=notice-toast-primary]').focus();
-    toast.dispatchEvent(new MouseEvent('mouseleave'));
-    expect(release).not.toHaveBeenCalled(); // focus is still inside
-    el<HTMLButtonElement>(f, '[data-testid=notice-toast-primary]').blur();
-    toast.dispatchEvent(new FocusEvent('focusout', { relatedTarget: document.body }));
-    expect(release).toHaveBeenCalledWith(1);
-  });
 
   it('renders nothing until a message is posted, then previews it with its action', async () => {
     const { f, fake } = setup();
     await render(f);
-    expect(all(f, '[data-testid=notice-toast]')).toHaveLength(0);
+    expect(all(f, '[data-testid=notification]')).toHaveLength(0);
     expect(el(f, '[role=region]').getAttribute('aria-live')).toBe('polite');
     const n = notice({ id: 1, title: 'Failed: Export', body: 'disk full', severity: 'error', count: 2, primary: { type: 'retryJob', jobId: 4 } });
     fake.push(event([n], n));
     f.detectChanges();
-    const toast = el(f, '[data-testid=notice-toast]');
+    const toast = el(f, '[data-testid=notification]');
     expect(toast.getAttribute('data-severity')).toBe('error');
     expect(toast.querySelector('.title')?.textContent).toBe('Failed: Export (×2)');
     expect(toast.querySelector('.body')?.textContent).toBe('disk full');
-    expect(el(f, '[data-testid=notice-toast-primary]').textContent).toBe('Retry');
-    expect(el(f, '[data-testid=notice-toast-show]').textContent).toBe('Show in Notifications');
+    expect(el(f, '[data-testid=notification-action-primary]').textContent).toBe('Retry');
+    expect(el(f, '[data-testid=notification-action-show]').textContent).toBe('Show in Notifications');
   });
 
   it('a toast of the UI own (running in Jobs) has its action but no Show in Notifications', async () => {
@@ -360,9 +344,9 @@ describe('NotificationToasts', () => {
     await render(f);
     store.showLocal({ severity: 'info', title: 'Exporting to a.csv — running in Jobs', primary: { type: 'showJobs' } });
     f.detectChanges();
-    expect(el(f, '[data-testid=notice-toast] .title').textContent).toBe('Exporting to a.csv — running in Jobs');
-    expect(f.nativeElement.querySelector('[data-testid=notice-toast-show]')).toBeNull();
-    el<HTMLButtonElement>(f, '[data-testid=notice-toast-primary]').click();
+    expect(el(f, '[data-testid=notification] .title').textContent).toBe('Exporting to a.csv — running in Jobs');
+    expect(f.nativeElement.querySelector('[data-testid=notification-action-show]')).toBeNull();
+    el<HTMLButtonElement>(f, '[data-testid=notification-action-primary]').click();
     await settle(f);
     expect(actions.run).toHaveBeenCalledWith(expect.objectContaining({ id: -1 }), { type: 'showJobs' });
   });
@@ -374,7 +358,7 @@ describe('NotificationToasts', () => {
     fake.push(event([n], n));
     f.detectChanges();
     expect(f.nativeElement.querySelector('.body')).toBeNull();
-    expect(f.nativeElement.querySelector('[data-testid=notice-toast-primary]')).toBeNull();
+    expect(f.nativeElement.querySelector('[data-testid=notification-action-primary]')).toBeNull();
   });
 
   it('runs the primary action and closes the toast on success, but keeps it with the message on failure', async () => {
@@ -386,16 +370,16 @@ describe('NotificationToasts', () => {
     fake.push(event([b, a], b));
     f.detectChanges();
     actions.run.mockResolvedValueOnce('did not work');
-    at(all<HTMLButtonElement>(f, '[data-testid=notice-toast-primary]'), 0).click();
+    at(all<HTMLButtonElement>(f, '[data-testid=notification-action-primary]'), 0).click();
     await settle(f);
     f.detectChanges();
     expect(actions.run).toHaveBeenLastCalledWith(expect.objectContaining({ id: 1 }), { type: 'resetAi' });
-    expect(all(f, '[data-testid=notice-toast]')).toHaveLength(2);
+    expect(all(f, '[data-testid=notification]')).toHaveLength(2);
     expect(f.nativeElement.textContent).toContain('did not work');
-    at(all<HTMLButtonElement>(f, '[data-testid=notice-toast-primary]'), 0).click();
+    at(all<HTMLButtonElement>(f, '[data-testid=notification-action-primary]'), 0).click();
     await settle(f);
     f.detectChanges();
-    expect(all(f, '[data-testid=notice-toast]')).toHaveLength(1);
+    expect(all(f, '[data-testid=notification]')).toHaveLength(1);
     expect(f.nativeElement.textContent).not.toContain('did not work');
   });
 
@@ -405,11 +389,11 @@ describe('NotificationToasts', () => {
     const n = notice({ id: 9 });
     fake.push(event([n], n));
     f.detectChanges();
-    el<HTMLButtonElement>(f, '[data-testid=notice-toast-show]').click();
+    el<HTMLButtonElement>(f, '[data-testid=notification-action-show]').click();
     f.detectChanges();
     expect(store.focus()).toBe(9);
     expect(ctx.last('showView')).toEqual(['notifications']);
-    expect(all(f, '[data-testid=notice-toast]')).toHaveLength(0);
+    expect(all(f, '[data-testid=notification]')).toHaveLength(0);
   });
 
   it('dismisses with the close button, which leaves the message in the list', async () => {
@@ -420,7 +404,7 @@ describe('NotificationToasts', () => {
     f.detectChanges();
     el<HTMLButtonElement>(f, 'button[aria-label="Dismiss notification"]').click();
     f.detectChanges();
-    expect(all(f, '[data-testid=notice-toast]')).toHaveLength(0);
+    expect(all(f, '[data-testid=notification]')).toHaveLength(0);
     expect(store.notices()).toHaveLength(1);
     expect(fake.dismiss).not.toHaveBeenCalled();
   });
@@ -434,14 +418,14 @@ describe('NotificationToasts', () => {
     fake.push(event([a], a));
     fake.push(event([b, a], b));
     f.detectChanges();
-    const toasts = all(f, '[data-testid=notice-toast]');
+    const toasts = all(f, '[data-testid=notification]');
     at(toasts, 0).dispatchEvent(new MouseEvent('mouseenter'));
     vi.advanceTimersByTime(TOAST_MS);
     f.detectChanges();
-    expect(all(f, '[data-testid=notice-toast]')).toHaveLength(1);
-    at(all(f, '[data-testid=notice-toast]'), 0).dispatchEvent(new FocusEvent('focusin'));
+    expect(all(f, '[data-testid=notification]')).toHaveLength(1);
+    at(all(f, '[data-testid=notification]'), 0).dispatchEvent(new FocusEvent('focusin'));
     vi.advanceTimersByTime(TOAST_MS * 3);
     f.detectChanges();
-    expect(all(f, '[data-testid=notice-toast]')).toHaveLength(1);
+    expect(all(f, '[data-testid=notification]')).toHaveLength(1);
   });
 });

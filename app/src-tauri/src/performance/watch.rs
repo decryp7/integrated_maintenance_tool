@@ -1,8 +1,9 @@
 //! What the memory watcher tells the app (ADR 0031 §5): each capped process' use and peak, a quiet message at 80% of
-//! its cap and a toast with *Raise the cap…* and *Retry* when the watcher stops it. The messages are built by pure
-//! functions; [`MemoryHub`] keeps the peaks and posts through whatever the app attached (the notification centre).
+//! its cap; a stop is service health's (the process is down, with *Raise the cap…* advice and Try again). The messages and
+//! the stop are built by pure functions; [`MemoryHub`] keeps the peaks and posts through whatever the app attached (the notification centre).
 
-use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeLink, NoticeScope, NoticeSeverity, NoticeSource, ProcessRef};
+use crate::health::model::Cause;
+use crate::notification_centre::centre::{NewNotice, NoticeLink, NoticeScope, NoticeSeverity, NoticeSource, ProcessRef};
 use crate::sync::lock;
 use debrief_ipc::memory_watch::{MemoryEvent, MemoryListener, MemoryUse};
 use serde::Serialize;
@@ -73,44 +74,51 @@ pub fn notice(process: &ProcessRef, name: &str, event: &MemoryEvent) -> Option<N
     match event {
         MemoryEvent::Warning(u) => Some(
             NewNotice::new(
+                format!("memory:warning:{}", key(process)),
                 NoticeSource::Performance,
                 NoticeSeverity::Info,
                 format!("{name} is using {} of {} MB", mb(u.used), mb(u.limit)),
                 NoticeScope::App,
             )
             .body("It is close to its memory cap. If it needs more, Debrief stops it; the cap is in Settings ▸ Performance.")
-            .dedupe(format!("memory:warning:{}", key(process)))
             .link(link)
             .quiet(),
         ),
-        MemoryEvent::Stopped(u) => {
-            let suggested = suggested_cap_mb(u.peak.max(u.used), max_cap_mb(process));
-            let after = match process {
-                ProcessRef::StoreWorker => " The project opens again with the next action.",
-                _ => "",
-            };
-            Some(
-                NewNotice::new(
-                    NoticeSource::Performance,
-                    NoticeSeverity::Warning,
-                    format!("{name} was stopped: it used more than its {} MB memory cap", mb(u.limit)),
-                    NoticeScope::App,
-                )
-                .body(format!(
-                    "It reached {} MB. Raise the cap to about {suggested} MB, or retry if this was a one-off.{after}",
-                    mb(u.used.max(u.peak))
-                ))
-                .primary(NoticeAction::RaiseMemoryCap {
-                    process: process.clone(),
-                    suggested_mb: suggested,
-                })
-                .secondary(NoticeAction::RetryProcess { process: process.clone() })
-                .dedupe(format!("memory:stopped:{}", key(process)))
-                .link(link),
-            )
-        }
+        // A stop is service health's to state (see [`stop`]), once, with Raise the cap… and Try again.
+        MemoryEvent::Stopped(_) => None,
         MemoryEvent::Ended(_) => None,
     }
+}
+
+/// What a stop over the memory cap means for service health: which service, the plain cause with the advice to raise the cap.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Stop {
+    /// The service the process belongs to (`store`, `ai`, `plugins`).
+    pub service: &'static str,
+    /// The plugin, when the process is one.
+    pub plugin: Option<String>,
+    pub cause: Cause,
+}
+
+/// The stop of `process` (`name` as [`display_name`]) that used `u`.
+pub fn stop(process: &ProcessRef, name: &str, u: &MemoryUse) -> Stop {
+    let suggested = suggested_cap_mb(u.peak.max(u.used), max_cap_mb(process));
+    let after = match process {
+        ProcessRef::StoreWorker => " The project opens again with the next action.",
+        _ => "",
+    };
+    let (service, plugin) = match process {
+        ProcessRef::StoreWorker => (crate::health::hub::STORE, None),
+        ProcessRef::Ai => (crate::health::hub::AI, None),
+        ProcessRef::Plugin { plugin_id } => (crate::health::hub::PLUGINS, Some(plugin_id.clone())),
+    };
+    let cause = Cause::new(format!("{name} was stopped: it used more than its {} MB memory cap", mb(u.limit)))
+        .hint(format!(
+            "It reached {} MB. Raise the cap to about {suggested} MB, or try again if this was a one-off.{after}",
+            mb(u.used.max(u.peak))
+        ))
+        .raise_cap(key(process), suggested);
+    Stop { service, plugin, cause }
 }
 
 /// How a process ended its last report.
@@ -208,6 +216,9 @@ impl MemoryHub {
             };
             display_name(&process, plugin.as_deref())
         };
+        if let MemoryEvent::Stopped(u) = &event {
+            crate::health::hub::report_memory_stopped(&stop(&process, &name, u));
+        }
         if let (Some(n), Some(post)) = (notice(&process, &name, &event), lock(&self.poster).as_ref()) {
             post(n);
         }
@@ -263,55 +274,36 @@ mod tests {
             (n.severity, n.source, n.scope),
             (NoticeSeverity::Info, NoticeSource::Performance, NoticeScope::App)
         );
-        assert_eq!(n.dedupe_key.as_deref(), Some("memory:warning:plugin:net.x"));
+        assert_eq!(n.cause, "memory:warning:plugin:net.x");
         assert_eq!(n.link.plugin_id.as_deref(), Some("net.x"));
         assert!(notice(&p, "x", &MemoryEvent::Ended(usage(1, 1, 2))).is_none());
     }
 
     #[test]
-    fn a_stop_is_a_toast_with_raise_the_cap_and_retry() {
-        let n = notice(
-            &ProcessRef::StoreWorker,
-            "The database worker",
-            &MemoryEvent::Stopped(usage(2100, 2100, 2048)),
-        )
-        .unwrap();
-        assert!(!n.quiet);
-        assert_eq!(n.severity, NoticeSeverity::Warning);
-        assert_eq!(n.title, "The database worker was stopped: it used more than its 2048 MB memory cap");
+    fn a_stop_is_service_healths_with_raise_the_cap_advice_and_no_message_of_its_own() {
+        let u = usage(2100, 2100, 2048);
+        assert!(notice(&ProcessRef::StoreWorker, "The database worker", &MemoryEvent::Stopped(u)).is_none());
+        let s = stop(&ProcessRef::StoreWorker, "The database worker", &u);
+        assert_eq!((s.service, s.plugin.as_deref()), ("store", None));
+        assert_eq!(
+            s.cause.message,
+            "The database worker was stopped: it used more than its 2048 MB memory cap"
+        );
+        let hint = s.cause.hint.as_deref().unwrap();
         assert!(
-            n.body.contains("2100 MB") && n.body.contains("3328 MB") && n.body.contains("opens again"),
-            "{}",
-            n.body
+            hint.contains("2100 MB") && hint.contains("3328 MB") && hint.contains("opens again"),
+            "{hint}"
         );
-        assert_eq!(
-            n.primary,
-            Some(NoticeAction::RaiseMemoryCap {
-                process: ProcessRef::StoreWorker,
-                suggested_mb: 3328
-            })
+        let cap = s.cause.raise_cap.unwrap();
+        assert_eq!((cap.target.as_str(), cap.suggested_mb), ("storeWorker", 3328));
+        let p = stop(
+            &ProcessRef::Plugin { plugin_id: "net.x".into() },
+            "Plugin 'X'",
+            &usage(530, 530, 512),
         );
-        assert_eq!(
-            n.secondary,
-            Some(NoticeAction::RetryProcess {
-                process: ProcessRef::StoreWorker
-            })
-        );
-        assert_eq!(n.dedupe_key.as_deref(), Some("memory:stopped:storeWorker"));
-        // The wire shape the UI maps.
-        let wire = serde_json::to_value(n.primary.unwrap()).unwrap();
-        assert_eq!(
-            wire,
-            serde_json::json!({"type": "raiseMemoryCap", "process": {"kind": "storeWorker"}, "suggestedMb": 3328})
-        );
-        let retry = serde_json::to_value(NoticeAction::RetryProcess {
-            process: ProcessRef::Plugin { plugin_id: "p".into() },
-        })
-        .unwrap();
-        assert_eq!(
-            retry,
-            serde_json::json!({"type": "retryProcess", "process": {"kind": "plugin", "pluginId": "p"}})
-        );
+        assert_eq!((p.service, p.plugin.as_deref()), ("plugins", Some("net.x")));
+        assert_eq!(p.cause.raise_cap.unwrap().target, "plugin:net.x");
+        assert_eq!(stop(&ProcessRef::Ai, "The AI worker", &usage(1, 1, 1)).service, "ai");
     }
 
     #[test]
@@ -330,10 +322,8 @@ mod tests {
         let titles: Vec<String> = posted.lock().unwrap().iter().map(|n| n.title.clone()).collect();
         assert_eq!(
             titles,
-            [
-                "Plugin 'Event logs' is using 420 of 512 MB",
-                "Plugin 'Event logs' was stopped: it used more than its 512 MB memory cap"
-            ]
+            ["Plugin 'Event logs' is using 420 of 512 MB"],
+            "a stop is service health's, not a second message"
         );
         let seen = hub.seen();
         assert_eq!(seen.len(), 2);

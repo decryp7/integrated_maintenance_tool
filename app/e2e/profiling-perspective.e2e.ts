@@ -35,9 +35,9 @@ test.describe('profiling perspective', () => {
     await expect(page.locator('debrief-timeline-panel')).toHaveCount(0);
     const notice = toast(page);
     await expect(notice).toBeVisible();
-    await expect(notice.getByTestId('notice-action')).toHaveText('Undo');
+    await expect(notice.getByTestId('notification-action-notice')).toHaveText('Undo');
     await expectNoSeriousViolations(page, test.info(), 'profiling-switch-toast', '[data-toast]');
-    await notice.getByTestId('notice-action').click();
+    await notice.getByTestId('notification-action-notice').click();
     await expect(page.locator('debrief-timeline-panel')).toBeVisible();
     await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
 

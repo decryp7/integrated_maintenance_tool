@@ -44,7 +44,27 @@ impl From<AiError> for AiCmdError {
             AiError::Io(_) => AiErrorCode::Io,
             AiError::SelfTest(_) => AiErrorCode::SelfTestFailed,
         };
-        AiCmdError::new(code, e.to_string())
+        // The error is a symptom of an outage only while service health says the service is down.
+        let service = match code {
+            AiErrorCode::Engine | AiErrorCode::Memory | AiErrorCode::SelfTestFailed => Some(crate::health::hub::AI),
+            AiErrorCode::Browser => Some(crate::health::hub::BROWSER),
+            AiErrorCode::Network
+            | AiErrorCode::Tls
+            | AiErrorCode::ProxyAuth
+            | AiErrorCode::Proxy
+            | AiErrorCode::Offline
+            | AiErrorCode::Timeout
+            | AiErrorCode::HttpStatus
+            | AiErrorCode::Gated
+            | AiErrorCode::Integrity
+            | AiErrorCode::Disk => Some(crate::health::hub::DOWNLOADS),
+            _ => None,
+        };
+        let err = AiCmdError::new(code, e.to_string());
+        match service {
+            Some(s) => err.in_outage_of(s),
+            None => err,
+        }
     }
 }
 

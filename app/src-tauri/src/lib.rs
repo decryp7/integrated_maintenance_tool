@@ -43,6 +43,7 @@ mod error;
 mod file_commands;
 #[cfg(test)]
 mod generated_types;
+mod health;
 mod insights;
 mod instance;
 mod investigate;
@@ -400,7 +401,8 @@ command_table! {
     Query [WINDOW] => performance::commands::performance_preset,
     Query [WINDOW] => performance::commands::performance_memory,
     Mutation [WINDOW] => performance::commands::performance_set_plugin_memory,
-    Mutation [WINDOW] => performance::commands::performance_retry_store_worker,
+    Query [WINDOW] => health::commands::health_snapshot,
+    Mutation [WINDOW] => health::commands::health_repair,
     Query [WINDOW] => browser::research::ai_research_draft,
     Mutation [WINDOW] => browser::research::ai_research,
     Query [WINDOW] => browser::driving::browser_driving,
@@ -642,6 +644,7 @@ fn setup(app: &mut tauri::App, launch: &instance::LaunchArgs, safe_mode: bool, s
     jobs::init(app.handle());
     notification_centre::init(app.handle());
     performance::attach_notifications(app.handle());
+    health::commands::init(app.handle());
 
     // ---- settings ----
     settings::init(app.handle());
@@ -688,24 +691,24 @@ fn session_notices<R: tauri::Runtime>(app: &tauri::AppHandle<R>, previous_crash:
     use notification_centre::centre::{NewNotice, NoticeScope, NoticeSeverity, NoticeSource};
     if previous_crash {
         let n = NewNotice::new(
+            format!("session:crash:{}", activity::session_id()),
             NoticeSource::Session,
             NoticeSeverity::Warning,
             "Debrief did not close properly",
             NoticeScope::App,
         )
-        .body("Your last session can be restored; jobs that were running are listed as interrupted, with Retry.")
-        .dedupe(format!("session:crash:{}", activity::session_id()));
+        .body("Your last session can be restored; jobs that were running are listed as interrupted, with Retry.");
         notification_centre::post(app, None, n, None);
     }
     if safe_mode {
         let n = NewNotice::new(
+            format!("session:safe:{}", activity::session_id()),
             NoticeSource::Session,
             NoticeSeverity::Info,
             "Debrief runs in safe mode",
             NoticeScope::App,
         )
-        .body("Plugins and the AI are off for this run. Restart Debrief normally to turn them on again.")
-        .dedupe(format!("session:safe:{}", activity::session_id()));
+        .body("Plugins and the AI are off for this run. Restart Debrief normally to turn them on again.");
         notification_centre::post(app, None, n, None);
     }
 }
@@ -905,6 +908,47 @@ pub(crate) mod test_support {
         out
     }
 
+    /// Runs a command that must only start a job, with the window's `kind` queue occupied by a job that cannot finish until the
+    /// command has returned. A command that waited for its job instead of returning its id would never return (the hang
+    /// detector, not a time bound, ends the test). Deterministic: no wall-clock threshold, so a loaded machine cannot fail it.
+    pub fn returns_while_its_job_is_queued<F: std::future::Future>(
+        app: &tauri::App<MockRuntime>,
+        window: &str,
+        kind: jobs::JobKind,
+        what: &str,
+        f: F,
+    ) -> F::Output {
+        let (release, gate) = std::sync::mpsc::channel::<()>();
+        let gate = std::sync::Mutex::new(gate);
+        let blocker = jobs::spawn(
+            app.handle(),
+            jobs::JobSpec::new(kind, "blocker").window(window),
+            jobs::Controls::default(),
+            move |ctx: &jobs::JobCtx| -> Result<jobs::Done<()>, String> {
+                loop {
+                    if ctx.is_cancelled() {
+                        return Err("cancelled".into());
+                    }
+                    match gate.lock().unwrap().recv_timeout(std::time::Duration::from_millis(5)) {
+                        Err(std::sync::mpsc::RecvTimeoutError::Timeout) => {}
+                        _ => return Ok(jobs::Done::new(())),
+                    }
+                }
+            },
+        )
+        .expect("the blocking job is accepted");
+        jobs::wait_until("the blocking job to run", || {
+            app.state::<jobs::Jobs>().state_of(blocker) == Some(jobs::JobState::Running)
+        });
+        let out = block(async {
+            tokio::time::timeout(std::time::Duration::from_secs(120), f)
+                .await
+                .unwrap_or_else(|_| panic!("{what} waited for its job instead of returning its id"))
+        });
+        let _ = release.send(());
+        out
+    }
+
     /// The clock of the test app's jobs and notification centre.
     pub struct TestClock(pub std::sync::Arc<jobs::ManualClock>);
 
@@ -967,6 +1011,7 @@ pub(crate) mod test_support {
         jobs::wire(app.handle(), &jobs);
         app.manage(jobs);
         app.manage(notification_centre::NotificationCentre::new(None, clock));
+        health::commands::setup(app.handle());
         // The repository samples count as chosen in the main window (files in a test's own folder do not).
         paths::allow_under(app.handle(), windows::MAIN, &samples());
         browser::manage_state(app.handle(), std::sync::Arc::default());

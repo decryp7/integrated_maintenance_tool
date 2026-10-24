@@ -7,8 +7,10 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { DialogService } from '../ui/dialog.service';
 import { TimeCursor } from '../analysis/time-cursor';
 import { LiveTail } from '../workspace/live-tail';
-import { AlertToasts } from './alert-toasts';
-import { AlertsStore, kindLabel, MAX_ALERTS, MAX_TOASTS, MUTE_MS, muteKey, muteLabel, muteTarget, severityLabel, TOAST_MS } from './alerts.store';
+import { NotificationHost } from '../health/notification-host';
+import { provideNotificationSource } from '../health/provide-notification-host';
+import { AlertsSource } from './alerts-source';
+import { AlertsStore, kindLabel, MAX_ALERTS, MAX_TOASTS, MUTE_MS, muteKey, muteLabel, muteTarget, severityLabel } from './alerts.store';
 import { AlertsView } from './alerts-view';
 import { LiveAlerts } from './live-alerts';
 import { SeverityBadge } from './severity-badge';
@@ -129,18 +131,6 @@ describe('AlertsStore', () => {
     await sim.unmuteAlerts({ kind: 'errorSpike' });
   });
 
-  it('dismisses warning and info toasts after a while; critical ones stay', async () => {
-    vi.useFakeTimers();
-    const store = setup();
-    store.receive(alert({ severity: 'critical' }));
-    store.receive(alert({ severity: 'warning' }));
-    expect(store.toasts().length).toBe(2);
-    await vi.advanceTimersByTimeAsync(TOAST_MS + 10);
-    expect(store.toasts().map((t) => t.alert.severity)).toEqual(['critical']);
-    store.dismissToast(at(store.toasts(), 0).id);
-    expect(store.toasts()).toEqual([]);
-  });
-
   it('filters by severity, counts, removes and clears', () => {
     const store = setup();
     store.receive(alert({ severity: 'critical' }));
@@ -220,7 +210,7 @@ describe('LiveAlerts', () => {
 describe('alert components', () => {
   async function setup() {
     const backend = new MockBackend({ latency: false, dataset: tinyDataset });
-    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend)] });
+    TestBed.configureTestingModule({ providers: [provideTinyBackend(backend), provideNotificationSource(AlertsSource)] });
     await settle();
     return { backend, store: TestBed.inject(AlertsStore), actions: TestBed.inject(LiveAlerts) };
   }
@@ -228,18 +218,18 @@ describe('alert components', () => {
   it('toasts show the severity in words, Show applies the evidence, Mute mutes the kind', async () => {
     const { store, actions } = await setup();
     const show = vi.spyOn(actions, 'show').mockImplementation(() => undefined);
-    const fixture = TestBed.createComponent(AlertToasts);
+    const fixture = TestBed.createComponent(NotificationHost);
     store.receive(alert());
     store.receive(rule('payments'));
     await settle(fixture);
-    expect(all(fixture, '[data-testid=alert-toast]').length).toBe(2);
+    expect(all(fixture, '[data-testid=notification]').length).toBe(2);
     expect(text(fixture)).toContain('Critical');
     expect(text(fixture)).toContain('Error spike');
     expect(text(fixture)).toContain('WEB01 · 100');
     buttonByText(fixture, 'Show').click();
     await settle(fixture);
     expect(show).toHaveBeenCalledWith(expect.objectContaining({ kind: 'errorSpike' }));
-    expect(all(fixture, '[data-testid=alert-toast]').length).toBe(1);
+    expect(all(fixture, '[data-testid=notification]').length).toBe(1);
     buttonByText(fixture, 'Mute this kind for 15 min').click();
     await settle(fixture);
     expect(store.isMuted(rule('payments'))).toBe(true);
@@ -247,7 +237,7 @@ describe('alert components', () => {
     await settle(fixture);
     el<HTMLButtonElement>(fixture, '.x').click();
     await settle(fixture);
-    expect(all(fixture, '[data-testid=alert-toast]').length).toBe(0);
+    expect(all(fixture, '[data-testid=notification]').length).toBe(0);
   });
 
   it('the alerts panel lists, filters, mutes, shows evidence, clears and opens the rules editor', async () => {

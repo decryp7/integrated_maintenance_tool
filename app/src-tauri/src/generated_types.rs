@@ -21,8 +21,9 @@ fn files() -> Vec<(&'static str, String)> {
         (
             "errors.ts",
             format!(
-                "{header}{}\n{}",
+                "{header}{}\n{}\n{}",
                 decl(crate::error::ErrorCode::decl()),
+                decl(crate::error::ServiceCause::decl()),
                 decl(crate::error::CmdError::decl())
             ),
         ),

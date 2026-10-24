@@ -35,9 +35,9 @@ async function openNotifications(page: Page) {
 async function explainInBackground(page: Page): Promise<void> {
   await page.locator('debrief-events-grid [role=row].row').first().click();
   await runCommand(page, 'AI: Explain the selected event');
-  const started = page.getByTestId('notice-toast').filter({ hasText: /Explaining event #\d+ — running in Jobs/ });
+  const started = page.getByTestId('notification').filter({ hasText: /Explaining event #\d+ — running in Jobs/ });
   await expect(started).toBeVisible();
-  await expect(started.getByTestId('notice-toast-primary')).toHaveText('Show in Jobs');
+  await expect(started.getByTestId('notification-action-primary')).toHaveText('Show in Jobs');
   await expect(page.getByRole('dialog')).toHaveCount(0);
 }
 
@@ -67,10 +67,10 @@ test.describe('jobs', () => {
     await expectNoSeriousViolations(page, testInfo, 'jobs-pane', 'debrief-jobs-panel');
 
     // The AI answer finishes first: "Explanation ready" with View, and View opens the answer with its citations.
-    const toast = page.getByTestId('notice-toast').filter({ hasText: 'Explanation ready' });
+    const toast = page.getByTestId('notification').filter({ hasText: 'Explanation ready' });
     await expect(toast).toBeVisible({ timeout: 15_000 });
-    await expectNoSeriousViolations(page, testInfo, 'jobs-toast', 'debrief-notification-toasts');
-    await toast.getByTestId('notice-toast-primary').click();
+    await expectNoSeriousViolations(page, testInfo, 'jobs-toast', 'debrief-notification-host');
+    await toast.getByTestId('notification-action-primary').click();
     await expect(page.getByTestId('ai-narrative')).toContainText('failed order submission');
     await page.keyboard.press('Escape');
     await expect((await openJobs(page)).locator('li').filter({ hasText: 'Explain event' })).toContainText('Done');
@@ -80,7 +80,7 @@ test.describe('jobs', () => {
     await openAiApp(page, 'mockAiStepMs=2500&mockJobsVisibleMs=0&mockJobsFailOnce=export');
     await explainInBackground(page);
     await runCommand(page, 'AI: Find likely root causes');
-    await expect(page.getByTestId('notice-toast').filter({ hasText: 'Looking for root causes — running in Jobs' })).toBeVisible();
+    await expect(page.getByTestId('notification').filter({ hasText: 'Looking for root causes — running in Jobs' })).toBeVisible();
     await openJobs(page);
     const pane = jobsPane(page);
     const waiting = pane.locator('li').filter({ hasText: 'Find likely root causes' });
@@ -151,7 +151,7 @@ test.describe('research', () => {
     await expect(answer).toContainText('skipped: a login');
     await expect(chat.getByTestId('ai-browser-menu')).toContainText('Browser: Off');
     // The research ran as a job: "Research finished" with View.
-    await expect(page.getByTestId('notice-toast').filter({ hasText: 'Research finished' })).toBeVisible();
+    await expect(page.getByTestId('notification').filter({ hasText: 'Research finished' })).toBeVisible();
     await expect((await openJobs(page)).locator('li').filter({ hasText: 'Research: what does HRESULT 0x80070005' })).toContainText('Done');
     await expectNoSeriousViolations(page, testInfo, 'research-answer', 'debrief-ai-chat-panel');
   });
@@ -173,9 +173,9 @@ test.describe('research', () => {
     await dialog.getByLabel('Results to read').selectOption('10');
     await dialog.getByTestId('research-run').click();
     await expect(dialog).toHaveCount(0);
-    const toast = page.getByTestId('notice-toast').filter({ hasText: 'Research finished' });
+    const toast = page.getByTestId('notification').filter({ hasText: 'Research finished' });
     await expect(toast).toBeVisible({ timeout: 15_000 });
-    await toast.getByTestId('notice-toast-primary').click();
+    await toast.getByTestId('notification-action-primary').click();
     await expect(chat).toContainText('E_ACCESSDENIED');
   });
 

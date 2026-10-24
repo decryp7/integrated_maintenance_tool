@@ -134,6 +134,4 @@ export class WorkspaceStore {
   readonly setNotice = this.status.setNotice;
   readonly noticeAction = this.status.noticeAction;
   readonly runNoticeAction = this.status.runNoticeAction;
-  readonly holdNotice = this.status.holdNotice;
-  readonly releaseNotice = this.status.releaseNotice;
 }

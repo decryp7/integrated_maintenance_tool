@@ -15,7 +15,9 @@ import { ExportTarget } from './export-target';
 import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
 import { REPORT_FILE_NAME, ReportProblemDialog } from './report-problem-dialog';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
-import { SnapshotToast } from './snapshot-toast';
+import { NotificationHost } from '../health/notification-host';
+import { provideNotificationSource } from '../health/provide-notification-host';
+import { SnapshotSource } from './snapshot-source';
 import { ACTIVITY_LOG_COMMAND, CapturedImage, REPORT_PROBLEM_COMMAND } from './snapshot.types';
 import { at } from '../../testing/must';
 import { mockJobs } from '../jobs/mock-jobs';
@@ -213,14 +215,14 @@ describe('snapshots with breadcrumbs', () => {
   });
 
   it('the snapshot toast offers to report the problem', async () => {
-    @Component({ selector: 'debrief-host', imports: [SnapshotToast], template: '<debrief-snapshot-toast />' })
+    @Component({ selector: 'debrief-host', imports: [NotificationHost], providers: [provideNotificationSource(SnapshotSource)], template: '<debrief-notification-host />' })
     class Host {}
     const { run } = setup();
     const f = TestBed.createComponent(Host);
     const service = TestBed.inject(ErrorSnapshotService);
     service.toast.set({ kind: 'captured', id: 'a', firstTime: false });
     await flush(f);
-    (f.nativeElement.querySelector('[data-testid=toast-report-problem]') as HTMLButtonElement).click();
+    (f.nativeElement.querySelector('[data-testid=notification-action-report]') as HTMLButtonElement).click();
     expect(run).toHaveBeenCalledWith(REPORT_PROBLEM_COMMAND);
     expect(service.toast()).toBeNull();
   });

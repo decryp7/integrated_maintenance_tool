@@ -94,6 +94,7 @@ mod tests {
         let mut c = Centre::new(10);
         c.post(
             NewNotice::new(
+                "update:1.2",
                 NoticeSource::Update,
                 NoticeSeverity::Info,
                 "Debrief 1.2 is available",
@@ -104,6 +105,7 @@ mod tests {
         );
         c.post(
             NewNotice::new(
+                "session:crash",
                 NoticeSource::Session,
                 NoticeSeverity::Warning,
                 "Debrief did not close properly",

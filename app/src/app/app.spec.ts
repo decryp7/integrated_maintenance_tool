@@ -61,23 +61,11 @@ describe('App', () => {
     expect(fixture.nativeElement.querySelector('debrief-sidebar')).toBeNull();
   });
 
-  it('shows errors, notices as dismissible toasts and the drop overlay', async () => {
+  it('shows the drop overlay', async () => {
     const { fixture, store } = await render();
-    store.setError('Something failed');
-    store.setNotice('Exported 3 events');
     store.setDropHover(true);
     await settle(fixture);
-    // In the toast stack, one above the other.
-    const stack = document.querySelector('.debrief-toast-stack')!;
-    expect(stack.querySelector('.toast[role=alert]')?.textContent).toContain('Something failed');
-    expect(stack.querySelector('.toast[role=status]')?.textContent).toContain('Exported 3 events');
     expect(text(fixture)).toContain('Drop files or folders');
-    stack.querySelector<HTMLButtonElement>('.toast[role=alert] button')!.click();
-    stack.querySelector<HTMLButtonElement>('.toast[role=status] button')!.click();
-    await settle(fixture);
-    expect(stack.querySelector('.toast')).toBeNull();
-    fixture.destroy();
-    expect(document.querySelector('debrief-workspace-toasts')).toBeNull();
   });
 
   it('renders the lifecycle banners right below the title bar, as part of the shell', async () => {

@@ -104,7 +104,7 @@ test.describe('AI vision', () => {
     await expectNoSeriousViolations(page, testInfo, 'ai-vision-no-vision', 'debrief-ai-chat-panel');
     // Nothing was downloaded: no projector job ran.
     await expect(offer.getByTestId('ai-projector-running')).toHaveCount(0);
-    await expect(page.getByTestId('notice-toast').filter({ hasText: 'image support' })).toHaveCount(0);
+    await expect(page.getByTestId('notification').filter({ hasText: 'image support' })).toHaveCount(0);
 
     await offer.getByRole('button', { name: 'Choose a model that reads images…' }).click();
     const models = page.getByRole('dialog', { name: 'AI models' });

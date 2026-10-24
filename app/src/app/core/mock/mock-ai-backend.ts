@@ -372,8 +372,8 @@ export class MockAiBackend extends AiBackend {
   private announceSetup(modelId: string, failure?: string): void {
     mockNotifications().post(
       failure === undefined
-        ? { source: 'ai', severity: 'success', scope: 'app', title: 'AI assistant ready', body: 'The model is set up and runs on this computer.', primary: { type: 'openAssistant' }, dedupeKey: 'ai-setup' }
-        : { source: 'ai', severity: 'error', scope: 'app', title: 'The AI assistant could not be set up', body: failure, primary: { type: 'setUpAssistant', modelId }, dedupeKey: 'ai-setup' },
+        ? { source: 'ai', severity: 'success', scope: 'app', title: 'AI assistant ready', body: 'The model is set up and runs on this computer.', primary: { type: 'openAssistant' }, cause: 'ai-setup' }
+        : { source: 'ai', severity: 'error', scope: 'app', title: 'The AI assistant could not be set up', body: failure, primary: { type: 'setUpAssistant', modelId }, cause: 'ai-setup' },
     );
   }
 

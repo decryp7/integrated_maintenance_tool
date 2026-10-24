@@ -1827,22 +1827,52 @@ fn a_quarantined_worker_pauses_the_ai_queue_until_reset() {
     let list = ipc(&main, "jobs_list", json!({})).unwrap();
     assert_eq!(list["paused"][0]["kind"], "ai");
     assert_eq!(active_ai(&app).len(), 1, "still waiting");
+    // The crash is service health's to state, once: the AI worker is quarantined and one message (cause `health:ai`)
+    // offers the repair.
     let notices = ipc(&main, "notifications_list", json!({})).unwrap();
-    let paused = notices["notices"]
+    let ai: Vec<_> = notices["notices"]
         .as_array()
         .unwrap()
         .iter()
-        .find(|n| n["source"] == "ai")
-        .expect("an AI message")
+        .filter(|n| n["cause"] == "health:ai")
+        .collect();
+    assert_eq!(ai.len(), 1, "{notices}");
+    assert_eq!(ai[0]["primary"], json!({"type": "repairService", "service": "ai"}));
+    assert_eq!(ai[0]["scope"], "app");
+    assert_eq!(ai[0]["severity"], "error");
+    assert!(
+        notices["notices"].as_array().unwrap().iter().all(|n| n["cause"] != "ai:paused"),
+        "no second message for the same failure"
+    );
+    let health = ipc(&main, "health_snapshot", json!({})).unwrap();
+    let ai_state = health["services"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|s| s["service"] == "ai")
+        .unwrap()
         .clone();
-    assert_eq!(paused["primary"], json!({"type": "resetAi"}));
-    assert_eq!(paused["scope"], "app");
+    assert_eq!(
+        (ai_state["state"].as_str(), ai_state["repair"].as_str()),
+        (Some("quarantined"), Some("reset"))
+    );
     // Reset AI: the queue goes on.
     steps.send(Step::Answer).unwrap();
     ipc(&main, "ai_reset", json!({})).unwrap();
     let waited = ended(&app, waiting);
     assert_eq!(waited.as_ref().map(|j| j.state), Some(crate::jobs::JobState::Done), "{waited:?}");
     assert!(ipc(&main, "jobs_list", json!({})).unwrap()["paused"].as_array().unwrap().is_empty());
+    // Reset AI is a repair: the service is back and its message is gone.
+    let health = ipc(&main, "health_snapshot", json!({})).unwrap();
+    assert!(
+        health["services"].as_array().unwrap().iter().all(|s| s["state"] == "ok"),
+        "{health}"
+    );
+    let notices = ipc(&main, "notifications_list", json!({})).unwrap();
+    assert!(
+        notices["notices"].as_array().unwrap().iter().all(|n| n["cause"] != "health:ai"),
+        "{notices}"
+    );
 }
 
 #[test]

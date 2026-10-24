@@ -10,7 +10,9 @@ import { ExportTarget } from './export-target';
 import { MockSnapshotBackend } from './mock/mock-snapshot-backend';
 import { SnapshotBackend } from './snapshot-backend';
 import { SnapshotsStore } from './snapshots.store';
-import { SnapshotToast } from './snapshot-toast';
+import { NotificationHost } from '../health/notification-host';
+import { provideNotificationSource } from '../health/provide-notification-host';
+import { SnapshotSource } from './snapshot-source';
 import { CapturedImage, SNAPSHOT_NOTICE } from './snapshot.types';
 import { at } from '../../testing/must';
 import { mockJobs } from '../jobs/mock-jobs';
@@ -197,8 +199,8 @@ describe('ErrorSnapshotsView', () => {
   });
 });
 
-describe('SnapshotToast', () => {
-  @Component({ selector: 'debrief-host', imports: [SnapshotToast], template: '<debrief-snapshot-toast />' })
+describe('the snapshot notification', () => {
+  @Component({ selector: 'debrief-host', imports: [NotificationHost], providers: [provideNotificationSource(SnapshotSource)], template: '<debrief-notification-host />' })
   class Host {}
 
   it('says "Something went wrong in <panel>." with Details folded; Details holds the screenshot notice and View snapshot (E4)', async () => {
@@ -206,27 +208,27 @@ describe('SnapshotToast', () => {
     const f = TestBed.createComponent(Host);
     const service = TestBed.inject(ErrorSnapshotService);
     f.detectChanges();
-    expect(f.nativeElement.querySelector('[data-testid=snapshot-toast]')).toBeNull();
+    expect(f.nativeElement.querySelector('[data-testid=notification]')).toBeNull();
     service.toast.set({ kind: 'captured', id: 'a', firstTime: true, where: 'Timeline' });
     await flush(f);
-    const toast: HTMLElement = f.nativeElement.querySelector('[data-testid=snapshot-toast]');
+    const toast: HTMLElement = f.nativeElement.querySelector('[data-testid=notification]');
     expect(toast.textContent).toContain('Something went wrong in Timeline.');
     expect(toast.textContent).not.toContain('screenshot');
-    expect(toast.querySelector('[data-testid=snapshot-notice]')).toBeNull();
-    const toggle = toast.querySelector('[data-testid=snapshot-details-toggle]') as HTMLButtonElement;
+    expect(toast.querySelector('[data-testid=notification-details]')).toBeNull();
+    const toggle = toast.querySelector('[data-testid=notification-details-toggle]') as HTMLButtonElement;
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
     toggle.click();
     await flush(f);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(toast.querySelector('[data-testid=snapshot-notice]')?.textContent).toContain(SNAPSHOT_NOTICE);
+    expect(toast.querySelector('[data-testid=notification-details]')?.textContent).toContain(SNAPSHOT_NOTICE);
     // A new toast starts folded again.
     service.toast.set({ kind: 'captured', id: 'b', firstTime: false });
     await flush(f);
     expect(toast.textContent).toContain('Something went wrong.');
-    expect(toast.querySelector('[data-testid=snapshot-notice]')).toBeNull();
+    expect(toast.querySelector('[data-testid=notification-details]')).toBeNull();
     toggle.click();
     await flush(f);
-    [...toast.querySelectorAll<HTMLButtonElement>('[data-testid=snapshot-notice] button')].find((b) => b.textContent === 'View snapshot')!.click();
+    [...toast.querySelectorAll<HTMLButtonElement>('button')].find((b) => b.textContent === 'View snapshot')!.click();
     expect(run).toHaveBeenCalledWith('diagnostics.snapshots.show');
     expect(service.toast()).toBeNull();
     expect(backend.folderOpened).toBe(0);
@@ -242,22 +244,23 @@ describe('SnapshotToast', () => {
     expect(f.nativeElement.textContent).not.toContain('went wrong');
     service.toast.set({ kind: 'captured', id: 'a', firstTime: true });
     await flush(f);
-    (f.nativeElement.querySelector('[data-testid=snapshot-details-toggle]') as HTMLButtonElement).click();
+    (f.nativeElement.querySelector('[data-testid=notification-details-toggle]') as HTMLButtonElement).click();
     await flush(f);
-    const notice: HTMLElement = f.nativeElement.querySelector('[data-testid=snapshot-notice]');
+    const notice: HTMLElement = f.nativeElement.querySelector('[data-testid=notification-details]');
     expect(notice.textContent).toContain(SNAPSHOT_NOTICE);
-    const links = notice.querySelectorAll('button');
-    (links[1] as HTMLButtonElement).click();
-    (links[2] as HTMLButtonElement).click();
+    const links = [...(f.nativeElement.querySelector('[data-testid=notification]') as HTMLElement).querySelectorAll('button')];
+    const link = (label: string) => links.find((b) => b.textContent === label) as HTMLButtonElement;
+    link('Open folder').click();
+    link('Settings…').click();
     expect(backend.folderOpened).toBe(1);
     expect(run).toHaveBeenCalledWith('settings.diagnostics');
     backend.openFolder = async () => {
       throw new Error('x');
     };
-    (links[1] as HTMLButtonElement).click();
+    link('Open folder').click();
     (f.nativeElement.querySelector('.x') as HTMLButtonElement).click();
     await flush(f);
-    expect(f.nativeElement.querySelector('[data-testid=snapshot-toast]')).toBeNull();
+    expect(f.nativeElement.querySelector('[data-testid=notification]')).toBeNull();
   });
 
   it('reports a failed manual capture', async () => {

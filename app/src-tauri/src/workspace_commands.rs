@@ -113,14 +113,19 @@ fn report_not_imported<R: Runtime>(app: &AppHandle<R>, label: &str, files: &[deb
         n => format!("{n} files were not imported"),
     };
     let names: Vec<&str> = new.iter().take(5).map(|u| u.name.as_str()).collect();
-    let notice = NewNotice::new(NoticeSource::Import, NoticeSeverity::Warning, title, NoticeScope::Project)
-        .body(format!("Debrief does not know their format yet: {}.", names.join(", ")))
-        .primary(NoticeAction::SetUpFormat { path: first.path.clone() })
-        .dedupe(format!("import:not-imported:{}", first.path))
-        .link(NoticeLink {
-            path: Some(first.path.clone()),
-            ..NoticeLink::default()
-        });
+    let notice = NewNotice::new(
+        format!("import:not-imported:{}", first.path),
+        NoticeSource::Import,
+        NoticeSeverity::Warning,
+        title,
+        NoticeScope::Project,
+    )
+    .body(format!("Debrief does not know their format yet: {}.", names.join(", ")))
+    .primary(NoticeAction::SetUpFormat { path: first.path.clone() })
+    .link(NoticeLink {
+        path: Some(first.path.clone()),
+        ..NoticeLink::default()
+    });
     crate::notification_centre::post(app, Some(label), notice, None);
 }
 
@@ -140,6 +145,7 @@ pub(crate) fn timestamp_notice(source: &debrief_core::api::SourceInfo) -> Option
         body.push_str(&format!(" The format {f} reads them."));
     }
     let notice = NewNotice::new(
+        format!("import:timestamps:{}", source.path),
         NoticeSource::Import,
         NoticeSeverity::Warning,
         format!("Timestamps not recognised in {}", source.name),
@@ -150,7 +156,6 @@ pub(crate) fn timestamp_notice(source: &debrief_core::api::SourceInfo) -> Option
         path: source.path.clone(),
         format,
     })
-    .dedupe(format!("import:timestamps:{}", source.path))
     .once()
     .link(NoticeLink {
         path: Some(source.path.clone()),
@@ -1556,7 +1561,7 @@ mod tests {
                 format: Some("%a %b %d %H:%M:%S %Y".into())
             })
         );
-        assert!(n.once && n.dedupe_key.as_deref() == Some("import:timestamps:/logs/app.csv"));
+        assert!(n.once && n.cause == "import:timestamps:/logs/app.csv");
         // Without a suggestion the wizard opens empty.
         source.timestamp_issue.as_mut().unwrap().suggestion = None;
         let n = timestamp_notice(&source).unwrap();

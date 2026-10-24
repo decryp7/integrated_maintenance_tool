@@ -33,6 +33,8 @@ pub enum NoticeSource {
     Performance,
     /// Things about the files and folders the user opened (a new folder worth setting up).
     Workspace,
+    /// A Debrief service stopped (service health: the log store, the AI worker, plugins, the browser, downloads).
+    Health,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
@@ -42,6 +44,8 @@ pub enum NoticeSeverity {
     Success,
     Warning,
     Error,
+    /// A failure that stops the work and stays until it is resolved or dismissed.
+    Critical,
 }
 
 /// Where a message lives: with the window's project, or with the app (update, crash recovery, AI).
@@ -118,16 +122,9 @@ pub enum NoticeAction {
     SkipAiUpdate {
         key: String,
     },
-    /// Opens the memory cap of `process` (Settings ▸ Performance, or the plugin's cap in the Plugins panel) with a
-    /// suggested value, to apply or change.
-    RaiseMemoryCap {
-        process: ProcessRef,
-        #[serde(rename = "suggestedMb")]
-        suggested_mb: u32,
-    },
-    /// Lets a process the memory watcher stopped start again (resets its crash count).
-    RetryProcess {
-        process: ProcessRef,
+    /// Repairs a service from the shell (`health_repair`).
+    RepairService {
+        service: String,
     },
 }
 
@@ -175,7 +172,9 @@ pub struct Notice {
     pub tertiary: Option<NoticeAction>,
     #[serde(default)]
     pub link: NoticeLink,
-    pub dedupe_key: Option<String>,
+    /// The cause key (`store.down`, `job:12`, `update:1.2`): a second post with the same cause updates this message in
+    /// place; a cause that clears resolves (removes) it.
+    pub cause: String,
     pub scope: NoticeScope,
 }
 
@@ -190,7 +189,8 @@ pub struct NewNotice {
     pub secondary: Option<NoticeAction>,
     pub tertiary: Option<NoticeAction>,
     pub link: NoticeLink,
-    pub dedupe_key: Option<String>,
+    /// Mandatory: what this message is about. The same cause again updates the existing message.
+    pub cause: String,
     pub scope: NoticeScope,
     /// Posting the same key again is ignored instead of counted (e.g. an update announced at every check).
     pub once: bool,
@@ -199,7 +199,13 @@ pub struct NewNotice {
 }
 
 impl NewNotice {
-    pub fn new(source: NoticeSource, severity: NoticeSeverity, title: impl Into<String>, scope: NoticeScope) -> NewNotice {
+    pub fn new(
+        cause: impl Into<String>,
+        source: NoticeSource,
+        severity: NoticeSeverity,
+        title: impl Into<String>,
+        scope: NoticeScope,
+    ) -> NewNotice {
         NewNotice {
             source,
             severity,
@@ -209,7 +215,7 @@ impl NewNotice {
             secondary: None,
             tertiary: None,
             link: NoticeLink::default(),
-            dedupe_key: None,
+            cause: cause.into(),
             scope,
             once: false,
             quiet: false,
@@ -245,11 +251,6 @@ impl NewNotice {
 
     pub fn tertiary(mut self, a: NoticeAction) -> NewNotice {
         self.tertiary = Some(a);
-        self
-    }
-
-    pub fn dedupe(mut self, key: impl Into<String>) -> NewNotice {
-        self.dedupe_key = Some(key.into());
         self
     }
 
@@ -302,13 +303,11 @@ impl Centre {
     /// Adds a message, or merges it into the one with the same dedupe key: the count goes up, the time,
     /// text, severity and actions are the latest, and it is unread again. `id` is used for a new message.
     pub fn post(&mut self, new: NewNotice, id: NoticeId, now: i64) -> Posted {
-        let key = new.dedupe_key.as_deref().map(|k| clean(k, MAX_KEY)).filter(|k| !k.is_empty());
+        let key = clean(&new.cause, MAX_KEY);
+        let key = if key.is_empty() { format!("anonymous:{}", id.0) } else { key };
         let title = clean(&new.title, MAX_TITLE);
         let body = clean(&new.body, MAX_BODY);
-        if let Some(i) = key
-            .as_ref()
-            .and_then(|k| self.notices.iter().position(|n| n.dedupe_key.as_ref() == Some(k)))
-        {
+        if let Some(i) = self.notices.iter().position(|n| n.cause == key) {
             if new.once {
                 return Posted {
                     notice: self.notices[i].clone(),
@@ -348,7 +347,7 @@ impl Centre {
             secondary: new.secondary,
             tertiary: new.tertiary,
             link: new.link,
-            dedupe_key: key,
+            cause: key,
             scope: new.scope,
         };
         self.notices.push(n.clone());
@@ -358,6 +357,25 @@ impl Centre {
             merged: false,
             unchanged: false,
         }
+    }
+
+    /// Updates the message of `cause` in place (`post` with a cause that is there does the same); false when no message
+    /// has this cause, and nothing changes.
+    #[allow(dead_code)] // the shared notification core's API (Paddock ADR 0010); producers post, which updates in place too
+    pub fn update_cause(&mut self, cause: &str, new: NewNotice, now: i64) -> bool {
+        let Some(id) = self.notices.iter().find(|n| n.cause == cause).map(|n| n.id) else {
+            return false;
+        };
+        let mut new = new;
+        new.cause = cause.to_string();
+        self.post(new, id, now);
+        true
+    }
+
+    /// The cause cleared: removes its message. Returns it, or `None` when it was not here.
+    pub fn resolve_cause(&mut self, cause: &str) -> Option<Notice> {
+        let i = self.notices.iter().position(|n| n.cause == cause)?;
+        Some(self.notices.remove(i))
     }
 
     /// Over the cap: the oldest read messages go first, then the oldest unread ones.
@@ -421,13 +439,13 @@ mod tests {
 
     fn spike(host: &str) -> NewNotice {
         NewNotice::new(
+            format!("live:errorSpike:{host}"),
             NoticeSource::LiveAlert,
             NoticeSeverity::Error,
             format!("ERROR spike on {host}"),
             NoticeScope::Project,
         )
         .body("12 errors in a minute")
-        .dedupe(format!("live:errorSpike:{host}"))
         .primary(NoticeAction::ShowAlert { alert_id: "a1".into() })
     }
 
@@ -450,12 +468,12 @@ mod tests {
         // A `once` message is announced once.
         let update = || {
             NewNotice::new(
+                "update:2",
                 NoticeSource::Update,
                 NoticeSeverity::Info,
                 "Debrief 2 is available",
                 NoticeScope::App,
             )
-            .dedupe("update:2")
             .once()
         };
         c.post(update(), NoticeId(7), 500);
@@ -463,10 +481,10 @@ mod tests {
         let again = c.post(update(), NoticeId(8), 600);
         assert!(again.unchanged && again.notice.read && again.notice.count == 1);
         c.dismiss(NoticeId(7));
-        // Messages without a key never merge.
-        let plain = || NewNotice::new(NoticeSource::Session, NoticeSeverity::Info, "Safe mode", NoticeScope::App);
-        c.post(plain(), NoticeId(3), 1);
-        c.post(plain(), NoticeId(4), 2);
+        // Different causes never merge.
+        let plain = |cause: &str| NewNotice::new(cause, NoticeSource::Session, NoticeSeverity::Info, "Safe mode", NoticeScope::App);
+        c.post(plain("a"), NoticeId(3), 1);
+        c.post(plain("b"), NoticeId(4), 2);
         assert_eq!(c.notices().len(), 4);
     }
 
@@ -475,21 +493,27 @@ mod tests {
         let mut c = Centre::new(3);
         for i in 1..=3 {
             c.post(
-                NewNotice::new(NoticeSource::Job, NoticeSeverity::Success, format!("job {i}"), NoticeScope::Project),
+                NewNotice::new(
+                    format!("job:{i}"),
+                    NoticeSource::Job,
+                    NoticeSeverity::Success,
+                    format!("job {i}"),
+                    NoticeScope::Project,
+                ),
                 NoticeId(i),
                 i as i64,
             );
         }
         c.mark_read(NoticeId(2));
         c.post(
-            NewNotice::new(NoticeSource::Job, NoticeSeverity::Success, "job 4", NoticeScope::Project),
+            NewNotice::new("job:4", NoticeSource::Job, NoticeSeverity::Success, "job 4", NoticeScope::Project),
             NoticeId(4),
             4,
         );
         let ids: Vec<u64> = c.notices().iter().map(|n| n.id.0).collect();
         assert_eq!(ids, [1, 3, 4], "the read one went, although it was not the oldest");
         c.post(
-            NewNotice::new(NoticeSource::Job, NoticeSeverity::Success, "job 5", NoticeScope::Project),
+            NewNotice::new("job:5", NoticeSource::Job, NoticeSeverity::Success, "job 5", NoticeScope::Project),
             NoticeId(5),
             5,
         );
@@ -505,22 +529,28 @@ mod tests {
         let mut c = Centre::new(10);
         let p = c.post(
             NewNotice::new(
+                "plugin:p",
                 NoticeSource::Plugin,
                 NoticeSeverity::Error,
                 "Plugin\nquarantined\u{7}",
                 NoticeScope::Project,
             )
             .body("x".repeat(5000))
-            .dedupe("  ")
             .secondary(NoticeAction::ShowJobs),
             NoticeId(1),
             0,
         );
         assert_eq!(p.notice.title, "Plugin quarantined");
         assert_eq!(p.notice.body.chars().count(), MAX_BODY);
-        assert_eq!(p.notice.dedupe_key, None, "a blank key is no key");
+        assert_eq!(p.notice.cause, "plugin:p");
         c.post(
-            NewNotice::new(NoticeSource::Ai, NoticeSeverity::Warning, "AI paused", NoticeScope::App),
+            NewNotice::new(
+                "ai:paused",
+                NoticeSource::Ai,
+                NoticeSeverity::Warning,
+                "AI paused",
+                NoticeScope::App,
+            ),
             NoticeId(2),
             1,
         );
@@ -555,17 +585,22 @@ mod tests {
     #[test]
     fn a_third_action_is_kept_merged_and_optional_on_the_wire() {
         let ask = |to: &str| {
-            NewNotice::new(NoticeSource::Ai, NoticeSeverity::Info, format!("Update to {to}"), NoticeScope::App)
-                .dedupe("ai-update:runtime:cpu")
-                .primary(NoticeAction::UpdateAi {
-                    key: format!("runtime:cpu@{to}"),
-                })
-                .secondary(NoticeAction::LaterAiUpdate {
-                    key: format!("runtime:cpu@{to}"),
-                })
-                .tertiary(NoticeAction::SkipAiUpdate {
-                    key: format!("runtime:cpu@{to}"),
-                })
+            NewNotice::new(
+                "ai-update:runtime:cpu",
+                NoticeSource::Ai,
+                NoticeSeverity::Info,
+                format!("Update to {to}"),
+                NoticeScope::App,
+            )
+            .primary(NoticeAction::UpdateAi {
+                key: format!("runtime:cpu@{to}"),
+            })
+            .secondary(NoticeAction::LaterAiUpdate {
+                key: format!("runtime:cpu@{to}"),
+            })
+            .tertiary(NoticeAction::SkipAiUpdate {
+                key: format!("runtime:cpu@{to}"),
+            })
         };
         let mut c = Centre::new(10);
         c.post(ask("b1"), NoticeId(1), 1);
@@ -584,5 +619,72 @@ mod tests {
         old.as_object_mut().unwrap().remove("tertiary");
         let back: Notice = serde_json::from_value(old).unwrap();
         assert_eq!(back.tertiary, None, "messages saved before the third action still load");
+    }
+
+    #[test]
+    fn a_blank_cause_is_replaced_by_a_unique_one_so_it_never_merges_by_accident() {
+        let mut c = Centre::new(10);
+        let a = c.post(
+            NewNotice::new("  ", NoticeSource::Session, NoticeSeverity::Info, "a", NoticeScope::App),
+            NoticeId(1),
+            0,
+        );
+        let b = c.post(
+            NewNotice::new("", NoticeSource::Session, NoticeSeverity::Info, "b", NoticeScope::App),
+            NoticeId(2),
+            1,
+        );
+        assert!(!a.merged && !b.merged);
+        assert_ne!(a.notice.cause, b.notice.cause);
+    }
+
+    #[test]
+    fn update_cause_changes_the_message_in_place_and_reports_a_cause_that_is_not_there() {
+        let mut c = Centre::new(10);
+        c.post(spike("WEB02"), NoticeId(1), 100);
+        let newer = NewNotice::new(
+            "ignored",
+            NoticeSource::LiveAlert,
+            NoticeSeverity::Critical,
+            "Worse",
+            NoticeScope::Project,
+        )
+        .body("more");
+        assert!(c.update_cause("live:errorSpike:WEB02", newer, 200));
+        assert_eq!(c.notices().len(), 1);
+        let n = &c.notices()[0];
+        assert_eq!(
+            (n.id, n.title.as_str(), n.severity, n.count, n.cause.as_str()),
+            (NoticeId(1), "Worse", NoticeSeverity::Critical, 2, "live:errorSpike:WEB02")
+        );
+        assert!(!c.update_cause("nope", spike("x"), 300));
+        assert_eq!(c.notices().len(), 1);
+    }
+
+    #[test]
+    fn a_cause_that_clears_removes_its_message_only() {
+        let mut c = Centre::new(10);
+        c.post(spike("WEB01"), NoticeId(1), 1);
+        c.post(spike("WEB02"), NoticeId(2), 2);
+        assert_eq!(c.resolve_cause("live:errorSpike:WEB01").map(|n| n.id), Some(NoticeId(1)));
+        assert_eq!(c.resolve_cause("live:errorSpike:WEB01"), None);
+        assert_eq!(c.notices().len(), 1);
+    }
+
+    #[test]
+    fn the_cause_and_the_new_severity_and_source_are_spelled_like_the_ui() {
+        let n = Centre::new(1).post(spike("W"), NoticeId(1), 0).notice;
+        let wire = serde_json::to_value(&n).unwrap();
+        assert_eq!(wire["cause"], "live:errorSpike:W");
+        assert!(wire.get("dedupeKey").is_none());
+        assert_eq!(
+            serde_json::to_value(NoticeSeverity::Critical).unwrap(),
+            serde_json::json!("critical")
+        );
+        assert_eq!(serde_json::to_value(NoticeSource::Health).unwrap(), serde_json::json!("health"));
+        assert_eq!(
+            serde_json::to_value(NoticeAction::RepairService { service: "store".into() }).unwrap(),
+            serde_json::json!({"type": "repairService", "service": "store"})
+        );
     }
 }

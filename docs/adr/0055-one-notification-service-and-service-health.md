@@ -135,3 +135,45 @@ The family-level decision is Paddock ADR 0010 (notifications and service health)
 - **Dedupe only in the toast component.** Fixes the symptom for toasts, not the panel red boxes or other windows.
 - **A banner per service.** Repeats the original problem as more services are added.
 - **Let each panel poll its service.** Many calls for one fact; the event gives all windows the same truth.
+
+## Implementation notes (1.1)
+
+The whole decision shipped in 1.1, including the steps the migration plan scheduled after it. Where the code differs from
+the text above:
+
+- **Where the model lives.** `app/src-tauri/src/health/{model,registry}.rs` have no Debrief or Tauri types and are written to
+  move into `paddock-health`; `hub.rs` holds Debrief's five services and `commands.rs` the Tauri side (event, notification,
+  commands, probe). `app/src/app/health/` holds the shared UI (`ServiceHealthStore`, `ServiceStatusChip`, `WaitingFor`,
+  `NotificationHost`) with no Debrief domain imports; the Tauri and mock backends stay in `core/service-health/`.
+- **Cause key.** `NewNotice::new(cause, ...)` takes the cause as its first argument and `dedupe()` is gone, so a notice
+  without a cause does not compile. The wire field is `cause` (was `dedupeKey`). `Centre` gained `update_cause` and
+  `resolve_cause`; a resolved cause is removed from the list (not marked). Severity `critical` and source `health` were added.
+- **`CmdError.cause`.** The engine sets `health:store` on the store-down error. The UI does not turn such an error into a
+  banner (`isServiceOutage`, `bannerText`), and panels wait on health rather than on the error.
+- **Sources of state.** The store reports from `worker_failure` (the one place the engine maps a worker failure) and a
+  3-second probe of the supervisor (running, quarantined, or a crashed worker that is started again, bounded by the crash
+  ledger). The AI reports from the probe and from the paused queue; plugins from the quarantine error and `plugin_reset`;
+  the browser when no browser can be launched and when the install job ends; downloads from finished download jobs. A
+  failed download no longer also posts a per-job message: the service's notification carries Try again.
+- **Repair.** `health_repair` marks the service `repairing` and runs the repair on a background thread: the store worker is
+  reset and started (`worker_status`), the AI engine reset, every quarantined plugin reset in all windows, the Chromium
+  install job run and awaited, the failed download job retried. `performance_retry_store_worker` was removed; the memory
+  message's Retry repairs through health.
+- **One host.** `NotificationHost` is fed by sources (`NOTIFICATION_SOURCES`): the notification centre, live alerts,
+  updates, error snapshots and the workspace error and notice. The five toast components and `ui/toast-stack.ts` are
+  deleted. Sources only post, update and resolve; the host owns layout, cause dedupe, Details, the rule that a `health:`
+  cause is never toasted, and the time of every toast (8 s, 10 s for live alerts; held under the pointer or focus; started
+  over when the cause is posted again; errors, critical and `sticky` ones stay). Test ids are the host's:
+  `notification`, `notification-action-<id>`, `data-cause` to pick a toast.
+- **Memory caps.** A cap stop is not a separate message any more: the store worker and the AI worker are `down` with the
+  cap advice (`cause.raiseCap`: target and suggested MB) and the repair "Try again"; a plugin joins the plugins service.
+  The chip offers "Raise the cap…" (the app provides `RAISE_CAP`, which opens Settings ▸ Performance or the plugin's cap)
+  next to the repair. The cause is kept when the dead worker's next call fails, until the service is repaired. The
+  `raiseMemoryCap` and `retryProcess` notice actions and `RepairAction::RaiseCap` are gone.
+- **Errors name their service.** `CmdError.cause` is a `ServiceCause` (store, ai, plugins, browser, downloads), set on an
+  error only while service health says that service is not working (`in_outage_of`; from the state, not from the text).
+  `ErrorDetails` takes a `service` input; the chat panel, the browser bar and research dialog, the model manager and the
+  runtime panel wait for their service the same way.
+- **Tests with a real process.** `health::commands::tests` starts the built `debrief-store-worker` (from the test's own
+  target folder), kills it until the supervisor quarantines it, checks the engine's error mapping and the registry, repairs
+  it through the real `repair_store` and checks the new process answers and that nothing is left after shutdown.

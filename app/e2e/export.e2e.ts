@@ -21,11 +21,11 @@ test('export dialog counts events, exports through the backend and reports it', 
   await dialog.getByRole('button', { name: 'Export…' }).click();
   // The dialog closes at once; a job writes the file and its message offers "Show in folder".
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByTestId('notice-toast').filter({ hasText: 'Exporting to events.clef — running in Jobs' })).toBeVisible();
-  const done = page.getByTestId('notice-toast').filter({ hasText: 'Finished: Export events to events.clef' });
+  await expect(page.getByTestId('notification').filter({ hasText: 'Exporting to events.clef — running in Jobs' })).toBeVisible();
+  const done = page.getByTestId('notification').filter({ hasText: 'Finished: Export events to events.clef' });
   await expect(done).toBeVisible({ timeout: 15_000 });
   await expect(done).toContainText(`Exported ${all} events.`);
-  await expect(done.getByTestId('notice-toast-primary')).toHaveText('Show in folder');
+  await expect(done.getByTestId('notification-action-primary')).toHaveText('Show in folder');
 });
 
 test('export dialog counts only what matches the current filter and closes with Escape', async ({ page }) => {

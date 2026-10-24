@@ -8,7 +8,9 @@ import { TauriUpdatesBackend, UpdatesBackend } from './updates-backend';
 import { UpdatesCommands } from './updates.commands';
 import { progressText, releaseDate, UpdatesDialog } from './updates-dialog';
 import { UpdatesStore } from './updates.store';
-import { UpdatesToast } from './updates-toast';
+import { NotificationHost } from '../health/notification-host';
+import { provideNotificationSource } from '../health/provide-notification-host';
+import { UpdatesSource } from './updates-source';
 import { toUpdateError, UPDATES_EVENT, UpdateStatus } from './updates.types';
 
 function setup(search = '') {
@@ -17,6 +19,7 @@ function setup(search = '') {
     providers: [
       { provide: UpdatesBackend, useValue: backend },
       { provide: Logger, useValue: new MemoryLogger() },
+      provideNotificationSource(UpdatesSource),
     ],
   });
   return { backend, store: TestBed.inject(UpdatesStore) };
@@ -276,14 +279,14 @@ describe('UpdatesCommands and toast', () => {
 
   it('the toast announces an update and opens the dialog', async () => {
     const { store } = setup();
-    const fixture = TestBed.createComponent(UpdatesToast);
+    const fixture = TestBed.createComponent(NotificationHost);
     await store.check();
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('[data-testid=updates-toast]')?.textContent).toContain('Debrief 0.2.0 is available');
-    el.querySelector<HTMLButtonElement>('.link')!.click();
+    expect(el.querySelector('[data-testid=notification]')?.textContent).toContain('Debrief 0.2.0 is available');
+    el.querySelector<HTMLButtonElement>('[data-testid=notification-action]')!.click();
     fixture.detectChanges();
     expect(TestBed.inject(DialogService).stack().some((d) => d.component === UpdatesDialog)).toBe(true);
-    expect(el.querySelector('[data-testid=updates-toast]')).toBeNull();
+    expect(el.querySelector('[data-testid=notification]')).toBeNull();
   });
 });

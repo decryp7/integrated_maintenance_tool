@@ -1,5 +1,4 @@
 import { EnvironmentProviders, ErrorHandler, inject, Injector, makeEnvironmentProviders, provideAppInitializer } from '@angular/core';
-import { ApplicationRef, EnvironmentInjector } from '@angular/core';
 import { FailureReporter } from '../core/failure-reporter';
 import { Logger, LoggingErrorHandler, withFailureLogging } from '../core/logger';
 import { isTauri } from '../core/platform';
@@ -8,8 +7,8 @@ import { DiagnosticsCommands, DIAGNOSTICS_VIEWS } from './diagnostics-commands';
 import { ErrorSnapshotService } from './error-snapshot.service';
 import { SnapshotErrorHandler } from './snapshot-error-handler';
 import { SnapshotBackend, TauriSnapshotBackend } from './snapshot-backend';
-import { SnapshotToast } from './snapshot-toast';
-import { mountInToastStack } from '../ui/toast-stack';
+import { SnapshotSource } from './snapshot-source';
+import { provideNotificationSource } from '../health/provide-notification-host';
 import { DiagnosticsReportService } from './diagnostics-report.service';
 import { DebriefEvents } from '../extensions/events';
 import { browserMocks } from '../core/mock-registry';
@@ -22,9 +21,8 @@ export function createSnapshotBackend(): SnapshotBackend {
   return withFailureLogging<SnapshotBackend>(isTauri() ? new TauriSnapshotBackend() : mock(), inject(Logger), { category: 'ui.snapshot' });
 }
 
-/** Mounts the toast once over the app and starts listening. Not awaited: it must not delay the first paint. */
+/** Starts listening. Not awaited: it must not delay the first paint. */
 export function startDiagnostics(): void {
-  mountInToastStack(SnapshotToast, 'debrief-snapshot-toast', inject(EnvironmentInjector), inject(ApplicationRef));
   void inject(ErrorSnapshotService).start();
   inject(DiagnosticsReportService).start();
 }
@@ -43,6 +41,7 @@ export function provideDiagnostics(): EnvironmentProviders {
     { provide: ErrorHandler, useClass: SnapshotErrorHandler },
     { provide: DEBRIEF_VIEWS, multi: true, useValue: DIAGNOSTICS_VIEWS },
     { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(DiagnosticsCommands).commands },
+    provideNotificationSource(SnapshotSource),
     provideAppInitializer(() => startDiagnostics()),
   ]);
 }

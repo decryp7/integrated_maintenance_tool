@@ -57,17 +57,23 @@ pub(crate) fn install(all: Vec<Arc<dyn Plugin>>, safe_mode: bool, disabled: &[St
     Ok(registry)
 }
 
-/// Lifts a plugin's quarantine (after repeated crashes) immediately, in every window.
-#[tauri::command]
-pub async fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState>, op: crate::activity::OpId, id: String) -> CmdResult<()> {
+/// Lifts plugin `id`'s quarantine in its process and in every window's registry, and tells service health.
+pub(crate) fn reset_plugin_everywhere(windows: &Windows, state: &AppState, id: &str) {
     // Its process may be quarantined too.
-    if let Some(p) = state.plugins.process(&id) {
+    if let Some(p) = state.plugins.process(id) {
         p.reset();
     }
     for w in windows.all() {
-        w.host.registry.reset_plugin(&id);
+        w.host.registry.reset_plugin(id);
     }
-    log::info!(Plugin = id.as_str(); "Plugin re-enabled after quarantine");
+    crate::health::hub::report_plugin_reset(id);
+    log::info!(Plugin = id; "Plugin re-enabled after quarantine");
+}
+
+/// Lifts a plugin's quarantine (after repeated crashes) immediately, in every window.
+#[tauri::command]
+pub async fn plugin_reset(windows: State<'_, Windows>, state: State<'_, AppState>, op: crate::activity::OpId, id: String) -> CmdResult<()> {
+    reset_plugin_everywhere(&windows, &state, &id);
     crate::activity::domain_event("plugin.reset", op.as_deref(), &[("Plugin", &id)]);
     Ok(())
 }

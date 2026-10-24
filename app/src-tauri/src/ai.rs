@@ -29,7 +29,7 @@ pub(crate) mod update_commands;
 pub(crate) mod updates;
 pub(crate) mod vision;
 
-pub use self::core::{AiCore, AiDeps};
+pub use self::core::{AiCore, AiDeps, EngineStateDto};
 pub use chats::WindowChats;
 pub use settings_section::AiSettingsSection;
 

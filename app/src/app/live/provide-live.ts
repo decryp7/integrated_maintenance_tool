@@ -1,11 +1,11 @@
-import { ApplicationRef, effect, EnvironmentInjector, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideAppInitializer, untracked } from '@angular/core';
+import { effect, EnvironmentInjector, EnvironmentProviders, inject, Injectable, makeEnvironmentProviders, provideAppInitializer, untracked } from '@angular/core';
 import { DockService } from '../dock/dock.service';
 import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DEBRIEF_VIEWS, DebriefCommand, DebriefView } from '../extensions/tokens';
 import { UI_STATE_CONTRIBUTIONS } from '../lifecycle/ui-state';
 import { DialogService } from '../ui/dialog.service';
 import { LiveTail } from '../workspace/live-tail';
-import { AlertToasts } from './alert-toasts';
-import { mountInToastStack } from '../ui/toast-stack';
+import { AlertsSource } from './alerts-source';
+import { provideNotificationSource } from '../health/provide-notification-host';
 import { AlertsStore } from './alerts.store';
 import { LiveAlerts } from './live-alerts';
 import { LiveAutoOpen } from './live-auto-open';
@@ -73,10 +73,9 @@ export class LiveCommands {
   ];
 }
 
-/** Mounts the alert toasts, starts listening to alerts and refreshing on changes, and keeps the alerts tab count. */
+/** Starts listening to alerts and refreshing on changes, and keeps the alerts tab count. */
 export function startLive(): void {
   const injector = inject(EnvironmentInjector);
-  mountInToastStack(AlertToasts, 'debrief-alert-toasts', injector, inject(ApplicationRef));
   inject(LiveFeed);
   inject(LiveAutoOpen);
   inject(LiveFollow);
@@ -104,6 +103,7 @@ export function provideLive(): EnvironmentProviders {
     { provide: DEBRIEF_COMMANDS, multi: true, useFactory: () => inject(LiveCommands).commands },
     { provide: DEBRIEF_ACTIVITY_ITEMS, multi: true, useFactory: () => liveActivityItems(inject(LiveTail), inject(LiveFollow)) },
     { provide: UI_STATE_CONTRIBUTIONS, multi: true, useFactory: () => inject(LiveUiState).contributions },
+    provideNotificationSource(AlertsSource),
     provideAppInitializer(() => startLive()),
   ]);
 }

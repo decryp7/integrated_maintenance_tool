@@ -59,12 +59,17 @@ pub fn update_notice(u: &UpdateCandidate) -> NewNotice {
             format!("{} replaces {} ({} download).", u.to, u.from, size_text(u.download_bytes)),
         ),
     };
-    NewNotice::new(NoticeSource::Ai, NoticeSeverity::Info, title, NoticeScope::App)
-        .body(body)
-        .primary(NoticeAction::UpdateAi { key: u.key.clone() })
-        .secondary(NoticeAction::LaterAiUpdate { key: u.key.clone() })
-        .tertiary(NoticeAction::SkipAiUpdate { key: u.key.clone() })
-        .dedupe(format!("ai-update:{}:{}", u.kind.as_str(), u.id))
+    NewNotice::new(
+        format!("ai-update:{}:{}", u.kind.as_str(), u.id),
+        NoticeSource::Ai,
+        NoticeSeverity::Info,
+        title,
+        NoticeScope::App,
+    )
+    .body(body)
+    .primary(NoticeAction::UpdateAi { key: u.key.clone() })
+    .secondary(NoticeAction::LaterAiUpdate { key: u.key.clone() })
+    .tertiary(NoticeAction::SkipAiUpdate { key: u.key.clone() })
 }
 
 impl<R: Runtime> UpdateEffects for TauriEffects<R> {

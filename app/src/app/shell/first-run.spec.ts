@@ -22,7 +22,7 @@ describe('focused first run', () => {
     const ran: string[] = [];
     notices.postLocal({ key: 'k', source: 'ai', severity: 'info', title: 'T', actionLabel: 'Do', run: () => ran.push('do') });
     notices.postLocal({ key: 'k', source: 'ai', severity: 'info', title: 'T2', actionLabel: 'Do', run: () => ran.push('do') });
-    expect(notices.notices().filter((n) => n.dedupeKey === 'local:k').map((n) => n.title)).toEqual(['T2']);
+    expect(notices.notices().filter((n) => n.cause === 'local:k').map((n) => n.title)).toEqual(['T2']);
     expect(notices.unread()).toBe(before + 1);
     const id = at(notices.notices(), 0).id;
     expect(id).toBeLessThan(0);
