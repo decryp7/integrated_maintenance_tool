@@ -8,7 +8,7 @@ export default defineConfig({
   testDir: '.',
   testMatch: 'capture.ts',
   workers: 1,
-  timeout: 300_000,
+  timeout: 900_000,
   reporter: [['list']],
   use: {
     ...devices['Desktop Chrome'],
@@ -19,7 +19,8 @@ export default defineConfig({
     navigationTimeout: 30_000,
   },
   webServer: {
-    command: `npx ng serve --port ${PORT}`,
+    command: `node scripts/build-info.mjs serve --port ${PORT}`, // the commit and date About shows
+    cwd: process.cwd(),
     url: `http://localhost:${PORT}`,
     reuseExistingServer: true,
     timeout: 180_000,
