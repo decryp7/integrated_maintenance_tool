@@ -380,4 +380,17 @@ describe('usability shares (ADR 0056 amendment 2026-10-24)', () => {
     const plan = planLayout({ width: 700, height: 789 }, [V.timeline, V.events, { ...V.ai, recency: 0 }]);
     expect(plan.hidden.map((h) => h.id)).toEqual(['ai']);
   });
+
+  it('a document the user just opened outranks an idle full-height column: the column is tabbed, the document sits beside the timeline', () => {
+    const plan = planLayout({ width: 1092, height: 789 }, [V.timeline, V.events, V.home, { ...V.metrics, recency: 0 }]);
+    expect(plan.violations).toEqual([]);
+    expect(plan.tabbed).toEqual([{ id: 'home', into: 'events' }]);
+    expect(column(plan, 'events').rows.find((r) => r.key === 'timeline')!.cells.map((c) => c.views)).toEqual([['timeline'], ['metrics']]);
+  });
+
+  it('but a document does not outrank the assistant', () => {
+    const plan = planLayout({ width: 1100, height: 800 }, [V.timeline, V.events, V.ai, { ...V.home, recency: 0 }]);
+    expect(plan.tabbed).toEqual([{ id: 'home', into: 'events' }]);
+    expect(plan.hidden).toEqual([]);
+  });
 });

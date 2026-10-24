@@ -178,6 +178,9 @@ export const SHARES = {
   /** A side tool the user is working with outranks an idle document column of similar rank: priority + (this - recency * step), below the main views. */
   recencyBonus: 24,
   recencyStep: 8,
+  /** The same for a document: smaller, so that a document the user just opened outranks an idle column but never a tool window. */
+  documentRecencyBonus: 8,
+  documentRecencyStep: 4,
   /** A boosted view never reaches the main column's priority. */
   recencyCeiling: 89,
   /** A full-height column (Home, Registry) and a document beside the timeline take at most this share of the window width. */
@@ -199,24 +202,29 @@ function hinted(v: OpenView, hints: SavedHints | undefined, axis: keyof Size, ca
  * The widths the main column would need to show the first n groups of every row side by side, widest row first, for
  * n from the most groups in a row down to 2 (descending, so the most generous fit is tried first).
  */
-function sideBySideNeeds(main: readonly OpenView[]): number[] {
-  const rows = new Map<string, Map<string, number>>();
+function sideBySideNeeds(main: readonly OpenView[]): { need: number; priority: number }[] {
+  const rows = new Map<string, Map<string, { min: number; priority: number }>>();
   for (const v of [...main].sort(byPriorityThenId)) {
-    const row = rows.get(v.row ?? v.id) ?? new Map<string, number>();
+    const row = rows.get(v.row ?? v.id) ?? new Map<string, { min: number; priority: number }>();
     const g = v.group ?? v.id;
-    row.set(g, Math.max(row.get(g) ?? 0, v.layout.min.width));
+    const had = row.get(g);
+    row.set(g, { min: Math.max(had?.min ?? 0, v.layout.min.width), priority: Math.max(had?.priority ?? 0, v.layout.priority) });
     rows.set(v.row ?? v.id, row);
   }
   const most = Math.max(0, ...[...rows.values()].map((r) => r.size));
-  const out: number[] = [];
-  for (let n = most; n >= 2; n--) out.push(Math.max(...[...rows.values()].map((r) => [...r.values()].slice(0, n).reduce((a, b) => a + b, 0))));
+  const out: { need: number; priority: number }[] = [];
+  for (let n = most; n >= 2; n--) {
+    const firsts = [...rows.values()].map((r) => [...r.values()].slice(0, n));
+    out.push({ need: Math.max(...firsts.map((f) => f.reduce((a, b) => a + b.min, 0))), priority: Math.min(...firsts.filter((f) => f.length >= n).map((f) => f[n - 1]!.priority)) });
+  }
   return out;
 }
 
-/** A side tool with its priority raised by how recently the user worked with it (see `SHARES`); other views are unchanged. */
+/** A side tool or document with its priority raised by how recently the user worked with it (see `SHARES`); other views are unchanged. */
 function withRecency(v: OpenView): OpenView {
-  if (v.recency === undefined || v.layout.area !== 'side') return v;
-  const bonus = Math.max(0, SHARES.recencyBonus - v.recency * SHARES.recencyStep);
+  const tool = v.layout.area === 'side';
+  if (v.recency === undefined || (!tool && v.layout.area !== 'document')) return v;
+  const bonus = Math.max(0, tool ? SHARES.recencyBonus - v.recency * SHARES.recencyStep : SHARES.documentRecencyBonus - v.recency * SHARES.documentRecencyStep);
   const priority = Math.max(v.layout.priority, Math.min(SHARES.recencyCeiling, v.layout.priority + bonus));
   return priority === v.layout.priority ? v : { ...v, layout: { ...v.layout, priority } };
 }
@@ -258,10 +266,11 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
   let colFit = fitAxis(colItems(), Math.max(0, viewport.width));
   // The main column's minimum is the room its widest row needs side by side. A full-height column gives way to that (down
   // to its own minimum) before a document is tabbed; but never at the price of dropping a column that stays without it.
-  const need = sideBySideNeeds(groups.main);
-  for (const n of need) {
-    const wide = fitAxis(colItems(n), Math.max(0, viewport.width));
-    if (!wide.overflow && wide.dropped.length === colFit.dropped.length) {
+  for (const { need, priority } of sideBySideNeeds(groups.main)) {
+    const wide = fitAxis(colItems(need), Math.max(0, viewport.width));
+    // A column that would be dropped in its place must rank under the document it makes room for.
+    const extra = wide.dropped.filter((k) => !colFit.dropped.includes(k));
+    if (!wide.overflow && extra.every((k) => Math.max(...groups[k as ColumnKind].map((v) => v.layout.priority)) < priority)) {
       colFit = wide;
       break;
     }
