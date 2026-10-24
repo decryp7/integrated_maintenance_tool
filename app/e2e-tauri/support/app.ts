@@ -62,6 +62,9 @@ async function enterDialogWindow(id: string, timeout = 30_000): Promise<string> 
     await browser.switchToWindow(origin).catch(() => undefined);
     throw e;
   }
+  // The window exists before its content: the shell is `aria-busy` until the dialog's component has loaded, and keys
+  // or clicks before that go nowhere.
+  await $('main.body[aria-busy=false]').waitForExist({ timeout: 30_000 });
   return found;
 }
 
@@ -81,7 +84,7 @@ export async function withDialogWindow<T>(id: string, body: (handle: string) => 
 }
 
 /**
- * Closes the `id` dialog window with Escape and waits until it is gone and the page's modal scrim with it. With
+ * Closes the `id` dialog window and waits until it is gone and the page's modal scrim with it. With
  * `optional`, a dialog that does not open within `timeout` is fine (returns false) instead of an error.
  */
 export async function dismissDialogWindow(id: string, opts: { optional?: boolean; timeout?: number } = {}): Promise<boolean> {
@@ -90,7 +93,15 @@ export async function dismissDialogWindow(id: string, opts: { optional?: boolean
     handle = await withDialogWindow(
       id,
       async (h) => {
-        await browser.keys('Escape');
+        // The window's own close control (the shell's Cancel/Close or the dialog's own), else Escape. The window may
+        // vanish while the driver is still answering, which is what closing is.
+        try {
+          const close = $(`//button[@data-dialog-close or starts-with(normalize-space(),'Cancel') or normalize-space()='Close']`);
+          if (await close.isExisting()) await close.click();
+          else await browser.keys('Escape');
+        } catch (e) {
+          if ((await windowHandles()).includes(h)) throw e;
+        }
         return h;
       },
       opts.timeout,
