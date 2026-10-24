@@ -114,7 +114,7 @@ pub enum BrowserEvent {
 /// Where `owner`'s browser opens: on the display that window is on ([`placement`]). Called from the launching thread,
 /// never the main thread.
 fn placement_of<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<chromium_driver::WindowBounds> {
-    let w = app.get_webview_window(owner)?;
+    let w = app.get_window(owner)?;
     let (p, s) = (w.outer_position().ok()?, w.outer_size().ok()?);
     let owner_rect = placement::Rect {
         x: f64::from(p.x),
