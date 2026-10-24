@@ -105,10 +105,11 @@ describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () =>
   });
 
   it('limits its column to the width the timeline column can spare,', () => {
-    const { dock, addPanel, setSize, placement } = fakeDock(1600, [], { id: 'gm', width: 1600 });
+    // The spare width (1000 - 560 = 440) is below both the 55% share (880) and the cap (960), so it is what limits.
+    const { dock, addPanel, setSize, placement } = fakeDock(1600, [], { id: 'gm', width: 1000 });
     placement.addView(dock, full(), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
-    expect(setSize).toHaveBeenCalledWith({ width: 1600 - 560 });
+    expect(setSize).toHaveBeenCalledWith({ width: 1000 - 560 });
   });
 });
 

@@ -171,7 +171,12 @@ export class DockPlacement {
     const column = api.groups.find((g) => g !== main && g.api.location.type === 'grid' && g.panels.length > 0 && g.height >= api.height * FULL_HEIGHT_MIN_SHARE && g.panels.every((p) => this.isDocument(p.id) && !MAIN_PANELS.has(p.id)));
     if (!column) return;
     if (column.width - deficit >= FULL_HEIGHT_MIN_WIDTH) column.api.setSize({ width: column.width - deficit });
-    else column.api.moveTo({ group: main, position: 'center' });
+    else {
+      // The user asked for the tool window, not the document: what was in front in the events group stays in front.
+      const front = main.activePanel;
+      column.api.moveTo({ group: main, position: 'center', skipSetActive: true });
+      front?.api.setActive();
+    }
   }
 
   /** A status tool window as a tab on the bottom side bar, slid out unless opened in the background. */

@@ -66,18 +66,25 @@ test.describe('pop-out windows', () => {
     const inspector = (await page.locator('debrief-inspector').boundingBox())!;
     const documents = (await groupOf(page, 'Registry').boundingBox())!;
     expect(inspector.x).toBeGreaterThanOrEqual(documents.x + documents.width - 2);
-    // A full-height column, as tall as the timeline over the events grid.
-    const timeline = (await page.locator('debrief-timeline-panel').boundingBox())!;
-    const grid = (await page.locator('debrief-events-grid').boundingBox())!;
-    expect(inspector.y).toBeLessThanOrEqual(timeline.y + 2);
-    expect(inspector.y + inspector.height).toBeGreaterThanOrEqual(grid.y + grid.height - 2);
+    // A full-height column: from the top of the dock down to the bottom of the events group.
+    const column = (await groupOf(page, 'Inspector').boundingBox())!;
+    const dock = (await page.locator('.debrief-dock-mount').boundingBox())!;
+    const events = (await groupOf(page, 'Events').boundingBox())!;
+    expect(column.y).toBeLessThanOrEqual(dock.y + 2);
+    expect(column.y + column.height).toBeGreaterThanOrEqual(events.y + events.height - 2);
   });
 
   test('closing the pop-out window docks the panel back; it is never lost', async ({ page, context }) => {
+    // It comes back where it was: in a group with the same tabs, at the same place (not wherever there is room).
+    const tabsOf = async (name: string) => (await groupOf(page, name).locator('.debrief-tab-label').allInnerTexts()).map((t) => t.trim()).sort();
+    const before = { tabs: await tabsOf('Metrics'), box: (await groupOf(page, 'Metrics').boundingBox())! };
     const popup = await popOut(page, context, 'Metrics');
     await popup.close();
     await expect(tab(page, 'Metrics')).toBeVisible();
-    await expect(groupOf(page, 'Metrics')).toContainText('Registry');
+    expect(await tabsOf('Metrics')).toEqual(before.tabs);
+    const after = (await groupOf(page, 'Metrics').boundingBox())!;
+    expect(Math.abs(after.x - before.box.x)).toBeLessThanOrEqual(2);
+    expect(Math.abs(after.y - before.box.y)).toBeLessThanOrEqual(2);
   });
 
   test('the View menu shows a popped-out panel as open; closing it there closes the window', async ({ page, context }) => {
