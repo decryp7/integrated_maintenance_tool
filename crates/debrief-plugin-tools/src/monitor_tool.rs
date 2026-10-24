@@ -1,6 +1,7 @@
 //! The process monitor as a tool: one app-wide run writing rolling CLEF files.
 
 use crate::ids::PROCESS_MONITOR;
+use crate::run_slot::{Run, RunSlot, Seen};
 use anyhow::{anyhow, bail, Result};
 use debrief_core::plugin::Collector;
 use debrief_plugin_api::clef::ClefFileSink;
@@ -8,7 +9,7 @@ use debrief_plugin_api::tools::{OpSpec, PathAccess, PathKind, Schema, Tool, Tool
 use serde_json::{json, Value};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::Arc;
 use std::thread::JoinHandle;
 use std::time::Duration;
 
@@ -18,88 +19,92 @@ pub(crate) const TASK: &str = "monitor";
 const FILE_BYTES: u64 = 10 * 1024 * 1024;
 const FILES: usize = 10;
 
-struct Session {
+/// A running monitor: its thread and the flag that stops it.
+struct MonitorRun {
     stop: Arc<AtomicBool>,
     thread: JoinHandle<Result<()>>,
-    dir: PathBuf,
+}
+
+impl Run for MonitorRun {
+    fn is_running(&self) -> bool {
+        !self.thread.is_finished()
+    }
+
+    fn snapshot(&self) -> Value {
+        Value::Null
+    }
+
+    fn finish(self) -> Result<()> {
+        self.stop.store(true, Ordering::SeqCst);
+        self.thread.join().map_err(|_| anyhow!("the monitor thread panicked"))?
+    }
 }
 
 pub(crate) struct MonitorTool {
     collector: Arc<dyn Collector>,
-    session: Mutex<Option<Session>>,
+    run: RunSlot<MonitorRun>,
 }
 
 impl MonitorTool {
     pub fn new(collector: Arc<dyn Collector>) -> MonitorTool {
         MonitorTool {
             collector,
-            session: Mutex::new(None),
+            run: RunSlot::default(),
         }
-    }
-
-    fn slot(&self) -> MutexGuard<'_, Option<Session>> {
-        self.session.lock().unwrap_or_else(|p| p.into_inner())
     }
 
     fn start(&self, args: Value, ctx: &ToolCtx) -> Result<Value> {
-        let mut slot = self.slot();
-        if slot.is_some() {
-            bail!("the process monitor is already running");
-        }
-        let config = args.get("config").cloned().unwrap_or(Value::Null);
-        debrief_monitor::config::Config::from_json(&config)?;
-        let dir = match args.get("dir").and_then(Value::as_str) {
-            Some(d) => PathBuf::from(d),
-            None => ctx
-                .data_dir()
-                .ok_or_else(|| anyhow!("choose a folder for the monitor's files"))?
-                .join("monitor")
-                .join(chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string()),
-        };
-        let sink = ClefFileSink::new(&dir, "process-monitor", FILE_BYTES, FILES)?;
-        let stop = Arc::new(AtomicBool::new(false));
-        let (flag, collector, done) = (stop.clone(), self.collector.clone(), ctx.clone());
-        let thread = std::thread::Builder::new().name("debrief-process-monitor".into()).spawn(move || {
-            // The collector is plugin code on its own thread: contain a panic.
-            let result = debrief_plugin_api::clef::catch("the process monitor", || collector.run(&config, &sink, &flag));
-            if !flag.load(Ordering::SeqCst) {
-                // Ended on its own (an error): it is no longer background work.
-                done.task_finished(TASK);
-            }
-            result
+        let mut started = PathBuf::new();
+        self.run.begin("the process monitor is already running", || {
+            let config = args.get("config").cloned().unwrap_or(Value::Null);
+            debrief_monitor::config::Config::from_json(&config)?;
+            let dir = match args.get("dir").and_then(Value::as_str) {
+                Some(d) => PathBuf::from(d),
+                None => ctx
+                    .data_dir()
+                    .ok_or_else(|| anyhow!("choose a folder for the monitor's files"))?
+                    .join("monitor")
+                    .join(chrono::Utc::now().format("%Y%m%d-%H%M%S").to_string()),
+            };
+            let sink = ClefFileSink::new(&dir, "process-monitor", FILE_BYTES, FILES)?;
+            let stop = Arc::new(AtomicBool::new(false));
+            let (flag, collector, done) = (stop.clone(), self.collector.clone(), ctx.clone());
+            let thread = std::thread::Builder::new().name("debrief-process-monitor".into()).spawn(move || {
+                // The collector is plugin code on its own thread: contain a panic.
+                let result = debrief_plugin_api::clef::catch("the process monitor", || collector.run(&config, &sink, &flag));
+                if !flag.load(Ordering::SeqCst) {
+                    // Ended on its own (an error): it is no longer background work.
+                    done.task_finished(TASK);
+                }
+                result
+            })?;
+            started = dir.clone();
+            Ok((MonitorRun { stop, thread }, dir))
         })?;
-        *slot = Some(Session {
-            stop,
-            thread,
-            dir: dir.clone(),
-        });
-        drop(slot);
         ctx.task_started(ToolTask {
             id: TASK.into(),
             label: "Process monitor".into(),
             kind: "process-monitor".into(),
             stoppable: true,
         });
-        Ok(json!(dir.to_string_lossy()))
+        Ok(json!(started.to_string_lossy()))
     }
 
-    /// Stops the run; its folder, or `None` when nothing was running.
+    /// Stops the run; its folder, `None` when nothing was running, or the failure of a run that ended on its own.
     fn stop_run(&self, ctx: &ToolCtx) -> Result<Option<String>> {
-        let Some(session) = self.slot().take() else {
-            return Ok(None);
-        };
-        session.stop.store(true, Ordering::SeqCst);
-        let joined = session.thread.join();
-        ctx.task_finished(TASK);
-        joined.map_err(|_| anyhow!("the monitor thread panicked"))??;
-        Ok(Some(session.dir.to_string_lossy().into_owned()))
+        let r = self.run.end();
+        if !matches!(r, Ok(None)) {
+            ctx.task_finished(TASK);
+        }
+        r
     }
 
     fn status(&self) -> Value {
-        match self.slot().as_ref() {
-            Some(s) => json!({ "running": !s.thread.is_finished(), "dir": s.dir }),
-            None => json!({ "running": false, "dir": null }),
-        }
+        self.run.look(|s| match s {
+            Seen::Idle => json!({ "running": false, "dir": null }),
+            Seen::Running { dir, .. } => json!({ "running": true, "dir": dir }),
+            Seen::Ended { dir, error, .. } => json!({ "running": false, "dir": dir, "error": error }),
+        })
     }
 }
 
@@ -145,6 +150,7 @@ mod tests {
     use debrief_plugin_api::clef::EventSink;
     use debrief_plugin_api::model::Record;
     use debrief_plugin_api::tools::TaskSink;
+    use std::sync::Mutex;
 
     /// Writes one event per tick until stopped; or fails / panics on demand.
     struct FakeMonitor(&'static str);
@@ -253,6 +259,39 @@ mod tests {
         assert!(tool.invoke("nope", json!({}), &ctx).is_err());
     }
 
+    /// Waits (bounded) until the run is no longer running.
+    fn wait_ended(tool: &MonitorTool) {
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        while tool.status()["running"] == true {
+            assert!(std::time::Instant::now() < deadline, "the failed run ended");
+            std::thread::yield_now();
+        }
+    }
+
+    #[test]
+    fn a_run_that_failed_on_its_own_is_over_and_the_next_start_works() {
+        for mode in ["fail", "panic"] {
+            let tool = MonitorTool::new(Arc::new(FakeMonitor(mode)));
+            let dir = temp(&format!("again-{mode}"));
+            let tasks = Arc::new(Tasks::default());
+            let ctx = ToolCtx::new(None, tasks.clone()).for_tool(PROCESS_MONITOR);
+            tool.invoke("start", json!({ "config": config(), "dir": dir }), &ctx).unwrap();
+            wait_ended(&tool);
+            let status = tool.status();
+            assert_eq!(status["running"], false, "{mode}");
+            assert!(
+                status["error"].as_str().is_some_and(|e| !e.is_empty()),
+                "{mode}: the status says why: {status}"
+            );
+            // Start again without Stop: the failed run does not block it.
+            tool.invoke("start", json!({ "config": config(), "dir": dir }), &ctx)
+                .unwrap_or_else(|e| panic!("{mode}: {e}"));
+            wait_ended(&tool);
+            let _ = tool.invoke("stop", json!({}), &ctx);
+            let _ = std::fs::remove_dir_all(dir);
+        }
+    }
+
     #[test]
     fn a_failing_or_crashing_monitor_ends_its_task_and_reports_on_stop() {
         for (mode, message) in [("fail", "sampling failed"), ("panic", "sampler bug")] {
@@ -261,11 +300,7 @@ mod tests {
             let tasks = Arc::new(Tasks::default());
             let ctx = ToolCtx::new(None, tasks.clone()).for_tool(PROCESS_MONITOR);
             tool.invoke("start", json!({ "config": config(), "dir": dir }), &ctx).unwrap();
-            let deadline = std::time::Instant::now() + Duration::from_secs(5);
-            while tool.status()["running"] == true && std::time::Instant::now() < deadline {
-                std::thread::sleep(Duration::from_millis(5));
-            }
-            assert_eq!(tool.status()["running"], false);
+            wait_ended(&tool);
             assert!(tasks.0.lock().unwrap().contains(&"-process-monitor monitor".to_string()));
             let e = tool.invoke("stop", json!({}), &ctx).unwrap_err().to_string();
             assert!(e.contains(message), "{e}");

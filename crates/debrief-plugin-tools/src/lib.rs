@@ -29,6 +29,7 @@ mod monitor_tool;
 pub mod perfmon_control;
 pub mod perfmon_template;
 mod perfmon_tools;
+mod run_slot;
 mod settings;
 
 use anyhow::Result;
