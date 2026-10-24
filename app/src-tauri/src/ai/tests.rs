@@ -233,7 +233,8 @@ fn open_samples(w: &tauri::WebviewWindow<MockRuntime>) {
 fn wait_until(what: &str, mut f: impl FnMut() -> bool) {
     let start = Instant::now();
     while !f() {
-        assert!(start.elapsed() < Duration::from_secs(20), "timed out waiting for {what}");
+        // Generous: a loaded runner stalls a test for many seconds; the bound only turns a hang into a message.
+        assert!(start.elapsed() < Duration::from_secs(180), "timed out waiting for {what}");
         std::thread::sleep(Duration::from_millis(10));
     }
 }
@@ -916,7 +917,7 @@ impl LlmProvider for SlowModel {
         if self.calls.fetch_add(1, Ordering::SeqCst) > 0 {
             let (open, cv) = &*self.gate;
             let guard = open.lock().unwrap();
-            let _unused = cv.wait_timeout_while(guard, Duration::from_secs(20), |o| !*o).unwrap();
+            let _unused = cv.wait_timeout_while(guard, Duration::from_secs(180), |o| !*o).unwrap();
         }
         self.inner.chat(req, on_delta)
     }
@@ -2191,11 +2192,16 @@ fn finding_values_builds_the_names_and_the_alias_job_runs_on_the_local_model_onl
         ipc(&main, "find_values", json!({"request": {"text": "gateway"}})).unwrap();
         win.names.names().is_built()
     });
+    // The table is built before the job is queued, so "no job pending" alone can be seen too early: wait for the
+    // model to have been asked, then for the job to finish.
+    wait_until("the alias job to ask the model", || !provider.requests().is_empty());
     wait_until("the alias job to finish", || !win.names.job_pending());
     let reply = ipc(&main, "find_values", json!({"request": {"text": "gateway"}})).unwrap();
     assert!(reply["values"].is_array(), "{reply}");
     // With the switch off the model is never asked again.
     ipc(&main, "set_settings", json!({"section": "ai", "values": {"name_aliases": false}})).unwrap();
+    // A job queued by a later rebuild of the table may still be running: it ends before the refusal is checked.
+    wait_until("any alias job to finish", || !win.names.job_pending());
     let asked = provider.requests().len();
     assert!(!crate::names::schedule_alias_job(app.handle(), "main", &win.names));
     assert_eq!(provider.requests().len(), asked);

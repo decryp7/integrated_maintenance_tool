@@ -92,11 +92,13 @@ test.describe('activity bar', () => {
     await page.keyboard.press('Enter');
     await expect(tab(page, 'patterns')).toBeVisible();
 
-    // Tab reaches the next buttons; Space toggles live tail.
-    await analysis.focus();
-    await page.keyboard.press('Tab');
-    await expect(barButton(page, 'Metrics')).toBeFocused();
-    await page.keyboard.press('Tab');
+    // The bar is one Tab stop: the arrows reach the next buttons; Space toggles live tail.
+    // (ArrowDown on a fly-out button opens its menu, like Enter and ArrowRight, so the arrows are tried from plain buttons.)
+    await barButton(page, 'Timeline').focus();
+    await page.keyboard.press('ArrowDown');
+    await expect(analysis).toBeFocused();
+    await barButton(page, 'Metrics').focus();
+    await page.keyboard.press('ArrowDown');
     await expect(barButton(page, 'Toggle live tail')).toBeFocused();
     await page.keyboard.press('Space');
     await expect(barButton(page, 'Toggle live tail')).toHaveAttribute('aria-pressed', 'true');

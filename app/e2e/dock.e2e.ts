@@ -1,7 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
 import { ensureInspector, openApp, openView } from './app';
 import { expectNoSeriousViolations } from './axe';
-import { chooseMenu, menuItem, openMenu } from './menu-support';
+import { chooseMenu, menuItem, openMenu, showProfileEditor } from './menu-support';
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
 const groups = (page: Page) => page.locator('.dv-groupview');
@@ -67,7 +67,8 @@ test.describe('dock layout', () => {
   test('dragging a tab onto the right guide of another group splits the layout', async ({ page }) => {
     // Tabs are dragged with pointer events (dockview `dndStrategy: 'pointer'`), so the real drag runs in WebKit too.
     await openView(page, 'metrics');
-    await expect(groups(page)).toHaveCount(3);
+    // Timeline, events, the document strip (Metrics) and Registry's full-height column.
+    await expect(groups(page)).toHaveCount(4);
     const source = tab(page, 'Metrics');
     // The right cell of the VS-style compass in the middle of the events group (see dock-geometry `compassCells`).
     const c = (await page.locator('.dv-groupview:has(debrief-events-grid) .dv-content-container').boundingBox())!;
@@ -79,6 +80,7 @@ test.describe('dock layout', () => {
     await page.mouse.move(right.x - 6, right.y, { steps: 15 });
     await page.mouse.move(right.x, right.y, { steps: 3 });
     await page.mouse.up();
+    // The strip group Metrics left is gone and the new group takes its place beside the events grid.
     await expect(groups(page)).toHaveCount(4);
     // Metrics now sits in its own group, to the right of the events grid.
     const metrics = await box(page, 'debrief-metrics-view');
@@ -160,9 +162,11 @@ test.describe('dock layout', () => {
   });
 
   test('tabs are keyboard accessible', async ({ page }) => {
+    // Two documents share the strip beside the timeline (Registry has its own column).
+    await showProfileEditor(page);
     await openView(page, 'metrics');
-    await tab(page, 'Registry').focus();
-    await expect(tab(page, 'Registry')).toBeFocused();
+    await tab(page, 'Profile').focus();
+    await expect(tab(page, 'Profile')).toBeFocused();
     await page.keyboard.press('ArrowRight');
     await expect(tab(page, 'Metrics')).toBeFocused();
     await page.keyboard.press('Enter');

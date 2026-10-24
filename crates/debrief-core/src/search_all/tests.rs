@@ -593,3 +593,28 @@ fn snippets_fold_whitespace_ignore_case_merge_overlaps_and_read_a_bounded_prefix
     // A phrase that is also a word is one needle.
     assert_eq!(needles(&WordQuery::parse("\"disk\" disk ")), vec!["disk".to_string()]);
 }
+
+/// A store that answers nothing: only the trait's own default is under test.
+struct Bare;
+
+impl SearchSource for Bare {
+    fn summary(&self) -> StoreResult<SummaryReply> {
+        Err(StoreError::Invalid("bare".into()))
+    }
+    fn page(&self, _: &PageQuery) -> StoreResult<PageReply> {
+        Err(StoreError::Invalid("bare".into()))
+    }
+    fn facet(&self, _: &FacetRequest) -> StoreResult<Facet> {
+        Err(StoreError::Invalid("bare".into()))
+    }
+    fn exception_groups(&self) -> StoreResult<Vec<ExceptionGroup>> {
+        Ok(Vec::new())
+    }
+}
+
+#[test]
+fn a_store_without_a_catalogue_says_nothing_is_built() {
+    let reply = Bare.catalogue(&crate::catalogue::CatalogueRequest::default()).unwrap();
+    assert!(!reply.built && reply.candidates.is_empty());
+    assert!(Bare.exception_groups().unwrap().is_empty());
+}

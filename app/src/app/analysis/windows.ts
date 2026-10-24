@@ -12,6 +12,18 @@ export function previousWindow(r: TimeRange): TimeRange {
   return { from: r.from - s, to: r.from };
 }
 
+/**
+ * The windows to compare for `range` out of data spanning `extent`: the range against the one just before it, or, when
+ * that one lies (mostly) before the data (the range is all of it), the range's first half against its second half.
+ */
+export function defaultWindows(range: TimeRange, extent: TimeRange | null): { a: TimeRange; b: TimeRange } {
+  const before = previousWindow(range);
+  const inData = !extent || before.from >= extent.from - span(before) * 0.1;
+  if (inData && (!extent || before.to > extent.from)) return { a: before, b: range };
+  const mid = midpoint(range);
+  return { a: { from: range.from, to: mid }, b: { from: mid, to: range.to } };
+}
+
 /** `[t - width, t]` and `[t, t + width]`. */
 export function aroundTime(t: number, width: number): { a: TimeRange; b: TimeRange } {
   const w = Math.max(1, width);

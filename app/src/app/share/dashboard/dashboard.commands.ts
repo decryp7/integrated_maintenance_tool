@@ -11,7 +11,7 @@ export class DashboardCommands {
   private readonly dialogs = inject(DialogService);
 
   readonly commands: DebriefCommand[] = [
-    { id: 'dashboards.show', title: $localize`:@@share.dashboardCommands.show:Show dashboards`, category: $localize`:@@share.commands.categoryView:View`, run: (ctx) => ctx.showView('dashboards') },
+    { id: 'dashboards.show', title: $localize`:@@share.dashboardCommands.show:Show dashboards`, category: $localize`:@@share.commands.categoryView:View`, view: 'dashboards', run: (ctx) => ctx.showView('dashboards') },
     {
       id: 'dashboards.edit',
       title: $localize`:@@share.dashboardCommands.edit:Dashboard: toggle edit mode`,

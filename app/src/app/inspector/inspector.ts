@@ -52,7 +52,7 @@ const CONTEXT_MS = 2 * 60 * 1000;
         <div class="top">
           <div class="badges">
             <span class="badge-lvl"><span class="dot" [style.background]="levelVar()"></span>{{ r.level }}</span>
-            @for (m of r.markers; track m) {
+            @for (m of extraMarkers(r); track m) {
               <span class="badge-mk"><debrief-marker-icon [kind]="m" [color]="markerColor(m)" />{{ markerLabel(m) }}</span>
             }
           </div>
@@ -168,6 +168,9 @@ const CONTEXT_MS = 2 * 60 * 1000;
     .template { font-size: var(--fs-xs); color: var(--faint); line-height: 1.5; word-break: break-word; }
     .hole { color: var(--chip-text); }
     .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+    /* The row's actions read as buttons (a border and the hover fill), not as plain text. */
+    .actions .btn.ghost { border: 1px solid var(--border-3); background: var(--bg-2); }
+    .actions .btn.ghost:hover { background: var(--bg-hover); }
     .sub { padding: 12px 14px 6px; }
     .props { display: flex; flex-direction: column; }
     .prop { display: grid; grid-template-columns: 118px minmax(0, 1fr) 98px; column-gap: 8px; align-items: start; padding: 3px 8px 3px 14px; }
@@ -329,6 +332,11 @@ export class Inspector {
   protected markerColor(kind: string): string | null {
     return this.store.markerKindMap().get(kind)?.color ?? null;
   }
+  /** The event's markers that say something its level badge does not (an "Error" marker on an Error event repeats it). */
+  protected extraMarkers(r: { level: string; markers: readonly string[] }): string[] {
+    return r.markers.filter((m) => this.markerLabel(m).toLowerCase() !== r.level.toLowerCase() && m.toLowerCase() !== r.level.toLowerCase());
+  }
+
   protected markerLabel(kind: string): string {
     return this.store.markerKindMap().get(kind)?.label ?? kind;
   }

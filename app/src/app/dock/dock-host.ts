@@ -295,6 +295,18 @@ export class DockHost implements OnDestroy {
         body.replaceChildren(renderer.element);
       });
     });
+    // A slide-out over the events grid must not cover the row that was just selected: the grid keeps clear of it
+    // (padding on the grid's own edge) for as long as the flyout is open.
+    effect((onCleanup) => {
+      const item = this.open();
+      if (!item || item.side === 'bottom') return;
+      const side = item.side;
+      const frame = requestAnimationFrame(() => this.insetGrid(side));
+      onCleanup(() => {
+        cancelAnimationFrame(frame);
+        for (const grid of document.querySelectorAll<HTMLElement>('debrief-events-grid')) grid.style.removeProperty(side === 'right' ? 'padding-right' : 'padding-left');
+      });
+    });
     const onPointerDown = (e: PointerEvent) => {
       const t = e.target as Element | null;
       if (this.open() && !t?.closest?.(KEEP_OPEN)) this.dock.autoHideEvent({ type: 'blur' });
@@ -311,6 +323,20 @@ export class DockHost implements OnDestroy {
   }
 
   private readonly cleanup: (() => void)[] = [];
+
+  /** Pads the events grid by as much of it as the open flyout overlaps, on the flyout's side. */
+  private insetGrid(side: 'left' | 'right'): void {
+    const el = this.host.nativeElement.querySelector<HTMLElement>('.debrief-ah-flyout');
+    if (!el) return;
+    // Its resting box, not the animated one: it slides in with a transform.
+    const parent = (el.offsetParent ?? this.host.nativeElement).getBoundingClientRect();
+    const flyout = { left: parent.left + el.offsetLeft, right: parent.left + el.offsetLeft + el.offsetWidth };
+    for (const grid of document.querySelectorAll<HTMLElement>('debrief-events-grid')) {
+      const box = grid.getBoundingClientRect();
+      const overlap = side === 'right' ? box.right - Math.max(box.left, flyout.left) : Math.min(box.right, flyout.right) - box.left;
+      grid.style.setProperty(side === 'right' ? 'padding-right' : 'padding-left', `${Math.max(0, Math.round(overlap))}px`);
+    }
+  }
 
   protected hover(id: string): void {
     this.cancelLeave();

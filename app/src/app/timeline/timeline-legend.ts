@@ -1,3 +1,4 @@
+import { RovingTabindex } from '../shared/roving-tabindex';
 import { plural } from '../i18n/locale';
 import { formatCount } from '../shared/format/units';
 import { ChangeDetectionStrategy, Component, computed, inject, input, signal } from '@angular/core';
@@ -28,14 +29,14 @@ let legendSeq = 0;
 @Component({
   selector: 'debrief-timeline-legend',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [MarkerGlyph, SeverityBadge],
+  imports: [RovingTabindex, MarkerGlyph, SeverityBadge],
   host: { style: 'display: contents' },
   template: `
     @if (legendItems().length > 0 || ann.kinds().length || ann.runKinds().length || ann.error()) {
       <!-- A one-line strip; "+N more" opens the whole legend as a popover over the lanes (no layout shift). -->
       <div class="legend-host">
       <div class="legend-row" [id]="listId" [class.collapsed]="!expanded()" (keydown.escape)="expanded.set(false)">
-        <div class="legend" role="group" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [class.filtering]="src.markers().length > 0" [class.collapsed]="!expanded()">
+        <div class="legend" role="group" debriefRoving="button" rovingAxis="horizontal" aria-label="Markers" i18n-aria-label="@@timeline.legend.markers" [class.filtering]="src.markers().length > 0" [class.collapsed]="!expanded()">
           @for (k of shownItems(); track k.kind.kind) {
             <button
               type="button"

@@ -8,8 +8,8 @@ export const SCHEDULES_VIEWS: DebriefView[] = [
 ];
 
 export const SCHEDULES_COMMANDS: DebriefCommand[] = [
-  { id: 'tools.schedules.show', title: $localize`:@@schedules.cmd.schedules:Open collection schedules`, category: $localize`:@@schedules.category.tools:Tools`, run: (ctx) => ctx.showView('collection-schedules') },
-  { id: 'tools.runs.show', title: $localize`:@@schedules.cmd.runs:Open collection runs`, category: $localize`:@@schedules.category.tools:Tools`, run: (ctx) => ctx.showView('collection-runs') },
+  { id: 'tools.schedules.show', title: $localize`:@@schedules.cmd.schedules:Open collection schedules`, category: $localize`:@@schedules.category.tools:Tools`, view: 'collection-schedules', run: (ctx) => ctx.showView('collection-schedules') },
+  { id: 'tools.runs.show', title: $localize`:@@schedules.cmd.runs:Open collection runs`, category: $localize`:@@schedules.category.tools:Tools`, view: 'collection-runs', run: (ctx) => ctx.showView('collection-runs') },
 ];
 
 /**

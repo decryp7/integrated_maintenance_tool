@@ -11,7 +11,7 @@ export class MarkersCommands {
   private readonly actions = inject(RecordActions);
 
   readonly commands: DebriefCommand[] = [
-    { id: 'markers.manage', title: $localize`:@@markers.cmd.manage.title:Manage markers`, category: $localize`:Command palette category|@@markers.cmd.category:Markers`, run: (ctx) => ctx.showView('markers') },
+    { id: 'markers.manage', title: $localize`:@@markers.cmd.manage.title:Manage markers`, category: $localize`:Command palette category|@@markers.cmd.category:Markers`, view: 'markers', run: (ctx) => ctx.showView('markers') },
     {
       id: 'markers.highlight',
       title: $localize`:@@markers.cmd.highlight.title:Highlight lines…`,

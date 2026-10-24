@@ -175,7 +175,7 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
     </div>
   `,
   styles: `
-    :host { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+    :host { flex: 1; min-height: 0; display: flex; flex-direction: column; container-type: inline-size; }
     .main { flex: 1; min-height: 0; display: flex; }
     h2 { display: flex; align-items: center; gap: 8px; }
     .nav { width: 190px; flex: none; padding: 10px 8px; border-right: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px; background: var(--bg-2); overflow-y: auto; }
@@ -195,6 +195,12 @@ const AGGS = ['count', 'avg', 'min', 'max', 'sum', 'last'];
     .grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; align-items: end; }
     .grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; align-items: end; }
     .split { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 16px; }
+    /* A narrow panel (a document beside the timeline): the sections become a row of tabs above the form and the list stacks over the detail. */
+    @container (max-width: 640px) {
+      .main { flex-direction: column; }
+      .nav { width: auto; flex-direction: row; overflow-x: auto; overflow-y: hidden; border-right: 0; border-bottom: 1px solid var(--border); padding: 6px 8px; }
+      .split { grid-template-columns: minmax(0, 1fr); }
+    }
     .list { display: flex; flex-direction: column; gap: 2px; }
     .list-item { display: flex; align-items: center; border-radius: 6px; }
     .list-item.on { background: var(--bg-sel); box-shadow: inset 2px 0 0 var(--accent); }

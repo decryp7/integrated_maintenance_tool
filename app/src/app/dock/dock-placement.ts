@@ -164,8 +164,9 @@ export class DockPlacement {
    */
   private addDocument(api: DockviewApi, base: AddPanel, fullHeight: boolean): IDockviewPanel {
     if (fullHeight) return this.addFullHeight(api, base);
+    // A full-height column (Home, Registry) is theirs: other documents share the strip beside the timeline instead.
     const well = this.documentWell(undefined, true);
-    if (well) return api.addPanel({ ...base, position: { referenceGroup: well.id, direction: 'within' } });
+    if (well && !this.isFullHeightColumn(well)) return api.addPanel({ ...base, position: { referenceGroup: well.id, direction: 'within' } });
     const main = api.getPanel(PANEL.timeline) ?? api.getPanel(PANEL.events);
     if (main && main.group.api.location.type === 'grid') {
       return api.addPanel({ ...base, position: { referenceGroup: main.group.id, direction: 'right' } });
@@ -186,6 +187,12 @@ export class DockPlacement {
     if (!api.getPanel(PANEL.timeline) && !api.getPanel(PANEL.events)) return api.addPanel(base);
     // Its width, and whether it fits beside the timeline column at all, is the plan's (`DockLayout.fit` after the add).
     return api.addPanel({ ...base, position: { direction: 'right' } });
+  }
+
+  /** A document group that holds a full-height view (Home, Registry) and neither the timeline nor the grid. */
+  private isFullHeightColumn(g: DockviewGroupPanel): boolean {
+    // Not measured: right after a layout (WebKit) a column's height can still read as 0, and a document must not tab into it then.
+    return g.api.location.type === 'grid' && !g.panels.some((p) => MAIN_PANELS.has(p.id)) && g.panels.some((p) => this.ctx.views.find(p.id)?.fullHeight === true);
   }
 
   private isDocument(id: string): boolean {

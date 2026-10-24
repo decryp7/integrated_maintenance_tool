@@ -375,6 +375,22 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_maintenance_action_has_a_phase_and_a_title() {
+        let all = [
+            (MaintenanceAction::Compact, "Compacting segments", "Compact the store"),
+            (MaintenanceAction::RebuildIndex, "Clearing the index", "Rebuild the full-text index"),
+            (
+                MaintenanceAction::ClearCachedAnalyses,
+                "Clearing cached analyses",
+                "Clear cached analyses",
+            ),
+        ];
+        for (a, phase, title) in all {
+            assert_eq!((a.phase(), a.title()), (phase, title));
+        }
+    }
+
+    #[test]
     fn sizes_read_like_duckdb() {
         assert_eq!(parse_size("192MB"), Some(192_000_000));
         assert_eq!(parse_size("128 MiB"), Some(128 << 20));

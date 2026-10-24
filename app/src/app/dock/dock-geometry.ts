@@ -36,24 +36,28 @@ function overlap(a0: number, a1: number, b0: number, b1: number): number {
 }
 
 /**
- * The neighbour a group was docked against and on which side of it the group sat: the other group sharing the
- * longest edge with it (within `tolerance` px). Null when there is no adjacent group.
+ * The neighbour a group was docked against and on which side of it the group sat: a group sharing a whole edge with it
+ * (as wide or as tall, within `tolerance` px) first, else the one sharing the longest edge. Null when there is no adjacent group.
  */
 export function adjacentNeighbour<T>(rect: Rect, others: readonly { rect: Rect; value: T }[], tolerance = 6): { value: T; direction: Direction } | null {
-  let best: { value: T; direction: Direction; shared: number } | null = null;
-  const consider = (value: T, direction: Direction, shared: number) => {
-    if (shared > 0 && (!best || shared > best.shared)) best = { value, direction, shared };
+  let best: { value: T; direction: Direction; shared: number; exact: boolean } | null = null;
+  // `exact`: the shared edge is the whole edge of both, so splitting the neighbour puts the group back as it was; such a
+  // neighbour wins over one that only shares a longer part of its edge (splitting that spans the neighbour's whole edge).
+  const consider = (value: T, direction: Direction, shared: number, mine: number, theirs: number) => {
+    if (shared <= 0) return;
+    const exact = Math.abs(mine - shared) <= tolerance && Math.abs(theirs - shared) <= tolerance;
+    if (!best || (exact && !best.exact) || (exact === best.exact && shared > best.shared)) best = { value, direction, shared, exact };
   };
   for (const { rect: o, value } of others) {
     const vertical = overlap(rect.y, rect.y + rect.height, o.y, o.y + o.height);
     const horizontal = overlap(rect.x, rect.x + rect.width, o.x, o.x + o.width);
     // `direction` is where the group sits relative to the neighbour.
-    if (Math.abs(rect.x - (o.x + o.width)) <= tolerance) consider(value, 'right', vertical);
-    if (Math.abs(rect.x + rect.width - o.x) <= tolerance) consider(value, 'left', vertical);
-    if (Math.abs(rect.y - (o.y + o.height)) <= tolerance) consider(value, 'below', horizontal);
-    if (Math.abs(rect.y + rect.height - o.y) <= tolerance) consider(value, 'above', horizontal);
+    if (Math.abs(rect.x - (o.x + o.width)) <= tolerance) consider(value, 'right', vertical, rect.height, o.height);
+    if (Math.abs(rect.x + rect.width - o.x) <= tolerance) consider(value, 'left', vertical, rect.height, o.height);
+    if (Math.abs(rect.y - (o.y + o.height)) <= tolerance) consider(value, 'below', horizontal, rect.width, o.width);
+    if (Math.abs(rect.y + rect.height - o.y) <= tolerance) consider(value, 'above', horizontal, rect.width, o.width);
   }
-  const found = best as { value: T; direction: Direction; shared: number } | null;
+  const found = best as { value: T; direction: Direction } | null;
   return found ? { value: found.value, direction: found.direction } : null;
 }
 

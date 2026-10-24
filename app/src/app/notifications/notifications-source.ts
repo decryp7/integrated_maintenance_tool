@@ -2,7 +2,7 @@ import { computed, inject, Injectable, Injector } from '@angular/core';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
 import { HostAction, HostNotification, NotificationSource } from '../health/notification-host.model';
 import { actionLabel, NoticeActions, NOTIFICATIONS_VIEW } from './notice-actions';
-import { NotificationsStore } from './notifications.store';
+import { isRunningToast, NotificationsStore } from './notifications.store';
 import { Notice, NoticeAction } from './notifications.types';
 
 /**
@@ -24,7 +24,8 @@ export class NotificationsSource implements NotificationSource {
       this.store.dismissToast(t.id);
     };
     const act = (a: NoticeAction | null, kind: HostAction['kind'], id: string): HostAction[] => (a ? [{ label: actionLabel(a), kind, id, run: () => run(a) }] : []);
-    const actions: HostAction[] = [...act(t.primary, 'primary', 'primary')];
+    // A running job's toast has no filled button: "Show in Jobs" is an offer, not the next step.
+    const actions: HostAction[] = [...act(t.primary, isRunningToast(t) ? 'default' : 'primary', 'primary')];
     // A question with three answers ("Update", "Later", "Skip this version") shows all of them.
     if (t.tertiary) actions.push(...act(t.secondary, 'default', 'secondary'), ...act(t.tertiary, 'default', 'tertiary'));
     if (t.id > 0) actions.push({ label: $localize`:@@notifications.toasts.show:Show in Notifications`, kind: 'ghost', id: 'show', run: () => this.show(t) });

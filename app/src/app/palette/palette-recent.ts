@@ -17,6 +17,7 @@ export const COMMON_COMMANDS: readonly string[] = [
   'moment.analyse',
   'project.save',
   'settings.open',
+  'ai.setup',
 ];
 
 /** The commands last run from the palette, newest first; kept in this browser's storage (a convenience: it may be lost). */

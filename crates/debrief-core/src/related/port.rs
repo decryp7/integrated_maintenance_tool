@@ -110,3 +110,15 @@ impl RelatedSource for LogStoreSource<'_> {
             .collect())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::cut;
+
+    #[test]
+    fn long_text_is_cut_on_a_character_with_an_ellipsis() {
+        assert_eq!(cut("abc", 3), "abc");
+        assert_eq!(cut("abcd", 3), "abc…");
+        assert_eq!(cut("äöüß", 2), "äö…", "never inside a multi-byte character");
+    }
+}

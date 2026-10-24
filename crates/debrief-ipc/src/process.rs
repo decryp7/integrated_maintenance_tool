@@ -72,6 +72,9 @@ pub struct SpawnSpec {
     /// Hears what the memory watcher sees of a capped child (the warning at 80%, the stop, the peak at the end; see
     /// [`crate::memory_watch`]). Ignored without a memory cap.
     pub memory_listener: Option<MemoryListener>,
+    /// The private socket the child connects to (Unix; set by [`crate::launch::launch`]): the one socket a contained
+    /// macOS child's sandbox profile lets it reach.
+    pub ipc_socket: Option<PathBuf>,
 }
 
 impl SpawnSpec {
@@ -89,6 +92,7 @@ impl SpawnSpec {
             log: None,
             sandbox: crate::sandbox::SandboxSpec::unrestricted(),
             memory_listener: None,
+            ipc_socket: None,
         }
     }
 }
@@ -599,11 +603,13 @@ impl Drop for ChildProcess {
 }
 
 /// The program and arguments that start `spec`: the program itself, or on macOS for a contained child,
-/// `sandbox-exec` with the sandbox profile in front of it.
+/// `sandbox-exec` with the sandbox profile in front of it. The contained program is named by its resolved path: the
+/// profile cannot read the symlinks on the way (macOS' `/var` → `/private/var`), so exec through them is denied.
 fn launcher_command(spec: &SpawnSpec) -> (PathBuf, Vec<String>) {
     #[cfg(target_os = "macos")]
-    if let Some(profile) = crate::sandbox::launcher_profile(&spec.sandbox, &spec.exe) {
-        let mut args = vec!["-p".to_string(), profile, spec.exe.to_string_lossy().into_owned()];
+    if let Some(profile) = crate::sandbox::launcher_profile(&spec.sandbox, &spec.exe, spec.ipc_socket.as_deref()) {
+        let exe = std::fs::canonicalize(&spec.exe).unwrap_or_else(|_| spec.exe.clone());
+        let mut args = vec!["-p".to_string(), profile, exe.to_string_lossy().into_owned()];
         args.extend(spec.args.iter().cloned());
         return (PathBuf::from("/usr/bin/sandbox-exec"), args);
     }
@@ -633,6 +639,31 @@ mod tests {
     #[test]
     fn rss_is_reported() {
         assert!(super::current_rss_bytes() > 0);
+    }
+
+    /// Regression: a contained plugin in a folder reached through a symlink (macOS' temp folder) exited with
+    /// `sandbox-exec`'s status 71, as its profile cannot read the symlink to exec the program through it.
+    #[test]
+    #[cfg(target_os = "macos")]
+    fn a_contained_program_is_started_by_its_resolved_path() {
+        let t = tempfile::tempdir().unwrap();
+        let real = t.path().canonicalize().unwrap().join("real");
+        std::fs::create_dir_all(real.join("bin")).unwrap();
+        std::fs::write(real.join("bin/x"), b"").unwrap();
+        let link = t.path().join("link");
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let mut spec = super::SpawnSpec::new(link.join("bin/x"), "x");
+        spec.sandbox = crate::sandbox::SandboxSpec {
+            containment: crate::sandbox::Containment::Launcher {
+                name: "debrief.plugin.x".into(),
+                read: vec![link.clone()],
+                write: Vec::new(),
+            },
+            ..crate::sandbox::SandboxSpec::locked()
+        };
+        let (program, args) = super::launcher_command(&spec);
+        assert_eq!(program, std::path::Path::new("/usr/bin/sandbox-exec"));
+        assert_eq!(args[2], real.join("bin/x").to_string_lossy());
     }
 
     #[test]

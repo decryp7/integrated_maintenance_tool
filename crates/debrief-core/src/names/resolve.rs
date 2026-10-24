@@ -357,11 +357,9 @@ fn clarification(found: &[NameMatch], text: &str) -> Option<Clarification> {
         return None;
     }
     let names: Vec<String> = tied.iter().map(|m| format!("{} ({})", m.display, kind_word(&m.scope))).collect();
-    let list = match names.as_slice() {
-        [a, b] => format!("{a} or {b}"),
-        [init @ .., last] => format!("{} or {last}", init.join(", ")),
-        [] => String::new(),
-    };
+    // At least two options: "A or B", "A, B or C".
+    let (last, init) = names.split_last()?;
+    let list = format!("{} or {last}", init.join(", "));
     Some(Clarification {
         question: format!("By '{}', do you mean {list}?", text.trim()),
         options: tied.iter().map(|m| m.id.clone()).collect(),

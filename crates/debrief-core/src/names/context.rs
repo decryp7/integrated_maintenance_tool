@@ -195,6 +195,18 @@ mod tests {
     }
 
     #[test]
+    fn a_group_without_times_is_not_active_in_the_window() {
+        let c = SearchContext {
+            window: Some((100, 200)),
+            ..SearchContext::default()
+        };
+        let mut g = grp("a", (150, 160), "x");
+        assert_eq!(relevance(&g, &c).0, 1.0);
+        g.first_ts = None;
+        assert_eq!(relevance(&g, &c), (0.0, vec![]));
+    }
+
+    #[test]
     fn signals_rank_candidates() {
         let mut c = SearchContext {
             window: Some((100, 200)),

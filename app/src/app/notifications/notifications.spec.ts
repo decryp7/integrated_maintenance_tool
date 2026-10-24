@@ -320,6 +320,22 @@ describe('NotificationsStore', () => {
     expect(store.toasts()).toEqual([]);
   });
 
+  it('updates the "running in Jobs" toast in place when the result arrives (one toast per operation)', async () => {
+    const { fake, store } = setupStore();
+    await settle();
+    store.showLocal({ severity: 'info', title: 'Explaining event #1 — running in Jobs', primary: { type: 'showJobs' }, running: true });
+    store.showLocal({ severity: 'info', title: 'Explaining event #1 — running in Jobs', primary: { type: 'showJobs' }, running: true });
+    expect(store.toasts()).toHaveLength(1);
+    store.showLocal({ severity: 'error', title: 'Did not start', body: 'queue is full' });
+    const result = notice({ id: 7, title: 'Explanation ready' });
+    fake.push(event([result], result));
+    expect(store.toasts().map((t) => t.title)).toEqual(['Explanation ready', 'Did not start']);
+    // With no running toast left, the next result is simply added.
+    const next = notice({ id: 8 });
+    fake.push(event([result, next], next));
+    expect(store.toasts().map((t) => t.id)).toEqual([7, -3, 8]);
+  });
+
   it('dismissing a message removes its toast and asks the engine', async () => {
     const { fake, store } = setupStore();
     await settle();

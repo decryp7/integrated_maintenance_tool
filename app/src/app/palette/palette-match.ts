@@ -24,7 +24,7 @@ function isWordStart(text: string, i: number): boolean {
 
 /**
  * Where one query word matches `text`: as the start of a word (best), inside a word (three letters or more), or as
- * the initials of consecutive words ("sa" → "Show anomalies"). Null when it does not match in one of these ways: a
+ * the initials of the title's first words ("sa" → "Show anomalies"). Null when it does not match in one of these ways: a
  * scattered subsequence ("anom" in "Full screen does: hide tool windows…") is not a match.
  */
 export function matchWord(token: string, text: string): { score: number; indices: number[] } | null {
@@ -39,15 +39,13 @@ export function matchWord(token: string, text: string): { score: number; indices
     at = t.indexOf(q, at + 1);
   }
   if (inside !== null && q.length >= 3) return { score: 4 + q.length - inside / 100, indices: range(inside, q.length) };
-  // Initials: each letter starts a word, in order.
+  // Initials: each letter starts one of the first words, in order ("ai" is not the initials of "Open an image").
   const starts = [...t].map((_, i) => i).filter((i) => isWordStart(t, i) && /\p{L}|\p{N}/u.test(t[i] ?? ''));
   const indices: number[] = [];
-  let from = 0;
-  for (const ch of q) {
-    const k = starts.findIndex((s, j) => j >= from && t[s] === ch);
-    if (k < 0) return null;
-    indices.push(starts[k]!);
-    from = k + 1;
+  for (const [k, ch] of [...q].entries()) {
+    const at = starts[k];
+    if (at === undefined || t[at] !== ch) return null;
+    indices.push(at);
   }
   return q.length >= 2 ? { score: 3 + q.length, indices } : null;
 }
@@ -105,7 +103,9 @@ export function rankCommands(commands: readonly DebriefCommand[], query: string,
         score += inLabel.score / 2;
       }
     }
-    scored.push({ entry: { command, title, showCategory: showsCategory(command), marks }, score: score - title.length / 1000, index });
+    // Commands the user ran lately or reaches for most rank above equally good matches ("AI" → "Set up AI assistant").
+    const familiar = recent.includes(command.id) ? 2 : common.includes(command.id) ? 1.5 : 0;
+    scored.push({ entry: { command, title, showCategory: showsCategory(command), marks }, score: score + familiar - title.length / 1000, index });
   });
   return scored.sort((a, b) => b.score - a.score || a.index - b.index).map((s) => s.entry);
 }

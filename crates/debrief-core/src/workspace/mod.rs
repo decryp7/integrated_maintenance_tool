@@ -1434,6 +1434,20 @@ mod phase_tests {
     use super::*;
 
     #[test]
+    fn every_stored_phase_number_reads_back_and_unknown_ones_are_idle() {
+        let phases = [
+            ImportPhase::Idle,
+            ImportPhase::Finding,
+            ImportPhase::Importing,
+            ImportPhase::Finishing,
+        ];
+        for (n, want) in phases.into_iter().enumerate() {
+            assert_eq!(ImportPhase::from_u8(n as u8), want);
+        }
+        assert_eq!(ImportPhase::from_u8(200), ImportPhase::Idle);
+    }
+
+    #[test]
     fn the_phase_shows_while_running_and_clears_on_start_and_finish() {
         let p = ImportProgress::default();
         p.start(2, 10);

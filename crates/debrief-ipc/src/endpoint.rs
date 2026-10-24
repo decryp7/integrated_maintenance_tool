@@ -52,6 +52,9 @@ impl PrivateEndpoint {
         bases.push(PathBuf::from("/tmp"));
         let mut last = io::Error::other("no place for a private socket");
         for base in bases {
+            // Named by its resolved path (macOS' temp folder `/var/folders/…` is `/private/var/folders/…`): a contained
+            // child's sandbox profile allows exactly this socket, and the sandbox matches resolved paths.
+            let base = base.canonicalize().unwrap_or(base);
             let dir = base.join(format!("{prefix}-{}", random_hex(6)?));
             let sock = dir.join("w.sock");
             // Unix socket paths are limited to about 100 bytes.

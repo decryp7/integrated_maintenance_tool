@@ -1,17 +1,22 @@
 import { expect, Page, test } from '@playwright/test';
 import { openApp, openView } from './app';
+import { runCommand } from './analysis-support';
+import { chooseMenu, showProfileEditor } from './menu-support';
 
 // A tab strip too narrow for its tabs ends in a chip ("⌄ 2") that lists the hidden tabs.
 
 const tab = (page: Page, name: string) => page.getByRole('tab', { name, exact: true });
-const chip = (page: Page) => page.getByRole('button', { name: '2 more tabs' });
+const chip = (page: Page) => page.getByRole('button', { name: /^\d+ more tabs$/ });
 const list = (page: Page) => page.locator('.dv-tabs-overflow-container');
 
-/** The dock narrowed so the Timeline group (Timeline, Registry, Metrics) shows one tab and hides two. */
-async function narrowDock(page: Page): Promise<void> {
+/** Metrics, Profile, Video and two tools share the document strip beside the timeline (Registry has its own column), so it shows some tabs and hides the rest. */
+async function overflowStrip(page: Page): Promise<void> {
   await openApp(page);
   await openView(page, 'metrics');
-  await page.locator('.debrief-dock-mount').evaluate((el: HTMLElement) => (el.style.flex = '0 0 260px'));
+  await showProfileEditor(page);
+  await chooseMenu(page, 'File', 'Open video…');
+  await runCommand(page, 'Compare configuration files');
+  await runCommand(page, 'Open collection schedules');
   await expect(chip(page)).toBeVisible();
 }
 
@@ -23,18 +28,18 @@ async function topmostIsInside(page: Page, selector: string): Promise<boolean> {
 
 test.describe('tab overflow list', () => {
   test('the chip is a named button with a tooltip; clicking it lists the hidden tabs on top, and a row opens its tab', async ({ page }) => {
-    await narrowDock(page);
-    await expect(chip(page)).toHaveAttribute('title', '2 more tabs');
+    await overflowStrip(page);
+    await expect(chip(page)).toHaveAttribute('title', /^\d+ more tabs$/);
     await chip(page).click();
     await expect(list(page)).toBeVisible();
     expect(await topmostIsInside(page, '.dv-tabs-overflow-container')).toBe(true);
-    await list(page).locator('.dv-tab', { hasText: 'Registry' }).click();
+    await list(page).locator('.dv-tab', { hasText: 'Profile' }).click();
     await expect(list(page)).toHaveCount(0);
-    await expect(tab(page, 'Registry')).toHaveAttribute('aria-selected', 'true');
+    await expect(tab(page, 'Profile')).toHaveAttribute('aria-selected', 'true');
   });
 
   test('the chip opens with the keyboard', async ({ page }) => {
-    await narrowDock(page);
+    await overflowStrip(page);
     await chip(page).focus();
     await page.keyboard.press('Enter');
     await expect(list(page)).toBeVisible();

@@ -11,7 +11,7 @@ import { AnalysisTime } from './analysis-time';
 import { AnalysisResource } from './async-resource';
 import { CoverageNote } from './coverage-note';
 import { TimeCursor } from './time-cursor';
-import { aroundTime, midpoint, previousWindow, WIDTHS } from './windows';
+import { aroundTime, midpoint, WIDTHS } from './windows';
 
 /** Values listed per changed field before "Show all". */
 const TOP_VALUES = 5;
@@ -44,7 +44,7 @@ const TOP_VALUES = 5;
             @for (side of sides(c); track side.name) {
               <section class="card" [attr.aria-label]="windowLabel(side.name)">
                 <strong [class]="'side ' + side.name.toLowerCase()" i18n="@@analysis.compare.windowN.title">Window {{ side.name }}</strong>
-                <div class="nums" i18n="@@analysis.compare.side.stats">{{ count(side.stats.count) }} events · {{ side.stats.perMinute }}/min · {{ duration(side.stats.durationMs) }}</div>
+                <div class="nums" i18n="@@analysis.compare.side.stats">{{ count(side.stats.count) }} events @if (side.stats.count >= 2) { · {{ side.stats.perMinute }}/min · {{ duration(side.stats.durationMs) }} }</div>
                 <div class="lv">@for (l of side.stats.levels; track l.level) { <span class="lvl" [class]="'lvl ' + l.level">{{ l.level }} {{ count(l.count) }}</span> }</div>
               </section>
             }
@@ -172,6 +172,10 @@ export class CompareView {
   protected readonly change = formatChange;
 
   constructor() {
+    // Opened without windows (from the menu): start from the current range rather than an empty page.
+    untracked(() => {
+      if (!this.targets.windowA() && !this.targets.windowB()) this.targets.compareCurrentRange();
+    });
     effect(() => {
       const a = this.targets.windowA();
       const b = this.targets.windowB();
@@ -232,8 +236,7 @@ export class CompareView {
 
   /** B = the current range (selection, query range or everything), A = the window just before it. */
   protected previous(): void {
-    const r = this.targets.currentRange();
-    if (r) this.targets.setWindows(previousWindow(r), r);
+    this.targets.compareCurrentRange();
   }
 
   /** Around the selection's start, or the middle of the current range when nothing is selected. */

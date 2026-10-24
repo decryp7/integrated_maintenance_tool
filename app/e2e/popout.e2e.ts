@@ -85,6 +85,11 @@ test.describe('pop-out windows', () => {
     const after = (await groupOf(page, 'Metrics').boundingBox())!;
     expect(Math.abs(after.x - before.box.x)).toBeLessThanOrEqual(2);
     expect(Math.abs(after.y - before.box.y)).toBeLessThanOrEqual(2);
+    // Back in the document strip beside the timeline; Registry keeps its own full-height column at the right edge.
+    await expect(groupOf(page, 'Registry')).not.toContainText('Metrics');
+    const timeline = (await page.locator('debrief-timeline-panel').boundingBox())!;
+    const metrics = (await page.locator('debrief-metrics-view').boundingBox())!;
+    expect(metrics.x).toBeGreaterThanOrEqual(timeline.x + timeline.width - 2);
   });
 
   test('the View menu shows a popped-out panel as open; closing it there closes the window', async ({ page, context }) => {

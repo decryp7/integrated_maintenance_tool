@@ -62,7 +62,7 @@ export function aiCommands(
   const withData = () => status.available() && !!store.summary()?.total;
   const selected = (): RecordView | null => store.selected();
   return [
-    { id: 'ai.chat.show', title: $localize`:@@ai.provide.cmd.chat:AI: Open the assistant chat`, category: $localize`:@@ai.provide.category:AI`, when: available, run: (ctx) => ctx.showView(AI_CHAT_VIEW) },
+    { id: 'ai.chat.show', title: $localize`:@@ai.provide.cmd.chat:AI: Open the assistant chat`, category: $localize`:@@ai.provide.category:AI`, when: available, view: AI_CHAT_VIEW, run: (ctx) => ctx.showView(AI_CHAT_VIEW) },
     { id: 'ai.setup', title: $localize`:@@ai.provide.cmd.setup:Set up AI assistant`, category: $localize`:@@ai.provide.category:AI`, when: available, run: () => launcher.openSetup() },
     { id: 'ai.models', title: $localize`:@@ai.provide.cmd.models:AI: Manage models…`, category: $localize`:@@ai.provide.category:AI`, when: available, run: () => launcher.openModels() },
     { id: 'ai.image.open', title: $localize`:@@ai.vision.cmd.open:AI: Open an image…`, category: $localize`:@@ai.provide.category:AI`, when: available, run: () => void launcher.openImage() },

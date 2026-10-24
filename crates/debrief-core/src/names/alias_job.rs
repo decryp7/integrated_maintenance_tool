@@ -297,6 +297,29 @@ mod tests {
         {\"id\":2,\"name\":\"Service Host\",\"aliases\":[\"svc host\"]}]}\n```";
 
     #[test]
+    fn the_job_pauses_between_batches_when_asked_to() {
+        let mut b = book();
+        let m = fake(GOOD);
+        let slow = AliasJobConfig {
+            pause: Duration::from_millis(20),
+            ..cfg()
+        };
+        let started = std::time::Instant::now();
+        let r = run(&mut b, Some(&m), &slow, &|| false);
+        assert_eq!(r.batches, 1);
+        assert!(started.elapsed() >= Duration::from_millis(20));
+    }
+
+    #[test]
+    fn a_huge_reply_is_cut_on_a_character_boundary_and_read_as_nothing() {
+        let raw = format!("a{}", "é".repeat(MAX_REPLY_BYTES));
+        assert!(!raw.is_char_boundary(MAX_REPLY_BYTES));
+        let (entries, rejected) = parse_reply(&raw, 3, "m");
+        assert!(entries.is_empty());
+        assert_eq!(rejected, 3);
+    }
+
+    #[test]
     fn stores_valid_answers_and_caches_per_model_version() {
         let mut b = book();
         let m = fake(GOOD);

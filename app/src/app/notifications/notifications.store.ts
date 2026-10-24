@@ -43,6 +43,17 @@ interface NotificationsState {
   local: LocalNotice[];
 }
 
+/** Marks the UI's own "running in Jobs" toast: the job's result replaces it. */
+export const RUNNING_KEY = 'toast:running';
+
+/** The cause prefix of the UI's own "running in Jobs" toasts: the job's result replaces one. */
+export const RUNNING_CAUSE = 'ui-toast:running:';
+
+/** Whether `t` is a "running in Jobs" toast of the UI's own. */
+export function isRunningToast(t: Pick<Notice, 'cause'>): boolean {
+  return t.cause.startsWith(RUNNING_CAUSE);
+}
+
 const initial: NotificationsState = { snapshot: EMPTY_NOTICES, toasts: [], sources: [], read: 'all', focus: null, error: null, loaded: false, local: [] };
 
 function message(e: unknown): string {
@@ -107,7 +118,13 @@ export const NotificationsStore = signalStore(
         patchState(store, { snapshot: { notices: e.notices, unread: e.unread }, loaded: true });
         const p = e.posted;
         if (p && !p.read && !OWN_TOASTS.includes(p.source)) {
-          patchState(store, (s) => ({ toasts: [...s.toasts.filter((t) => t.id !== p.id), p].slice(-MAX_TOASTS) }));
+          // One toast per operation: a job's result takes the place of the oldest "running" toast instead of stacking.
+          patchState(store, (s) => {
+            const rest = s.toasts.filter((t) => t.id !== p.id);
+            const running = p.source === 'job' ? rest.findIndex((t) => isRunningToast(t)) : -1;
+            if (running < 0) return { toasts: [...rest, p].slice(-MAX_TOASTS) };
+            return { toasts: rest.map((t, i) => (i === running ? p : t)) };
+          });
         }
       },
 
@@ -179,7 +196,7 @@ export const NotificationsStore = signalStore(
       dismissToast,
 
       /** A toast of the UI's own (not a message of the centre): e.g. "Explaining event #7 — running in Jobs". */
-      showLocal(n: Pick<Notice, 'severity' | 'title'> & { body?: string; primary?: Notice['primary'] }): void {
+      showLocal(n: Pick<Notice, 'severity' | 'title'> & { body?: string; primary?: Notice['primary']; running?: boolean }): void {
         const now = Date.now();
         const id = -++localIds;
         const toast: Notice = {
@@ -196,10 +213,11 @@ export const NotificationsStore = signalStore(
           secondary: null,
           tertiary: null,
           link: { window: null, jobId: null, recordId: null, pluginId: null, path: null },
-          cause: `ui-toast:${-id}`,
+          // A "running in Jobs" toast is one per operation (its title): showing it again replaces it, the result takes its place.
+          cause: n.running ? RUNNING_CAUSE + n.title : `ui-toast:${-id}`,
           scope: 'project',
         };
-        patchState(store, (s) => ({ toasts: [...s.toasts, toast].slice(-MAX_TOASTS) }));
+        patchState(store, (s) => ({ toasts: [...s.toasts.filter((t) => t.cause !== toast.cause), toast].slice(-MAX_TOASTS) }));
       },
 
       toggleSource(source: NoticeSource): void {

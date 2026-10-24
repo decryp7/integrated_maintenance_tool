@@ -8,7 +8,7 @@ export const CONFIG_DIFF_VIEWS: DebriefView[] = [
 ];
 
 export const CONFIG_DIFF_COMMANDS: DebriefCommand[] = [
-  { id: 'tools.configDiff.show', title: $localize`:@@configDiff.provide.command.compare:Compare configuration files…`, category: $localize`:@@configDiff.provide.command.category:Tools`, run: (ctx) => ctx.showView('config-diff') },
+  { id: 'tools.configDiff.show', title: $localize`:@@configDiff.provide.command.compare:Compare configuration files…`, category: $localize`:@@configDiff.provide.command.category:Tools`, view: 'config-diff', run: (ctx) => ctx.showView('config-diff') },
 ];
 
 /** Registers the configuration diff (view, command, backend). One line in `app.config.ts`. */

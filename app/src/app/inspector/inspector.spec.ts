@@ -109,7 +109,9 @@ describe('Inspector', () => {
     const { fixture } = await render(5);
     expect(text(fixture)).toContain('Host terminated unexpectedly');
     expect(text(fixture)).toContain('14 Oct 2026');
-    expect(all(fixture, '.badge-mk').map((b) => b.textContent?.trim())).toEqual(['Fatal', 'Stop', 'Exception']);
+    expect(all(fixture, '.badge-mk').map((b) => b.textContent?.trim())).toEqual(['Stop', 'Exception']);
+    // The level badge says Fatal once: a marker of the same name would repeat it.
+    expect(el(fixture, '.badge-lvl').textContent).toContain('Fatal');
     expect(el(fixture, '.exc').textContent).toContain('TimeoutException');
     expect(text(fixture)).toContain('app.clef:6');
     expect(all(fixture, '.prop .k').map((k) => k.textContent)).toEqual(['Application', 'MachineName', 'ProcessId']);

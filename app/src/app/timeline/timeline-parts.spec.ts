@@ -129,7 +129,9 @@ describe('TimelineLanes keyboard', () => {
     const markers = () => [...lane.querySelectorAll<HTMLButtonElement>('.marker')];
     expect(markers()).toHaveLength(3);
     const stops = () => markers().map((m) => m.getAttribute('tabindex'));
-    expect(stops()).toEqual(['0', '-1', '-1']);
+    // One Tab stop for the whole lane area (the roving group): the first lane's label, until a marker is focused.
+    expect(stops()).toEqual(['-1', '-1', '-1']);
+    expect(all(fixture, '.lane-label, .marker').filter((e) => e.getAttribute('tabindex') === '0')).toHaveLength(1);
     for (const other of all(fixture, '.lane').slice(1)) expect(other.querySelectorAll('.marker[tabindex="0"]').length).toBeLessThanOrEqual(1);
     const press = (el: HTMLElement, key: string, init: KeyboardEventInit = {}) => el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...init }));
     at(markers(), 0).focus();

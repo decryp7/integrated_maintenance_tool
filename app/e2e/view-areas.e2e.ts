@@ -61,8 +61,9 @@ test.describe('view home areas', () => {
     await expect(tab(page, 'Metrics')).toHaveAttribute('aria-selected', 'true');
     await expect(button).toHaveClass(/\bon\b/);
     await expect(dot).toHaveCount(0);
-    // Bring the Registry viewer (the other tab of that group) to the front: Metrics is open, but behind.
-    await tab(page, 'Registry').click();
+    // Open another document beside it (they share the strip) and bring it to the front: Metrics is open, but behind.
+    await page.getByRole('button', { name: 'Profile editor', exact: true }).click();
+    await tab(page, 'Profile').click();
     await expect(tab(page, 'Metrics')).toHaveAttribute('aria-selected', 'false');
     await expect(dot).toHaveCount(1);
     await expect(button).not.toHaveClass(/\bon\b/);

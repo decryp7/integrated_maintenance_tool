@@ -19,7 +19,8 @@ test('an export never replaces an existing file without asking', async ({ page }
   await expect(dialog).toHaveCount(0);
   const done = page.getByTestId('notification').filter({ hasText: 'Finished: Export events to events.csv' });
   await expect(done).toBeVisible({ timeout: 15_000 });
-  await page.getByTestId('notification').filter({ hasText: 'running in Jobs' }).getByRole('button', { name: 'Dismiss notification' }).click();
+  // One toast per operation: the result replaced the "running in Jobs" one.
+  await expect(page.getByTestId('notification').filter({ hasText: 'running in Jobs' })).toHaveCount(0);
   await done.getByRole('button', { name: 'Dismiss notification' }).click();
 
   // Same file again: the engine refuses, the app asks.

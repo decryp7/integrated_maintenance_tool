@@ -1,3 +1,4 @@
+import { RovingTabindex } from './shared/roving-tabindex';
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { WorkspaceStore } from './core/workspace.store';
 import { ActivityBar } from './shell/activity-bar';
@@ -20,7 +21,7 @@ import { RegionNavigator } from './shell/regions';
 @Component({
   selector: 'debrief-root',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, ImportToast, PartialImportBanner, TourOverlay],
+  imports: [RovingTabindex, TitleBar, LifecycleBanners, ActivityBar, Sidebar, StatusBar, DockHost, FilterBar, CommandPalette, DialogHost, ContextMenuHost, Welcome, ImportToast, PartialImportBanner, TourOverlay],
   template: `
     <!-- The first Tab stop: jumps over the activity bar, side bar and filter bar to the events grid (visible on focus). -->
     <button type="button" class="skip-link" (click)="regions.events()" i18n="@@app.skipToEvents">Skip to events</button>
@@ -29,7 +30,7 @@ import { RegionNavigator } from './shell/regions';
     <debrief-partial-import-banner />
     <div class="body">
       <!-- The regions F6 cycles through (shell/regions.ts): each a named landmark that takes focus. -->
-      <debrief-activity-bar data-debrief-region="activity" role="navigation" aria-label="Activity bar" i18n-aria-label="@@app.region.activity" tabindex="-1" />
+      <debrief-activity-bar debriefRoving=".act" rovingAxis="vertical" data-debrief-region="activity" role="navigation" aria-label="Activity bar" i18n-aria-label="@@app.region.activity" tabindex="-1" />
       <!-- The empty Explorer says nothing the welcome page does not: it appears with the first data. -->
       @if (store.sidebarOpen() && !(welcome.visible() && !hasData())) {
         <debrief-sidebar data-debrief-region="sidebar" role="complementary" aria-label="Side bar" i18n-aria-label="@@app.region.sidebar" tabindex="-1" />

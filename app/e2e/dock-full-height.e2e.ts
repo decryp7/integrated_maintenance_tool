@@ -1,5 +1,6 @@
 import { expect, Locator, Page, test } from '@playwright/test';
 import { openApp } from './app';
+import { openAiApp, openChat } from './ai-support';
 
 /** The dock group (`.dv-groupview`) holding the panel inside `inner`. */
 function groupOf(inner: Locator): Locator {
@@ -23,7 +24,7 @@ async function expectFullHeight(page: Page, panel: Locator): Promise<void> {
   expect(events.height).toBeGreaterThan(200);
   expect(timeline.height).toBeGreaterThan(150);
   expect(events.height + timeline.height).toBeGreaterThan(dock.height * 0.9);
-  expect(group.width).toBeGreaterThan(400);
+  expect(group.width).toBeGreaterThan(300);
 }
 
 test.describe('full-height documents (Home, Registry)', () => {
@@ -77,7 +78,24 @@ test.describe('2560 px window (U15) and the explorer (U14)', () => {
     await page.getByRole('tab', { name: 'Registry', exact: true }).click();
     await expect(page.getByRole('tree', { name: 'Registry' })).toBeVisible();
     const column = await box(groupOf(page.getByRole('tree', { name: 'Registry' })));
-    expect(column.width).toBeLessThanOrEqual(960 + 4);
+    expect(column.width).toBeLessThanOrEqual(880 + 4);
     expect(column.height).toBeGreaterThan(1000);
+  });
+});
+
+test.describe('tool windows beside a full-height column', () => {
+  test('a tool window opening at the right edge keeps its width: the column and the grid give way instead of squeezing it', async ({ page }) => {
+    await openAiApp(page);
+    await page.getByRole('tab', { name: 'Registry', exact: true }).click();
+    await expect(page.getByRole('tree', { name: 'Registry' })).toBeVisible();
+    await openChat(page);
+    const tool = await box(groupOf(page.locator('debrief-ai-chat-panel')));
+    expect(tool.width).toBeGreaterThanOrEqual(360);
+    // Registry keeps a readable column, and the three columns still fit the dock.
+    const registry = await box(groupOf(page.getByRole('tree', { name: 'Registry' })));
+    expect(registry.width).toBeGreaterThanOrEqual(270);
+    const grid = await box(groupOf(page.locator('debrief-events-grid')));
+    const dock = await box(page.locator('debrief-dock-host'));
+    expect(grid.x + grid.width + registry.width + tool.width).toBeLessThanOrEqual(dock.x + dock.width + 4);
   });
 });

@@ -68,4 +68,14 @@ describe('DockPlacement.addView: fullHeight documents (Home, Registry)', () => {
     placement.addView(dock, full('registry'), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { referenceGroup: 'g7', direction: 'within' } }));
   });
+
+  it('is theirs: another document opens beside the timeline, not as a tab of the Home column', () => {
+    const column = { id: 'g7', height: 900, api: { location: { type: 'grid' } }, panels: [{ id: 'home' }] };
+    const { dock, addPanel, placement } = fakeDock([column]);
+    vi.spyOn(placement, 'documentWell').mockReturnValue(column as never);
+    const ctx = (placement as unknown as { ctx: { views: { find: (id: string) => DebriefView | undefined } } }).ctx;
+    vi.spyOn(ctx.views, 'find').mockImplementation((id: string) => (id === 'home' ? full('home') : undefined));
+    placement.addView(dock, view({ id: 'metrics', area: 'document' }), false);
+    expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { referenceGroup: 'gt', direction: 'right' } }));
+  });
 });
