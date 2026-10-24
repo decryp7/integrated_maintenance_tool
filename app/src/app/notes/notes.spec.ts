@@ -61,6 +61,8 @@ describe('notes model', () => {
     expect((['info', 'warning', 'problem'] as const).map(severityLabel)).toEqual(['Info', 'Warning', 'Problem']);
     expect(severityColor('problem')).toContain('error');
     expect(severityColor('warning')).toContain('warn');
+    // The label is text on a card: it uses the text-safe accent (contrast 4.5:1), not the fill accent.
+    expect(severityColor('info')).toBe('var(--accent-text)');
     expect(notes.map((n) => anchorText(n.anchor))).toEqual(['disk full', 'Event 7', 'a.log', 'Time range', 'Moment', 'boot', 'CPU · web01', 'The whole project', 'screen.png']);
     expect(anchorText({ kind: 'chartPoint', chart: 'CPU', series: null, at: 1, value: null })).toBe('CPU');
   });

@@ -13,55 +13,76 @@ async function runCommand(page: Page, text: string): Promise<void> {
   await page.keyboard.press('Enter');
 }
 
-test('without a runtime the wizard downloads the suggested build first, then sets up a model', async ({
+const modelsDialog = (page: Page) => page.getByRole('dialog', { name: 'AI models' });
+
+test('without a runtime the wizard says the suggested build is downloaded first, and the background set-up installs both', async ({
   page,
 }, testInfo) => {
   await openAppWith(page, '?mockAi=setup&mockAiRuntime=none&mockAiStepMs=5');
   await runCommand(page, 'Set up AI assistant');
   const dialog = page.getByRole('dialog', { name: 'Set up the AI assistant' });
-  const step = dialog.getByTestId('ai-setup-runtime');
-  await expect(step).toContainText('Inference runtime');
-  await expect(dialog.getByTestId('ai-runtime-suggested')).toContainText(
-    'CUDA 13 (NVIDIA) is recommended',
-  );
-  await expect(dialog.getByTestId('ai-runtime-continue')).toBeDisabled();
+  await expect(dialog.getByTestId('ai-hardware')).toContainText('8 GB video memory');
+  await expect(dialog.getByTestId('ai-setup-runtime-note')).toContainText('CUDA 13 (NVIDIA)');
+  await expect(dialog.getByTestId('ai-setup-runtime-note')).toContainText('is downloaded first');
+  await expectNoSeriousViolations(page, testInfo, 'ai-setup-runtime-note', '[role=dialog]');
+
+  await dialog.getByTestId('ai-setup-start').click();
+  await expect(dialog).toHaveCount(0);
+  const ready = page.getByTestId('notification').filter({ hasText: 'AI assistant ready' });
+  await expect(ready).toBeVisible({ timeout: 20_000 });
+
+  // The runtime was installed on the way and is the active build now.
+  await runCommand(page, 'AI: Manage models');
+  await expect(modelsDialog(page).getByTestId('ai-runtime-cuda-13')).toContainText('Active');
+});
+
+test('the model manager suggests a runtime when none is installed, downloads it with progress and activates it', async ({
+  page,
+}, testInfo) => {
+  await openAppWith(page, '?mockAiRuntime=none&mockAiStepMs=5');
+  await runCommand(page, 'AI: Manage models');
+  const dialog = modelsDialog(page);
+  await expect(dialog.getByTestId('ai-runtime-suggested')).toContainText('CUDA 13 (NVIDIA) is recommended');
   await expect(dialog.getByTestId('ai-runtime-cuda-13')).toContainText('Suggested');
   await expectNoSeriousViolations(page, testInfo, 'ai-setup-runtime', '[role=dialog]');
 
   await dialog.getByTestId('ai-runtime-download-suggested').click();
-  await expect(dialog.getByTestId('ai-runtime-progress')).toBeVisible();
-  await expect(dialog.getByTestId('ai-runtime-ready')).toContainText(
-    'CUDA 13 (NVIDIA) is installed',
-  );
+  await expect(dialog.getByTestId('ai-runtime-ready')).toContainText('CUDA 13 (NVIDIA) is installed');
   await expect(dialog.getByTestId('ai-runtime-cuda-13')).toContainText('Active');
-  await dialog.getByTestId('ai-runtime-continue').click();
-
-  await expect(dialog.getByTestId('ai-hardware')).toContainText('8 GB video memory');
-  await dialog.getByTestId('ai-setup-start').click();
-  await expect(dialog.getByTestId('ai-setup-ready')).toContainText('CUDA');
+  await expect(dialog.getByTestId('ai-runtime-suggested')).toHaveCount(0);
 });
 
 test('a runtime download can be cancelled', async ({ page }) => {
-  await openAppWith(page, '?mockAi=setup&mockAiRuntime=none&mockAiStepMs=40');
-  await runCommand(page, 'Set up AI assistant');
-  const dialog = page.getByRole('dialog', { name: 'Set up the AI assistant' });
+  await openAppWith(page, '?mockAiRuntime=none&mockAiStepMs=40');
+  await runCommand(page, 'AI: Manage models');
+  const dialog = modelsDialog(page);
   await dialog.getByRole('button', { name: 'Download CPU' }).click();
-  await expect(
-    dialog.getByRole('progressbar', { name: 'Runtime download progress' }),
-  ).toBeVisible();
+  await expect(dialog.getByRole('progressbar', { name: 'Runtime download progress' })).toBeVisible();
   await dialog.getByTestId('ai-runtime-cancel').click();
   await expect(dialog.getByTestId('ai-runtime-cancelled')).toBeVisible();
-  await expect(dialog.getByTestId('ai-runtime-continue')).toBeDisabled();
+  await expect(dialog.getByTestId('ai-runtime-ready')).toHaveCount(0);
 });
 
-test('a failed runtime download says why and offers to try again', async ({ page }) => {
-  await openAppWith(page, '?mockAi=setup&mockAiRuntime=none&mockAiFail=runtime&mockAiStepMs=5');
-  await runCommand(page, 'Set up AI assistant');
-  const dialog = page.getByRole('dialog', { name: 'Set up the AI assistant' });
+test('a failed runtime download says why and offers to try again in the model manager', async ({ page }) => {
+  await openAppWith(page, '?mockAiRuntime=none&mockAiFail=runtime&mockAiStepMs=5');
+  await runCommand(page, 'AI: Manage models');
+  const dialog = modelsDialog(page);
   await dialog.getByTestId('ai-runtime-download-suggested').click();
   const error = dialog.getByTestId('ai-runtime-error');
   await expect(error).toContainText('connection to github.com was reset');
   await expect(error.getByRole('button', { name: 'Try again' })).toBeVisible();
+});
+
+test('a background set-up whose runtime download fails ends with one message that says why and offers Retry', async ({
+  page,
+}) => {
+  await openAppWith(page, '?mockAi=setup&mockAiRuntime=none&mockAiFail=runtime&mockAiStepMs=5');
+  await runCommand(page, 'Set up AI assistant');
+  await page.getByRole('dialog', { name: 'Set up the AI assistant' }).getByTestId('ai-setup-start').click();
+  const failed = page.getByTestId('notification').filter({ hasText: 'could not be set up' });
+  await expect(failed).toBeVisible({ timeout: 20_000 });
+  await expect(failed).toContainText('connection to github.com was reset');
+  await expect(failed.getByRole('button', { name: 'Retry' })).toBeVisible();
 });
 
 test('the model manager lists the runtimes, switches the build and deletes after confirmation', async ({

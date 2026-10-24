@@ -112,6 +112,8 @@ import { AiRelatedResults } from './related-results';
     .bar { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
     .bar .select { max-width: 240px; }
     .body { flex: 1; overflow: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+    /* The body scrolls: its blocks keep their height instead of shrinking into each other in a short pane. */
+    .body > * { flex: none; }
     .actions { display: inline-flex; gap: 4px; flex-wrap: wrap; }
     .small { font-size: var(--fs-xs); }
     .result h4 { margin: 0 0 4px; font-size: var(--fs-md); }
