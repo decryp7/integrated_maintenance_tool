@@ -18,12 +18,16 @@ export const CHANGELOG: readonly ChangelogRelease[] = [
           "Notifications: One failure is now one notification. A repeated message updates the one already on screen (with a count) instead of adding another, errors stay until you dismiss them or the problem is gone, and technical details are folded behind Details. Job results, update offers, live alerts, error snapshots and errors all appear in the same place",
           "Services: When the log store, the AI worker, a plugin, the research browser or a download stops, the status bar shows one chip with a plain explanation, the next step, the technical details and a Try again / Restart / Allow again / Install button. Every window shows the same state, including a window you open while a service is down",
           "Memory limits: When a memory limit stops the database worker, the AI worker or a plugin, the status chip says so once, with Try again and Raise the cap… (it opens the setting with a suggested value)",
-          "Panels: A panel that needs the log store shows \"Waiting for the log store\" instead of its own red error, and loads by itself when the store is back; the assistant, the research browser, models and runtimes wait for their own service the same way"
+          "Panels: A panel that needs the log store shows \"Waiting for the log store\" instead of its own red error, and loads by itself when the store is back; the assistant, the research browser, models and runtimes wait for their own service the same way",
+          "Layout: Panes lay out by the room each one needs: what does not fit is tabbed or auto-hidden instead of squeezed (one notice with Undo), and returns when the window is large enough again; sizes you set by dragging are kept",
+          "Research browser: When the research browser cannot start, the status chip says so with Open Settings… (Settings ▸ Web browser) or, when no browser is installed, Install"
         ]
       },
       {
         "title": "Fixed",
         "items": [
+          "Start-up: A window shows \"Starting Debrief…\" until it is ready; a window that does not finish starting is reloaded once (keeping your query, filters and selection), then Debrief asks whether to reload, restart in Safe Mode or keep waiting",
+          "Research browser: Closing the research browser's window, quitting it or a crash no longer stops the next research; the browser opens on the display of the Debrief window that started it",
           "Dialogs: Every dialog is now one of four kinds (decision, form, viewer, tool) that decides its size, buttons and keys: result windows open at least 680 x 560 and only grow, questions are exactly as big as their text, and every window has a Close or Cancel button that stays in view (What's new no longer scrolls its Got it button out of sight)",
           "Dialogs: A dialog window may call only the commands it needs, so a bug in one window can no longer do what only the main window should; Restart to apply in Settings and the plugin windows, and Restart as administrator in the profiling and diagnostics windows, now restart through the window that opened them and keep its session",
           "Dialogs: Open recent project hands the choice back to the window you were working in, which asks about unsaved changes and opens it; What's new always shows the notes of the version that is running",
