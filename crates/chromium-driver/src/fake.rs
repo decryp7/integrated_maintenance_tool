@@ -19,7 +19,7 @@ use tungstenite::Message;
 const ARGS_ENV: &str = "FAKE_BROWSER_ARGS_FILE";
 /// Set in every fake browser process: an application's `main` refuses to start when it sees it, so a fake that names
 /// the wrong binary can never open the app's windows on the desktop.
-pub const CHILD_ENV: &str = "DEBRIEF_FAKE_BROWSER";
+pub use crate::FAKE_CHILD_ENV as CHILD_ENV;
 const MODE_ENV: &str = "FAKE_BROWSER_MODE";
 const TABS_ENV: &str = "FAKE_BROWSER_TABS";
 const CTL_ENV: &str = "FAKE_BROWSER_CTL";
