@@ -9,6 +9,9 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 
 - **Dialogs:** Every dialog is now one of four kinds (decision, form, viewer, tool) that decides its size, buttons and keys: result windows open at least 680 x 560 and only grow, questions are exactly as big as their text, and every window has a Close or Cancel button that stays in view (What's new no longer scrolls its Got it button out of sight)
 - **Dialogs:** A dialog window may call only the commands it needs, so a bug in one window can no longer do what only the main window should; Restart to apply in Settings and the plugin windows, and Restart as administrator in the profiling and diagnostics windows, now restart through the window that opened them and keep its session
+- **Dialogs:** Open recent project hands the choice back to the window you were working in, which asks about unsaved changes and opens it; What's new always shows the notes of the version that is running
+- **Dialogs:** With several displays, a dialog always opens on the display of the window that opened it, at a size that fits that display; a remembered position is kept relative to that window and only used when the dialog then stays on its display, and short dialogs no longer jump in height after opening
+- **Layout:** Opening a side tool such as Notes in a narrow window no longer hides the events grid behind the Registry tab
 
 ## 1.0.2 (2026-10-23)
 

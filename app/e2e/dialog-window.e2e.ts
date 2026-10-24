@@ -78,6 +78,30 @@ for (const [id] of Object.entries(CONTRACTS).filter(([, c]) => c.kind === 'decis
   });
 }
 
+// The size policy (ADR 0054): a fitted window gets one first fit, after the fonts, and that is its size; a later height
+// only comes from content that changed. One dialog of each fitted kind whose content is static at open is checked for a
+// second jump (the fit history the browser build records is a single height).
+for (const id of ['unsaved-changes', 'paste', 'about']) {
+  test(`the ${id} (${CONTRACTS[id]!.kind}) window is fitted once: its first measured height is its size`, async ({ page }) => {
+    await page.setViewportSize({ width: 680, height: 560 });
+    await page.goto(url(id));
+    const shell = page.locator('debrief-dialog-shell');
+    await expect(shell.locator('[data-testid=dialog-loading]')).toHaveCount(0, { timeout: 15_000 });
+    // The history is final when it stops changing between polls (as in the decision fit above).
+    let last = '';
+    await expect
+      .poll(async () => {
+        const now = await page.evaluate(() => document.documentElement.dataset['fitHistory'] ?? '');
+        const stable = now !== '' && now === last;
+        last = now;
+        return stable;
+      }, { timeout: 10_000, intervals: [300] })
+      .toBe(true);
+    const history = (await page.evaluate(() => document.documentElement.dataset['fitHistory'] ?? '')).split(',');
+    expect(history, `${id} was fitted more than once: ${history.join(' -> ')}`).toHaveLength(1);
+  });
+}
+
 for (const [id, c] of Object.entries(CONTRACTS).filter(([, c]) => c.kind === 'viewer')) {
   test(`the ${id} viewer opens at 680x560 at least, keeps its Close in view and does not scroll sideways`, async ({ page }) => {
     expect(c.minSize).toEqual({ width: 680, height: 560 });

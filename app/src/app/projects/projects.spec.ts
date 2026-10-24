@@ -289,28 +289,43 @@ describe('ProjectCommands, SavedQueryCommands and the recent dialog', () => {
     expect(await commands.run('savedQueries.show')).toBe(true);
   });
 
-  it('the recent dialog lists projects, opens one and clears the list', async () => {
-    const { projects, tools } = await setup();
+  it('the recent dialog lists projects, answers with the chosen path and clears the list', async () => {
+    const { projects } = await setup();
     await projects.saveAs();
-    TestBed.inject(RecentProjectsDialogService).open();
     const dialogs = TestBed.inject(DialogService);
+    const opened = TestBed.inject(RecentProjectsDialogService).open();
     const d = at(dialogs.stack(), 0);
     expect(d.options.title).toBe('Recent projects');
+    const close = vi.spyOn(TestBed.inject(DIALOG_REF), 'close');
     const f = TestBed.createComponent(RecentProjectsDialog);
     await settle(f);
     expect(text(f)).toContain('saved');
     expect(all(f, '.item debrief-path-text')[0]?.textContent?.trim()).toBe('/p/');
     // J1: the item says when the project was last opened or saved.
     expect(all(f, '.item [data-testid=recent-when]')[0]?.textContent?.trim()).not.toBe('');
-    tools.calls.length = 0;
+    // The dialog window does not open the project: it hands the path back to the window that asked.
+    const open = vi.spyOn(projects, 'open');
     at(all<HTMLButtonElement>(f, '.item'), 0).click();
-    await settle(f);
+    expect(close).toHaveBeenCalledWith('/p/saved.debriefz');
+    expect(open).not.toHaveBeenCalled();
+    d.ref.close('/p/saved.debriefz');
+    await opened;
+    expect(open).toHaveBeenCalledWith('/p/saved.debriefz');
     expect(projects.name()).toBe('saved');
     buttonByText(f, 'Clear list').click();
     await settle(f);
     expect(text(f)).toContain('No recent projects');
     expect(buttonByText(f, 'Clear list').disabled).toBe(true);
-    buttonByText(f, 'Close').click();
+  });
+
+  it('closing the recent list without a choice opens nothing', async () => {
+    const { projects } = await setup();
+    const dialogs = TestBed.inject(DialogService);
+    const open = vi.spyOn(projects, 'open');
+    const opened = TestBed.inject(RecentProjectsDialogService).open();
+    at(dialogs.stack(), 0).ref.close();
+    await opened;
+    expect(open).not.toHaveBeenCalled();
   });
 });
 
@@ -376,14 +391,18 @@ describe('UnsavedChangesGuard', () => {
     const { dialogs, projects, store } = await dirtySetup();
     await projects.saveAs();
     store.setTextInput('changed again');
-    const f = TestBed.createComponent(RecentProjectsDialog);
-    await settle(f);
     const open = vi.spyOn(projects, 'open');
-    at(all<HTMLButtonElement>(f, '.item'), 0).click();
-    await answer(dialogs, settle(f), 'cancel');
+    const pick = async (choice: string) => {
+      const run = TestBed.inject(RecentProjectsDialogService).open();
+      await vi.waitFor(() => expect(at(dialogs.stack(), 0).options.title).toBe('Recent projects'));
+      at(dialogs.stack(), 0).ref.close('/p/saved.debriefz');
+      await vi.waitFor(() => expect(at(dialogs.stack(), 0).options.title).toBe('Unsaved changes'));
+      at(dialogs.stack(), 0).ref.close(choice);
+      await run;
+    };
+    await pick('cancel');
     expect(open).not.toHaveBeenCalled();
-    at(all<HTMLButtonElement>(f, '.item'), 0).click();
-    await answer(dialogs, settle(f), 'discard');
+    await pick('discard');
     await vi.waitFor(() => expect(open).toHaveBeenCalledWith('/p/saved.debriefz'));
   });
 

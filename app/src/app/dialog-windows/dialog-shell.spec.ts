@@ -211,6 +211,11 @@ describe('DialogShell', () => {
     await settle(fixture);
     expect(el(fixture, '[data-testid=dialog-denied]').textContent).toContain('resolve_close');
     deniedCommand.set(null);
+    // The engine's refusal of a dialog whose contract does not declare the command (ADR 0054) is shown the same way.
+    reportRefusedCommand('query_page', new CmdError({ code: 'denied', message: 'query_page is not available in the about dialog (its contract does not declare it)', retryable: false }));
+    await settle(fixture);
+    expect(el(fixture, '[data-testid=dialog-denied]').textContent).toContain('query_page');
+    deniedCommand.set(null);
     reportRefusedCommand('x', new CmdError({ code: 'denied', message: 'Access is denied.', retryable: false }));
     expect(deniedCommand()).toBeNull();
   });

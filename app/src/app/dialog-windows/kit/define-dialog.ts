@@ -138,7 +138,7 @@ export interface DialogContractFile {
 }
 
 /** The contract file of `defs`: sorted by id, commands sorted, so the checked-in copy has a stable diff. */
-export function contractFile(defs: readonly DialogDef[], base: readonly string[]): DialogContractFile {
+export function contractFile(defs: readonly DialogDef[], base: readonly string[], groupCommands: Readonly<Record<string, readonly string[] | undefined>> = {}): DialogContractFile {
   const dialogs: Record<string, DialogContract> = {};
   for (const d of [...defs].sort((a, b) => a.id.localeCompare(b.id))) {
     dialogs[d.id] = {
@@ -147,7 +147,8 @@ export function contractFile(defs: readonly DialogDef[], base: readonly string[]
       requiredChoice: d.requiredChoice === true,
       instanced: d.instanced === true,
       minSize: minSizeOf(d),
-      commands: [...d.commands].sort(),
+      // What the dialog declares plus what the providers of the backend groups it names send when its window boots.
+      commands: [...new Set([...d.commands, ...(d.backends ?? []).flatMap((b) => groupCommands[b] ?? [])])].sort(),
     };
   }
   return { version: 1, base: [...base].sort(), dialogs };

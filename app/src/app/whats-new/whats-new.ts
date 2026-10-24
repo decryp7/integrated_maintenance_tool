@@ -1,5 +1,6 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, Injectable, Injector } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, Injectable, Injector, resource } from '@angular/core';
+import { LifecycleBackend } from '../core/tools-backend';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
 import { DialogService, DIALOG_REF } from '../ui/dialog.service';
 import { CHANGELOG } from './changelog.generated';
@@ -30,7 +31,9 @@ export const WHATS_NEW_SEEN_KEY = 'debrief.whatsnew.seen';
       }
     </ng-template>
     <div class="notes">
-    @if (current(); as r) {
+    @if (version.isLoading()) {
+      <!-- The running version comes from the engine; the newest notes are not shown in its place meanwhile. -->
+    } @else if (current(); as r) {
       <section class="release" data-testid="whats-new-current" [attr.aria-label]="r.version">
         <ng-container [ngTemplateOutlet]="notes" [ngTemplateOutletContext]="{ $implicit: r }" />
       </section>
@@ -71,11 +74,13 @@ export const WHATS_NEW_SEEN_KEY = 'debrief.whatsnew.seen';
 export class WhatsNewDialog {
   static readonly dialogId = 'whats-new';
   protected readonly ref = inject(DIALOG_REF);
-  private readonly lifecycle = inject(LifecycleService);
+  private readonly backend = inject(LifecycleBackend);
+  /** The running version, from the engine (`app_status`, as About reads it): a dialog window never starts the lifecycle service. */
+  protected readonly version = resource({ loader: () => this.backend.appStatus().then((s) => s.version) });
 
-  /** The running version's notes, or (when it has none) the newest release's. */
+  /** The running version's notes, or (when it has none, or the engine could not say) the newest release's. */
   protected readonly current = computed<ChangelogRelease | null>(
-    () => releaseFor(CHANGELOG, this.lifecycle.status()?.version) ?? CHANGELOG[0] ?? null,
+    () => releaseFor(CHANGELOG, this.version.hasValue() ? this.version.value() : undefined) ?? CHANGELOG[0] ?? null,
   );
   protected readonly earlier = computed(() => CHANGELOG.filter((r) => r !== this.current()));
 }

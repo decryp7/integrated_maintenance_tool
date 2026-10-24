@@ -104,11 +104,12 @@ describe('DockPlacement.addView: DebriefView.fullHeight (Home, Registry)', () =>
     expect(setSize).not.toHaveBeenCalled();
   });
 
-  it('limits its column to the width the timeline column can spare,', () => {
-    const { dock, addPanel, setSize, placement } = fakeDock(1600, [], { id: 'gm', width: 1600 });
+  it('limits its column to the width the timeline column can spare', () => {
+    // The timeline column is 1000 px of a 1600 px dock: 55% (880) would leave it under its 560 px, so it gets 440.
+    const { dock, addPanel, setSize, placement } = fakeDock(1600, [], { id: 'gm', width: 1000 });
     placement.addView(dock, full(), false);
     expect(addPanel).toHaveBeenCalledWith(expect.objectContaining({ position: { direction: 'right' } }));
-    expect(setSize).toHaveBeenCalledWith({ width: 1600 - 560 });
+    expect(setSize).toHaveBeenCalledWith({ width: 1000 - 560 });
   });
 });
 
@@ -122,5 +123,32 @@ describe('DockPlacement.addView: side tool windows', () => {
     const b = fakePanel();
     setup(b.panel).addView(api, side({ width: 400 }), false);
     expect(b.setConstraints).toHaveBeenCalledWith({ minimumWidth: 400 });
+  });
+});
+
+describe('DockPlacement.addView: a side tool in a narrow window (makeRoomForTool)', () => {
+  it('tabs a full-height column that cannot shrink into the events group and keeps the events grid in front', () => {
+    // Regression (notes.e2e "a note on an event row…"): opening Notes tabbed the Registry column into the events group,
+    // which made the Registry the active tab and hid the grid the user was working in.
+    TestBed.configureTestingModule({ providers: provideDockTesting() });
+    const placement = TestBed.inject(DockPlacement);
+    vi.spyOn(placement as unknown as { isDocument: (id: string) => boolean }, 'isDocument').mockReturnValue(true);
+    const order: string[] = [];
+    const events = { id: 'events', api: { setActive: vi.fn(() => order.push('events active')) } };
+    const main = { id: 'gm', width: 700, activePanel: events, api: { location: { type: 'grid' } } };
+    const column = { id: 'gr', width: 500, height: 900, panels: [{ id: 'registry' }], api: { location: { type: 'grid' }, setSize: vi.fn(), moveTo: vi.fn(() => order.push('registry moved in')) } };
+    const toolGroup = { api: { setSize: vi.fn(), setConstraints: vi.fn() } };
+    const dock = {
+      width: 1200,
+      height: 900,
+      panels: [],
+      groups: [main, column],
+      getPanel: (id: string) => (id === 'events' ? { group: main } : undefined),
+      addPanel: vi.fn(() => ({ group: toolGroup })),
+    } as unknown as DockviewApi;
+    placement.addView(dock, { id: 'notes', title: 'Notes', icon: 'panel', area: 'side', component: async () => class {} } as DebriefView, false);
+    expect(column.api.moveTo).toHaveBeenCalledWith({ group: main, position: 'center' });
+    expect(column.api.setSize).not.toHaveBeenCalled();
+    expect(order).toEqual(['registry moved in', 'events active']);
   });
 });

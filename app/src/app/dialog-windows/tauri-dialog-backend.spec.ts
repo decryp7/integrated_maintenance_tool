@@ -44,7 +44,7 @@ describe('TauriDialogBackend', () => {
     const s = backend.show(request());
     await tick();
     expect(io.opened).toHaveLength(1);
-    expect(io.opened[0]).toMatchObject({ dialogId: 'settings', title: 'Settings', input: { section: 'x' }, width: 900, bounds: undefined });
+    expect(io.opened[0]).toMatchObject({ dialogId: 'settings', title: 'Settings', input: { section: 'x' }, width: 900, remembered: undefined });
     expect(labels.labels()).toEqual(['d-main-1']);
     io.result('d-main-1', 'settings', { ok: 1 });
     io.closed('d-main-1', 'settings');
@@ -63,11 +63,10 @@ describe('TauriDialogBackend', () => {
 
   it('raises a remembered viewer size below 680x560 to the floor of its kind', async () => {
     const { io, backend } = setup();
-    rememberDialogBounds('ai-narrative', { x: 10, y: 10, width: 400, height: 300 });
-    io.areas = [{ name: 'A', primary: true, x: 0, y: 0, width: 1920, height: 1080 }];
+    rememberDialogBounds('ai-narrative', { dx: 10, dy: 10, width: 400, height: 300 });
     backend.show(request('ai-narrative'));
     await tick();
-    expect(io.opened[0]!.bounds).toMatchObject({ width: 680, height: 560 });
+    expect(io.opened[0]!.remembered).toEqual({ dx: 10, dy: 10, width: 680, height: 560 });
   });
 
   it('resolves undefined when the window closed without a result, and ignores events of other windows and malformed ones', async () => {
@@ -85,48 +84,18 @@ describe('TauriDialogBackend', () => {
     expect(Object.keys(io.opened[0]!)).not.toContain('requiredChoice');
   });
 
-  it('remembers where the window was and reopens there, kept on a visible monitor', async () => {
+  it('remembers the size and the offset from the parent the shell reported, and sends them back as they are', async () => {
     const { io, backend } = setup();
-    io.areas = [{ name: 'A', primary: true, x: 0, y: 0, width: 1920, height: 1080 }];
     const first = backend.show(request());
     await tick();
-    io.closed('d-main-1', 'settings', { x: 5000, y: 40, width: 800, height: 600 });
+    io.closed('d-main-1', 'settings', { dx: 40, dy: -20, width: 800, height: 600 });
     await first.closed;
-    expect(JSON.parse(localStorage.getItem(DIALOG_BOUNDS_KEY)!).bounds.settings.width).toBe(800);
+    expect(JSON.parse(localStorage.getItem(DIALOG_BOUNDS_KEY)!).bounds.settings).toEqual({ dx: 40, dy: -20, width: 800, height: 600 });
     backend.show(request());
     await tick();
-    const b = io.opened[1]!.bounds!;
-    expect(b.width).toBe(800);
-    expect(b.x + b.width).toBeLessThanOrEqual(1920);
-  });
-
-  it('keeps a position on another display and pulls one on a display that is gone back onto a visible screen', async () => {
-    const { io, backend } = setup();
-    const both = [
-      { name: 'A', primary: true, x: 0, y: 0, width: 1920, height: 1080 },
-      { name: 'B', primary: false, x: 1920, y: 0, width: 1920, height: 1080 },
-    ];
-    io.areas = both;
-    rememberDialogBounds('settings', { x: 2400, y: 100, width: 800, height: 600 });
-    backend.show(request());
-    await tick();
-    expect(io.opened[0]!.bounds).toEqual({ x: 2400, y: 100, width: 800, height: 600 });
-    // The second display was unplugged: the remembered place is clamped onto the one left.
-    io.areas = [both[0]!];
-    rememberDialogBounds('about', { x: -1800, y: 200, width: 800, height: 600 });
-    backend.show(request('about'));
-    await tick();
-    const b = io.opened[1]!.bounds!;
-    expect(b.x).toBeGreaterThanOrEqual(0);
-    expect(b.x + b.width).toBeLessThanOrEqual(1920);
-  });
-
-  it('uses a remembered size even before a monitor list is known', async () => {
-    const { io, backend } = setup();
-    rememberDialogBounds('settings', { x: 10, y: 10, width: 700, height: 500 });
-    backend.show(request());
-    await tick();
-    expect(io.opened[0]!.bounds).toEqual({ x: 10, y: 10, width: 700, height: 500 });
+    // Never an absolute position: the shell keeps the dialog on its parent's monitor (ADR 0054, placement policy).
+    expect(io.opened[1]!.remembered).toEqual({ dx: 40, dy: -20, width: 800, height: 600 });
+    expect(Object.keys(io.opened[1]!)).not.toContain('bounds');
   });
 
   it('focuses the existing window by asking to open it again, and close asks the dialog to close', async () => {
@@ -179,8 +148,9 @@ describe('TauriDialogBackend', () => {
     expect(parseResult({ label: 'd-main-1', dialogId: 'a', result: 3 })).toEqual({ label: 'd-main-1', dialogId: 'a', result: 3 });
     expect(parseResult({ label: 1 })).toBeNull();
     expect(parseResult([])).toBeNull();
-    expect(parseClosed({ label: 'l', dialogId: 'a', bounds: { x: 1, y: 2, width: 3, height: 4 } })?.bounds).toEqual({ x: 1, y: 2, width: 3, height: 4 });
-    expect(parseClosed({ label: 'l', dialogId: 'a', bounds: { x: 'q' } })?.bounds).toBeNull();
+    expect(parseClosed({ label: 'l', dialogId: 'a', remembered: { dx: 1, dy: -2, width: 3, height: 4, extra: 1 } })?.remembered).toEqual({ dx: 1, dy: -2, width: 3, height: 4 });
+    expect(parseClosed({ label: 'l', dialogId: 'a', remembered: { dx: 'q' } })?.remembered).toBeNull();
+    expect(parseClosed({ label: 'l', dialogId: 'a', bounds: { x: 1, y: 2, width: 3, height: 4 } })?.remembered).toBeNull();
     expect(parseClosed({ label: 'l' })).toBeNull();
     expect(parseClosed(null)).toBeNull();
   });

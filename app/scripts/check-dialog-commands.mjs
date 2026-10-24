@@ -15,7 +15,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
-import { createAnalysis, readRegistry, readStringArray } from './dialog-commands-analysis.mjs';
+import { createAnalysis, readRecordOfStringArrays, readRegistry, readStringArray } from './dialog-commands-analysis.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const APP = join(root, 'src/app');
@@ -82,6 +82,7 @@ export function run(rootDir = root) {
   const appBase = readStringArray(analysis, join(app, 'dialog-windows/dialog-def.ts'), 'DIALOG_BASE_COMMANDS') ?? [];
   const syncBase0 = readStringArray(analysis, join(app, 'dialog-windows/dialog-def.ts'), 'DIALOG_SYNC_COMMANDS') ?? [];
   const base = [...kitBase, ...appBase, ...syncBase0];
+  const groupCommands = readRecordOfStringArrays(analysis, join(app, 'dialog-windows/dialog-def.ts'), 'DIALOG_BACKEND_COMMANDS');
   const problems = [];
   const derived = {};
 
@@ -129,8 +130,10 @@ export function run(rootDir = root) {
     }
     const { commands, dynamic } = analysis.reach(analysis.componentEntries(cls), known, boundary);
     for (const where of dynamic) problems.push(`${entry.id}: a command is called by a computed name (${where}); call it by a literal so it can be declared`);
-    derived[entry.id] = [...commands.keys()].filter((c) => !covers(base, c)).sort();
-    problems.push(...auditDialog({ id: entry.id, declared: entry.commands, reached: commands, base, table, exceptions: EXCEPTIONS[entry.id] }));
+    // What the providers of the backend groups it names send by themselves is implied (see DIALOG_BACKEND_COMMANDS).
+    const own = [...base, ...entry.backends.flatMap((b) => groupCommands[b] ?? [])];
+    derived[entry.id] = [...commands.keys()].filter((c) => !covers(own, c)).sort();
+    problems.push(...auditDialog({ id: entry.id, declared: entry.commands, reached: commands, base: own, table, exceptions: EXCEPTIONS[entry.id] }));
   }
   return { problems, derived, base, dialogs: Object.keys(derived).length, commands: table.size };
 }

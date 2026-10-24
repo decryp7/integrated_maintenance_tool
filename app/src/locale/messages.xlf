@@ -10498,7 +10498,7 @@
         <source>This dialog is not known to this version of Debrief: <x id="id" equiv-text="this.route.id"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dialog-windows/dialog-shell.ts</context>
-          <context context-type="linenumber">201</context>
+          <context context-type="linenumber">207</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.panel.failed" datatype="html">
@@ -28857,7 +28857,7 @@
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">21</context>
         </context-group>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/shell/menu/recent-opener.ts</context>
@@ -28934,35 +28934,35 @@
         <source>Recent projects</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">14</context>
+          <context context-type="linenumber">20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.list" datatype="html">
         <source>Recent projects</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">24</context>
+          <context context-type="linenumber">31</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.empty" datatype="html">
         <source>No recent projects. Save a project to see it here.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">36,39</context>
+          <context context-type="linenumber">43,46</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.clear" datatype="html">
         <source>Clear list</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">39,40</context>
+          <context context-type="linenumber">46,47</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.recent.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/projects/recent-dialog.ts</context>
-          <context context-type="linenumber">40,43</context>
+          <context context-type="linenumber">47,50</context>
         </context-group>
       </trans-unit>
       <trans-unit id="projects.cmd.savedQueries.show" datatype="html">
@@ -43385,35 +43385,35 @@
         <source>Version <x id="INTERPOLATION" equiv-text="{{ r.version }}"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">18,19</context>
+          <context context-type="linenumber">19,20</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.none" datatype="html">
         <source>There are no release notes for this version.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">38,40</context>
+          <context context-type="linenumber">39,41</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.earlier" datatype="html">
         <source>Earlier releases</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">42,43</context>
+          <context context-type="linenumber">43,44</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.close" datatype="html">
         <source>Got it</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">52,55</context>
+          <context context-type="linenumber">53,56</context>
         </context-group>
       </trans-unit>
       <trans-unit id="whatsNew.title" datatype="html">
         <source>What&apos;s new</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/whats-new/whats-new.ts</context>
-          <context context-type="linenumber">91</context>
+          <context context-type="linenumber">96</context>
         </context-group>
       </trans-unit>
       <trans-unit id="windowing.backgroundWork.trigger" datatype="html">

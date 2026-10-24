@@ -171,6 +171,33 @@ fn json_size(v: &serde_json::Value, cap: usize) -> usize {
     }
 }
 
+/// How a refused call is logged: a dialog window calling what its contract does not declare is a bug in Debrief (an
+/// error naming the dialog and the command, also shown as the dialog's inline alert); anything else is a warning.
+#[derive(Debug, Clone, PartialEq)]
+pub struct Refusal<'a> {
+    pub level: log::Level,
+    pub dialog: &'a str,
+    pub message: String,
+}
+
+pub fn refusal<'a>(command: &str, dialog: Option<&'a str>, e: &CmdError) -> Refusal<'a> {
+    match dialog {
+        Some(id) if e.code == ErrorCode::Denied => Refusal {
+            level: log::Level::Error,
+            dialog: id,
+            message: format!(
+                "The {id} dialog called {command}, which its contract does not declare: {}",
+                e.message
+            ),
+        },
+        _ => Refusal {
+            level: log::Level::Warn,
+            dialog: dialog.unwrap_or(""),
+            message: format!("A command was refused: {}", e.message),
+        },
+    }
+}
+
 /// Wraps the invoke handler with the table's checks (window class, request size); a refused call is
 /// answered with the [`CmdError`] and logged.
 pub fn guard<R: Runtime>(inner: impl Fn(Invoke<R>) -> bool + Send + Sync + 'static) -> impl Fn(Invoke<R>) -> bool + Send + Sync + 'static {
@@ -186,7 +213,8 @@ pub fn guard<R: Runtime>(inner: impl Fn(Invoke<R>) -> bool + Send + Sync + 'stat
             .try_state::<crate::dialog_windows::Dialogs>()
             .and_then(|d| d.grant_of(&label));
         if let Err(e) = check(&command, &label, grant.as_ref(), size) {
-            log::warn!(Command = command.as_str(), Window = label.as_str(), ErrorCode = format!("{:?}", e.code).as_str(); "A command was refused: {}", e.message);
+            let r = refusal(&command, grant.as_ref().map(|(_, id)| id.as_str()), &e);
+            log::log!(r.level, Command = command.as_str(), Window = label.as_str(), Dialog = r.dialog, ErrorCode = format!("{:?}", e.code).as_str(); "{}", r.message);
             invoke.resolver.reject(e);
             return true;
         }
@@ -222,6 +250,22 @@ mod tests {
     /// The grant of the window of dialog `id`, as the guard builds it from the dialog state.
     fn grant(id: &str) -> DialogGrant {
         (crate::dialog_windows::debrief_contracts(), id.to_string())
+    }
+
+    #[test]
+    fn a_dialog_calling_an_undeclared_command_is_logged_as_an_error_naming_the_dialog_and_the_command() {
+        let about = grant("about");
+        let e = check("query_page", "d-main-1", Some(&about), 10).unwrap_err();
+        let r = refusal("query_page", Some("about"), &e);
+        assert_eq!((r.level, r.dialog), (log::Level::Error, "about"));
+        assert!(r.message.contains("about") && r.message.contains("query_page"), "{}", r.message);
+        // The UI's inline alert recognises the refusal by this wording (`core/denied-command.ts`).
+        assert!(e.message.contains("query_page is not available in "), "{}", e.message);
+        // A refusal outside a dialog (or for size) stays a warning.
+        let main = check("dialog_close", "main", None, 10).unwrap_err();
+        assert_eq!(refusal("dialog_close", None, &main).level, log::Level::Warn);
+        let big = CmdError::new(ErrorCode::Limit, "too large");
+        assert_eq!(refusal("query_page", Some("about"), &big).level, log::Level::Warn);
     }
 
     #[test]

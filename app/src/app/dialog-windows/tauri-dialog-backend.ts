@@ -1,9 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import { Logger } from '../core/logger';
-import { Rect } from '../dock/dock-geometry';
-import { clampToWorkAreas } from '../popout/bounds';
 import { errorMessage } from '../tools/tool-errors';
-import { loadDialogBounds, rememberDialogBounds } from './dialog-bounds';
+import { isRememberedPlace, loadDialogBounds, rememberDialogBounds } from './dialog-bounds';
 import { DialogLabels } from './dialog-labels';
 import { raiseToKindMinimum } from './kit';
 import {
@@ -30,9 +28,8 @@ export function parseResult(p: unknown): DialogResultEvent | null {
 /** A closed event of the shell; null when malformed. */
 export function parseClosed(p: unknown): DialogClosedEvent | null {
   if (!isRecord(p) || typeof p['label'] !== 'string' || typeof p['dialogId'] !== 'string') return null;
-  const b = p['bounds'];
-  const bounds = isRecord(b) && ['x', 'y', 'width', 'height'].every((k) => typeof b[k] === 'number') ? (b as unknown as Rect) : null;
-  return { label: p['label'], dialogId: p['dialogId'], bounds };
+  const r = p['remembered'];
+  return { label: p['label'], dialogId: p['dialogId'], remembered: isRememberedPlace(r) ? { dx: r.dx, dy: r.dy, width: r.width, height: r.height } : null };
 }
 
 interface Pending {
@@ -42,7 +39,7 @@ interface Pending {
 }
 
 /**
- * Dialogs as real OS windows (ADR 0050): `dialog_open` asks the shell for a window owned by this one (centred on it,
+ * Dialogs as real OS windows (ADR 0050): `dialog_open` asks the shell for a window owned by this one (on its monitor,
  * modal or not, at the size it had last time), the dialog answers with an event, and the window is gone. When
  * a window cannot be opened the dialog is shown in the page instead (degrade, don't fail).
  */
@@ -64,8 +61,7 @@ export class TauriDialogBackend implements DialogPresenter {
     let label: string | null = null;
     let fallback: DialogSession | null = null;
     let sent: DialogOpenRequest | null = null;
-    const wire = async (): Promise<DialogOpenRequest> => {
-      const areas = await this.io.workAreas().catch(() => []);
+    const wire = (): DialogOpenRequest => {
       const remembered = loadDialogBounds()[def.id];
       return {
         dialogId: def.id,
@@ -76,13 +72,14 @@ export class TauriDialogBackend implements DialogPresenter {
         height: def.height,
         minWidth: def.minWidth,
         minHeight: def.minHeight,
-        bounds: remembered ? raiseToKindMinimum(def.kind, clampToWorkAreas(remembered, areas)) : undefined,
+        // Where it goes is the shell's decision (on the parent's monitor); the kind's floor applies to a remembered size.
+        remembered: remembered ? raiseToKindMinimum(def.kind, remembered) : undefined,
       };
     };
     const start = async () => {
       try {
         await this.listen();
-        sent = await wire();
+        sent = wire();
         const info = await this.io.open(sent);
         label = info.label;
         this.labels.add(info.label);
@@ -120,7 +117,7 @@ export class TauriDialogBackend implements DialogPresenter {
         if (!e || !entry) return;
         this.pending.delete(e.label);
         this.labels.remove(e.label);
-        if (e.bounds) rememberDialogBounds(entry.dialogId, e.bounds);
+        if (e.remembered) rememberDialogBounds(entry.dialogId, e.remembered);
         entry.resolve(entry.result === null ? undefined : entry.result);
       }),
     ]).then(() => undefined);

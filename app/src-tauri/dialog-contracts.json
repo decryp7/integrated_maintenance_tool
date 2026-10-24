@@ -79,6 +79,7 @@
       },
       "commands": [
         "ai_open_link",
+        "ai_status",
         "check_query",
         "complete_query",
         "dialog_open",
@@ -98,6 +99,7 @@
         "height": 560
       },
       "commands": [
+        "ai_status",
         "check_query",
         "complete_query",
         "dialog_open",
@@ -119,6 +121,7 @@
       "minSize": null,
       "commands": [
         "ai_start",
+        "ai_status",
         "check_query",
         "complete_query",
         "dialog_open",
@@ -143,6 +146,7 @@
       "minSize": null,
       "commands": [
         "ai_start",
+        "ai_status",
         "check_query",
         "complete_query",
         "dialog_open",
@@ -170,6 +174,7 @@
       },
       "commands": [
         "ai_start",
+        "ai_status",
         "check_query",
         "complete_query",
         "dialog_open",
@@ -188,7 +193,7 @@
     },
     "ai-setup": {
       "kind": "form",
-      "modality": "modeless",
+      "modality": "modal",
       "requiredChoice": false,
       "instanced": false,
       "minSize": null,
@@ -613,12 +618,7 @@
       "instanced": false,
       "minSize": null,
       "commands": [
-        "dialog_open",
-        "jobs_wait",
-        "open_project",
-        "pick_paths",
-        "recent_clear",
-        "save_project"
+        "recent_clear"
       ]
     },
     "redacted-copy": {
@@ -815,7 +815,9 @@
         "width": 680,
         "height": 560
       },
-      "commands": []
+      "commands": [
+        "app_status"
+      ]
     }
   }
 }

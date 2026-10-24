@@ -26,3 +26,12 @@ export const DIALOG_BASE_COMMANDS: readonly string[] = ['capture_window_image', 
  * enter that function, so they are listed here.
  */
 export const DIALOG_SYNC_COMMANDS: readonly string[] = ['live_state', 'workspace_summary', 'query_timeline'];
+
+/**
+ * Commands the providers of a backend group send by themselves when a window boots with it (the AI status store asks the
+ * engine for its status as soon as it exists). Every dialog that names the group may send them; a dialog never lists them.
+ * `dialog-commands-boot.spec.ts` finds them: it boots every dialog over the real Tauri backends and records what is sent.
+ */
+export const DIALOG_BACKEND_COMMANDS: Readonly<Partial<Record<DialogBackend, readonly string[]>>> = {
+  ai: ['ai_status'],
+};

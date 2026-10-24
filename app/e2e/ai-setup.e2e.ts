@@ -14,7 +14,7 @@ async function runCommand(page: Page, text: string): Promise<void> {
 
 const wizard = (page: Page) => page.getByRole('dialog', { name: 'Set up the AI assistant' });
 
-test('the set-up is a quick choice in a window of its own: Download and set up closes it and the rest runs in the background', async ({ page }, testInfo) => {
+test('the set-up is a quick modal choice: Download and set up closes it and the rest runs in the background', async ({ page }, testInfo) => {
   await openAppWith(page, '?mockAi=setup&mockAiStepMs=5');
   await runCommand(page, 'Set up AI assistant');
   const dialog = wizard(page);
@@ -27,7 +27,7 @@ test('the set-up is a quick choice in a window of its own: Download and set up c
   await expect(best).toContainText('Tool calling');
   await expect(dialog.getByTestId('ai-model-qwen3.5-4b-q4km')).toContainText('Fastest');
   await expect(dialog.getByTestId('ai-model-qwen3.5-32b-q4km')).toContainText('Too large');
-  await expect(dialog).toHaveAttribute('data-modality', 'modeless');
+  await expect(dialog).toHaveAttribute('data-modality', 'modal');
   await expectNoSeriousViolations(page, testInfo, 'ai-setup-plan', '[role=dialog]');
 
   await dialog.getByTestId('ai-setup-start').click();

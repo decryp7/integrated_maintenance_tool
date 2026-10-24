@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync } from 'node:fs';
-import { DIALOG_BASE_COMMANDS, DIALOG_SYNC_COMMANDS } from './dialog-def';
+import { DIALOG_BACKEND_COMMANDS, DIALOG_BASE_COMMANDS, DIALOG_SYNC_COMMANDS } from './dialog-def';
 import { DIALOG_DEFS } from './dialog-registry';
 import { contractFile, DialogDef, KIT_BASE_COMMANDS } from './kit';
 
@@ -8,7 +8,7 @@ const FILE = 'src-tauri/dialog-contracts.json';
 
 function generated(): string {
   const base = [...KIT_BASE_COMMANDS, ...DIALOG_BASE_COMMANDS, ...DIALOG_SYNC_COMMANDS];
-  return `${JSON.stringify(contractFile(DIALOG_DEFS as unknown as readonly DialogDef[], base), null, 2)}\n`;
+  return `${JSON.stringify(contractFile(DIALOG_DEFS as unknown as readonly DialogDef[], base, DIALOG_BACKEND_COMMANDS), null, 2)}\n`;
 }
 
 /**

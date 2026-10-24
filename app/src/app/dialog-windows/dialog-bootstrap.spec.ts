@@ -46,7 +46,6 @@ describe('browser dialog io', () => {
     const io = browserDialogIo();
     expect(await io.take()).toEqual({ dialogId: 'about', title: 'About', modality: 'modeless', input: { a: 1 } });
     expect(await io.windowLabel()).toBe('d-main-1');
-    expect(await io.workAreas()).toEqual([]);
     await expect(io.open({ dialogId: 'x', title: 't' })).rejects.toThrow();
     const close = vi.spyOn(window, 'close').mockImplementation(() => undefined);
     await io.close({ ok: 1 });

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { test } from 'node:test';
 import ts from 'typescript';
 import { auditDialog, parseTable } from './check-dialog-commands.mjs';
-import { createAnalysis } from './dialog-commands-analysis.mjs';
+import { createAnalysis, readRecordOfStringArrays, readRegistry } from './dialog-commands-analysis.mjs';
 
 test('reads the command table and which window classes may call each command', () => {
   const t = parseTable(`
@@ -103,4 +103,19 @@ test('reports a command called by a computed name, but not a wrapper that passes
   const r = f.a.reach(f.a.componentEntries(f.cls('dialog.ts', 'D')), f.known);
   assert.deepEqual([...r.commands.keys()], ['deep_one']);
   assert.equal(r.dynamic.length, 1);
+});
+
+test('reads the backend groups a dialog names and the commands those groups send by themselves', () => {
+  const { a } = fixture({
+    'def.ts': "export const DIALOG_BACKEND_COMMANDS = { ai: ['ai_status'], tools: [] };",
+    'registry.ts': "declare function defineDialog(d: object): object;\nexport const DEFS = [defineDialog({ id: 'w', backends: ['ai', 'tools'], commands: ['read_it'] })];",
+  });
+  const dir = a.program.getRootFileNames().find((f) => f.endsWith('def.ts')).replace(/def\.ts$/, '');
+  assert.deepEqual(readRecordOfStringArrays(a, `${dir}def.ts`, 'DIALOG_BACKEND_COMMANDS'), { ai: ['ai_status'], tools: [] });
+  const [entry] = readRegistry(a, `${dir}registry.ts`);
+  assert.deepEqual([entry.id, entry.backends, entry.commands], ['w', ['ai', 'tools'], ['read_it']]);
+  // A group's commands count as the dialog's own: reaching them is not a problem, declaring them is not needed.
+  const base = ['base_one', 'ai_status'];
+  const t = parseTable('Query [WINDOW] => a::read_it,\nQuery [WINDOW] => a::ai_status,\nQuiet [WINDOW] => a::base_one,');
+  assert.deepEqual(auditDialog({ id: 'w', declared: entry.commands, reached: reached('read_it', 'ai_status'), base, table: t }), []);
 });

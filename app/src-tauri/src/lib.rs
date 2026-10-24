@@ -34,6 +34,7 @@ mod demo;
 mod dev_overrides;
 mod diagnostics;
 mod dialog_contracts;
+mod dialog_placement;
 mod dialog_windows;
 mod drag_ghost;
 mod dumps;

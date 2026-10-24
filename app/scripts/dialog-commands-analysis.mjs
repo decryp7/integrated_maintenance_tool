@@ -424,11 +424,12 @@ export function readRegistry(analysis, registryFile) {
   const text = (n) => (n && ts.isStringLiteralLike(n) ? n.text : null);
   const visit = (n) => {
     if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'defineDialog' && n.arguments[0] && ts.isObjectLiteralExpression(n.arguments[0])) {
-      const entry = { id: '', component: null, commands: [], line: sf.getLineAndCharacterOfPosition(n.getStart()).line + 1 };
+      const entry = { id: '', component: null, commands: [], backends: [], line: sf.getLineAndCharacterOfPosition(n.getStart()).line + 1 };
       for (const p of n.arguments[0].properties) {
         if (!ts.isPropertyAssignment(p)) continue;
         const key = p.name.getText();
         if (key === 'id') entry.id = text(p.initializer) ?? '';
+        if (key === 'backends' && ts.isArrayLiteralExpression(p.initializer)) entry.backends = p.initializer.elements.map(text).filter((x) => x !== null);
         if (key === 'commands' && ts.isArrayLiteralExpression(p.initializer)) entry.commands = p.initializer.elements.map(text).filter((x) => x !== null);
         if (key === 'load') {
           // () => import('..').then((m) => m.Class)
@@ -455,6 +456,22 @@ export function readStringArray(analysis, file, name) {
   let out = null;
   const visit = (n) => {
     if (ts.isVariableDeclaration(n) && n.name.getText() === name && n.initializer && ts.isArrayLiteralExpression(n.initializer)) out = n.initializer.elements.filter(ts.isStringLiteralLike).map((e) => e.text);
+    ts.forEachChild(n, visit);
+  };
+  if (sf) visit(sf);
+  return out;
+}
+
+/** The exported object constant `name` whose values are string arrays: `{ ai: ['ai_status'] }`. */
+export function readRecordOfStringArrays(analysis, file, name) {
+  const sf = analysis.program.getSourceFile(file);
+  const out = {};
+  const visit = (n) => {
+    if (ts.isVariableDeclaration(n) && n.name.getText() === name && n.initializer && ts.isObjectLiteralExpression(n.initializer)) {
+      for (const p of n.initializer.properties) {
+        if (ts.isPropertyAssignment(p) && ts.isArrayLiteralExpression(p.initializer)) out[p.name.getText()] = p.initializer.elements.filter(ts.isStringLiteralLike).map((e) => e.text);
+      }
+    }
     ts.forEachChild(n, visit);
   };
   if (sf) visit(sf);

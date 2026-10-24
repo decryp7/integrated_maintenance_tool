@@ -241,8 +241,12 @@ export class DialogShell {
     this.refit = schedule;
     afterNextRender(
       () => {
-        fit();
-        void (document.fonts?.ready ?? Promise.resolve()).then(fit, () => undefined);
+        // One first fit, once the fonts are ready (they change the text's height): fitting before them and again after
+        // made the window jump. A font is only requested when layout first needs it, so the layout is taken first (the
+        // measure does that); then the fit waits for what it requested. Content that arrives later grows the window
+        // (grow-only), it never shrinks.
+        this.neededHeight();
+        void (document.fonts?.ready ?? Promise.resolve()).then(fit, fit);
         const content = this.body().nativeElement.firstElementChild;
         if (content && typeof ResizeObserver !== 'undefined') {
           const observer = new ResizeObserver(schedule);

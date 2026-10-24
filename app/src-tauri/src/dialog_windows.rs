@@ -25,6 +25,7 @@
 
 pub use crate::dialog_contracts::Modality;
 use crate::dialog_contracts::{Contract, Contracts, Size};
+use crate::dialog_placement::{self as placement, Monitor, Placement, Rect, Remembered};
 use crate::panel_windows::{valid_view_id, Bounds};
 use crate::window_manager::clean_title;
 use crate::{err, CmdResult};
@@ -115,9 +116,10 @@ pub struct DialogRequest {
     pub min_width: Option<f64>,
     #[serde(default)]
     pub min_height: Option<f64>,
-    /// Remembered bounds (already on a visible monitor, the UI's job); else the dialog is centred on its parent.
+    /// What the UI remembered of this dialog: its size and its offset from the parent window (never an absolute
+    /// screen position). The shell decides where it goes ([`crate::dialog_placement::place`]).
     #[serde(default)]
-    pub bounds: Option<Bounds>,
+    pub remembered: Option<Remembered>,
 }
 
 /// A dialog window as the UI sees it.
@@ -153,8 +155,8 @@ pub struct DialogResult {
 pub struct DialogClosed {
     pub label: String,
     pub dialog_id: String,
-    /// Where the window was when it closed (logical px), for remembering.
-    pub bounds: Option<Bounds>,
+    /// Its size and its offset from the parent window when it closed (logical px), for remembering.
+    pub remembered: Option<Remembered>,
 }
 
 #[derive(Debug, Clone)]
@@ -306,12 +308,42 @@ pub fn validate(r: &DialogRequest) -> anyhow::Result<()> {
     Ok(())
 }
 
-/// Centred on the parent (logical px), or at `fallback` when the parent's place is unknown.
-pub fn centred(parent: Option<Bounds>, width: f64, height: f64) -> (f64, f64) {
-    match parent {
-        Some(p) => (p.x + (p.width - width) / 2.0, (p.y + (p.height - height) / 3.0).max(p.y)),
-        None => (100.0, 100.0),
+/// A window's outer rectangle in physical px.
+fn outer_rect<R: Runtime>(w: &Window<R>) -> Option<Rect> {
+    let pos = w.outer_position().ok()?;
+    let size = w.outer_size().ok()?;
+    Some(Rect {
+        x: f64::from(pos.x),
+        y: f64::from(pos.y),
+        width: f64::from(size.width),
+        height: f64::from(size.height),
+    })
+}
+
+fn monitor_rect(m: &tauri::Monitor) -> Monitor {
+    let a = m.work_area();
+    Monitor {
+        work: Rect {
+            x: f64::from(a.position.x),
+            y: f64::from(a.position.y),
+            width: f64::from(a.size.width),
+            height: f64::from(a.size.height),
+        },
+        scale: m.scale_factor(),
     }
+}
+
+/// The monitor `w` is on, with its name for the log: the platform's answer, else the monitor it overlaps most or is
+/// nearest to. Never the primary display unless the window is there.
+fn monitor_of_window<R: Runtime>(w: &Window<R>) -> Option<(Monitor, String)> {
+    let named = |m: &tauri::Monitor| (monitor_rect(m), m.name().cloned().unwrap_or_default());
+    if let Some(m) = w.current_monitor().ok().flatten() {
+        return Some(named(&m));
+    }
+    let all = w.available_monitors().ok()?;
+    let rects: Vec<Monitor> = all.iter().map(monitor_rect).collect();
+    let i = placement::monitor_of(&outer_rect(w)?, &rects)?;
+    all.get(i).map(named)
 }
 
 fn bounds_of<R: Runtime>(w: &Window<R>) -> Option<Bounds> {
@@ -373,23 +405,27 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
         asked: None,
     })?;
     let (w, h, min_w, min_h) = geometry(&request, &contract);
-    let (x, y) = match request.bounds.and_then(Bounds::sanitized) {
-        Some(b) => (b.x, b.y),
-        None => centred(bounds_of(&parent_window.as_ref().window()), w, h),
-    };
-    let (w, h) = match request.bounds.and_then(Bounds::sanitized) {
-        Some(b) => (b.width.max(min_w), b.height.max(min_h)),
-        // A default size is bounded by the parent's screen, so a tall dialog never opens larger than the display.
-        None => within_screen((w, h), (min_w, min_h), parent_monitor_size(&parent_window)),
-    };
+    // The placement policy (ADR 0054): on the parent's monitor, sized by the kind's rule.
+    let parent_os_window = parent_window.as_ref().window();
+    let monitor = monitor_of_window(&parent_os_window);
+    let remembered = placement::memory_for(contract.kind, request.height.is_none(), request.remembered, h);
+    let place = placement::place(
+        outer_rect(&parent_os_window),
+        monitor.as_ref().map(|m| m.0),
+        remembered,
+        (w, h),
+        (min_w, min_h),
+    );
+    log_placement(&request.dialog_id, monitor.as_ref(), &place);
+    let (lw, lh) = place.logical_size();
     let built = build_window(
         app,
         &label,
         &host,
         &request.dialog_id,
         &title,
-        (x, y, w, h),
-        (min_w, min_h),
+        &place,
+        (min_w.min(lw), min_h.min(lh)),
         &parent_window,
         modality,
     );
@@ -408,23 +444,22 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, caller: &str, request: DialogRequest
     })
 }
 
-/// The share of the screen a dialog opens at most (unless the user resized it before).
-const SCREEN_SHARE: f64 = 0.75;
-
-/// `size` limited to [`SCREEN_SHARE`] of `screen` (logical px), never below `min`; unchanged when the screen is unknown.
-pub fn within_screen(size: (f64, f64), min: (f64, f64), screen: Option<(f64, f64)>) -> (f64, f64) {
-    match screen {
-        Some((sw, sh)) if sw.is_finite() && sh.is_finite() => {
-            (size.0.min(sw * SCREEN_SHARE).max(min.0), size.1.min(sh * SCREEN_SHARE).max(min.1))
-        }
-        _ => size,
-    }
-}
-
-fn parent_monitor_size<R: Runtime>(w: &tauri::WebviewWindow<R>) -> Option<(f64, f64)> {
-    let m = w.current_monitor().ok().flatten()?;
-    let s = m.size().to_logical::<f64>(m.scale_factor());
-    Some((s.width, s.height))
+/// Every placement is logged, so a user's log shows where a dialog went and why.
+fn log_placement(dialog_id: &str, monitor: Option<&(Monitor, String)>, p: &Placement) {
+    let (name, work) = monitor.map_or(("unknown".to_string(), "unknown".to_string()), |(m, name)| {
+        (
+            name.clone(),
+            format!("{},{} {}x{} @{}", m.work.x, m.work.y, m.work.width, m.work.height, m.scale),
+        )
+    });
+    log::info!(
+        Dialog = dialog_id,
+        Monitor = name.as_str(),
+        WorkArea = work.as_str(),
+        Placed = format!("{},{} {}x{} @{}", p.x, p.y, p.width, p.height, p.scale).as_str(),
+        Remembered = p.remembered;
+        "Dialog window placed"
+    );
 }
 
 /// The builder configuration of a dialog window, separate from the build so a test can check it without a window.
@@ -483,12 +518,14 @@ fn build_window<R: Runtime>(
     host: &str,
     dialog_id: &str,
     title: &str,
-    place: (f64, f64, f64, f64),
+    place: &Placement,
     min: (f64, f64),
     parent: &tauri::WebviewWindow<R>,
     modality: Modality,
 ) -> anyhow::Result<()> {
-    let c = window_config(label, host, dialog_id, title, place, min, modality);
+    let at = placement::screen_position(place, std::env::consts::OS);
+    let (w, h) = place.logical_size();
+    let c = window_config(label, host, dialog_id, title, (at.logical.0, at.logical.1, w, h), min, modality);
     // A native title bar with the dialog's title: dialogs are ordinary OS windows.
     let builder = WebviewWindowBuilder::new(app, label, WebviewUrl::App(c.url.clone().into()))
         .title(c.title.clone())
@@ -505,7 +542,16 @@ fn build_window<R: Runtime>(
     } else {
         builder
     };
-    crate::native_feel::build(builder).map_err(|e| anyhow::anyhow!("{e}"))?;
+    let window = crate::native_feel::build(builder).map_err(|e| anyhow::anyhow!("{e}"))?;
+    // Where logical coordinates are not one global space (Windows, Linux with mixed DPI), the builder converted them
+    // with some monitor's scale: set the exact physical place (on the parent's monitor) and size now.
+    if let Some((x, y)) = at.physical {
+        let _ = window.set_position(tauri::PhysicalPosition::new(x, y));
+        let _ = window.set_size(tauri::PhysicalSize::new(
+            place.width.round().max(1.0) as u32,
+            place.height.round().max(1.0) as u32,
+        ));
+    }
     Ok(())
 }
 
@@ -576,14 +622,19 @@ pub fn on_destroyed<R: Runtime>(app: &AppHandle<R>, label: &str) {
         }
         let _ = parent.set_focus();
     }
-    if app.get_window(&entry.parent).is_some() {
+    if let Some(parent) = app.get_window(&entry.parent) {
+        let parent_at = parent
+            .scale_factor()
+            .ok()
+            .and_then(|s| Some(parent.outer_position().ok()?.to_logical::<f64>(s)))
+            .map(|p| (p.x, p.y));
         let _ = app.emit_to(
             entry.parent.as_str(),
             CLOSED_EVENT,
             DialogClosed {
                 label: label.to_string(),
                 dialog_id: entry.dialog_id,
-                bounds: entry.bounds,
+                remembered: entry.bounds.zip(parent_at).and_then(|(b, p)| placement::remembered_of(b, p)),
             },
         );
     }
@@ -692,17 +743,38 @@ pub async fn dialog_fit_height<R: Runtime>(app: AppHandle<R>, window: Window<R>,
     let kind = contract.map_or(crate::dialog_contracts::Kind::Form, |c| c.kind);
     let floor = contract.and_then(|c| c.min_size).map_or(MIN_SIZE.1, |s| s.height);
     let scale = window.scale_factor().unwrap_or(1.0);
-    let max = window
-        .current_monitor()
-        .ok()
-        .flatten()
-        .map_or(MAX_SIZE, |m| m.size().to_logical::<f64>(m.scale_factor()).height * 0.9);
+    // The monitor the dialog is on (its own: the shell placed it on the parent's); its work area bounds the fit.
+    let monitor = monitor_of_window(&window).map(|m| m.0);
+    let max = monitor.map_or(MAX_SIZE, |m| m.work.height / m.scale() - placement::TITLE_BAR);
     let size = window.inner_size().map_err(err)?.to_logical::<f64>(scale);
     // The title bar is not part of the measured content: the inner size is what the content fills.
     let Some(height) = fit_target(kind, content, max, floor, size.height) else {
         return Err("the content height is not a number".to_string().into());
     };
-    crate::error::lift(window.set_size(tauri::LogicalSize::new(size.width, height)).map_err(err))
+    if (height - size.height).abs() < 0.5 {
+        return Ok(());
+    }
+    let outer = outer_rect(&window);
+    window.set_size(tauri::LogicalSize::new(size.width, height)).map_err(err)?;
+    // A taller window must not hang off the bottom of its monitor: it moves up, on the same monitor.
+    if let Some((x, y)) = outer.and_then(|o| placement::keep_on_monitor(o, height, monitor)) {
+        let p = Placement {
+            x,
+            y,
+            width: 0.0,
+            height: 0.0,
+            scale: monitor.map_or(1.0, |m| m.scale()),
+            remembered: false,
+        };
+        let at = placement::screen_position(&p, std::env::consts::OS);
+        let moved = match at.physical {
+            Some((px, py)) => window.set_position(tauri::PhysicalPosition::new(px, py)),
+            None => window.set_position(tauri::LogicalPosition::new(at.logical.0, at.logical.1)),
+        };
+        moved.map_err(err)?;
+    }
+    log::info!(Dialog = entry.dialog_id.as_str(), Content = content, Height = height; "Dialog window fitted to its content");
+    Ok(())
 }
 
 #[cfg(test)]
@@ -752,7 +824,7 @@ mod tests {
             height: None,
             min_width: None,
             min_height: None,
-            bounds: None,
+            remembered: None,
         }
     }
 
@@ -768,17 +840,6 @@ mod tests {
         let s = seen.clone();
         w.listen(event, move |e| s.lock().unwrap().push(e.payload().to_string()));
         seen
-    }
-
-    #[test]
-    fn a_default_size_is_bounded_by_three_quarters_of_the_screen() {
-        assert_eq!(within_screen((680.0, 900.0), (320.0, 200.0), Some((1440.0, 800.0))), (680.0, 600.0));
-        assert_eq!(
-            within_screen((1600.0, 560.0), (320.0, 200.0), Some((1440.0, 800.0))),
-            (1080.0, 560.0)
-        );
-        assert_eq!(within_screen((400.0, 300.0), (320.0, 200.0), Some((300.0, 200.0))), (320.0, 200.0));
-        assert_eq!(within_screen((680.0, 900.0), (320.0, 200.0), None), (680.0, 900.0));
     }
 
     #[test]
@@ -860,6 +921,16 @@ mod tests {
         r.min_width = Some(10.0);
         assert_eq!(geometry(&r, &contract("a")), (DEFAULT_SIZE.0, MAX_SIZE, MIN_SIZE.0, MIN_SIZE.1));
         // The kind's floor wins over a smaller request: a viewer is never below 680x560.
+        // A remembered place is an offset from the parent; absolute bounds are refused.
+        assert!(serde_json::from_value::<DialogRequest>(
+            serde_json::json!({ "dialogId": "a", "title": "t", "bounds": { "x": 1, "y": 1, "width": 400, "height": 300 } })
+        )
+        .is_err());
+        let r: DialogRequest = serde_json::from_value(
+            serde_json::json!({ "dialogId": "a", "title": "t", "remembered": { "dx": 1, "dy": 2, "width": 400, "height": 300 } }),
+        )
+        .unwrap();
+        assert_eq!(r.remembered.map(|m| (m.dx, m.dy)), Some((1.0, 2.0)));
         let mut small = request("about");
         small.width = Some(400.0);
         small.height = Some(300.0);
@@ -886,15 +957,7 @@ mod tests {
     }
 
     #[test]
-    fn centred_on_the_parent_and_the_window_config_is_an_owned_resizable_window() {
-        let parent = Bounds {
-            x: 100.0,
-            y: 50.0,
-            width: 1000.0,
-            height: 800.0,
-        };
-        assert_eq!(centred(Some(parent), 600.0, 400.0), (300.0, 183.33333333333334));
-        assert_eq!(centred(None, 600.0, 400.0), (100.0, 100.0));
+    fn the_window_config_is_an_owned_resizable_window() {
         let c = window_config(
             "d-main-1",
             "main",
@@ -1003,6 +1066,8 @@ mod tests {
         let c: Value = serde_json::from_str(&closed.lock().unwrap()[0]).unwrap();
         assert_eq!(c["dialogId"], "ai-setup");
         assert!(h.state::<Dialogs>().of_host(MAIN).is_empty());
+        // The closed event carries the remembered place as an offset from the parent, never absolute bounds.
+        assert!(c.get("bounds").is_none() && c.get("remembered").is_some(), "{c}");
         // A dialog dismissed (no result) only reports closing.
         open(&h, MAIN, request("ai-setup")).unwrap();
         let d2 = window(&app, "d-main-2");

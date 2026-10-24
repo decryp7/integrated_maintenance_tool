@@ -1,6 +1,5 @@
-import { Rect } from '../dock/dock-geometry';
-import { WorkArea } from '../popout/bounds';
 import { Unlisten } from '../windowing/window-events';
+import { RememberedPlace } from './dialog-bounds';
 import { DIALOG_CLOSED_EVENT, DIALOG_RESULT_EVENT, DialogInfo, DialogIo, DialogOpenRequest, DialogStart } from './dialog-io';
 import { ConfirmQuestion } from './dialog-session';
 
@@ -17,7 +16,6 @@ export class FakeDialogIo implements DialogIo {
   failOpen: Error | null = null;
   answer = true;
   start: DialogStart = { dialogId: 'x', title: 'X', modality: 'modeless', input: {} };
-  areas: WorkArea[] = [];
   label = 'main';
 
   async open(request: DialogOpenRequest): Promise<DialogInfo> {
@@ -47,9 +45,6 @@ export class FakeDialogIo implements DialogIo {
     this.asked.push(q);
     return this.answer;
   }
-  async workAreas() {
-    return this.areas;
-  }
   /** The heights the shell asked for. */
   readonly fitted: number[] = [];
   async fitHeight(px: number) {
@@ -65,8 +60,8 @@ export class FakeDialogIo implements DialogIo {
   result(label: string, dialogId: string, result: unknown): void {
     this.emit(DIALOG_RESULT_EVENT, { label, dialogId, result });
   }
-  closed(label: string, dialogId: string, bounds: Rect | null = null): void {
-    this.emit(DIALOG_CLOSED_EVENT, { label, dialogId, bounds });
+  closed(label: string, dialogId: string, remembered: RememberedPlace | null = null): void {
+    this.emit(DIALOG_CLOSED_EVENT, { label, dialogId, remembered });
   }
   listeners(event: string): number {
     return this.handlers.get(event)?.size ?? 0;
