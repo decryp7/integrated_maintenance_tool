@@ -106,6 +106,13 @@ The family's binding rules, copied from [paddock/docs/rules.md](https://dev.decr
     work brief includes this check; every app move and every few releases a survey looks for copies that drifted apart
     and turns them into shared work packages. App-specific domain logic stays in the app.
 
+**Testing shared code (user, 2026-10-24)**
+43. **Shared behaviour is tested once, in Paddock.** A shared crate or package carries the full tests of its behaviour
+    (unit, robustness, fuzz, real-OS where it matters). An app tests only its wiring, through the shared contract tests
+    (`paddock-e2e`, `paddock-testkit`, conformance), its own domain logic, and one real-app smoke per release. When an app
+    adopts a shared package it deletes its own copy and the tests that duplicated it, and records test count and time
+    before and after.
+
 ## Design principles
 
 Apply these deliberately. They are not decoration:
