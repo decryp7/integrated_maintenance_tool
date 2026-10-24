@@ -98,6 +98,7 @@ fn renders_a_scripted_page_and_leaves_nothing_behind() {
         std::thread::sleep(Duration::from_millis(300));
         assert!(!chromium_driver::process::process_exists(pid), "browser process leaked");
     }
+    let _ = pid; // only checked on Unix
     drop(b);
     assert!(!dir.exists(), "throwaway profile left behind");
 }
