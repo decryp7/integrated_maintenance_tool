@@ -27,7 +27,12 @@ path, recording source fingerprints, a one-thread full-text docs pool, one folde
 parse pool, in-flight files = parse threads. Non-interleaved bisects are misleading (load moves the numbers by
 ±30 MB): always interleave.
 
-Decision still to make: a leak or retention to fix (with a test that the memory is released), or a feature cost (then
+Bisect continued (6807089b: ~483 vs ~524): the commits from there to 9e4369c2 do not touch the worker, and every step
+lies within the noise, so no single commit carries the increase. Decision for 1.1.1: the features' cost; the macOS
+`QUERY_BUDGET_MB` is 630 (570 MB on CI under load plus 10%). Follow-up for 1.2: find what the extra memory is
+(allocator statistics or a heap profile of the worker at idle) and bring the budget back down.
+
+Original question: a leak or retention to fix (with a test that the memory is released), or a feature cost (then
 the budget comment records the measurement and the budget becomes measured max + ~10%).
 
 ### How to measure
