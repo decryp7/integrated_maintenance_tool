@@ -90,6 +90,17 @@ describe('DockLayout.fit', () => {
     expect(plan.violations).toEqual([]);
   });
 
+  it('a view opened in the background (auto-open) that has no room never takes the front from the view it joins', () => {
+    const layout = setup();
+    const { api, panels, groups } = fakeDock(1100, 800, { 'timeline+events': { width: 400, height: 800 }, 'ai-chat': { width: 372, height: 800 }, home: { width: 328, height: 800 } });
+    const eventsActive = { api: { setActive: vi.fn() } };
+    (groups[0] as unknown as { activePanel: unknown }).activePanel = eventsActive;
+    layout.fit(api, { sizes: true, fresh: ['home'], background: true });
+    expect(panels.get('home')!.api.moveTo).toHaveBeenCalled();
+    expect(panels.get('home')!.api.setActive).not.toHaveBeenCalled();
+    expect(eventsActive.api.setActive).toHaveBeenCalled();
+  });
+
   it('a view that yields without being opened just now joins as a background tab: the tab in front stays in front', () => {
     const layout = setup();
     const { api, panels, groups } = fakeDock(1100, 800, { 'timeline+events': { width: 400, height: 800 }, 'ai-chat': { width: 372, height: 800 }, home: { width: 328, height: 800 } });

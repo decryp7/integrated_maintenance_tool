@@ -42,6 +42,8 @@ export interface OpenView {
   row?: string;
   /** Views in the same dock group (tabs of one group) give the same key; groups of one row sit side by side. Default: the view's own id. */
   group?: string;
+  /** How recently the user worked with the view: 0 is the latest, absent is unknown (a view that is not tracked, e.g. the Explorer). */
+  recency?: number;
 }
 
 /** Sizes the user or a saved layout asked for; they replace `pref` (still clamped to `min`). */
@@ -173,6 +175,11 @@ export function fitAxis(items: readonly Item[], total: number): Fit {
  * timeline plot keep the room.
  */
 export const SHARES = {
+  /** A side tool the user is working with outranks an idle document column of similar rank: priority + (this - recency * step), below the main views. */
+  recencyBonus: 24,
+  recencyStep: 8,
+  /** A boosted view never reaches the main column's priority. */
+  recencyCeiling: 89,
   /** A full-height column (Home, Registry) and a document beside the timeline take at most this share of the window width. */
   width: 0.4,
   /** A document beside the timeline takes at most this share of the window height (the events grid keeps the rest). */
@@ -206,9 +213,17 @@ function sideBySideNeeds(main: readonly OpenView[]): number[] {
   return out;
 }
 
+/** A side tool with its priority raised by how recently the user worked with it (see `SHARES`); other views are unchanged. */
+function withRecency(v: OpenView): OpenView {
+  if (v.recency === undefined || v.layout.area !== 'side') return v;
+  const bonus = Math.max(0, SHARES.recencyBonus - v.recency * SHARES.recencyStep);
+  const priority = Math.max(v.layout.priority, Math.min(SHARES.recencyCeiling, v.layout.priority + bonus));
+  return priority === v.layout.priority ? v : { ...v, layout: { ...v.layout, priority } };
+}
+
 /** The pure planner: where every open view goes in `viewport`, and what yields when there is no room. */
 export function planLayout(viewport: Size, open: readonly OpenView[], saved?: SavedHints): LayoutPlan {
-  const views = [...open].sort(byPriorityThenId);
+  const views = open.map(withRecency).sort(byPriorityThenId);
   const hidden: LayoutPlan['hidden'] = [];
   const tabbed: LayoutPlan['tabbed'] = [];
   const shrunk = new Set<string>();

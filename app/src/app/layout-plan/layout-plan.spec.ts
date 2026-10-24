@@ -366,4 +366,18 @@ describe('usability shares (ADR 0056 amendment 2026-10-24)', () => {
     expect(rows.find((r) => r.key === 'analysis')!.height).toBe(280);
     expect(rows.find((r) => r.key === 'events')!.height).toBe(299);
   });
+
+  it('what the user works with outranks an idle view of similar rank: a tool just opened keeps its place, the idle column yields', () => {
+    const idle = planLayout({ width: 1092, height: 789 }, open('timeline', 'events', 'home', 'notes'));
+    expect(idle.hidden.map((h) => h.id)).toEqual(['notes']);
+    const used = planLayout({ width: 1092, height: 789 }, [V.timeline, V.events, V.home, { ...V.notes, recency: 0 }]);
+    expect(used.hidden).toEqual([]);
+    expect(used.tabbed).toEqual([{ id: 'home', into: 'events' }]);
+    expect(used.violations).toEqual([]);
+  });
+
+  it('recency never lifts a view over the main column', () => {
+    const plan = planLayout({ width: 700, height: 789 }, [V.timeline, V.events, { ...V.ai, recency: 0 }]);
+    expect(plan.hidden.map((h) => h.id)).toEqual(['ai']);
+  });
 });

@@ -87,7 +87,7 @@ export class DockPlacement {
   addView(api: DockviewApi, view: DebriefView, inactive: boolean, id = view.id): IDockviewPanel | null {
     const panel = this.place(api, view, inactive, id);
     // Every group is constrained from the views it holds, and what does not fit yields (tabbed or auto-hidden) before anything is squeezed.
-    if (panel) this.layout.fit(api, { sizes: true, fresh: [id] });
+    if (panel) this.layout.fit(api, { sizes: true, fresh: [id], background: inactive });
     return panel;
   }
 
