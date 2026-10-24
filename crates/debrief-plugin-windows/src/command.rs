@@ -2,6 +2,7 @@
 
 use std::io::{self, Read};
 use std::process::Stdio;
+use std::sync::{mpsc, Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
@@ -31,12 +32,40 @@ pub trait CommandRunner: Send + Sync {
 /// Runs real processes with `std::process::Command`.
 pub struct SystemRunner;
 
-fn drain<R: Read + Send + 'static>(mut pipe: R) -> thread::JoinHandle<String> {
-    thread::spawn(move || {
-        let mut buf = Vec::new();
-        let _ = pipe.read_to_end(&mut buf);
+/// How long the output is still read after the program exited: a child it left running may hold the pipe open for
+/// ever, and the answer must not wait for it.
+const AFTER_EXIT: Duration = Duration::from_secs(2);
+
+/// A pipe read on its own thread into a shared buffer, so what was read can be taken without waiting for the end.
+struct Drain {
+    buf: Arc<Mutex<Vec<u8>>>,
+    done: mpsc::Receiver<()>,
+}
+
+impl Drain {
+    fn start<R: Read + Send + 'static>(mut pipe: R) -> Drain {
+        let buf = Arc::new(Mutex::new(Vec::new()));
+        let (tx, done) = mpsc::channel();
+        let b = buf.clone();
+        thread::spawn(move || {
+            let mut chunk = [0u8; 64 * 1024];
+            while let Ok(n) = pipe.read(&mut chunk) {
+                if n == 0 {
+                    break;
+                }
+                b.lock().unwrap_or_else(|p| p.into_inner()).extend_from_slice(&chunk[..n]);
+            }
+            let _ = tx.send(());
+        });
+        Drain { buf, done }
+    }
+
+    /// What was read, once the pipe ended or `until` passed (whichever is first).
+    fn take(self, until: Instant) -> String {
+        let _ = self.done.recv_timeout(until.saturating_duration_since(Instant::now()));
+        let buf = std::mem::take(&mut *self.buf.lock().unwrap_or_else(|p| p.into_inner()));
         String::from_utf8_lossy(&buf).into_owned()
-    })
+    }
 }
 
 impl CommandRunner for SystemRunner {
@@ -47,8 +76,8 @@ impl CommandRunner for SystemRunner {
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .spawn()?;
-        let out = child.stdout.take().map(drain);
-        let err = child.stderr.take().map(drain);
+        let out = child.stdout.take().map(Drain::start);
+        let err = child.stderr.take().map(Drain::start);
         let deadline = Instant::now() + timeout;
         let status = loop {
             if let Some(status) = child.try_wait()? {
@@ -64,11 +93,11 @@ impl CommandRunner for SystemRunner {
             }
             thread::sleep(Duration::from_millis(20));
         };
-        let join = |h: Option<thread::JoinHandle<String>>| h.and_then(|h| h.join().ok()).unwrap_or_default();
+        let until = Instant::now() + AFTER_EXIT;
         Ok(CommandOutput {
             code: status.code(),
-            stdout: join(out),
-            stderr: join(err),
+            stdout: out.map(|d| d.take(until)).unwrap_or_default(),
+            stderr: err.map(|d| d.take(until)).unwrap_or_default(),
         })
     }
 }
@@ -146,5 +175,25 @@ mod tests {
             .unwrap_err();
         assert_eq!(err.kind(), io::ErrorKind::TimedOut);
         assert!(SystemRunner.run("/nonexistent/debrief-tool", &[], Duration::from_secs(1)).is_err());
+    }
+
+    /// A tool that exits but left a child holding its output pipe (a service it started) is still answered in time,
+    /// with what it wrote.
+    #[test]
+    fn a_grandchild_holding_the_pipe_does_not_hold_the_answer() {
+        let start = Instant::now();
+        let out = SystemRunner
+            .run("sh", &["-c".into(), "sleep 30 & echo $!".into()], Duration::from_secs(60))
+            .unwrap();
+        let elapsed = start.elapsed();
+        let text = out.stdout.clone();
+        let pid: i32 = text.trim().parse().unwrap_or(0);
+        if pid > 0 {
+            // Ends the test's own `sleep` grandchild.
+            #[allow(clippy::disallowed_methods)]
+            let _ = std::process::Command::new("kill").args(["-9", &pid.to_string()]).status();
+        }
+        assert!(pid > 0, "what it wrote is kept: {text:?}");
+        assert!(elapsed < Duration::from_secs(10), "answered after {elapsed:?}");
     }
 }
