@@ -47,6 +47,34 @@
   }
 }
 
+/* Start-up splash (Paddock lesson; ADR 0058): shown inside <debrief-root> until Angular replaces it; fades in after ~400 ms so a
+   fast start never flashes it. No inline style or script (CSP); colours follow the system until the theme is set. */
+.debrief-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: var(--bg-1, Canvas);
+  color: var(--text-2, GrayText);
+  font-family: var(--font-sans, system-ui, sans-serif);
+  font-size: var(--fs-sm, 13px);
+  opacity: 0;
+  animation: debrief-splash-in 200ms ease 400ms forwards;
+
+  p {
+    margin: 0;
+  }
+}
+
+@keyframes debrief-splash-in {
+  to {
+    opacity: 1;
+  }
+}
+
 /* While the shell captures the window for an error snapshot (ADR 0034), toasts stay out of the picture. */
 html[data-snapshot-capturing] [data-snapshot-ignore] {
   visibility: hidden !important;
@@ -669,35 +697,5 @@ input[type='radio'] {
     height: 6px;
     border-radius: 50%;
     background: var(--accent-ink);
-  }
-}
-
-/* Start-up splash (index.html, ADR 0058): what the window shows until Angular renders its shell, so a slow or paused
-   start is never an empty window. System colours (the theme is not applied yet); it fades in after 400 ms so a fast
-   start does not flash it. Angular replaces it when the root component renders. */
-.boot-splash {
-  position: fixed;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: Canvas;
-  color: GrayText;
-  font: message-box; /* the system UI font: the theme's tokens are not applied yet */
-  opacity: 0;
-  animation: boot-splash-in 240ms ease-out 400ms forwards;
-}
-.boot-splash-mark {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
-  border: 2px solid currentColor;
-  opacity: 0.6;
-}
-@keyframes boot-splash-in {
-  to {
-    opacity: 1;
   }
 }

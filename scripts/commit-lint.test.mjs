@@ -21,3 +21,14 @@ test('reports a bad type, an empty message, a long header and a missing blank li
   assert.deepEqual(lint('feat: x\nbody'), ['the second line must be empty']);
   assert.deepEqual(lint('fix: windows line endings\r\n\r\nbody'), []);
 });
+
+test('rejects co-author trailers and AI attribution anywhere in the message', () => {
+  const trailer = 'Co-Authored-By: Someone <someone@example.com>';
+  assert.match(lint(`feat: x\n\nbody\n\n${trailer}`).join(), /Co-Authored-By/);
+  assert.match(lint(`feat: x\n\nbody\n\nco-authored-by: a <a@b.c>`).join(), /Co-Authored-By/);
+  assert.match(lint('fix: x\n\nGenerated with Claude Code').join(), /AI "generated/);
+  assert.match(lint('fix: x\n\n\u{1F916} done').join(), /robot/);
+  assert.match(lint('fix: x\n\nSigned: Claude <noreply@anthropic.com>').join(), /AI author/);
+  // Mentioning the word in prose is fine.
+  assert.deepEqual(lint('docs: explain why the co-authored trailer is banned'), []);
+});

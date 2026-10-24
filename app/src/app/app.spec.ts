@@ -9,6 +9,10 @@ import { WorkspaceStore } from './core/workspace.store';
 import { DockService } from './dock/dock.service';
 import { provideToolsBackend } from './core/tools-backend';
 import { LifecycleService } from './lifecycle/lifecycle.service';
+import { CHANGELOG } from './whats-new/changelog.generated';
+
+// The running version comes from its single source (the changelog), never a literal.
+const APP_VERSION = CHANGELOG[0]?.version ?? '';
 
 describe('App', () => {
   beforeEach(() => localStorage.clear());
@@ -74,7 +78,7 @@ describe('App', () => {
     const banners = host.querySelector('debrief-lifecycle-banners');
     expect(banners?.previousElementSibling?.tagName.toLowerCase()).toBe('debrief-title-bar');
     expect(host.querySelector('debrief-title-bar debrief-title-extras')).not.toBeNull();
-    TestBed.inject(LifecycleService).status.set({ version: '0.1.0', safeMode: true, previousCrash: false, sessionAvailable: false });
+    TestBed.inject(LifecycleService).status.set({ version: APP_VERSION, safeMode: true, previousCrash: false, sessionAvailable: false });
     await settle(fixture);
     expect(banners?.querySelector('[data-testid=safe-mode-banner]')).not.toBeNull();
   });

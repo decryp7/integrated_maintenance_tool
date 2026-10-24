@@ -12,3 +12,9 @@ Tests must not leave `debrief-*` or `imt-*` folders in the OS temp directory. CI
   Never build a path from `std::env::temp_dir()` and `remove_dir_all` it at the end of the test: a failing assert skips the cleanup.
 - **Measure locally**: run the tests with `TMPDIR` pointing at an empty folder and list it afterwards:
   `mkdir /tmp/t && TMPDIR=/tmp/t cargo test -p debrief-core; ls /tmp/t`.
+
+## TODO: lint `std::env::temp_dir`
+
+Audit D4 asks for a clippy `disallowed-methods` entry for `std::env::temp_dir` (tests use `tempfile::TempDir`). It is not in
+`clippy.toml` yet: about 159 uses exist, so enabling it workspace-wide fails the build today. Convert the uses crate by crate
+(after the current merges), then add the entry; the CI leak check above is the safety net until then.
