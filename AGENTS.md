@@ -99,6 +99,13 @@ The family's binding rules, copied from [paddock/docs/rules.md](https://dev.decr
     high (Mac mini, 14 cores: aim for a 1-minute load of about 6–16, at most ~5 heavy jobs, `CARGO_BUILD_JOBS=2` each),
     use the shared build cache (`sccache`) and copy-on-write target folders, and never let tests crowd out a release.
 
+**Sharing (user, 2026-10-24)**
+42. **Share first.** Before building anything in an app, check Paddock's shared crates and packages (crates/README.md,
+    ui/README.md, docs/plans/) for it. If it exists, use it; if it is missing, generic, or another app has or will need the
+    same thing (rule 39), build it in Paddock and consume the published version instead of writing an app copy. Every
+    work brief includes this check; every app move and every few releases a survey looks for copies that drifted apart
+    and turns them into shared work packages. App-specific domain logic stays in the app.
+
 ## Design principles
 
 Apply these deliberately. They are not decoration:
