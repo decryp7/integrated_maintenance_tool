@@ -17,6 +17,9 @@ use std::time::Duration;
 use tungstenite::Message;
 
 const ARGS_ENV: &str = "FAKE_BROWSER_ARGS_FILE";
+/// Set in every fake browser process: an application's `main` refuses to start when it sees it, so a fake that names
+/// the wrong binary can never open the app's windows on the desktop.
+pub const CHILD_ENV: &str = "DEBRIEF_FAKE_BROWSER";
 const MODE_ENV: &str = "FAKE_BROWSER_MODE";
 const TABS_ENV: &str = "FAKE_BROWSER_TABS";
 const CTL_ENV: &str = "FAKE_BROWSER_CTL";
@@ -68,6 +71,25 @@ pub struct FakeBrowser {
     pub ctl_file: PathBuf,
 }
 
+/// The dynamic-loader variables a test binary may need (cargo and nextest put the native library folders in
+/// `DYLD_FALLBACK_LIBRARY_PATH`). macOS strips every `DYLD_*` variable when it runs a system shell (SIP), so the
+/// fake's script sets them again for the test binary it starts.
+const DYLD_VARS: [&str; 3] = ["DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH"];
+
+/// The fake's start script: the loader variables, the fake's own settings and [`CHILD_ENV`], then the test binary
+/// filtered to the one helper test (`--exact`).
+#[allow(clippy::too_many_arguments)]
+fn script(dyld: &[(String, String)], args: &Path, url: &Path, ctl: &Path, mode: &str, tabs: usize, me: &Path, test_path: &str) -> String {
+    let dyld: String = dyld.iter().map(|(k, v)| format!("export {k}='{v}'\n")).collect();
+    format!(
+        "#!/bin/sh\n{dyld}printf '%s\\n' \"$@\" > '{args}'\nexport {CHILD_ENV}=1 {ARGS_ENV}='{args}' {MODE_ENV}={mode} {TABS_ENV}={tabs} FAKE_BROWSER_URL='{url}' {CTL_ENV}='{ctl}'\nexec '{me}' '{test_path}' --exact --nocapture\n",
+        args = args.display(),
+        url = url.display(),
+        ctl = ctl.display(),
+        me = me.display(),
+    )
+}
+
 impl FakeBrowser {
     /// Writes the fake into `dir`. `test_path` is the full path of the caller's test function that calls
     /// [`serve_if_requested`] (for example `browser::renderer::tests::fake_browser_process`); `tabs` is how many pages it reports.
@@ -78,17 +100,11 @@ impl FakeBrowser {
         let ctl_file = dir.join("ctl.txt");
         let exe = dir.join("fake-browser.sh");
         let mode = if mode == Mode::Obey { "obey" } else { "ignore" };
-        // macOS strips DYLD_* variables when it runs a system shell (SIP): the script puts them back for the test binary.
-        let dyld = std::env::var("DYLD_LIBRARY_PATH")
-            .map(|v| format!("export DYLD_LIBRARY_PATH='{v}'\n"))
-            .unwrap_or_default();
-        let script = format!(
-            "#!/bin/sh\n{dyld}printf '%s\\n' \"$@\" > '{args}'\nexport {ARGS_ENV}='{args}' {MODE_ENV}={mode} {TABS_ENV}={tabs} FAKE_BROWSER_URL='{url}' {CTL_ENV}='{ctl}'\nexec '{me}' '{test_path}' --exact --nocapture\n",
-            args = args_file.display(),
-            url = url_file.display(),
-            ctl = ctl_file.display(),
-            me = me.display(),
-        );
+        let dyld: Vec<(String, String)> = DYLD_VARS
+            .iter()
+            .filter_map(|k| std::env::var(k).ok().map(|v| (k.to_string(), v)))
+            .collect();
+        let script = script(&dyld, &args_file, &url_file, &ctl_file, mode, tabs, &me, test_path);
         std::fs::write(&exe, script)?;
         #[cfg(unix)]
         {
@@ -256,5 +272,27 @@ fn connection(stream: std::net::TcpStream, ignore: bool, tabs: usize, url_file: 
             let _ = std::io::stdout().flush();
             std::process::exit(0);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Regression (macOS CI, nextest): the test binary finds libduckdb through `DYLD_FALLBACK_LIBRARY_PATH`, which the
+    /// shell running the fake dropped, so every fake browser exited at once ("exited right after it started").
+    #[test]
+    fn the_script_restores_every_loader_variable_and_marks_the_child() {
+        let p = Path::new;
+        let dyld = vec![
+            ("DYLD_LIBRARY_PATH".to_string(), "/a".to_string()),
+            ("DYLD_FALLBACK_LIBRARY_PATH".to_string(), "/b:/c".to_string()),
+        ];
+        let s = script(&dyld, p("/t/args"), p("/t/url"), p("/t/ctl"), "obey", 1, p("/bin/test"), "x::fake");
+        assert!(s.contains("export DYLD_LIBRARY_PATH='/a'\n"), "{s}");
+        assert!(s.contains("export DYLD_FALLBACK_LIBRARY_PATH='/b:/c'\n"), "{s}");
+        assert!(s.contains(&format!("export {CHILD_ENV}=1 ")), "{s}");
+        assert!(s.ends_with("exec '/bin/test' 'x::fake' --exact --nocapture\n"), "{s}");
+        assert!(DYLD_VARS.contains(&"DYLD_FALLBACK_LIBRARY_PATH"));
     }
 }
