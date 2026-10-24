@@ -31,6 +31,7 @@ export class HelpCommands {
         this.dialogs.open(CheatSheet, { title: $localize`:@@help.command.shortcuts:Keyboard shortcuts`, width: 640 });
       },
     },
+    // What's new is a document of the dock; this opens it, or brings it to the front.
     { id: 'help.whatsNew', title: $localize`:@@help.command.whatsNew:What's new`, category: $localize`:@@help.command.category:Help`, run: () => this.whatsNew.open() },
     {
       id: EDIT_SHORTCUTS_COMMAND,

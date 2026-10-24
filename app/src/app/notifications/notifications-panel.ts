@@ -66,7 +66,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
             }
             <div class="actions">
               @if (store.localAction(n.id); as label) {
-                <button type="button" class="btn small" (click)="store.runLocal(n.id)" [attr.data-testid]="'notice-primary-' + n.id">{{ label }}</button>
+                <button type="button" class="btn small" (click)="actions.runLocal(n.id)" [attr.data-testid]="'notice-primary-' + n.id">{{ label }}</button>
               }
               @if (n.primary; as a) {
                 @if (available(a)) {
@@ -119,7 +119,7 @@ import { sourceLabel, titleWithCount } from './notifications-text';
 })
 export class NotificationsPanel {
   protected readonly store = inject(NotificationsStore);
-  private readonly actions = inject(NoticeActions);
+  protected readonly actions = inject(NoticeActions);
   private readonly ws = inject(WorkspaceStore);
   private readonly jobs = inject(JobsStore);
   /** The listed jobs: actions of a job cleared from Jobs are hidden (its result is gone; the message keeps the outcome). */

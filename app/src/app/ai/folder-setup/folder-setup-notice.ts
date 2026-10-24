@@ -38,6 +38,7 @@ export class FolderSetupNotice {
       title: $localize`:@@ai.folderSetup.notice.title:New folder? Set up analysis`,
       body: $localize`:@@ai.folderSetup.hint.text:New folder? Debrief can survey it and propose lanes, markers, extractors and charts for you to review.`,
       actionLabel: $localize`:@@ai.folderSetup.hint.open:Set up analysis…`,
+      target: 'window',
       run: () => this.launcher.open(),
     });
   }

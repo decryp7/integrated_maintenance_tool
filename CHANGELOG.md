@@ -14,6 +14,11 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 
 - **Research browser:** The research browser closes again when research ends, unless you used it; it no longer opens an empty second tab
 
+### Changed
+
+- **What's new:** The release notes are now a document in the window instead of a dialog. After an update it opens once in the background (it does not take the front or the keyboard focus), and one notification, "Updated to … · See what's new", brings it forward. *Help ▸ What's new* opens it at any time; close it like any other document. It shows the notes of the version that is running and does not open again on later starts of the same version
+- **Notifications:** A notification's button that opens a view or a window (See what's new, Show in Jobs, View, Open the assistant, Open Settings…) now slides the Notifications pane in, and one that opens a view moves the keyboard focus to it; buttons that act in place (Try again, Reset, Later) keep the pane open
+
 ## 1.1.0 (2026-10-24)
 
 ### Added

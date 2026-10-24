@@ -817,19 +817,6 @@
         "updates_restart",
         "updates_status"
       ]
-    },
-    "whats-new": {
-      "kind": "viewer",
-      "modality": "modeless",
-      "requiredChoice": false,
-      "instanced": false,
-      "minSize": {
-        "width": 680,
-        "height": 560
-      },
-      "commands": [
-        "app_status"
-      ]
     }
   }
 }

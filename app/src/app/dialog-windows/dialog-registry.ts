@@ -73,14 +73,6 @@ export const DIALOG_DEFS = [
     load: () => import('../format/format-wizard').then((m) => m.FormatWizard),
   }),
   defineDialog({
-    id: 'whats-new',
-    kind: 'viewer',
-    result: type<void>(),
-    backends: ['tools'],
-    commands: ['app_status'],
-    load: () => import('../whats-new/whats-new').then((m) => m.WhatsNewDialog),
-  }),
-  defineDialog({
     id: 'about',
     kind: 'viewer',
     width: 720,

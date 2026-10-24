@@ -103,7 +103,7 @@ the filter bar folds the time range and time zone into a ⋯ menu.
 
 ## Dialogs are windows
 
-Every dialog in Debrief (Settings, the AI set-up and model manager, What's new, About, Export, Share a redacted copy,
+Every dialog in Debrief (Settings, the AI set-up and model manager, About, Export, Share a redacted copy,
 pickers such as the time range or the text encoding, ...) opens as a window of its own, with the operating system's title
 bar, owned by the Debrief window you opened it from and centred on it, always on the display that window is on. Resize it or
 move it beside the window: Debrief remembers its size and its place relative to the window, and uses that place next time only
@@ -124,7 +124,7 @@ Every dialog is one of four kinds, and the kind decides how it looks and behaves
   rules, the clock adjustment, the editors for notes, knowledge, parsers and formats, the AI query and the profiling
   launchers) are *modeless*: the Debrief window stays usable, and opening the same dialog again brings the open window to
   the front. A modal never waits for long work; anything that takes more than a moment runs as a job (see Jobs).
-- **Viewers** (Explain event and the other AI results, the incident summary, What's new, About, Keyboard shortcuts, Check
+- **Viewers** (Explain event and the other AI results, the incident summary, About, Keyboard shortcuts, Check
   for updates) open at least 680 x 560 and only ever grow while their content streams in; they never shrink under you.
   They are modeless and have a Close button that is always in view.
 - **Tools** (Settings, the AI model manager, Research) are large modeless windows that remember their size.
@@ -692,7 +692,15 @@ tab dragged off the docking guides and released inside the window goes back wher
 *Settings ▸ Keyboard* (or *Help ▸ Keyboard shortcuts ▸ Edit shortcuts…*) lists every command with its key. *Change* records a new
 key and warns when another command or a built-in key already uses it (Replace or Cancel); the cheat sheet, the menus and the
 palette show your keys. Overrides are kept for your user. *High contrast* is chosen automatically when the operating system
-asks for more contrast (or in *View ▸ Theme*), and *Help ▸ What's new* shows the release notes, once after an update.
+asks for more contrast (or in *View ▸ Theme*).
+
+## What's new
+
+*Help ▸ What's new* opens the release notes of the version you are running as a document beside the timeline (earlier
+releases are folded below). After an update Debrief opens it once by itself, in the background: it joins the documents as
+a tab without taking the front or the keyboard focus, and Notifications shows "Updated to *version*" with *See what's new*,
+which brings it forward. Close it like any other document; it does not open again on later starts of the same version.
+A fresh installation does not open it.
 
 ## Video sources
 
@@ -775,6 +783,9 @@ Everything Debrief tells you appears as a notification in the corner of the wind
 list (the bell). One problem is one notification: if the same thing happens again, the notification you already have is
 updated (with a count) instead of a new one appearing. Errors stay until you dismiss them or the cause is gone; other
 messages disappear after a few seconds. Technical text is folded behind **Details**.
+A button that takes you somewhere (*See what's new*, *Show in Jobs*, *View*, *Open Settings…*) closes the
+Notifications pane and, for a view, puts the keyboard focus in it; a button that acts in place (*Try again*, *Reset*,
+*Later*) leaves the pane open so you can see the result.
 
 When one of Debrief's own services stops, you see a single chip at the right of the status bar instead of a message in
 every panel:
