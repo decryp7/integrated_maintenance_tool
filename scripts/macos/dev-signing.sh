@@ -12,7 +12,7 @@ KEYCHAIN="$HOME/Library/Keychains/login.keychain-db"
 
 [[ "$(uname)" == "Darwin" ]] || { echo "macOS only"; exit 0; }
 
-has_identity() { security find-identity -v -p codesigning "$KEYCHAIN" | grep -q "\"$NAME\""; }
+has_identity() { [[ $(security find-identity -v -p codesigning "$KEYCHAIN") == *"\"$NAME\""* ]]; }
 
 if [[ "${1:-}" == "--remove" ]]; then
   while security find-certificate -c "$NAME" "$KEYCHAIN" >/dev/null 2>&1; do

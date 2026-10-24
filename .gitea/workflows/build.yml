@@ -1084,7 +1084,7 @@ jobs:
   release:
     name: release
     if: needs.plan.outputs.run == 'true' && startsWith(github.ref, 'refs/tags/v')
-    needs: [plan, bundle, tauri-smoke, rust-lint, rust-test, rust-test-macos, licences, frontend, e2e]
+    needs: [plan, bundle, tauri-smoke, rust-lint, rust-test, rust-test-macos, plugin-sdk, licences, frontend, e2e]
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5

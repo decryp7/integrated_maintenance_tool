@@ -8,7 +8,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 NAME="Debrief Local Dev"
 
 if [[ "$(uname)" == "Darwin" && -z "${APPLE_SIGNING_IDENTITY:-}" ]] \
-  && security find-identity -v -p codesigning | grep -q "\"$NAME\""; then
+  && [[ $(security find-identity -v -p codesigning) == *"\"$NAME\""* ]]; then
   export APPLE_SIGNING_IDENTITY="$NAME"
   echo "Signing with \"$NAME\"."
 fi
