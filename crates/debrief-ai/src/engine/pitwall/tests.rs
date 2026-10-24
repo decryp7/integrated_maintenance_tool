@@ -112,6 +112,24 @@ fn another_api_version_is_incompatible_and_says_who_to_update() {
     assert!(pw.connect(true).is_err(), "no pairing with an incompatible server");
 }
 
+/// Regression: on macOS a connection accepted from the fake's non-blocking listener is non-blocking too, so a request
+/// whose bytes arrived after the fake started reading was dropped unanswered, and a loaded test run saw "Pitwall is
+/// not running". The request here is sent only once the fake is waiting for it.
+#[test]
+fn the_fake_answers_a_request_that_arrives_after_it_started_reading() {
+    use std::io::{Read, Write};
+    let fake = FakePitwall::start(FakeState::default());
+    let mut conn = std::net::TcpStream::connect(("127.0.0.1", fake.port)).unwrap();
+    wait_for("the fake to read the connection", || fake.reading() == 1);
+    let sent = conn.write_all(b"GET /x/v1/health HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+    let mut answer = String::new();
+    let read = conn.read_to_string(&mut answer);
+    assert!(
+        sent.is_ok() && read.is_ok() && answer.starts_with("HTTP/1.1 200"),
+        "{sent:?} {read:?} {answer:?}"
+    );
+}
+
 #[test]
 fn pairing_needs_the_users_approval_and_stores_the_key_once() {
     let (fake, pw, _d) = setup(
