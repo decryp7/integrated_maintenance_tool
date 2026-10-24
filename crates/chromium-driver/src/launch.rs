@@ -61,10 +61,13 @@ impl Default for LaunchOptions {
     }
 }
 
-/// The command-line arguments. `--enable-automation` keeps Chrome's "controlled by automated test software"
-/// banner and `navigator.webdriver = true`; nothing hides either. The window opens on screen like any other: no
-/// headless mode, and a position only where the caller placed it (on a display, never off screen).
-pub fn args(data_dir: &Path, window: Option<WindowBounds>) -> Vec<String> {
+/// The page the browser opens with; always the last argument of its command line.
+pub const START_PAGE: &str = "about:blank";
+
+/// The browser's switches (everything but the start page). `--enable-automation` keeps Chrome's "controlled by
+/// automated test software" banner and `navigator.webdriver = true`; nothing hides either. The window opens on screen
+/// like any other: no headless mode, and a position only where the caller placed it (on a display, never off screen).
+fn switches(data_dir: &Path, opts: &LaunchOptions, sandbox: Sandbox) -> Vec<String> {
     let mut a = vec![
         "--remote-debugging-port=0".to_string(),
         format!("--user-data-dir={}", data_dir.display()),
@@ -76,28 +79,55 @@ pub fn args(data_dir: &Path, window: Option<WindowBounds>) -> Vec<String> {
         "--password-store=basic".into(),
         "--use-mock-keychain".into(),
     ];
-    match window {
+    match opts.window {
         Some(w) => {
             a.push(format!("--window-position={},{}", w.x, w.y));
             a.push(format!("--window-size={},{}", w.width.max(1), w.height.max(1)));
         }
         None => a.push("--window-size=1100,800".into()),
     }
-    a.push("about:blank".into());
+    if let Some(bytes) = opts.disk_cache_bytes {
+        a.push(format!("--disk-cache-size={bytes}"));
+    }
+    if sandbox == Sandbox::Off {
+        a.push("--no-sandbox".into());
+    }
+    a
+}
+
+/// The whole command line the browser starts with: every switch, then [`START_PAGE`] last. This is the only place
+/// arguments are assembled, so no switch can end up after the start page.
+pub fn command_line(data_dir: &Path, opts: &LaunchOptions, sandbox: Sandbox) -> Vec<String> {
+    let mut a = switches(data_dir, opts, sandbox);
+    a.push(START_PAGE.into());
     a
 }
 
 /// Set to `1` (by a CI job that runs as root in a container) to start the browser without its sandbox.
 pub const NO_SANDBOX_ENV: &str = "DEBRIEF_BROWSER_NO_SANDBOX";
 
-/// Chromium refuses to start as root ("Running as root without --no-sandbox is not supported"), which is how every
-/// CI container runs. `--no-sandbox` is passed only when the process is root AND the environment asks for it
-/// explicitly: a user's browser keeps its sandbox, and root without the opt-in still gets Chromium's own refusal.
-pub fn no_sandbox_args(env_value: Option<&str>, root: bool) -> Vec<String> {
-    if root && env_value.is_some_and(|v| !v.is_empty() && v != "0") {
-        vec!["--no-sandbox".into()]
-    } else {
-        Vec::new()
+/// Whether the browser runs inside its own sandbox.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Sandbox {
+    On,
+    Off,
+}
+
+impl Sandbox {
+    /// Chromium refuses to start as root ("Running as root without --no-sandbox is not supported"), which is how
+    /// every CI container runs. The sandbox is dropped only when the process is root AND the environment asks for it
+    /// explicitly: a user's browser keeps its sandbox, and root without the opt-in still gets Chromium's own refusal.
+    pub fn decide(env_value: Option<&str>, root: bool) -> Sandbox {
+        if root && env_value.is_some_and(|v| !v.is_empty() && v != "0") {
+            Sandbox::Off
+        } else {
+            Sandbox::On
+        }
+    }
+
+    /// The decision for this process, from [`NO_SANDBOX_ENV`] and the effective user.
+    fn from_environment() -> Sandbox {
+        Sandbox::decide(std::env::var(NO_SANDBOX_ENV).ok().as_deref(), running_as_root())
     }
 }
 
@@ -187,6 +217,11 @@ fn unique_dir() -> PathBuf {
 
 impl Chromium {
     pub fn launch(exe: &Browser, opts: &LaunchOptions) -> Result<Chromium> {
+        Self::launch_with(exe, opts, Sandbox::from_environment())
+    }
+
+    /// [`Chromium::launch`] with the sandbox decision made by the caller (tests run the root branch on any OS).
+    fn launch_with(exe: &Browser, opts: &LaunchOptions, sandbox: Sandbox) -> Result<Chromium> {
         let (dir, throwaway) = match &opts.profile {
             Profile::Throwaway => (unique_dir(), true),
             Profile::Persistent(p) => (p.clone(), false),
@@ -198,14 +233,8 @@ impl Chromium {
                 log::warn!("The browser frame colour could not be written: {e}");
             }
         }
-        let mut a = args(&dir, opts.window);
-        if let Some(bytes) = opts.disk_cache_bytes {
-            // Before the start page (the last argument).
-            a.insert(a.len() - 1, format!("--disk-cache-size={bytes}"));
-        }
         let mut cmd = std::process::Command::new(&exe.path);
-        cmd.args(a)
-            .args(no_sandbox_args(std::env::var(NO_SANDBOX_ENV).ok().as_deref(), running_as_root()))
+        cmd.args(command_line(&dir, opts, sandbox))
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
@@ -308,7 +337,7 @@ impl Chromium {
             .and_then(Value::as_array)
             .map(|t| t.iter().filter(|i| i.get("type").and_then(Value::as_str) == Some("page")).collect())
             .unwrap_or_default();
-        let blank = pages.iter().find(|i| i.get("url").and_then(Value::as_str) == Some("about:blank"));
+        let blank = pages.iter().find(|i| i.get("url").and_then(Value::as_str) == Some(START_PAGE));
         Ok(blank
             .or(pages.first())
             .and_then(|i| i.get("targetId").and_then(Value::as_str))
@@ -408,7 +437,7 @@ mod tests {
 
     #[test]
     fn keeps_the_automation_banner_and_hides_nothing() {
-        let a = args(Path::new("/tmp/p"), None);
+        let a = command_line(Path::new("/tmp/p"), &LaunchOptions::default(), Sandbox::On);
         assert!(a.contains(&"--enable-automation".to_string()));
         assert!(a
             .iter()
@@ -418,26 +447,56 @@ mod tests {
 
     #[test]
     fn the_sandbox_is_dropped_only_for_root_that_asked_for_it() {
-        assert_eq!(no_sandbox_args(Some("1"), true), vec!["--no-sandbox".to_string()]);
-        assert!(no_sandbox_args(Some("1"), false).is_empty(), "a user's browser keeps its sandbox");
-        assert!(no_sandbox_args(None, true).is_empty(), "root without the opt-in is not changed");
-        assert!(no_sandbox_args(Some(""), true).is_empty());
-        assert!(no_sandbox_args(Some("0"), true).is_empty());
+        assert_eq!(Sandbox::decide(Some("1"), true), Sandbox::Off);
+        assert_eq!(Sandbox::decide(Some("1"), false), Sandbox::On, "a user's browser keeps its sandbox");
+        assert_eq!(Sandbox::decide(None, true), Sandbox::On, "root without the opt-in is not changed");
+        assert_eq!(Sandbox::decide(Some(""), true), Sandbox::On);
+        assert_eq!(Sandbox::decide(Some("0"), true), Sandbox::On);
+    }
+
+    #[test]
+    fn the_start_page_is_last_for_every_combination_of_options() {
+        let window = Some(WindowBounds {
+            x: 10,
+            y: 20,
+            width: 300,
+            height: 200,
+        });
+        for sandbox in [Sandbox::On, Sandbox::Off] {
+            for window in [None, window] {
+                for disk_cache_bytes in [None, Some(99)] {
+                    let opts = LaunchOptions {
+                        window,
+                        disk_cache_bytes,
+                        ..LaunchOptions::default()
+                    };
+                    let a = command_line(Path::new("/p"), &opts, sandbox);
+                    assert_eq!(a.last().map(String::as_str), Some(START_PAGE), "{a:?}");
+                    assert_eq!(a.iter().filter(|x| *x == START_PAGE).count(), 1, "{a:?}");
+                    assert_eq!(a.contains(&"--no-sandbox".to_string()), sandbox == Sandbox::Off, "{a:?}");
+                    assert_eq!(a.contains(&"--disk-cache-size=99".to_string()), disk_cache_bytes.is_some(), "{a:?}");
+                }
+            }
+        }
     }
 
     #[test]
     fn the_window_opens_on_screen() {
-        assert!(!args(Path::new("/p"), None)
+        assert!(!command_line(Path::new("/p"), &LaunchOptions::default(), Sandbox::On)
             .iter()
             .any(|x| x.starts_with("--window-position") || x.contains("headless") || x.contains("offscreen")));
-        let placed = args(
+        let placed = command_line(
             Path::new("/p"),
-            Some(WindowBounds {
-                x: -1800,
-                y: 40,
-                width: 1100,
-                height: 800,
-            }),
+            &LaunchOptions {
+                window: Some(WindowBounds {
+                    x: -1800,
+                    y: 40,
+                    width: 1100,
+                    height: 800,
+                }),
+                ..LaunchOptions::default()
+            },
+            Sandbox::On,
         );
         assert!(placed.contains(&"--window-position=-1800,40".to_string()), "{placed:?}");
         assert!(placed.contains(&"--window-size=1100,800".to_string()));
@@ -516,6 +575,32 @@ mod tests {
     fn page_count_sees_the_pages_the_browser_has() {
         let (_d, _fake, b) = launch_fake(crate::fake::Mode::Obey, 3);
         assert_eq!(b.page_count().unwrap(), 3);
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn without_the_sandbox_the_start_page_is_still_the_last_argument() {
+        let d = tempfile::tempdir().unwrap();
+        let fake = crate::fake::FakeBrowser::install(d.path(), "launch::tests::fake_browser_process", crate::fake::Mode::Obey, 1).unwrap();
+        let exe = Browser {
+            flavor: crate::Flavor::Chromium,
+            path: fake.exe.clone(),
+        };
+        let opts = LaunchOptions {
+            disk_cache_bytes: Some(1234),
+            ..LaunchOptions::default()
+        };
+        let mut b = Chromium::launch_with(&exe, &opts, Sandbox::Off).expect("the fake starts");
+        let args = fake.args();
+        assert!(args.contains(&"--no-sandbox".to_string()), "{args:?}");
+        assert!(args.contains(&"--disk-cache-size=1234".to_string()), "{args:?}");
+        assert_eq!(
+            args.last().map(String::as_str),
+            Some("about:blank"),
+            "the start page stays last: {args:?}"
+        );
+        assert_eq!(args.iter().filter(|a| *a == "about:blank").count(), 1, "{args:?}");
+        b.kill();
     }
 
     #[cfg(unix)]
