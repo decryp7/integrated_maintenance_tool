@@ -173,16 +173,33 @@ pub fn find_library(file: &str, dirs: &[PathBuf]) -> Option<PathBuf> {
     dirs.iter().map(|d| d.join(file)).find(|p| p.is_file())
 }
 
+/// The loader's library path variables: on macOS also `DYLD_FALLBACK_LIBRARY_PATH`, where cargo and nextest put
+/// the native library folders of a development build (a system shell drops `DYLD_LIBRARY_PATH`, SIP).
+fn library_path_vars() -> &'static [&'static str] {
+    if cfg!(windows) {
+        &["PATH"]
+    } else if cfg!(target_os = "macos") {
+        &["DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH"]
+    } else {
+        &["LD_LIBRARY_PATH"]
+    }
+}
+
 /// Where the worker's loader looks for libduckdb: the bundled folder, the worker's folder, the library path.
 fn library_search(cfg: &WorkerConfig) -> Vec<PathBuf> {
+    library_search_in(cfg, &|k| std::env::var_os(k))
+}
+
+fn library_search_in(cfg: &WorkerConfig, env: &dyn Fn(&str) -> Option<std::ffi::OsString>) -> Vec<PathBuf> {
     if let Some(dirs) = &cfg.library_dirs {
         return dirs.clone();
     }
     let mut dirs: Vec<PathBuf> = cfg.lib_dir.iter().cloned().collect();
     dirs.extend(cfg.exe.parent().map(Path::to_path_buf));
-    let (var, _) = library_path_var();
-    if let Some(path) = std::env::var_os(var) {
-        dirs.extend(std::env::split_paths(&path));
+    for var in library_path_vars() {
+        if let Some(path) = env(var) {
+            dirs.extend(std::env::split_paths(&path));
+        }
     }
     if cfg!(target_os = "linux") {
         dirs.extend(
@@ -196,6 +213,18 @@ fn library_search(cfg: &WorkerConfig) -> Vec<PathBuf> {
         );
     }
     dirs
+}
+
+/// The folder the worker must be told about because its loader would not look there by itself: libduckdb was found
+/// only on a fallback path of this process (a development build), not in the bundled folder or next to the worker.
+fn extra_library_dir(cfg: &WorkerConfig, found: &Path, child_env: &[(String, String)]) -> Option<PathBuf> {
+    let dir = found.parent()?;
+    let known = cfg.lib_dir.as_deref() == Some(dir) || cfg.exe.parent() == Some(dir);
+    let (var, _) = library_path_var();
+    let given = child_env
+        .iter()
+        .any(|(k, v)| k == var && std::env::split_paths(v).any(|p| p == dir));
+    (!known && !given).then(|| dir.to_path_buf())
 }
 
 /// One live worker process and the stores opened in it.
@@ -254,7 +283,15 @@ impl StoreWorker {
                     .filter_map(|k| std::env::var(k).ok().map(|v| (k.to_string(), v))),
             );
         }
-        let unavailable = find_library(libduckdb_file(), &library_search(&cfg)).is_none().then(|| {
+        let found = find_library(libduckdb_file(), &library_search(&cfg));
+        if let Some(dir) = found.as_deref().and_then(|f| extra_library_dir(&cfg, f, &spawn.env)) {
+            let (var, sep) = library_path_var();
+            match spawn.env.iter_mut().find(|(k, _)| k == var) {
+                Some((_, v)) => *v = format!("{}{sep}{v}", dir.display()),
+                None => spawn.env.push((var.to_string(), dir.display().to_string())),
+            }
+        }
+        let unavailable = found.is_none().then(|| {
             format!(
                 "the store worker cannot start: its database library ({}) was not found next to it",
                 libduckdb_file()
@@ -674,6 +711,25 @@ mod tests {
             .unwrap();
         assert!(e.to_string().contains(libduckdb_file()), "{e}");
         assert!(w.status().pid.is_none(), "the worker was not started");
+    }
+
+    /// Regression (macOS CI, nextest): libduckdb was only on `DYLD_FALLBACK_LIBRARY_PATH` (cargo's native library
+    /// folders; the shell had dropped `DYLD_LIBRARY_PATH`), so the worker was reported missing its library and,
+    /// with its cleared environment, would not have found it either.
+    #[test]
+    fn a_library_found_on_a_fallback_path_is_searched_and_handed_to_the_worker() {
+        let cfg = WorkerConfig::new(PathBuf::from("/app/bin/debrief-store-worker"));
+        let env = |k: &str| match k {
+            "DYLD_FALLBACK_LIBRARY_PATH" | "LD_LIBRARY_PATH" | "PATH" => Some(std::ffi::OsString::from("/dev/duckdb")),
+            _ => None,
+        };
+        assert!(library_search_in(&cfg, &env).contains(&PathBuf::from("/dev/duckdb")));
+        let found = Path::new("/dev/duckdb").join(libduckdb_file());
+        assert_eq!(extra_library_dir(&cfg, &found, &[]), Some(PathBuf::from("/dev/duckdb")));
+        // Next to the worker, or already on the worker's path: nothing to add.
+        assert_eq!(extra_library_dir(&cfg, &Path::new("/app/bin").join(libduckdb_file()), &[]), None);
+        let (var, _) = library_path_var();
+        assert_eq!(extra_library_dir(&cfg, &found, &[(var.to_string(), "/dev/duckdb".into())]), None);
     }
 
     #[test]
