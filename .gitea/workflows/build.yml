@@ -412,7 +412,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/window-weight.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs scripts/ci/startup-bench.test.mjs app/e2e/retried-reporter.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/window-weight.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/check-smoke-dialogs.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs scripts/ci/startup-bench.test.mjs app/e2e/retried-reporter.test.mjs
           node scripts/ci/check-quarantine.mjs
           node scripts/ci/scan-fixtures.mjs
           node scripts/ci/check-icons.mjs
