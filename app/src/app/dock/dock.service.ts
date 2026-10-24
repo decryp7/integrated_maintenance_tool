@@ -467,6 +467,11 @@ export class DockService {
     this.placement.restoreSlot(id, slot, options);
   }
 
+  /** Moves a docked panel to a slot, keeping its component (and its state); false when there is nowhere to move it. */
+  moveToSlot(id: string, slot: DockSlot): boolean {
+    return this.placement.moveToSlot(id, slot);
+  }
+
   /** The panel's content size on screen (for the pop-out window size). */
   panelRect(id: string): Rect | null {
     return this.placement.panelRect(id);
@@ -844,7 +849,8 @@ export class DockService {
         } else {
           const how = this.layout.moveBack(api, d);
           // A view that was a column of its own at a window edge is docked there again (a panel cannot be moved to the root by itself).
-          if (how === 'readd') {
+          // Moved, never removed and added again: that would re-create the view and lose what the user was doing in it.
+          if (how === 'readd' && !this.placement.moveToSlot(id, d.slot)) {
             const panel = api.getPanel(id);
             if (panel) api.removePanel(panel);
             this.placement.restoreSlot(id, d.slot, { inactive: true });

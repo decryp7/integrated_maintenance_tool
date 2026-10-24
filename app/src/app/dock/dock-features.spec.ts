@@ -357,6 +357,22 @@ describe('DockService VS-style features', () => {
     expect(dock.panelRect('missing')).toBeNull();
   });
 
+  // Regression (run-spans.e2e:58 under load): grow-back put a view back at its window edge by removing and re-adding its
+  // panel, which destroyed the component and its state (an open "New run rule" form closed under the user's click).
+  it('moves an existing panel back to its slot without re-creating it, at a window edge too', () => {
+    const dock = setup();
+    const slot = { referencePanel: null, direction: 'right' as const, edge: 'right' as const, size: 300 };
+    expect(dock.captureSlot('inspector')).not.toBeNull();
+    const panel = api(dock).getPanel('inspector')!;
+    panel.api.moveTo({ group: api(dock).getPanel('events')!.group, position: 'center' });
+    expect(dock.moveToSlot('inspector', slot)).toBe(true);
+    expect(api(dock).getPanel('inspector')).toBe(panel);
+    expect(panel.group).not.toBe(api(dock).getPanel('events')!.group);
+    // Against a neighbour that is gone there is nowhere to move it: the caller re-adds it.
+    expect(dock.moveToSlot('inspector', { referencePanel: 'gone', direction: 'left' })).toBe(false);
+    expect(dock.moveToSlot('missing', slot)).toBe(false);
+  });
+
   it('the Ctrl+Tab navigator lists panels most recently used first and switches on commit', () => {
     const dock = setup();
     api(dock).getPanel('events')!.api.setActive();

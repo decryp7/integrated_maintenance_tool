@@ -291,6 +291,31 @@ export class DockPlacement {
     if (slot.size && slot.direction !== 'within') panel.group.api.setSize(slot.direction === 'left' || slot.direction === 'right' ? { width: slot.size } : { height: slot.size });
   }
 
+  /**
+   * Moves a docked panel to `slot` without re-creating it (its component and state stay): a new group at the window
+   * edge for an edge slot, else beside or within the reference panel. False when the panel or the reference is missing.
+   */
+  moveToSlot(id: string, slot: DockSlot): boolean {
+    const api = this.ctx.api;
+    const panel = api?.getPanel(id);
+    if (!api || !panel) return false;
+    const front = panel.group.panels.find((p) => p !== panel && p.api.isActive) ?? null;
+    if (slot.edge) {
+      const group = api.addGroup({ direction: slot.edge === 'bottom' ? 'below' : slot.edge });
+      panel.api.moveTo({ group, position: 'center', skipSetActive: true });
+      if (slot.size) group.api.setSize(slot.edge === 'bottom' ? { height: slot.size } : { width: slot.size });
+      front?.api.setActive();
+      return true;
+    }
+    const ref = slot.referencePanel ? api.getPanel(slot.referencePanel) : undefined;
+    if (!ref || ref === panel) return false;
+    const position = ({ left: 'left', right: 'right', above: 'top', below: 'bottom', within: 'center' } as const)[slot.direction];
+    panel.api.moveTo({ group: ref.group, position, ...(slot.direction === 'within' && slot.index !== undefined ? { index: slot.index } : {}), skipSetActive: true });
+    if (slot.size && slot.direction !== 'within') panel.group.api.setSize(slot.direction === 'left' || slot.direction === 'right' ? { width: slot.size } : { height: slot.size });
+    front?.api.setActive();
+    return true;
+  }
+
   /** The panel's content size on screen (for the pop-out window size). */
   panelRect(id: string): Rect | null {
     const panel = this.ctx.api?.getPanel(id);
