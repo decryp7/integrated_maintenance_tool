@@ -45,6 +45,17 @@ describe('adjacentNeighbour', () => {
     ];
     expect(adjacentNeighbour(me, others)).toEqual({ value: 'long', direction: 'right' });
   });
+
+  // Regression: a document beside the timeline (wider than tall) shares a longer edge with the events grid below it,
+  // but splitting the grid would put it back across the grid's whole width, under the timeline instead of beside it.
+  it('prefers a neighbour whose edge matches the group exactly, so splitting it puts the group back where it was', () => {
+    const metrics = r(420, 87, 351, 316);
+    const others = [
+      { rect: r(320, 87, 100, 316), value: 'timeline' },
+      { rect: r(320, 403, 451, 473), value: 'events' },
+    ];
+    expect(adjacentNeighbour(metrics, others)).toEqual({ value: 'timeline', direction: 'right' });
+  });
 });
 
 describe('fullSpanEdge', () => {
