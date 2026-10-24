@@ -56,13 +56,18 @@ export class DockLayout {
       if (!view) continue;
       const layout = viewLayout(view);
       const full = view.fullHeight || (layout.area === 'document' && columns.has(p.group.id) && !this.ctx.displaced.has(p.id));
-      out.push({ id: p.id, layout, row: viewRow(view), group: p.group.id, ...this.recencyOf(p.id, fresh), ...(full ? { fullHeight: true } : {}) });
+      out.push({ id: p.id, layout, row: this.rowOf(p.id, view), group: p.group.id, ...this.recencyOf(p.id, fresh), ...(full ? { fullHeight: true } : {}) });
     }
     for (const d of this.ctx.displaced.values()) {
       const view = this.ctx.views.find(d.id);
       if (d.into === null && view && !out.some((o) => o.id === d.id) && this.ctx.isAutoHidden(d.id)) out.push({ id: d.id, layout: viewLayout(view), row: viewRow(view), group: d.id, ...(view.fullHeight ? { fullHeight: true } : {}) });
     }
     return [...out, ...extra];
+  }
+
+  /** The row of the main column a panel sits in: an extra instance of a view (a second timeline) is stacked below the first, in a row of its own. */
+  private rowOf(id: string, view: Parameters<typeof viewRow>[0]): string {
+    return id === view.id ? viewRow(view) : id;
   }
 
   /** How recently the user worked with a panel: just opened is the latest, else its place in the most-recently-used list. */

@@ -167,6 +167,15 @@ describe('displaced views and grow-back', () => {
     expect(layout.plan(api)!.tabbed.map((t) => t.id)).toEqual(['home']);
   });
 
+  it('a second timeline is stacked below the first in a row of its own, never side by side with it', () => {
+    const layout = setup();
+    const { api } = fakeDock(1440, 1000, { timeline: { width: 1440, height: 300 }, 'timeline#2': { width: 1440, height: 300 }, events: { width: 1440, height: 400 } });
+    const plan = layout.plan(api)!;
+    expect(plan.violations).toEqual([]);
+    expect(plan.tabbed).toEqual([]);
+    expect(plan.columns[0]!.rows.map((r) => r.key).sort()).toEqual(['events', 'timeline', 'timeline#2']);
+  });
+
   it('records an auto-hidden side tool with no host', () => {
     const layout = setup();
     const { api } = fakeDock(800, 700, { 'timeline+events': { width: 428, height: 700 }, 'ai-chat': { width: 372, height: 700 } });
