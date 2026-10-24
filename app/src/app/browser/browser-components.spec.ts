@@ -304,6 +304,20 @@ describe('ChatBrowserBar', () => {
     await until(f, () => close.mock.calls.length === 1 && !root.querySelector('[data-testid=research-browser-kept]'));
   });
 
+  it('drops the Close or Keep offer once the user closed the kept browser window by hand', async () => {
+    const f = TestBed.createComponent(ChatBrowserBar);
+    f.componentRef.setInput('sessionId', 'chat-1');
+    f.detectChanges();
+    const root = f.nativeElement as HTMLElement;
+    web.emit({ type: 'researchBrowserKept' });
+    await until(f, () => !!root.querySelector('[data-testid=research-browser-kept]'));
+    web.emit({ type: 'lifecycle', state: 'ready', kept: true });
+    f.detectChanges();
+    expect(root.querySelector('[data-testid=research-browser-kept]')).not.toBeNull();
+    web.emit({ type: 'lifecycle', state: 'gone', reason: 'windowClosed', kept: false });
+    await until(f, () => !root.querySelector('[data-testid=research-browser-kept]'));
+  });
+
   it('shows what agent mode may do, the small-model hint and the pages', async () => {
     web.smallModel = true;
     const f = TestBed.createComponent(ChatBrowserBar);

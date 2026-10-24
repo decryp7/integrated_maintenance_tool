@@ -146,6 +146,7 @@ fn read(
         rules: Some(control.clone()),
         product: "Debrief".into(),
         notify: Arc::new(|_| {}),
+        lease: Default::default(),
     };
     let reader = page(false);
     let driver = ReadOnlyDriver {

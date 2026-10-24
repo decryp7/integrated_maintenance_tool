@@ -5,7 +5,12 @@
 //! Nothing here depends on Tauri, so it is tested (and live-tested) without an app. Indicators that the AI drives the
 //! page are all outside the page: Chrome's automation banner, the frame colour, the status chip (with Stop) and the
 //! research log. Nothing is ever injected into a page.
+//!
+//! [`Renderers`] is the one owner of each window's browser and its life cycle ([`super::lifecycle`], ADR 0057): any
+//! end (the user closing the window or quitting the browser, a crash, a lost connection) is detected and moves it to
+//! gone, and the next use starts a fresh browser.
 
+use super::lifecycle::{GoneReason, Lifecycle, Phase};
 use chromium_driver::cue::{window_title, Activity};
 use chromium_driver::launch::{LaunchOptions, Profile};
 use chromium_driver::{Chromium, Error as DriverError, Page};
@@ -17,8 +22,8 @@ use debrief_ai::browser::{
 use serde_json::{Map, Value};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, RwLock};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Condvar, Mutex, RwLock};
 use std::time::{Duration, Instant};
 
 /// The frame colour of the AI's browser window (Debrief's accent).
@@ -78,8 +83,20 @@ impl Session {
         &self.page
     }
 
-    fn running(&self) -> bool {
-        crate::sync::lock(&self.chromium).is_running()
+    /// Why this browser can no longer be used, if so: no round trip to the browser.
+    fn gone(&self) -> Option<GoneReason> {
+        crate::sync::lock(&self.chromium).gone(&self.page).map(GoneReason::from)
+    }
+
+    /// As [`Session::gone`], but skipped (None) while another thread uses the browser, and with `probe` also asking the
+    /// browser whether the page still exists (a close it did not report).
+    fn watch(&self, probe: bool) -> Option<GoneReason> {
+        if let Ok(mut c) = self.chromium.try_lock() {
+            if let Some(g) = c.gone(&self.page) {
+                return Some(g.into());
+            }
+        }
+        (probe && matches!(self.page.exists(), Ok(false))).then_some(GoneReason::WindowClosed)
     }
 
     fn kill(&self) {
@@ -126,35 +143,257 @@ pub enum Finish {
     KeptOpen,
 }
 
-/// The renderers of the open windows.
+/// One run's hold on a browser (a research): the first page use picks the browser, and once that browser is gone the
+/// run fails ([`BrowserError::Closed`]) instead of carrying on in a new one. The default lease is unpinned: every use
+/// gets the window's browser, started when none runs.
+#[derive(Clone, Default)]
+pub struct Lease(Option<Arc<Mutex<Option<u64>>>>);
+
+impl Lease {
+    /// A lease for one run.
+    pub fn run() -> Lease {
+        Lease(Some(Arc::new(Mutex::new(None))))
+    }
+}
+
+/// A window's browser in its life cycle ([`Phase`]); no slot is [`Phase::None`]. Only [`Inner::set`] changes it.
+enum Slot {
+    Launching {
+        generation: u64,
+    },
+    Ready {
+        generation: u64,
+        session: Arc<Session>,
+        kept: bool,
+    },
+    Closing {
+        generation: u64,
+    },
+    Gone {
+        reason: GoneReason,
+    },
+}
+
+impl Slot {
+    fn lifecycle(&self) -> Lifecycle {
+        let (phase, kept) = match self {
+            Slot::Launching { .. } => (Phase::Launching, false),
+            Slot::Ready { kept, .. } => (Phase::Ready, *kept),
+            Slot::Closing { .. } => (Phase::Closing, false),
+            Slot::Gone { reason } => (Phase::Gone { reason: *reason }, false),
+        };
+        Lifecycle { phase, kept }
+    }
+}
+
+/// Hears every change of a window's browser life cycle (`owner`, new state).
+pub type Listener = Arc<dyn Fn(&str, Lifecycle) + Send + Sync>;
+
+/// How often a running browser is checked for an end nobody reported (the process, the connection, the page).
+const WATCH_EVERY: Duration = Duration::from_millis(200);
+/// Every this many checks the browser is also asked whether the page still exists.
+const PROBE_EVERY: u32 = 5;
+/// The longest a caller waits for another thread's launch or close of the same browser.
+const WAIT_FOR_OTHER: Duration = Duration::from_secs(60);
+
+#[derive(Default)]
+struct Inner {
+    slots: Mutex<HashMap<String, Slot>>,
+    changed: Condvar,
+    sources: RwLock<Sources>,
+    listeners: RwLock<Vec<Listener>>,
+    generations: AtomicU64,
+}
+
+impl Inner {
+    /// The one place a browser changes phase: checks the step, records it and wakes waiters. The caller tells the
+    /// listener ([`Inner::tell`]) after letting go of the lock.
+    fn set(&self, slots: &mut HashMap<String, Slot>, owner: &str, to: Slot) -> Lifecycle {
+        let from = slots.get(owner).map_or(Phase::None, |s| s.lifecycle().phase);
+        let next = to.lifecycle();
+        debug_assert!(from.may_become(next.phase), "browser life cycle: {from:?} → {:?}", next.phase);
+        if !from.may_become(next.phase) {
+            log::warn!("The browser of {owner} went from {from:?} to {:?}", next.phase);
+        }
+        slots.insert(owner.to_string(), to);
+        self.changed.notify_all();
+        next
+    }
+
+    fn tell(&self, owner: &str, l: Lifecycle) {
+        let listeners = crate::sync::read(&self.listeners).clone();
+        for f in listeners {
+            f(owner, l);
+        }
+    }
+
+    /// The browser `generation` of `owner` ended by itself (`reason`): it is gone, its "kept" mark with it; whatever
+    /// is left of it (a browser without a window, a profile) is removed. False when it was already no longer ready.
+    fn lost(&self, owner: &str, generation: u64, reason: GoneReason) -> bool {
+        let mut slots = crate::sync::lock(&self.slots);
+        let session = match slots.get(owner) {
+            Some(Slot::Ready {
+                generation: g, session, ..
+            }) if *g == generation => session.clone(),
+            _ => return false,
+        };
+        let l = self.set(&mut slots, owner, Slot::Gone { reason });
+        drop(slots);
+        log::info!("The AI browser of {owner} is gone ({reason:?}); the next use starts a new one");
+        self.tell(owner, l);
+        session.close(CLOSE_GRACE);
+        true
+    }
+
+    /// Waits (bounded) until another thread's launch or close of `owner`'s browser is over.
+    fn wait_settled<'a>(
+        &self,
+        mut slots: std::sync::MutexGuard<'a, HashMap<String, Slot>>,
+        owner: &str,
+    ) -> Result<std::sync::MutexGuard<'a, HashMap<String, Slot>>, BrowserError> {
+        let end = Instant::now() + WAIT_FOR_OTHER;
+        while matches!(slots.get(owner), Some(Slot::Launching { .. } | Slot::Closing { .. })) {
+            let left = end.checked_duration_since(Instant::now()).ok_or(BrowserError::Timeout)?;
+            slots = self.changed.wait_timeout(slots, left).unwrap_or_else(|e| e.into_inner()).0;
+        }
+        Ok(slots)
+    }
+}
+
+/// The browsers of the open windows, each with its life cycle ([`super::lifecycle`]): this is its only owner.
 #[derive(Default)]
 pub struct Renderers {
-    sessions: Mutex<HashMap<String, Arc<Session>>>,
-    sources: RwLock<Sources>,
+    inner: Arc<Inner>,
 }
 
 impl Renderers {
     #[cfg(test)]
     pub fn set_sources(&self, s: Sources) {
-        *crate::sync::write(&self.sources) = s;
+        *crate::sync::write(&self.inner.sources) = s;
     }
 
     pub fn set_configured(&self, p: Option<PathBuf>) {
-        crate::sync::write(&self.sources).configured = p;
+        crate::sync::write(&self.inner.sources).configured = p;
     }
 
     pub fn set_installed(&self, p: Option<PathBuf>) {
-        crate::sync::write(&self.sources).installed = p;
+        crate::sync::write(&self.inner.sources).installed = p;
     }
 
-    /// The window's session, started on screen when needed.
-    pub fn session(&self, owner: &str) -> Result<Arc<Session>, BrowserError> {
-        let mut map = crate::sync::lock(&self.sessions);
-        if let Some(s) = map.get(owner).filter(|s| s.running()).cloned() {
-            return Ok(s);
+    /// Adds a listener of every life-cycle change (the window's `lifecycle` events; the service-health registry).
+    pub fn listen(&self, f: Listener) {
+        crate::sync::write(&self.inner.listeners).push(f);
+    }
+
+    /// Where the window's browser is in its life.
+    #[cfg_attr(not(test), allow(dead_code))] // the service-health registry (ADR 0055) reads it
+    pub fn lifecycle(&self, owner: &str) -> Lifecycle {
+        crate::sync::lock(&self.inner.slots)
+            .get(owner)
+            .map_or(Lifecycle::NONE, Slot::lifecycle)
+    }
+
+    /// Every window's browser that was ever started, for health reports.
+    #[allow(dead_code)] // the service-health registry (ADR 0055) reads it
+    pub fn snapshot(&self) -> Vec<(String, Lifecycle)> {
+        let mut all: Vec<_> = crate::sync::lock(&self.inner.slots)
+            .iter()
+            .map(|(o, s)| (o.clone(), s.lifecycle()))
+            .collect();
+        all.sort_by(|a, b| a.0.cmp(&b.0));
+        all
+    }
+
+    /// The window's browser for a use under `lease`: a pinned lease gets its own browser or [`BrowserError::Closed`].
+    pub fn session_in(&self, owner: &str, lease: &Lease) -> Result<Arc<Session>, BrowserError> {
+        loop {
+            let slots = crate::sync::lock(&self.inner.slots);
+            let mut slots = self.inner.wait_settled(slots, owner)?;
+            let pinned = lease.0.as_ref().and_then(|p| *crate::sync::lock(p));
+            if let Some(Slot::Ready { generation, session, .. }) = slots.get(owner) {
+                let (generation, session) = (*generation, session.clone());
+                drop(slots);
+                if let Some(reason) = session.gone() {
+                    self.inner.lost(owner, generation, reason);
+                    continue;
+                }
+                if pinned.is_some_and(|p| p != generation) {
+                    return Err(BrowserError::Closed);
+                }
+                if let Some(p) = &lease.0 {
+                    *crate::sync::lock(p) = Some(generation);
+                }
+                return Ok(session);
+            }
+            if pinned.is_some() {
+                // This run's browser is gone: the run stops instead of going on in a new one.
+                return Err(BrowserError::Closed);
+            }
+            let generation = self.inner.generations.fetch_add(1, Ordering::SeqCst) + 1;
+            let l = self.inner.set(&mut slots, owner, Slot::Launching { generation });
+            drop(slots);
+            self.inner.tell(owner, l);
+            let session = self.launch(owner, generation)?;
+            if let Some(p) = &lease.0 {
+                *crate::sync::lock(p) = Some(generation);
+            }
+            return Ok(session);
         }
-        map.remove(owner);
-        let exe = crate::sync::read(&self.sources).resolve().ok_or_else(|| {
+    }
+
+    /// Starts the browser of a `Launching` slot (no lock held meanwhile) and makes it ready, unless it was stopped.
+    fn launch(&self, owner: &str, generation: u64) -> Result<Arc<Session>, BrowserError> {
+        let started = self.start();
+        let mut slots = crate::sync::lock(&self.inner.slots);
+        let launching = matches!(slots.get(owner), Some(Slot::Launching { generation: g }) if *g == generation);
+        let stopped = matches!(slots.get(owner), Some(Slot::Closing { generation: g }) if *g == generation);
+        match started {
+            Ok(session) if launching => {
+                let l = self.inner.set(
+                    &mut slots,
+                    owner,
+                    Slot::Ready {
+                        generation,
+                        session: session.clone(),
+                        kept: false,
+                    },
+                );
+                drop(slots);
+                self.watch(owner, generation, &session);
+                self.inner.tell(owner, l);
+                Ok(session)
+            }
+            Ok(session) => {
+                // Stopped (or its window closed) while it started: it ends at once.
+                let l = stopped.then(|| self.inner.set(&mut slots, owner, Slot::Gone { reason: GoneReason::Ended }));
+                drop(slots);
+                session.kill();
+                drop(session);
+                if let Some(l) = l {
+                    self.inner.tell(owner, l);
+                }
+                Err(BrowserError::Failed("the browser was stopped while it started".into()))
+            }
+            Err(e) => {
+                let to = if launching {
+                    Slot::Gone {
+                        reason: GoneReason::LaunchFailed,
+                    }
+                } else {
+                    Slot::Gone { reason: GoneReason::Ended }
+                };
+                let l = (launching || stopped).then(|| self.inner.set(&mut slots, owner, to));
+                drop(slots);
+                if let Some(l) = l {
+                    self.inner.tell(owner, l);
+                }
+                Err(e)
+            }
+        }
+    }
+
+    fn start(&self) -> Result<Arc<Session>, BrowserError> {
+        let exe = crate::sync::read(&self.inner.sources).resolve().ok_or_else(|| {
             BrowserError::Failed(
                 "no Chromium-based browser was found: install Edge, Chrome or Chromium, or download one in Settings ▸ Web browser".into(),
             )
@@ -166,56 +405,157 @@ impl Renderers {
         };
         let chromium = Chromium::launch(&exe, &opts).map_err(failed)?;
         let page = chromium.new_page().map_err(failed)?;
-        let s = Arc::new(Session {
+        Ok(Arc::new(Session {
             chromium: Mutex::new(chromium),
             page,
             handed_off: AtomicBool::new(false),
             last_url: Mutex::new(None),
-        });
-        map.insert(owner.to_string(), s.clone());
-        Ok(s)
+        }))
     }
 
+    /// Watches a ready browser until it is no longer this generation's: an end nobody reported (the user closed the
+    /// window or quit the browser, it crashed, the connection dropped) moves it to gone at once, even while idle.
+    fn watch(&self, owner: &str, generation: u64, session: &Arc<Session>) {
+        let (inner, owner, session) = (Arc::downgrade(&self.inner), owner.to_string(), Arc::downgrade(session));
+        let spawned = std::thread::Builder::new().name("ai-browser-watch".into()).spawn(move || {
+            let mut tick = 0u32;
+            loop {
+                std::thread::sleep(WATCH_EVERY);
+                tick = tick.wrapping_add(1);
+                let (Some(inner), Some(session)) = (inner.upgrade(), session.upgrade()) else {
+                    return;
+                };
+                let current = matches!(crate::sync::lock(&inner.slots).get(&owner),
+                    Some(Slot::Ready { generation: g, .. }) if *g == generation);
+                if !current {
+                    return;
+                }
+                if let Some(reason) = session.watch(tick.is_multiple_of(PROBE_EVERY)) {
+                    inner.lost(&owner, generation, reason);
+                    return;
+                }
+            }
+        });
+        if let Err(e) = spawned {
+            log::warn!("The AI browser is not watched ({e}); a closed window is noticed on its next use");
+        }
+    }
+
+    /// The window's ready browser (nothing is started); a browser found gone is moved to gone first.
     pub fn current(&self, owner: &str) -> Option<Arc<Session>> {
-        crate::sync::lock(&self.sessions).get(owner).filter(|s| s.running()).cloned()
+        let (generation, session) = match crate::sync::lock(&self.inner.slots).get(owner) {
+            Some(Slot::Ready { generation, session, .. }) => (*generation, session.clone()),
+            _ => return None,
+        };
+        match session.gone() {
+            Some(reason) => {
+                self.inner.lost(owner, generation, reason);
+                None
+            }
+            None => Some(session),
+        }
+    }
+
+    /// Debrief ends the window's browser (`grace`: gracefully first; none: at once). Ready or launching: it goes
+    /// through closing to gone; a launch in progress ends when it started. True when a browser was running or starting.
+    fn end(&self, owner: &str, grace: Option<Duration>) -> bool {
+        let mut slots = crate::sync::lock(&self.inner.slots);
+        let (generation, session) = match slots.get(owner) {
+            Some(Slot::Ready { generation, session, .. }) => (*generation, Some(session.clone())),
+            Some(Slot::Launching { generation }) => (*generation, None),
+            _ => return false,
+        };
+        let l = self.inner.set(&mut slots, owner, Slot::Closing { generation });
+        drop(slots);
+        self.inner.tell(owner, l);
+        let Some(session) = session else { return true };
+        match grace {
+            Some(g) => session.close(g),
+            None => session.kill(),
+        }
+        let mut slots = crate::sync::lock(&self.inner.slots);
+        let l = matches!(slots.get(owner), Some(Slot::Closing { generation: g }) if *g == generation)
+            .then(|| self.inner.set(&mut slots, owner, Slot::Gone { reason: GoneReason::Ended }));
+        drop(slots);
+        if let Some(l) = l {
+            self.inner.tell(owner, l);
+        }
+        true
     }
 
     /// Ends the window's browser at once; true when one was running.
     pub fn kill(&self, owner: &str) -> bool {
-        let s = crate::sync::lock(&self.sessions).remove(owner);
-        s.map(|s| s.kill()).is_some()
+        self.end(owner, None)
     }
 
-    /// Research ended: closes the window's browser unless the user took part in it.
+    /// Research ended: closes the window's browser unless the user took part in it (then it is kept open, marked so).
     pub fn finish(&self, owner: &str) -> Finish {
         let Some(s) = self.current(owner) else { return Finish::NotRunning };
         if s.user_took_part() {
+            let mut slots = crate::sync::lock(&self.inner.slots);
+            let generation = match slots.get(owner) {
+                Some(Slot::Ready { generation, session, .. }) if Arc::ptr_eq(session, &s) => Some(*generation),
+                _ => None,
+            };
+            let l = generation.map(|generation| {
+                self.inner.set(
+                    &mut slots,
+                    owner,
+                    Slot::Ready {
+                        generation,
+                        session: s.clone(),
+                        kept: true,
+                    },
+                )
+            });
+            drop(slots);
+            let Some(l) = l else { return Finish::NotRunning };
+            self.inner.tell(owner, l);
             return Finish::KeptOpen;
         }
-        crate::sync::lock(&self.sessions).remove(owner);
-        s.close(CLOSE_GRACE);
-        Finish::Closed
+        if self.end(owner, Some(CLOSE_GRACE)) {
+            Finish::Closed
+        } else {
+            Finish::NotRunning
+        }
     }
 
     /// Closes the window's browser whatever happened in it (the user asked); true when one was running.
     pub fn close(&self, owner: &str) -> bool {
-        let s = crate::sync::lock(&self.sessions).remove(owner);
-        s.map(|s| s.close(CLOSE_GRACE)).is_some()
+        self.end(owner, Some(CLOSE_GRACE))
     }
 
     /// Debrief quits: every browser is closed (gracefully for `grace`, then by force).
     pub fn close_all(&self, grace: Duration) {
-        let all: Vec<_> = crate::sync::lock(&self.sessions).drain().map(|(_, s)| s).collect();
-        let handles: Vec<_> = all.into_iter().map(|s| std::thread::spawn(move || s.close(grace))).collect();
-        for h in handles {
-            let _ = h.join();
-        }
+        let owners: Vec<String> = crate::sync::lock(&self.inner.slots).keys().cloned().collect();
+        std::thread::scope(|s| {
+            for o in &owners {
+                s.spawn(move || self.end(o, Some(grace)));
+            }
+        });
     }
 
     pub fn kill_all(&self) {
-        let all: Vec<_> = crate::sync::lock(&self.sessions).drain().map(|(_, s)| s).collect();
-        for s in all {
-            s.kill();
+        let owners: Vec<String> = crate::sync::lock(&self.inner.slots).keys().cloned().collect();
+        for o in owners {
+            self.end(&o, None);
+        }
+    }
+
+    /// Waits (bounded) until the window's browser is in a phase `pred` accepts; the phase it ended in.
+    #[cfg(test)]
+    pub fn wait_for(&self, owner: &str, timeout: Duration, pred: impl Fn(Phase) -> bool) -> Phase {
+        let end = Instant::now() + timeout;
+        let mut slots = crate::sync::lock(&self.inner.slots);
+        loop {
+            let phase = slots.get(owner).map_or(Phase::None, |s| s.lifecycle().phase);
+            let Some(left) = end.checked_duration_since(Instant::now()) else {
+                return phase;
+            };
+            if pred(phase) {
+                return phase;
+            }
+            slots = self.inner.changed.wait_timeout(slots, left).unwrap_or_else(|e| e.into_inner()).0;
         }
     }
 }
@@ -229,7 +569,7 @@ impl Drop for Renderers {
 fn failed(e: DriverError) -> BrowserError {
     match e {
         DriverError::Timeout(_) => BrowserError::Timeout,
-        DriverError::Closed => BrowserError::Failed("the browser was closed".into()),
+        DriverError::Closed => BrowserError::Closed,
         other => BrowserError::Failed(other.to_string()),
     }
 }
@@ -252,11 +592,18 @@ pub struct ChromiumPage {
     pub rules: Option<Arc<ChatBrowser>>,
     pub product: String,
     pub notify: Arc<dyn Fn(Cue) + Send + Sync>,
+    /// The run this page belongs to (a research): once its browser is gone, the page fails instead of starting another.
+    pub lease: Lease,
 }
 
 impl ChromiumPage {
+    /// The same page under a run's lease (see [`Lease`]).
+    pub fn with_lease(self, lease: Lease) -> Self {
+        ChromiumPage { lease, ..self }
+    }
+
     fn session(&self) -> Result<Arc<Session>, BrowserError> {
-        self.renderers.session(&self.owner)
+        self.renderers.session_in(&self.owner, &self.lease)
     }
 
     fn cue(&self, activity: Activity, url: &str) {
@@ -303,8 +650,8 @@ impl ChromiumPage {
         let end = Instant::now() + CHALLENGE_WAIT;
         loop {
             std::thread::sleep(Duration::from_secs(1));
-            if !s.running() {
-                return Err(BrowserError::Failed("the browser was closed".into()));
+            if s.gone().is_some() {
+                return Err(BrowserError::Closed);
             }
             match s.page.challenge() {
                 Ok(None) => break,
@@ -427,7 +774,7 @@ mod tests {
             installed: None,
         });
         if chromium_driver::find_for_tests().is_none() {
-            let e = r.session("main").err().unwrap();
+            let e = r.session_in("main", &Lease::default()).err().unwrap();
             assert!(e.to_string().contains("Settings"));
         }
         assert!(!r.kill("main"));
@@ -462,7 +809,7 @@ mod tests {
     #[cfg(unix)]
     mod fake {
         use super::*;
-        use chromium_driver::fake::{FakeBrowser, Mode};
+        use chromium_driver::fake::{FakeBrowser, Mode, UserAction};
 
         struct Rig {
             _dir: tempfile::TempDir,
@@ -486,6 +833,7 @@ mod tests {
                 rules: None,
                 product: "Debrief".into(),
                 notify: Arc::new(|_| {}),
+                lease: Lease::default(),
             };
             Rig {
                 _dir: dir,
@@ -499,7 +847,10 @@ mod tests {
             r.page
                 .navigate(&WebUrl::parse("http://127.0.0.1:9/results").unwrap())
                 .expect("navigates");
-            let s = r.renderers.current("main").expect("running");
+            let s = r
+                .renderers
+                .current("main")
+                .unwrap_or_else(|| panic!("running: {:?}", r.renderers.lifecycle("main")));
             let dir = crate::sync::lock(&s.chromium).profile_dir().to_path_buf();
             (dir, s.pid().unwrap())
         }
@@ -580,6 +931,217 @@ mod tests {
             r.renderers.kill_all();
         }
 
+        const SEEN: Duration = Duration::from_secs(5);
+
+        fn page_with(r: &Rig, lease: Lease) -> ChromiumPage {
+            ChromiumPage {
+                renderers: r.renderers.clone(),
+                owner: "main".into(),
+                may_drive: Some(Box::new(|| true)),
+                rules: None,
+                product: "Debrief".into(),
+                notify: Arc::new(|_| {}),
+                lease,
+            }
+        }
+
+        /// Waits until the listener heard `phase` (it hears a change right after waiters see it).
+        fn heard(seen: &Mutex<Vec<Lifecycle>>, phase: Phase) -> Lifecycle {
+            let end = Instant::now() + SEEN;
+            loop {
+                if let Some(l) = seen.lock().unwrap().last().copied().filter(|l| l.phase == phase) {
+                    return l;
+                }
+                assert!(Instant::now() < end, "{phase:?} was not reported");
+                std::thread::yield_now();
+            }
+        }
+
+        /// The user does `action` to the browser; returns the phase it ends in (the watcher sees it without any use).
+        fn user(r: &Rig, action: UserAction) -> Phase {
+            r.fake.act(action).unwrap();
+            r.renderers.wait_for("main", SEEN, |p| matches!(p, Phase::Gone { .. }))
+        }
+
+        fn records(r: &Rig) -> Arc<Mutex<Vec<Lifecycle>>> {
+            let seen = Arc::new(Mutex::new(Vec::new()));
+            let s2 = seen.clone();
+            r.renderers.listen(Arc::new(move |owner, l| {
+                assert_eq!(owner, "main");
+                s2.lock().unwrap().push(l);
+            }));
+            seen
+        }
+
+        const WINDOW_CLOSED: Phase = Phase::Gone {
+            reason: GoneReason::WindowClosed,
+        };
+
+        #[test]
+        fn research_works_again_after_the_user_closed_the_window() {
+            let r = rig(Mode::Obey, 1);
+            let seen = records(&r);
+            let (dir, pid) = research_step(&r);
+            assert_eq!(user(&r, UserAction::CloseWindow), WINDOW_CLOSED, "seen while idle");
+            heard(&seen, WINDOW_CLOSED);
+            assert!(gone(pid), "the browser left without a window is ended");
+            assert!(!dir.exists(), "its profile is removed");
+            assert!(r.renderers.current("main").is_none());
+            let (dir2, pid2) = research_step(&r);
+            assert_ne!(pid, pid2, "a fresh browser");
+            assert!(dir2.exists());
+            let phases: Vec<Phase> = seen.lock().unwrap().iter().map(|l| l.phase).collect();
+            assert_eq!(
+                phases,
+                [Phase::Launching, Phase::Ready, WINDOW_CLOSED, Phase::Launching, Phase::Ready],
+                "every step is reported"
+            );
+            r.renderers.kill_all();
+            assert!(gone(pid2));
+        }
+
+        #[test]
+        fn a_kept_open_browser_the_user_closed_is_forgotten_and_research_starts_afresh() {
+            let r = rig(Mode::Obey, 1);
+            let seen = records(&r);
+            let (dir, pid) = research_step(&r);
+            r.renderers.current("main").unwrap().handed_off.store(true, Ordering::SeqCst);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert!(r.renderers.lifecycle("main").kept);
+            assert!(seen.lock().unwrap().last().unwrap().kept, "the window hears it was kept");
+            assert_eq!(user(&r, UserAction::CloseWindow), WINDOW_CLOSED);
+            let now = r.renderers.lifecycle("main");
+            assert!(!now.kept, "the kept mark is gone with the browser");
+            assert_eq!(heard(&seen, WINDOW_CLOSED), now, "and the window hears that too");
+            assert!(gone(pid) && !dir.exists());
+            assert!(!r.renderers.close("main"), "Close has nothing left to close");
+            let (_, pid2) = research_step(&r);
+            assert_ne!(pid, pid2);
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn quitting_the_browser_or_losing_its_connection_ends_it_and_the_next_use_starts_a_new_one() {
+            for action in [UserAction::Quit, UserAction::DropConnection] {
+                let r = rig(Mode::Obey, 1);
+                let (dir, pid) = research_step(&r);
+                let phase = user(&r, action);
+                assert!(
+                    matches!(
+                        phase,
+                        Phase::Gone {
+                            reason: GoneReason::Exited | GoneReason::Disconnected
+                        }
+                    ),
+                    "{action:?}: {phase:?}"
+                );
+                assert!(gone(pid), "{action:?}: no process is left");
+                assert!(!dir.exists(), "{action:?}: no profile is left");
+                let (_, pid2) = research_step(&r);
+                assert_ne!(pid, pid2, "{action:?}");
+                r.renderers.kill_all();
+            }
+        }
+
+        #[test]
+        fn a_closed_window_is_noticed_on_use_even_before_the_watcher() {
+            let r = rig(Mode::Obey, 1);
+            let (_, pid) = research_step(&r);
+            let s = r.renderers.current("main").unwrap();
+            r.fake.act(UserAction::CloseWindow).unwrap();
+            // The page answers no more; the use that finds out moves the browser to gone and starts a new one.
+            while s.gone().is_none() {
+                if let Err(e) = s.page.evaluate("1") {
+                    assert!(matches!(e, DriverError::Closed), "{e:?}");
+                }
+            }
+            let (_, pid2) = research_step(&r);
+            assert_ne!(pid, pid2);
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn a_research_that_loses_its_browser_mid_way_fails_at_once_and_does_not_open_another() {
+            let r = rig(Mode::Obey, 1);
+            let lease = Lease::run();
+            let (reader, driver) = (page_with(&r, lease.clone()), page_with(&r, lease));
+            driver.navigate(&WebUrl::parse("http://127.0.0.1:9/results").unwrap()).unwrap();
+            let pid = r.renderers.current("main").unwrap().pid().unwrap();
+            // The next page never finishes loading, and the user closes the window meanwhile.
+            r.fake.act(UserAction::StallLoads).unwrap();
+            let started = Instant::now();
+            let load = std::thread::spawn(move || driver.navigate(&WebUrl::parse("http://127.0.0.1:9/next").unwrap()));
+            r.fake.act(UserAction::CloseWindow).unwrap();
+            assert_eq!(load.join().unwrap(), Err(BrowserError::Closed), "the step fails");
+            assert!(started.elapsed() < LOAD_TIMEOUT / 3, "without waiting for the load timeout");
+            assert_eq!(reader.capture().err(), Some(BrowserError::Closed), "the rest of the run too");
+            assert_eq!(
+                r.renderers.wait_for("main", SEEN, |p| matches!(p, Phase::Gone { .. })),
+                WINDOW_CLOSED
+            );
+            assert!(gone(pid));
+            assert!(r.renderers.current("main").is_none(), "no other browser was opened for it");
+            // Retry is a new run: it gets a new browser.
+            let retry = page_with(&r, Lease::run());
+            retry.navigate(&WebUrl::parse("http://127.0.0.1:9/results").unwrap()).unwrap();
+            assert_ne!(r.renderers.current("main").unwrap().pid(), Some(pid));
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn a_challenge_wait_ends_when_the_user_closes_the_window() {
+            let r = rig(Mode::Obey, 1);
+            research_step(&r);
+            // A page that needs the user (a human check); they close the window instead of solving it.
+            std::fs::write(&r.fake.url_file, "https://www.google.com/sorry/index?continue=x").unwrap();
+            let s = r.renderers.current("main").unwrap();
+            assert!(s.page.challenge().unwrap().is_some());
+            let ctl = r.fake.ctl_file.clone();
+            let page = ChromiumPage {
+                notify: Arc::new(move |c: Cue| {
+                    if c.activity == Activity::WaitingForYou {
+                        std::fs::write(&ctl, "close-window\n").unwrap();
+                    }
+                }),
+                ..page_with(&r, Lease::default())
+            };
+            let started = Instant::now();
+            assert_eq!(page.hand_off_challenges(&s), Err(BrowserError::Closed));
+            assert!(started.elapsed() < Duration::from_secs(10), "no wait for the user's check");
+            r.renderers.kill_all();
+        }
+
+        #[test]
+        fn stop_while_the_browser_starts_ends_it_once_it_started() {
+            let r = rig(Mode::Obey, 1);
+            // A browser that starts only when the test lets it.
+            let go = r._dir.path().join("go");
+            let gated = r._dir.path().join("gated.sh");
+            std::fs::write(
+                &gated,
+                format!(
+                    "#!/bin/sh\nwhile [ ! -f '{}' ]; do sleep 0.01; done\nexec '{}' \"$@\"\n",
+                    go.display(),
+                    r.fake.exe.display()
+                ),
+            )
+            .unwrap();
+            std::fs::set_permissions(&gated, std::os::unix::fs::PermissionsExt::from_mode(0o755)).unwrap();
+            r.renderers.set_sources(Sources {
+                configured: Some(gated),
+                installed: None,
+            });
+            let renderers = r.renderers.clone();
+            let start = std::thread::spawn(move || renderers.session_in("main", &Lease::default()).map(|s| s.pid()));
+            assert_eq!(r.renderers.wait_for("main", SEEN, |p| p != Phase::None), Phase::Launching);
+            assert!(r.renderers.kill("main"), "a starting browser counts as running");
+            assert_eq!(r.renderers.lifecycle("main").phase, Phase::Closing);
+            std::fs::write(&go, "").unwrap();
+            assert!(start.join().unwrap().is_err(), "a stopped launch hands out no browser");
+            assert_eq!(r.renderers.lifecycle("main").phase, Phase::Gone { reason: GoneReason::Ended });
+            assert!(r.renderers.current("main").is_none());
+        }
+
         #[test]
         fn quitting_closes_every_browser_even_one_the_user_kept() {
             let r = rig(Mode::Obey, 1);
@@ -634,6 +1196,7 @@ mod tests {
             rules: None,
             product: "Debrief".into(),
             notify: Arc::new(move |c| s2.lock().unwrap().push(c)),
+            lease: Lease::default(),
         };
         Some((renderers, page, seen))
     }

@@ -16,6 +16,7 @@ mod approvals;
 pub(crate) mod commands;
 pub(crate) mod driving;
 mod hub;
+pub(crate) mod lifecycle;
 #[cfg(test)]
 mod live;
 pub(crate) mod renderer;
@@ -92,6 +93,9 @@ pub enum BrowserEvent {
     /// Research ended but its browser window stays open because the user took part in it; the window offers to close it
     /// (`research_browser_close`).
     ResearchBrowserKept,
+    /// The window's AI browser moved in its life cycle (launching, ready, closing, gone and why); `kept` while research
+    /// left it open. A browser the user closed is `gone` (`windowClosed`), and the next research starts a new one.
+    Lifecycle(lifecycle::Lifecycle),
     /// A line of what the AI is doing ("Reading 3 of 5 results"), for the status chip.
     Status {
         text: String,
@@ -150,6 +154,7 @@ pub(crate) fn page_for<R: Runtime>(
                 },
             );
         }),
+        lease: renderer::Lease::default(),
     })
 }
 
@@ -195,6 +200,8 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     let hub = Arc::new(BrowserHub::default());
     manage_state(app, hub.clone());
     let renderers = renderers(app).unwrap_or_default();
+    let a = app.clone();
+    renderers.listen(Arc::new(move |owner, life| emit(&a, owner, BrowserEvent::Lifecycle(life))));
     runtime::refresh_sources(app, &hub);
     if let Err(e) = crate::settings::register(
         app,

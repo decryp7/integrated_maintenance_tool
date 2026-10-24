@@ -96,6 +96,18 @@ fn merge(into: &mut Value, from: Value) {
     }
 }
 
+/// Why a launched browser can no longer be used. Each is final: the browser is ended and a new one started.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Gone {
+    /// The process ended (the user quit the browser, or it crashed).
+    Exited,
+    /// The DevTools connection ended while the process still runs.
+    Disconnected,
+    /// The page Debrief drives was closed (the user closed its window or tab); on macOS the browser keeps running
+    /// without a window.
+    PageClosed,
+}
+
 /// A running browser. Dropping it ends the process and removes a throwaway profile.
 pub struct Chromium {
     // Field order matters: the connection closes before the process is killed and the profile removed.
@@ -108,12 +120,16 @@ pub struct Chromium {
     pub exe: Browser,
 }
 
+/// A profile folder no other launch uses: the clock alone is not enough (macOS reads it in microseconds, so two
+/// launches at once got the same folder and one browser's port file was read by the other).
 fn unique_dir() -> PathBuf {
+    static LAUNCHES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
     let n = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_nanos())
         .unwrap_or(0);
-    std::env::temp_dir().join(format!("chromium-driver-{}-{n}", std::process::id()))
+    let k = LAUNCHES.fetch_add(1, Ordering::Relaxed);
+    std::env::temp_dir().join(format!("chromium-driver-{}-{n}-{k}", std::process::id()))
 }
 
 impl Chromium {
@@ -186,6 +202,18 @@ impl Chromium {
 
     pub fn is_running(&mut self) -> bool {
         self.process.is_running() && !self.conn.is_closed()
+    }
+
+    /// Why the browser and its `page` can no longer be used, if so. No round trip to the browser (see
+    /// [`Page::exists`] for one).
+    pub fn gone(&mut self, page: &Page) -> Option<Gone> {
+        if !self.process.is_running() {
+            Some(Gone::Exited)
+        } else if self.conn.is_closed() {
+            Some(Gone::Disconnected)
+        } else {
+            page.is_closed().then_some(Gone::PageClosed)
+        }
     }
 
     pub fn profile_dir(&self) -> &Path {
@@ -283,6 +311,12 @@ mod tests {
     use super::*;
 
     #[test]
+    fn every_launch_gets_its_own_profile_folder() {
+        let dirs: std::collections::HashSet<PathBuf> = (0..1000).map(|_| unique_dir()).collect();
+        assert_eq!(dirs.len(), 1000);
+    }
+
+    #[test]
     fn keeps_the_automation_banner_and_hides_nothing() {
         let a = args(Path::new("/tmp/p"));
         assert!(a.contains(&"--enable-automation".to_string()));
@@ -371,6 +405,76 @@ mod tests {
     fn page_count_sees_the_pages_the_browser_has() {
         let (_d, _fake, b) = launch_fake(crate::fake::Mode::Obey, 3);
         assert_eq!(b.page_count().unwrap(), 3);
+    }
+
+    #[cfg(unix)]
+    fn wait_gone(b: &mut Chromium, p: &Page) -> Gone {
+        let end = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(g) = b.gone(p) {
+                return g;
+            }
+            assert!(Instant::now() < end, "the end of the browser was not seen");
+            std::thread::yield_now();
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn the_user_closing_the_window_ends_the_page_while_the_process_runs() {
+        let (_d, fake, mut b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.new_page().unwrap();
+        assert_eq!(b.gone(&p), None);
+        assert!(p.exists().unwrap());
+        fake.act(crate::fake::UserAction::CloseWindow).unwrap();
+        assert_eq!(wait_gone(&mut b, &p), Gone::PageClosed);
+        assert!(b.is_running(), "the browser itself still runs (macOS keeps it without a window)");
+        assert!(!p.exists().unwrap());
+        assert!(matches!(p.evaluate("1"), Err(Error::Closed)), "every call says the page was closed");
+        assert!(matches!(p.info(), Err(Error::Closed)));
+        assert!(matches!(
+            p.navigate("http://127.0.0.1:9/", Duration::from_secs(5)),
+            Err(Error::Closed)
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_load_in_progress_ends_at_once_when_the_window_is_closed() {
+        let (_d, fake, b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.new_page().unwrap();
+        fake.act(crate::fake::UserAction::StallLoads).unwrap();
+        let started = Instant::now();
+        let load = std::thread::spawn(move || p.navigate("http://127.0.0.1:9/", Duration::from_secs(20)));
+        fake.act(crate::fake::UserAction::CloseWindow).unwrap();
+        let r = load.join().unwrap();
+        assert!(matches!(r, Err(Error::Closed)), "{r:?}");
+        assert!(started.elapsed() < Duration::from_secs(5), "no wait for the load timeout");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn quitting_the_browser_is_seen_as_exited() {
+        let (_d, fake, mut b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.new_page().unwrap();
+        fake.act(crate::fake::UserAction::Quit).unwrap();
+        assert!(matches!(wait_gone(&mut b, &p), Gone::Exited | Gone::Disconnected));
+        let end = Instant::now() + Duration::from_secs(5);
+        while b.gone(&p) != Some(Gone::Exited) {
+            assert!(Instant::now() < end, "the process end is seen");
+            std::thread::yield_now();
+        }
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn a_lost_connection_is_seen_while_the_process_runs() {
+        let (_d, fake, mut b) = launch_fake(crate::fake::Mode::Obey, 1);
+        let p = b.new_page().unwrap();
+        fake.act(crate::fake::UserAction::DropConnection).unwrap();
+        assert_eq!(wait_gone(&mut b, &p), Gone::Disconnected);
+        assert!(matches!(p.evaluate("1"), Err(Error::Closed)));
+        b.kill();
     }
 
     #[test]

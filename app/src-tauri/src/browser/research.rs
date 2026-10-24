@@ -9,7 +9,7 @@
 //! leak guard first; with workspace data in it the user confirms (or edits) it before anything is searched.
 
 use super::hub::BrowserHub;
-use super::renderer::{ChromiumPage, Finish};
+use super::renderer::{ChromiumPage, Finish, Lease};
 use super::ActivityLog;
 use crate::ai::error::{AiCmdError, AiErrorCode, AiResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobId, JobKind, JobLink, JobProgress, JobResult, JobSpec};
@@ -127,10 +127,15 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     let (h2, o2, k2) = (hub.clone(), owner.to_string(), key.clone());
     let may_drive: Option<Box<dyn Fn() -> bool + Send + Sync>> = Some(Box::new(move || h2.is_driving(&o2, &k2)));
     // Research opens a normal browser window on screen; a page that needs the user (consent, CAPTCHA) waits in it.
-    let reader = super::page_for(app, owner, None, None).ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?;
+    // Both pages hold one lease: the research keeps to the browser it started in, and stops if the user closes it.
+    let lease = Lease::run();
+    let reader = super::page_for(app, owner, None, None)
+        .ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?
+        .with_lease(lease.clone());
     let driver = ReadOnlyDriver {
         page: super::page_for(app, owner, may_drive, Some(control.clone()))
-            .ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?,
+            .ok_or_else(|| AiCmdError::unavailable("the browser is not available"))?
+            .with_lease(lease),
         control: control.clone(),
     };
     let log = ActivityLog { window: owner.to_string() };

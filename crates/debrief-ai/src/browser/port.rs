@@ -22,6 +22,10 @@ pub enum BrowserError {
     PageChanged(String),
     #[error("{0}")]
     Failed(String),
+    /// The browser window was closed (by the user) or the browser ended: this page is gone for good. A later call
+    /// opens a new browser; work that was using this one stops instead of carrying on in another.
+    #[error("the browser window was closed")]
+    Closed,
 }
 
 /// Reads the page the user sees.

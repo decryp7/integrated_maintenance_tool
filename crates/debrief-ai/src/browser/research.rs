@@ -307,8 +307,19 @@ impl ResearchEnv<'_> {
     }
 }
 
+/// What a research says when its browser window was closed under it (the user closed it, or the browser ended).
+pub const BROWSER_CLOSED: &str = "The browser window was closed, so the research stopped. Retry runs it again in a new browser window.";
+
 fn browser_error(e: BrowserError) -> AiError {
-    AiError::Browser(format!("The browser could not finish: {e}"))
+    match e {
+        BrowserError::Closed => AiError::Browser(BROWSER_CLOSED.into()),
+        e => AiError::Browser(format!("The browser could not finish: {e}")),
+    }
+}
+
+/// The research lost its browser: nothing more can be read, so it stops (no skipping of the remaining results).
+fn browser_closed(e: &AiError) -> bool {
+    matches!(e, AiError::Browser(m) if m == BROWSER_CLOSED)
 }
 
 /// Searches `query` with the engine of `env` in the browser (the engine's ordinary results page) and returns its
@@ -353,7 +364,7 @@ pub fn research(
         let links = match collect_results(env, model, &question, &results_page, max - tried) {
             Ok(Found::Links(links)) => links,
             Ok(Found::Nothing(why)) if page_no == 0 => return Ok(nothing_found(env, req, &search_url, why)),
-            Err(e) if page_no == 0 || matches!(e, AiError::Cancelled) => return Err(e),
+            Err(e) if page_no == 0 || matches!(e, AiError::Cancelled) || browser_closed(&e) => return Err(e),
             Ok(Found::Nothing(_)) | Err(_) => break,
         };
         let fresh: Vec<(WebUrl, String)> = links.into_iter().filter(|(u, _)| seen.insert(u.as_str().to_string())).collect();
@@ -408,6 +419,7 @@ pub fn research(
             }
             let capture = match env.reader.capture() {
                 Ok(c) => c,
+                Err(BrowserError::Closed) => return Err(browser_error(BrowserError::Closed)),
                 Err(e) => {
                     skipped.push(skip(&format!("could not be read ({e})")));
                     continue;
@@ -445,8 +457,10 @@ pub fn research(
             break;
         };
         env.wait(env.pace)?;
-        if env.driver.navigate(&next).is_err() {
-            break;
+        match env.driver.navigate(&next) {
+            Ok(()) => {}
+            Err(BrowserError::Closed) => return Err(browser_error(BrowserError::Closed)),
+            Err(_) => break,
         }
         env.log("research.search", Some(next.site().to_string()), ActionOutcome::Done, 0);
         results_page = next;
@@ -490,6 +504,9 @@ pub fn open_result(env: &ResearchEnv<'_>, link: &WebUrl, search: &WebUrl, step: 
     };
     if let Err(e) = opened {
         env.log("research.open", Some(link.site().to_string()), ActionOutcome::Failed, step);
+        if e == BrowserError::Closed {
+            return Err(browser_error(e));
+        }
         return Ok(Err(format!("did not load ({e})")));
     }
     env.log("research.open", Some(link.site().to_string()), ActionOutcome::Done, step);
@@ -506,7 +523,7 @@ pub fn open_result(env: &ResearchEnv<'_>, link: &WebUrl, search: &WebUrl, step: 
         Ok(Some(p)) => p,
         Ok(None) if via_engine => return Ok(Err("did not open (the search engine did not redirect to the result)".into())),
         Ok(None) => return Ok(Err("did not open (the browser showed another site)".into())),
-        Err(AiError::Cancelled) => return Err(AiError::Cancelled),
+        Err(e) if matches!(e, AiError::Cancelled) || browser_closed(&e) => return Err(e),
         Err(e) => return Ok(Err(format!("could not be read ({e})"))),
     };
     if !via_engine {
@@ -534,6 +551,7 @@ fn wait_for_page(env: &ResearchEnv<'_>, wanted: &dyn Fn(&WebUrl) -> bool) -> Res
         match env.reader.snapshot() {
             Ok(p) if WebUrl::parse(&p.url).is_ok_and(|u| wanted(&u)) => return Ok(Some(p)),
             Ok(_) => last_err = None,
+            Err(BrowserError::Closed) => return Err(browser_error(BrowserError::Closed)),
             Err(e) => last_err = Some(e),
         }
     }
@@ -687,6 +705,7 @@ pub fn read_results(env: &ResearchEnv<'_>, search: &WebUrl, max: usize) -> Resul
         }
         let p = match env.results.results_page(region) {
             Ok(p) => p,
+            Err(BrowserError::Closed) => return Err(browser_error(BrowserError::Closed)),
             Err(e) => {
                 last_err = Some(e);
                 continue;
@@ -887,6 +906,9 @@ mod tests {
         rendering: Mutex<std::collections::VecDeque<found::ResultsPage>>,
         /// Addresses opened as the engine's own redirects.
         redirected: Mutex<Vec<String>>,
+        /// The user closes the browser window when this many pages were opened; every call fails afterwards.
+        close_after: Option<usize>,
+        closed: std::sync::atomic::AtomicBool,
     }
 
     fn link(r: u32, name: &str, href: &str) -> Element {
@@ -926,6 +948,9 @@ mod tests {
         }
 
         fn current(&self) -> std::result::Result<(DomSnapshot, PageCapture), BrowserError> {
+            if self.closed.load(Ordering::SeqCst) {
+                return Err(BrowserError::Closed);
+            }
             let at = self.at.lock().unwrap().clone();
             self.pages.get(&at).cloned().ok_or(BrowserError::Timeout)
         }
@@ -984,6 +1009,10 @@ mod tests {
 
     impl PageDriver for FakeWeb {
         fn navigate(&self, url: &WebUrl) -> std::result::Result<(), BrowserError> {
+            if self.closed.load(Ordering::SeqCst) || self.close_after == Some(self.visited.lock().unwrap().len()) {
+                self.closed.store(true, Ordering::SeqCst);
+                return Err(BrowserError::Closed);
+            }
             self.visited.lock().unwrap().push(url.as_str().to_string());
             if self.fail.contains(url.as_str()) {
                 return Err(BrowserError::Timeout);
@@ -1373,6 +1402,31 @@ mod tests {
         );
         // That page failing to show ends the paging; the answer still comes from what was read.
         assert!(log.entries.lock().unwrap().iter().any(|e| e.action == "research.links.ai"));
+    }
+
+    #[test]
+    fn a_closed_browser_window_stops_the_research_with_a_plain_message_at_every_step() {
+        // 0: before the search; 1: on the first result; 2: between results (after one was read).
+        for after in 0..3 {
+            let w = FakeWeb {
+                close_after: Some(after),
+                ..three_results()
+            };
+            let log = MemoryLog::default();
+            let (r, _) = run(&w, &model(), 3, &AtomicBool::new(false), &log);
+            let Err(AiError::Browser(m)) = &r else { panic!("{after}: {r:?}") };
+            assert_eq!(m, BROWSER_CLOSED, "{after}");
+            assert!(m.contains("closed") && m.contains("Retry"), "says what happened and what to do");
+            assert_eq!(
+                w.visited.lock().unwrap().len(),
+                after,
+                "{after}: nothing more is tried in a closed browser"
+            );
+        }
+        assert!(
+            !browser_closed(&browser_error(BrowserError::Timeout)),
+            "other failures still skip a page"
+        );
     }
 
     #[test]
