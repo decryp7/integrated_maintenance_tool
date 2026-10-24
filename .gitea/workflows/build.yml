@@ -412,7 +412,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/check-dialog-commands.test.mjs app/scripts/window-weight.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs app/e2e/retried-reporter.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/check-dialog-commands.test.mjs app/scripts/window-weight.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs scripts/ci/startup-bench.test.mjs app/e2e/retried-reporter.test.mjs
           node scripts/ci/check-quarantine.mjs
           node scripts/ci/scan-fixtures.mjs
           node scripts/ci/check-icons.mjs
@@ -796,6 +796,37 @@ jobs:
           DEBRIEF_LIVE_SEARCH: "1"
           DEBRIEF_E2E_LIVE_SEARCH_OUT: ${{ runner.temp }}/live-search
         run: cargo test -p debrief-app --lib live_search -- --ignored --nocapture
+
+      # The start-up benchmark (Paddock rule 16; startup_timings.rs): five everyday starts of the built app after a
+      # first run, each one's "Startup timings" line read and the medians checked against scripts/ci/startup-budgets.json.
+      # Nightly and manual runs only. macOS has measured budgets; Linux reports until its first nightly numbers are in.
+      - name: Start-up benchmark (macOS)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          app=$(find "${CARGO_TARGET_DIR:-target}/debug/bundle/macos" -maxdepth 1 -name '*.app' | head -n 1)
+          node --test scripts/ci/startup-bench.test.mjs
+          node scripts/ci/startup-bench.mjs "$app" --runs 5 --out "${RUNNER_TEMP:-/tmp}/startup-timings.json"
+
+      - name: Start-up benchmark (Linux, report only)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os == 'Linux'
+        env:
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          dbus-run-session -- xvfb-run -a --server-args="-screen 0 1600x1000x24" \
+            node scripts/ci/startup-bench.mjs "${CARGO_TARGET_DIR:-target}/debug/debrief-app" --runs 5 --report-only \
+            --out "${RUNNER_TEMP:-/tmp}/startup-timings.json"
+
+      - name: Start-up timings
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os != 'Windows'
+        uses: actions/upload-artifact@v3
+        with:
+          name: startup-timings-${{ runner.os }}
+          path: ${{ runner.temp }}/startup-timings.json
+          if-no-files-found: ignore
 
       # The report and page screenshots, passed or not (a warning is worth a look too).
       - name: Live search test report

@@ -1,5 +1,5 @@
 import { FIELDS_OPEN_KEY } from './sidebar-sections';
-import { Type } from '@angular/core';
+import { signal, Type } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { all, buttonByText, el, FakeDock, provideFakeDock, provideTinyBackend, settle, text, tinyBackend } from '../../testing/helpers';
 import { PaletteService } from '../palette/palette.service';
@@ -18,7 +18,7 @@ import { WindowCommands } from '../windowing/window-commands';
 import { WindowingBackend } from '../windowing/windowing-backend';
 import { WindowingService } from '../windowing/windowing.service';
 import { MENU_MODE } from './menu/app-menu.service';
-import { NATIVE_MENU_PORT, NativeMenuPort } from './menu/native-menu';
+import { NATIVE_MENU_GATE, NATIVE_MENU_PORT, NATIVE_MENU_TIMING, NativeMenuPort } from './menu/native-menu';
 import { NativeMenuModel } from './menu/native-menu.types';
 import { at } from '../../testing/must';
 
@@ -168,7 +168,15 @@ describe('TitleBar', () => {
         return () => undefined;
       },
     };
-    TestBed.configureTestingModule({ providers: [{ provide: MENU_MODE, useValue: 'native' }, { provide: NATIVE_MENU_PORT, useValue: port }] });
+    TestBed.configureTestingModule({
+      providers: [
+        { provide: MENU_MODE, useValue: 'native' },
+        { provide: NATIVE_MENU_PORT, useValue: port },
+        // The workspace has loaded and changes are sent at once (the gate and the coalescing: app-menu.spec.ts).
+        { provide: NATIVE_MENU_GATE, useValue: signal(true) },
+        { provide: NATIVE_MENU_TIMING, useValue: { debounceMs: 0, firstDebounceMs: 0, maxWaitMs: 0, setTimer: (fn: () => void) => (fn(), () => undefined) } },
+      ],
+    });
     const { fixture, dock } = setup(TitleBar);
     await settle(fixture);
     expect(fixture.nativeElement.querySelector('debrief-menu-bar')).toBeNull();

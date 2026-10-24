@@ -36,6 +36,11 @@ export const NATIVE_MENU_PORT = new InjectionToken<NativeMenuPort>('NATIVE_MENU_
 export interface NativeMenuTiming {
   /** Changes within this long are sent as one (the menus settle in bursts while commands and plugins register). */
   debounceMs: number;
+  /**
+   * The quiet time before the first build: features deferred to the first idle moment register their commands just
+   * after the workspace loaded, and the start should build the menu bar once.
+   */
+  firstDebounceMs: number;
   /** The menus are sent this long after start even if the gate never opens (a window without a workspace). */
   maxWaitMs: number;
   /** Runs `fn` after `ms`; returns a cancel function (tests run timers by hand). */
@@ -46,6 +51,7 @@ export const NATIVE_MENU_TIMING = new InjectionToken<NativeMenuTiming>('NATIVE_M
   providedIn: 'root',
   factory: () => ({
     debounceMs: 150,
+    firstDebounceMs: 600,
     maxWaitMs: 3000,
     setTimer: (fn, ms) => {
       const id = setTimeout(fn, ms);
@@ -126,6 +132,7 @@ export class NativeMenuBridge {
   private readonly open = computed(() => this.gate() || this.waited());
   private pending: NativeMenuModel | null = null;
   private cancelPending: (() => void) | null = null;
+  private sentOnce = false;
   private started = false;
   private lastSent = '';
   private lastKey: { id: string; at: number } | null = null;
@@ -187,7 +194,7 @@ export class NativeMenuBridge {
       const m = this.pending;
       this.pending = null;
       if (m) this.send(m);
-    }, this.timing.debounceMs);
+    }, this.sentOnce ? this.timing.debounceMs : this.timing.firstDebounceMs);
   }
 
   /** Sends `model` now, dropping a model still waiting. */
@@ -202,6 +209,7 @@ export class NativeMenuBridge {
     const json = JSON.stringify(model);
     if (json === this.lastSent) return;
     this.lastSent = json;
+    this.sentOnce = true;
     this.port.setAppMenu(model).catch((e: unknown) => {
       this.lastSent = '';
       this.logger.warn('ui.menu', 'The native menu could not be updated', { Error: String(e) });

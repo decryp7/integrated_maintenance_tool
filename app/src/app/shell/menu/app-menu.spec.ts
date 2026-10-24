@@ -144,7 +144,7 @@ describe('native menu bar', () => {
         { provide: AppMenu, useValue: { menus, run: (id: string) => ran.push(id), mode: 'native' } },
         { provide: NATIVE_MENU_PORT, useValue: { setAppMenu: async () => undefined, onMenu: async () => () => undefined, ...port } },
         { provide: NATIVE_MENU_GATE, useValue: gate },
-        { provide: NATIVE_MENU_TIMING, useValue: { debounceMs: 150, maxWaitMs: 3000, setTimer: timers.setTimer } },
+        { provide: NATIVE_MENU_TIMING, useValue: { debounceMs: 150, firstDebounceMs: 600, maxWaitMs: 3000, setTimer: timers.setTimer } },
       ],
     });
     const b = TestBed.inject(NativeMenuBridge);
@@ -153,12 +153,27 @@ describe('native menu bar', () => {
     return { b, menus, ran, timers };
   }
 
-  /** Lets the effects run, then the debounce timer fire. */
+  /** Lets the effects run, then the debounce timers (the first build's and later ones') fire. */
   async function debounced(timers: ReturnType<typeof manualTimers>) {
     await settle();
+    timers.fire(600);
     timers.fire(150);
     await settle();
   }
+
+  it('waits longer before the first build than between later ones (features deferred to idle register late)', async () => {
+    const sent: NativeMenuModel[] = [];
+    const { menus, timers } = bridge({ setAppMenu: async (m) => void sent.push(m) });
+    await settle();
+    timers.fire(150);
+    expect(sent).toHaveLength(0);
+    timers.fire(600);
+    expect(sent).toHaveLength(1);
+    menus.set([at(MENUS, 0)]);
+    await settle();
+    timers.fire(150);
+    expect(sent).toHaveLength(2);
+  });
 
   it('sends the model once per change and again when the window gets the focus', async () => {
     const sent: NativeMenuModel[] = [];
