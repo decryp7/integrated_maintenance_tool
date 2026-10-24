@@ -3,10 +3,13 @@ import { signal } from '@angular/core';
 import { AppStatus } from '../core/tools.types';
 import { LifecycleBackend } from '../core/tools-backend';
 import { LifecycleService } from '../lifecycle/lifecycle.service';
-import { DIALOG_REF, DialogService } from '../ui/dialog.service';
+import { NewLocalNotice, NotificationsStore } from '../notifications/notifications.store';
+import { FakeDock, provideFakeDock } from '../../testing/helpers';
 import { ChangelogRelease, decideWhatsNew, releaseFor } from './changelog';
 import { CHANGELOG } from './changelog.generated';
-import { WHATS_NEW_SEEN_KEY, WhatsNewDialog, WhatsNewService } from './whats-new';
+import { WHATS_NEW_NOTICE, WHATS_NEW_SEEN_KEY, WHATS_NEW_VIEW, WhatsNewService } from './whats-new.service';
+import { WHATS_NEW_VIEWS } from './provide-whats-new';
+import { WhatsNewView } from './whats-new-view';
 
 const NOTES: ChangelogRelease[] = [{ version: '2.0.0', date: '2026-01-01', groups: [{ title: 'Added', items: ['a'] }] }];
 
@@ -28,28 +31,49 @@ describe('whats new decisions', () => {
   });
 });
 
-async function dialogFixture() {
-  const fixture = TestBed.createComponent(WhatsNewDialog);
-  fixture.detectChanges();
-  await fixture.whenStable();
-  fixture.detectChanges();
-  return fixture;
-}
+describe("the What's new view declaration", () => {
+  it('is a document of the dock with a declared layout (ADR 0056), reached from Help rather than the View menu', () => {
+    const view = WHATS_NEW_VIEWS.find((v) => v.id === WHATS_NEW_VIEW)!;
+    expect(view.layout?.area).toBe('document');
+    expect(view.layout!.min.width).toBeLessThanOrEqual(view.layout!.pref.width);
+    expect(view.layout!.priority).toBeGreaterThan(0);
+    expect(view.menu).toBe('palette');
+    expect(view.autoOpen).toBeUndefined();
+  });
+});
 
 let engineVersion: string | null = '';
 
+class FakeNotices {
+  readonly posted: NewLocalNotice[] = [];
+  readonly withdrawn: string[] = [];
+  postLocal = (n: NewLocalNotice) => void this.posted.push(n);
+  withdrawLocal = (key: string) => void this.withdrawn.push(key);
+}
+
 describe('WhatsNewService', () => {
+  let dock: FakeDock;
+  let notices: FakeNotices;
   beforeEach(() => {
     localStorage.clear();
     engineVersion = CHANGELOG[0]!.version;
-    TestBed.configureTestingModule({ providers: [
-        { provide: DIALOG_REF, useValue: { close: () => undefined, closed: Promise.resolve(undefined) } },
+    dock = new FakeDock();
+    notices = new FakeNotices();
+    TestBed.configureTestingModule({
+      providers: [
+        provideFakeDock(dock),
+        { provide: NotificationsStore, useValue: notices },
         { provide: LifecycleService, useValue: { status: signal<AppStatus | null>(null) } },
-        // The engine's answer, which a dialog window uses: it has no LifecycleService of its own that was ever started.
-        { provide: LifecycleBackend, useValue: { appStatus: async () => {
-          if (engineVersion === null) throw new Error('engine gone');
-          return { version: engineVersion, safeMode: false, previousCrash: false, sessionAvailable: false };
-        } } },
+        // The engine's answer, which the view reads (a popped-out view has no LifecycleService of its own that was ever started).
+        {
+          provide: LifecycleBackend,
+          useValue: {
+            appStatus: async () => {
+              if (engineVersion === null) throw new Error('engine gone');
+              return { version: engineVersion, safeMode: false, previousCrash: false, sessionAvailable: false };
+            },
+          },
+        },
       ],
     });
   });
@@ -58,34 +82,75 @@ describe('WhatsNewService', () => {
   function setup(version: string | null) {
     const life = TestBed.inject(LifecycleService);
     life.status.set(version ? { version, safeMode: false, previousCrash: false, sessionAvailable: false } : null);
-    return { svc: TestBed.inject(WhatsNewService), dialogs: TestBed.inject(DialogService) };
+    return TestBed.inject(WhatsNewService);
   }
-  const open = (d: DialogService) => d.stack().some((x) => x.component === WhatsNewDialog);
   const version = CHANGELOG[0]!.version;
+  const shows = () => dock.calls.filter((c) => c.startsWith(`show:${WHATS_NEW_VIEW}`));
 
-  it('remembers the version on a first run without opening anything', async () => {
-    const { svc, dialogs } = setup(version);
+  it('remembers the version on a first run without opening anything or posting a notification', async () => {
+    const svc = setup(version);
     await svc.checkOnStart();
-    expect(open(dialogs)).toBe(false);
+    TestBed.tick();
+    expect(shows()).toEqual([]);
+    expect(notices.posted).toEqual([]);
     expect(localStorage.getItem(WHATS_NEW_SEEN_KEY)).toBe(version);
   });
 
-  it('opens once after an update, then stays closed for the same version', async () => {
+  it('after an update opens the view once in the background and posts one calm notification that focuses it', async () => {
     localStorage.setItem(WHATS_NEW_SEEN_KEY, '0.0.1');
-    const { svc, dialogs } = setup(version);
+    const svc = setup(version);
     await svc.checkOnStart();
-    await TestBed.inject(DialogService).whenLoaded();
-    expect(open(dialogs)).toBe(true);
+    TestBed.tick();
+    expect(shows()).toEqual([`show:${WHATS_NEW_VIEW}:inactive`]);
     expect(localStorage.getItem(WHATS_NEW_SEEN_KEY)).toBe(version);
-    dialogs.dismissTop();
+    expect(notices.posted).toHaveLength(1);
+    const n = notices.posted[0]!;
+    expect(n.key).toBe(WHATS_NEW_NOTICE);
+    expect(n.severity).toBe('info');
+    expect(n.source).toBe('update');
+    expect(n.title).toBe(`Updated to ${version}`);
+    expect(n.actionLabel).toBe("See what's new");
+    n.run();
+    expect(shows()).toEqual([`show:${WHATS_NEW_VIEW}:inactive`, `show:${WHATS_NEW_VIEW}`]);
+
+    // A later start of the same version opens nothing and posts nothing.
     await svc.checkOnStart();
-    expect(open(dialogs)).toBe(false);
+    TestBed.tick();
+    expect(shows()).toHaveLength(2);
+    expect(notices.posted).toHaveLength(1);
+  });
+
+  it('waits for the dock to have its layout before opening the view', async () => {
+    localStorage.setItem(WHATS_NEW_SEEN_KEY, '0.0.1');
+    dock.ready.set(false);
+    const svc = setup(version);
+    await svc.checkOnStart();
+    TestBed.tick();
+    expect(shows()).toEqual([]);
+    expect(notices.posted).toEqual([]);
+    dock.ready.set(true);
+    TestBed.tick();
+    expect(shows()).toEqual([`show:${WHATS_NEW_VIEW}:inactive`]);
+    expect(notices.posted).toHaveLength(1);
+    dock.ready.set(false);
+    TestBed.tick();
+    dock.ready.set(true);
+    TestBed.tick();
+    expect(shows()).toHaveLength(1);
+  });
+
+  it("Help › What's new opens and focuses the view and withdraws the notification", () => {
+    const svc = setup(version);
+    svc.open();
+    expect(shows()).toEqual([`show:${WHATS_NEW_VIEW}`]);
+    expect(notices.withdrawn).toEqual([WHATS_NEW_NOTICE]);
   });
 
   it('does nothing without a known version, and survives unavailable storage', async () => {
-    const { svc, dialogs } = setup(null);
+    const svc = setup(null);
     await svc.checkOnStart();
-    expect(open(dialogs)).toBe(false);
+    TestBed.tick();
+    expect(shows()).toEqual([]);
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked');
     });
@@ -96,37 +161,41 @@ describe('WhatsNewService', () => {
     await expect(svc.checkOnStart()).resolves.toBeUndefined();
   });
 
-  it('opens on demand once, and the dialog shows the version, its groups and the earlier releases', async () => {
-    const { svc, dialogs } = setup(version);
-    svc.open();
-    svc.open();
-    await TestBed.inject(DialogService).whenLoaded();
-    expect(dialogs.stack().filter((d) => d.component === WhatsNewDialog)).toHaveLength(1);
-    dialogs.dismissTop();
-    const fixture = await dialogFixture();
-    const el = fixture.nativeElement as HTMLElement;
-    expect(el.querySelector('[data-testid=whats-new-current]')?.textContent).toContain(`Version ${version}`);
+  async function viewFixture() {
+    const fixture = TestBed.createComponent(WhatsNewView);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    return fixture.nativeElement as HTMLElement;
+  }
+  const current = (el: HTMLElement) => el.querySelector('[data-testid=whats-new-current]')?.textContent ?? null;
+
+  it('shows the running version, its groups and the earlier releases', async () => {
+    const el = await viewFixture();
+    expect(current(el)).toContain(`Version ${version}`);
     expect(el.querySelectorAll('[data-testid=whats-new-current] li').length).toBeGreaterThan(0);
+    expect(el.querySelector('[data-testid=whats-new-earlier]')).not.toBeNull();
   });
 
-  it('shows the notes of the version the engine reports even when this window never loaded its own lifecycle status (a dialog window)', async () => {
+  it('shows the notes of the version the engine reports, not the newest release', async () => {
     const older = CHANGELOG[1]!.version;
     engineVersion = older;
-    // The lifecycle service of a dialog window is never initialised: its status stays null.
-    TestBed.inject(LifecycleService).status.set(null);
-    const fixture = await dialogFixture();
-    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid=whats-new-current]')?.textContent).toContain(`Version ${older}`);
+    const el = await viewFixture();
+    expect(current(el)).toContain(`Version ${older}`);
+    expect(current(el)).not.toContain(`Version ${CHANGELOG[0]!.version}`);
   });
 
-  it('falls back to the newest release when the engine cannot say which version runs', async () => {
-    engineVersion = null;
-    const fixture = await dialogFixture();
-    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid=whats-new-current]')?.textContent).toContain(`Version ${CHANGELOG[0]!.version}`);
-  });
-
-  it('falls back to the newest release for a version without notes', async () => {
+  it('never shows the newest release in place of a version without notes', async () => {
     engineVersion = '9.9.9';
-    const fixture = await dialogFixture();
-    expect((fixture.nativeElement as HTMLElement).querySelector('[data-testid=whats-new-current]')?.textContent).toContain(`Version ${CHANGELOG[0]!.version}`);
+    const el = await viewFixture();
+    expect(current(el)).toBeNull();
+    expect(el.querySelector('[data-testid=whats-new-none]')).not.toBeNull();
+  });
+
+  it('never shows the newest release when the engine cannot say which version runs', async () => {
+    engineVersion = null;
+    const el = await viewFixture();
+    expect(current(el)).toBeNull();
+    expect(el.querySelector('[data-testid=whats-new-none]')).not.toBeNull();
   });
 });

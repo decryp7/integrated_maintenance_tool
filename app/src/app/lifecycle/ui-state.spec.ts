@@ -131,8 +131,8 @@ describe('CoreUiState', () => {
     expect(store.query()).toMatchObject({ text: 'fail', regex: true, levels: [] });
     expect((store.query() as unknown as Record<string, unknown>)['evil']).toBeUndefined();
     expect(store.textInput()).toBe('fail');
-    expect(dock.calls).toContain('show:events');
-    expect(dock.calls).not.toContain('show:nope');
+    expect(dock.calls).toContain('show:events:inactive');
+    expect(dock.calls.some((c) => c.startsWith('show:nope'))).toBe(false);
     expect(store.anchor()?.id).toBe(42);
   });
 

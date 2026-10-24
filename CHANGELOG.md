@@ -3,6 +3,12 @@
 What changed for people who use Debrief, one section per release. This file is curated by hand (the in-app "What's new"
 panel reads it at build time); `git cliff` lists every commit if you need the full history.
 
+## Unreleased
+
+### Changed
+
+- **What's new:** The release notes are now a document in the window instead of a dialog. After an update it opens once in the background (it does not take the front or the keyboard focus), and one notification, "Updated to … · See what's new", brings it forward. *Help ▸ What's new* opens it at any time; close it like any other document. It shows the notes of the version that is running and does not open again on later starts of the same version
+
 ## 1.1.0 (2026-10-24)
 
 ### Added

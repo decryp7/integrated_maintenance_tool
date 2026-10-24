@@ -86,7 +86,8 @@ export class FakeDock {
   /** Every open view counts as showing, unless a test sets it apart. */
   readonly hidden = new Set<string>();
   isVisible = (id: string) => this.openIds().has(id) && !this.hidden.has(id);
-  show = (id: string) => void this.calls.push(`show:${id}`);
+  /** Records `show:<id>`, or `show:<id>:inactive` for a background open. */
+  show = (id: string, options: { inactive?: boolean } = {}) => void this.calls.push(options.inactive ? `show:${id}:inactive` : `show:${id}`);
   toggle = (id: string) => void this.calls.push(`toggle:${id}`);
   close = (id: string) => void this.calls.push(`close:${id}`);
   reset = () => void this.calls.push('reset');
@@ -97,6 +98,8 @@ export class FakeDock {
   /** Ticks like the dock's layout changes (`DockService.layoutChanged`). */
   readonly layoutChanged = signal(0);
   readonly activeViewId = signal<string | null>(null);
+  /** Like `DockService.ready`: the dock has its layout. */
+  readonly ready = signal(true);
 }
 
 export function provideFakeDock(dock = new FakeDock()): Provider[] {

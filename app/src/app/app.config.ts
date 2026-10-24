@@ -23,6 +23,7 @@ import { provideHelp } from './help/help.commands';
 import { provideNavigation } from './navigation/provide-navigation';
 import { provideUndo } from './undo/provide-undo';
 import { provideHome } from './home/home.plugin';
+import { provideWhatsNew } from './whats-new/provide-whats-new';
 import { provideOnboarding } from './onboarding/onboarding.plugin';
 import { provideDocking } from './dock/provide-docking';
 import { provideTimelines } from './timeline/provide-timelines';
@@ -80,6 +81,7 @@ export const appConfig: ApplicationConfig = {
     provideUndo(),
     provideNavigation(),
     provideHome(),
+    provideWhatsNew(),
     provideOnboarding(),
     provideDocking(),
     provideTimelines(),

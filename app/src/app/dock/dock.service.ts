@@ -101,6 +101,8 @@ export class DockService {
   private readonly activeView = signal<string | null>(null);
   /** The view whose tab was brought to the front last (null before any). */
   readonly activeViewId = this.activeView.asReadonly();
+  /** True once the dock has its layout (restored or default): a view shown before then would be dropped. */
+  readonly ready = this.ctx.apiReady.asReadonly();
   /** Ticks on every layout change of the dock (panels that keep native content in place follow it). */
   readonly layoutChanged = this.ctx.layoutVersion.asReadonly();
 

@@ -54,8 +54,8 @@ measures it from `dist/app/browser-stats.json` (`npx ng build --stats-json`, the
 What moved out of the first-paint set (all load when used, with the same behaviour): the dialogs, wizards and editors that
 commands and services imported statically (format wizard, folder setup, report export, incident summary, redaction,
 export, import range, add-tile, clock, updates, parser editor and import confirm, mark/marker editor, infer/extract/mask/drop,
-note editor, knowledge editor, package review, layout dialogs, About, What's new with the generated changelog) through
-`DialogService.openLazy(() => import(...), options)`; the search-everything palette (fetched on first open); and, with
+note editor, knowledge editor, package review, layout dialogs, About) through
+`DialogService.openLazy(() => import(...), options)`; What's new (now a document of the dock) and its generated changelog load with the view; the search-everything palette (fetched on first open); and, with
 `@defer`, the filter bar (and the query field), side bar, command palette, import toast, partial-import banner and tour
 overlay. Dialog windows no longer create the workspace facade, time cursor, live follow or live tail: `sharedUiState`
 takes a scope (`display`, `summary`, `full`) and a dialog window asks for the narrowest one its backends allow.
