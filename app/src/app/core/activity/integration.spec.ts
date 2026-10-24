@@ -266,10 +266,22 @@ describe('activity: observers', () => {
     store.patchQuery({ text: 'late' });
     settle(QUERY_DEBOUNCE_MS);
     expect(entries().map((e) => [e.props['Operation'], e.props['Trigger']])).toEqual([['search.change', 'keyboard']]);
+    // A weak call the input led to first (classifying the search text) leaves the input to the change that follows.
+    userInput();
+    const weak = activity.begin('backend.classifySearch', 'auto', {}, { weak: true });
+    activity.end(weak, 'ok');
+    vi.advanceTimersByTime(5000);
+    store.patchQuery({ text: 'later' });
+    settle(QUERY_DEBOUNCE_MS);
+    expect(entries().map((e) => [e.props['Operation'], e.props['Trigger']]).filter(([o]) => o === 'search.change')).toEqual([
+      ['search.change', 'keyboard'],
+      ['search.change', 'keyboard'],
+    ]);
     // No input since: a live update or a restore is not the user's, even right after.
+    const before = entries().length;
     store.patchQuery({ ql: 'program' });
     settle(QUERY_DEBOUNCE_MS);
-    expect(entries()).toHaveLength(1);
+    expect(entries()).toHaveLength(before);
   });
 
   it('ignores programmatic changes and changes made by a running command', async () => {

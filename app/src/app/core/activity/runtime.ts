@@ -159,8 +159,10 @@ export class ActivityRuntime {
   /** Starts an operation; end it with `end`. */
   begin(operation: string, trigger: Trigger | 'auto', params: ActivityParams = {}, options: { weak?: boolean } = {}): Operation {
     const inferred = trigger === 'auto' ? this.triggers.infer() : trigger;
-    // The input that led here is explained by this operation: what follows without new input is the program's.
-    this.triggers.consume();
+    // The input that led here is explained by this operation: what follows without new input is the program's. A weak
+    // call (no domain name, e.g. classifying the search text) explains nothing by itself: the change it leads to, however
+    // late, still takes the input.
+    if (!options.weak) this.triggers.consume();
     const op: Operation = {
       ...(options.weak ? { weak: true } : {}),
       id: newOperationId(),
