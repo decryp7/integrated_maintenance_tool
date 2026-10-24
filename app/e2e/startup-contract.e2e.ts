@@ -1,6 +1,7 @@
 import { expect, Page, test } from '@playwright/test';
+import { openApp } from './app';
 
-// The start-up contract (ADR 0057). A window shows a splash until Angular renders, paints its frame (activity bar,
+// The start-up contract (ADR 0058). A window shows a splash until Angular renders, paints its frame (activity bar,
 // status bar) without waiting for any IPC, reports `window_ready` after that first paint, and says calmly when
 // Debrief reloaded it. The IPC tests run the real Tauri backends against a fake `__TAURI_INTERNALS__` whose replies
 // the test holds and releases: a paused or throttled web content process, or a lost first IPC message.
@@ -76,8 +77,8 @@ test.describe('start-up contract', () => {
   });
 
   for (const [why, text] of [
-    ['terminated', "The window's content stopped unexpectedly and was reloaded. Your open files are kept."],
-    ['unresponsive', 'The window did not finish starting and was reloaded. Your open files are kept.'],
+    ['terminated', "The window's content stopped unexpectedly and was reloaded. Your open files and view are kept."],
+    ['unresponsive', 'The window did not finish starting and was reloaded. Your open files and view are kept.'],
   ] as const) {
     test(`a window Debrief reloaded (${why}) says so calmly`, async ({ page }) => {
       await fakeTauri(page, { recovered: why });
@@ -86,4 +87,44 @@ test.describe('start-up contract', () => {
       await expect(page.getByText(text)).toBeVisible();
     });
   }
+
+  test('a recovery reload brings back the query, the level filter and the selected event', async ({ page }) => {
+    await openApp(page);
+    const levels = page.getByRole('toolbar', { name: 'Levels' });
+    await levels.getByRole('button', { name: /^ERR/ }).click();
+    await expect(levels.getByRole('button', { name: /^ERR/ })).toHaveAttribute('aria-pressed', 'true');
+    const rows = page.locator('debrief-events-grid [role=row].row');
+    const word = ((await rows.first().locator('.msg').innerText()).trim().split(/\s+/)[0] ?? '').replace(/[^\w]/g, '');
+    expect(word.length).toBeGreaterThan(2);
+    await page.getByTestId('query-field').fill(word);
+    await expect(page.locator('debrief-events-grid .bar .total')).not.toHaveText('0');
+    const row = rows.nth(1);
+    await row.click();
+    await expect(row).toHaveAttribute('aria-selected', 'true');
+    const message = (await row.locator('.msg').innerText()).trim();
+    // The checkpoint reached the backend (Rust's memory in the app; session storage in the mock).
+    const checkpoint = () => page.evaluate(() => sessionStorage.getItem('debrief.mock.uiCheckpoint') ?? '');
+    await expect.poll(checkpoint).toContain(`"textInput":"${word}"`);
+    await expect.poll(checkpoint).toMatch(/"recordId":\d+/);
+
+    // Debrief reloads the window after its content process terminated.
+    await page.evaluate(() => sessionStorage.setItem('debrief.mock.recover', 'terminated'));
+    await page.reload();
+    await expect(page.getByText("The window's content stopped unexpectedly and was reloaded. Your open files and view are kept.")).toBeVisible();
+    await expect(page.getByTestId('query-field')).toHaveValue(word);
+    await expect(levels.getByRole('button', { name: /^ERR/ })).toHaveAttribute('aria-pressed', 'true');
+    const selected = page.locator('debrief-events-grid [role=row].row[aria-selected=true]');
+    await expect(selected).toHaveCount(1);
+    await expect(selected.locator('.msg')).toHaveText(message);
+  });
+
+  test('a reload the user asks for (no recovery) starts clean', async ({ page }) => {
+    await openApp(page);
+    await page.getByTestId('query-field').fill('order');
+    await expect.poll(() => page.evaluate(() => sessionStorage.getItem('debrief.mock.uiCheckpoint') ?? '')).toContain('"textInput":"order"');
+    await page.reload();
+    await expect(page.getByRole('grid', { name: 'Events' })).toBeVisible();
+    await expect(page.getByTestId('query-field')).toHaveValue('');
+  });
 });
+

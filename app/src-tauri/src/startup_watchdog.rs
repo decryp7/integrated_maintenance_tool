@@ -1,4 +1,4 @@
-//! The start-up contract's Rust half (ADR 0057): every Debrief webview reports `window_ready` once it has painted
+//! The start-up contract's Rust half (ADR 0058): every Debrief webview reports `window_ready` once it has painted
 //! its frame; a watchdog reloads a window that did not within [`READY_TIMEOUT`] and, if the reload does not help
 //! either, shows a native "not responding" dialog (Reload / Restart in Safe Mode / Keep Waiting). A window whose
 //! web content process terminated is reloaded by `window_manager::web_content_terminated` and marked here, so the
@@ -8,7 +8,10 @@
 //! limiters such as App Tamer stop it), killed, or can lose its first IPC message; the window then stayed blank
 //! with no way out but quitting. The decisions are pure ([`Watchdog`]); the ticker thread only applies them.
 //!
-//! Commands: `window_ready`, `window_boot_error`.
+//! Each page also keeps its UI state in memory here (`ui_checkpoint`), so a page Debrief reloads gets its query,
+//! filters and selection back with its `window_ready` reply.
+//!
+//! Commands: `window_ready`, `window_boot_error`, `ui_checkpoint`.
 
 use serde::Serialize;
 use std::collections::HashMap;
@@ -43,6 +46,9 @@ pub enum Recovery {
 pub struct ReadyReply {
     /// Set when Debrief reloaded this window before this page loaded.
     pub recovered: Option<Recovery>,
+    /// With `recovered`: the window's last UI state checkpoint (query, filters, selection, …) for the reloaded page
+    /// to apply once its workspace is loaded. The engine kept the data; this is the rest.
+    pub ui: Option<serde_json::Value>,
 }
 
 /// What the ticker must do for a window.
@@ -166,13 +172,44 @@ fn action_label(a: &Action) -> &str {
     }
 }
 
-/// The app-wide watchdog (managed state).
+/// The latest UI state of each window (memory only), sent by the page as it changes: what a page reloaded by
+/// Debrief restores. The autosaved session on disk is for restarts; this is for reloads within the run.
+#[derive(Debug, Default)]
+pub struct Checkpoints(HashMap<String, serde_json::Value>);
+
+impl Checkpoints {
+    pub fn put(&mut self, label: &str, ui: serde_json::Value) {
+        self.0.insert(label.to_string(), ui);
+    }
+
+    /// The window's last checkpoint (kept: a second reload restores it too).
+    pub fn get(&self, label: &str) -> Option<serde_json::Value> {
+        self.0.get(label).cloned()
+    }
+
+    pub fn closed(&mut self, label: &str) {
+        self.0.remove(label);
+    }
+}
+
+/// What `window_ready` answers: the recovery reason and, with it, the UI state to restore.
+pub fn ready_reply(dog: &mut Watchdog, checkpoints: &Checkpoints, label: &str) -> ReadyReply {
+    let recovered = dog.ready(label);
+    let ui = recovered.and_then(|_| checkpoints.get(label));
+    ReadyReply { recovered, ui }
+}
+
+/// The app-wide watchdog and checkpoints (managed state).
 #[derive(Default)]
-pub struct StartupWatchdog(Mutex<Watchdog>);
+pub struct StartupWatchdog(Mutex<Watchdog>, Mutex<Checkpoints>);
 
 impl StartupWatchdog {
     pub fn with<T>(&self, f: impl FnOnce(&mut Watchdog) -> T) -> T {
         f(&mut crate::sync::lock(&self.0))
+    }
+
+    pub fn checkpoints<T>(&self, f: impl FnOnce(&mut Checkpoints) -> T) -> T {
+        f(&mut crate::sync::lock(&self.1))
     }
 }
 
@@ -211,6 +248,7 @@ pub fn start<R: Runtime>(app: &AppHandle<R>) {
         let Some(dog) = app.try_state::<StartupWatchdog>() else { continue };
         // Windows that are gone are forgotten.
         let gone: Vec<String> = dog.with(|w| w.windows.keys().filter(|l| app.get_webview(l).is_none()).cloned().collect());
+        dog.checkpoints(|c| gone.iter().for_each(|l| c.closed(l)));
         let actions = dog.with(|w| {
             gone.iter().for_each(|l| w.closed(l));
             w.due(Instant::now())
@@ -319,9 +357,23 @@ fn ask<R: Runtime>(app: &AppHandle<R>, label: String) {
 #[tauri::command]
 pub async fn window_ready<R: Runtime>(webview: tauri::Webview<R>, dog: tauri::State<'_, StartupWatchdog>) -> crate::CmdResult<ReadyReply> {
     let label = webview.label().to_string();
-    let recovered = dog.with(|w| w.ready(&label));
-    log::info!(Window = label.as_str(), Recovered = format!("{recovered:?}"); "Window {label} ready");
-    Ok(ReadyReply { recovered })
+    let reply = dog.checkpoints(|c| dog.with(|w| ready_reply(w, c, &label)));
+    log::info!(Window = label.as_str(), Recovered = format!("{:?}", reply.recovered), RestoresUi = reply.ui.is_some(); "Window {label} ready");
+    Ok(reply)
+}
+
+/// The calling window's current UI state (memory only; debounced by the UI). Restored if Debrief reloads the page.
+#[tauri::command]
+pub async fn ui_checkpoint<R: Runtime>(
+    webview: tauri::Webview<R>,
+    dog: tauri::State<'_, StartupWatchdog>,
+    ui: serde_json::Value,
+) -> crate::CmdResult<()> {
+    if !ui.is_object() {
+        return Err("the UI state must be an object".into());
+    }
+    dog.checkpoints(|c| c.put(webview.label(), ui));
+    Ok(())
 }
 
 /// One line of a boot error for the log: no control characters, at most [`MAX_ERROR_LEN`] characters.
@@ -511,6 +563,46 @@ mod tests {
         assert_eq!(choice_of(&R::Yes), Choice::Reload);
         assert_eq!(choice_of(&R::No), Choice::SafeMode);
         assert_eq!(choice_of(&R::Cancel), Choice::Wait, "closing the dialog waits");
+    }
+
+    #[test]
+    fn a_recovered_page_gets_the_last_checkpoint_and_a_normal_start_does_not() {
+        let t0 = Instant::now();
+        let mut w = Watchdog::default();
+        let mut c = Checkpoints::default();
+        w.page_started("main", t0);
+        c.put("main", serde_json::json!({"query": {"text": "error"}}));
+        // A normal start (or a reload by the user) restores nothing: the page's own state is the truth.
+        assert_eq!(ready_reply(&mut w, &c, "main"), ReadyReply { recovered: None, ui: None });
+        c.put(
+            "main",
+            serde_json::json!({"query": {"text": "timeout"}, "selection": {"recordId": 42}}),
+        );
+        w.terminated("main", at(t0, 1_000));
+        let reply = ready_reply(&mut w, &c, "main");
+        assert_eq!(reply.recovered, Some(Recovery::Terminated));
+        assert_eq!(
+            reply.ui,
+            Some(serde_json::json!({"query": {"text": "timeout"}, "selection": {"recordId": 42}}))
+        );
+        // Kept for a second reload; forgotten with the window; other windows have their own.
+        assert_eq!(c.get("main"), reply.ui);
+        assert_eq!(c.get("w-2"), None);
+        c.closed("main");
+        assert_eq!(c.get("main"), None);
+    }
+
+    #[test]
+    fn a_recovered_page_without_a_checkpoint_restores_nothing() {
+        let mut w = Watchdog::default();
+        w.terminated("w-2", Instant::now());
+        assert_eq!(
+            ready_reply(&mut w, &Checkpoints::default(), "w-2"),
+            ReadyReply {
+                recovered: Some(Recovery::Terminated),
+                ui: None
+            }
+        );
     }
 
     #[test]

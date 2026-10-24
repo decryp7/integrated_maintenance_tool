@@ -2,7 +2,7 @@
 import { initI18n } from './app/i18n/boot';
 import { reportBootstrapFailure, startBootErrorForwarding, tauriBootErrorSender } from './app/core/startup/boot-errors';
 
-// Errors before the window is ready reach the Rust log (ADR 0057): a window that never starts leaves its cause there.
+// Errors before the window is ready reach the Rust log (ADR 0058): a window that never starts leaves its cause there.
 if ('__TAURI_INTERNALS__' in window) startBootErrorForwarding(tauriBootErrorSender);
 
 // Translations are loaded at run time (one build serves every language), so they must be in place before any

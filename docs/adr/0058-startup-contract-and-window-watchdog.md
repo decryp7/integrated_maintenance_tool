@@ -1,4 +1,4 @@
-# 57. Start-up contract and window watchdog
+# 58. Start-up contract and window watchdog
 
 - Status: Proposed (2026-10-24)
 - Date: 2026-10-24
@@ -65,9 +65,10 @@ Every window follows one start-up contract, with a UI half and a Rust half.
    instead of all firing on resume. The watchdog lives in the app process, so a paused content process cannot pause it.
 4. When the content process terminates (`on_web_content_process_terminate`, macOS), the existing handler reloads the
    page (at most 3 times a minute) and marks the window. `window_ready` tells the reloaded page why it was reloaded
-   (`terminated` or `unresponsive`), once, and the main window shows a calm notice: "The window's content stopped
-   unexpectedly and was reloaded. Your open files are kept." The workspace lives in the engine, so the reloaded page
-   gets the same sources, and the dock layout and view preferences come back from their local stores.
+   (`terminated` or `unresponsive`), once, with the window's last UI state checkpoint, and the main window shows a
+   calm notice: "The window's content stopped unexpectedly and was reloaded. Your open files and view are kept." The
+   workspace lives in the engine, so the reloaded page gets the same sources; the query, filters, selection and the
+   rest of the UI state come from the checkpoint (below); the dock layout and preferences from their local stores.
 
 The decisions are pure (`Watchdog`: page started, ready, terminated, keep waiting, due actions at a time) and unit
 tested with a passed-in clock; the ticker only applies them.
@@ -80,9 +81,11 @@ tested with a passed-in clock; the ticker only applies them.
 - A window that is legitimately slow to paint its frame for more than 10 s is reloaded. The frame is painted before
   any IPC answer, so only a stopped process misses it; the 3 s pause rule avoids reloading after Debrief itself was
   stopped.
-- Query and filter state of a reloaded main window are not restored (data, layout and preferences are). Restoring the
-  autosaved UI state on a recovery reload is a follow-up.
-- Two new commands (`window_ready`, `window_boot_error`, both `Quiet [WINDOW]`).
+- A reloaded main window gets its whole UI state back (query, filters, selection, open views, saved queries, …) from
+  `ui_checkpoint`: the page sends its UI state to Rust's memory 1 s after it changes (only once its own ready reply was
+  handled, so a reloaded page's empty start never replaces it); `window_ready` returns it with the recovery reason,
+  and the page applies it once the workspace is loaded. A user's own reload (no recovery) starts clean as before.
+- Three new commands: `window_ready`, `window_boot_error` (`Quiet [WINDOW]`) and `ui_checkpoint` (`Quiet [MAIN]`, 16 MiB).
 - Paddock: the contract is family-wide. The pure watchdog and the UI half (`retryUntilAnswered`, `reportReady`,
   boot-error forwarding, the splash) belong in the shared crate and `paddock-ui` once a second app adopts them
   (rule 39); Pitcrew is next. A family lesson records: "every window reports ready; Rust watches it".
@@ -96,4 +99,7 @@ tested with a passed-in clock; the ticker only applies them.
   `reportReady`, `provideStartupContract` (reports after the first render), boot error forwarding and its cap.
 - Playwright (Chromium and WebKit), `e2e/startup-contract.e2e.ts`: the splash shows until Angular renders; with every
   IPC reply withheld (a paused content process) the frame paints and `window_ready` is sent, and the window recovers
-  when the replies arrive; a reloaded window (terminated / unresponsive) shows its notice.
+  when the replies arrive; a reloaded window (terminated / unresponsive) shows its notice; a recovery reload brings
+  back the query, the level filter and the selected event, and a user's own reload starts clean.
+- Vitest `lifecycle/recovery.spec.ts`: restore after load, no restore on a normal start, checkpoints only after the
+  reply was handled and debounced.

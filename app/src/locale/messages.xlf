@@ -16156,17 +16156,17 @@
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.recovered.terminated" datatype="html">
-        <source>The window&apos;s content stopped unexpectedly and was reloaded. Your open files are kept.</source>
+        <source>The window&apos;s content stopped unexpectedly and was reloaded. Your open files and view are kept.</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/lifecycle/recovery-notice.ts</context>
-          <context context-type="linenumber">8</context>
+          <context context-type="sourcefile">src/app/lifecycle/recovery.ts</context>
+          <context context-type="linenumber">17</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.recovered.unresponsive" datatype="html">
-        <source>The window did not finish starting and was reloaded. Your open files are kept.</source>
+        <source>The window did not finish starting and was reloaded. Your open files and view are kept.</source>
         <context-group purpose="location">
-          <context context-type="sourcefile">src/app/lifecycle/recovery-notice.ts</context>
-          <context context-type="linenumber">9</context>
+          <context context-type="sourcefile">src/app/lifecycle/recovery.ts</context>
+          <context context-type="linenumber">18</context>
         </context-group>
       </trans-unit>
       <trans-unit id="lifecycle.titleExtras.unsaved" datatype="html">

@@ -168,7 +168,7 @@ export const WorkspaceDataStore = signalStore(
           );
         },
         async init() {
-          // A start-up read: retried when an attempt goes unanswered (a fresh or paused webview, ADR 0057).
+          // A start-up read: retried when an attempt goes unanswered (a fresh or paused webview, ADR 0058).
           await run(
             { kind: 'op', label: $localize`:@@core.workspace.busy.loading:Loading workspace…` },
             () => retryUntilAnswered(() => backend.workspaceSummary(), STARTUP_RETRY),

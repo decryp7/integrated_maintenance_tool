@@ -163,6 +163,7 @@ import { ParsersBackend } from '../../settings/parsers/parsers-backend';
 import { EncodingBackend } from '../../sources/encoding/encoding-backend';
 import { PasteBackend } from '../../sources/paste/paste-backend';
 import { ShareBackend } from '../../share/share-backend';
+import { StartupBackend } from '../startup/startup-backend';
 import { SkewBackend } from '../skew-backend';
 import { FilesBackend } from '../files-backend';
 import { RunsBackend } from '../../timeline/runs-backend';
@@ -195,6 +196,7 @@ const BACKEND_TOKENS: Record<string, AbstractType<unknown>> = {
   EventLogBackend,
   FolderSetupBackend,
   LifecycleBackend,
+  StartupBackend,
   PluginPackagesBackend,
   PerfmonBackend,
   ProjectBackend,

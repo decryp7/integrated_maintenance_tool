@@ -672,7 +672,7 @@ input[type='radio'] {
   }
 }
 
-/* Start-up splash (index.html, ADR 0057): what the window shows until Angular renders its shell, so a slow or paused
+/* Start-up splash (index.html, ADR 0058): what the window shows until Angular renders its shell, so a slow or paused
    start is never an empty window. System colours (the theme is not applied yet); it fades in after 400 ms so a fast
    start does not flash it. Angular replaces it when the root component renders. */
 .boot-splash {

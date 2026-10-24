@@ -361,6 +361,7 @@ command_table! {
     Quiet [MAIN] => window_manager::set_window_title,
     Quiet [WINDOW] => startup_watchdog::window_ready,
     Quiet [WINDOW] => startup_watchdog::window_boot_error,
+    Quiet [MAIN] limit 16 * MIB => startup_watchdog::ui_checkpoint,
     Mutation [MAIN] => window_manager::resolve_close,
     Mutation [MAIN] => window_manager::resolve_open,
     Mutation [MAIN] => panel_windows::popout_panel,
@@ -577,7 +578,7 @@ pub fn run() {
         // The player's videos (ADR 0033 §7): only the calling window's project videos, in bounded ranges.
         .register_asynchronous_uri_scheme_protocol(video::media::SCHEME, video::media::handler)
         .setup(move |app| setup(app, &launch, safe_mode, single))
-        // The start-up contract (ADR 0057): a page that does not report ready in time is reloaded, then the user asked.
+        // The start-up contract (ADR 0058): a page that does not report ready in time is reloaded, then the user asked.
         .on_page_load(startup_watchdog::on_page_load)
         .on_window_event(window_manager::on_window_event)
         // Every IPC command is logged (with the UI's operation id) before it runs: see `activity`. A web page

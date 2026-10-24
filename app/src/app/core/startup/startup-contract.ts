@@ -1,9 +1,9 @@
 import { afterNextRender, EnvironmentProviders, inject, Injector, makeEnvironmentProviders, provideAppInitializer, InjectionToken } from '@angular/core';
-import { isTauri } from '../platform';
+import { StartupBackend } from './startup-backend';
 import { stopBootErrorForwarding } from './boot-errors';
 
 /**
- * The start-up contract (ADR 0057), the UI half:
+ * The start-up contract (ADR 0058), the UI half:
  * - nothing awaits IPC before the first paint (initializers start work and return);
  * - start-up calls the window needs get a short per-attempt timeout and are retried (`retryUntilAnswered`), because
  *   the first IPC of a fresh webview can go unanswered and the content process can be paused for seconds;
@@ -17,6 +17,8 @@ export type Recovery = 'unresponsive' | 'terminated';
 /** The reply to `window_ready`. */
 export interface ReadyReply {
   recovered: Recovery | null;
+  /** With `recovered`: the window's last UI state checkpoint, to apply once the workspace is loaded. */
+  ui?: unknown;
 }
 
 export interface RetryOptions {
@@ -72,37 +74,36 @@ export const STARTUP_RETRY: RetryOptions = { timeoutMs: 4000, attempts: 4 };
 /** Sends `window_ready` (retried like every start-up call). */
 export type ReadySender = () => Promise<ReadyReply>;
 
-/** What the window does when Debrief tells it that it was reloaded (main window: a calm notice). */
-export const ON_RECOVERED = new InjectionToken<(why: Recovery) => void>('ON_RECOVERED');
-
-/** Sends `window_ready` through the one IPC entry point (loaded on use: the browser build has no IPC). */
-export const tauriReady: ReadySender = () => import('../activity/ipc').then((m) => m.invoke<ReadyReply>('window_ready'));
+/**
+ * What the window does with the ready reply (or null when none came): the main window shows a calm notice after a
+ * recovery reload, restores the UI state checkpoint and then starts checkpointing. Optional per window.
+ */
+export const AFTER_READY = new InjectionToken<(reply: ReadyReply | null) => void>('AFTER_READY');
 
 /**
  * Reports ready once the first frame is painted (render-driven, not timer-driven: a paused page reports when it
- * resumes) and hands a recovery reason to `onRecovered`. Never throws: without an answer the Rust watchdog acts.
+ * resumes) and hands the reply (null when there was none) to `after`. Never throws: without an answer the Rust
+ * watchdog acts.
  */
-export async function reportReady(send: ReadySender, onRecovered: ((why: Recovery) => void) | null, retry: RetryOptions = STARTUP_RETRY): Promise<ReadyReply | null> {
+export async function reportReady(send: ReadySender, after: ((reply: ReadyReply | null) => void) | null, retry: RetryOptions = STARTUP_RETRY): Promise<ReadyReply | null> {
   stopBootErrorForwarding();
+  let reply: ReadyReply | null;
   try {
-    const reply = await retryUntilAnswered(send, retry);
-    if (reply?.recovered && onRecovered) onRecovered(reply.recovered);
-    return reply;
+    reply = await retryUntilAnswered(send, retry);
   } catch {
-    return null;
+    reply = null;
   }
+  after?.(reply);
+  return reply;
 }
 
 /** The start-up contract for a window: report ready after the first render. One line in each window's config. */
-export function provideStartupContract(send: ReadySender | null = isTauri() ? tauriReady : null): EnvironmentProviders {
+export function provideStartupContract(send?: ReadySender): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideAppInitializer(() => {
       const injector = inject(Injector);
-      if (!send) {
-        stopBootErrorForwarding();
-        return;
-      }
-      afterNextRender(() => void reportReady(send, injector.get(ON_RECOVERED, null)), { injector });
+      const sender = send ?? (() => injector.get(StartupBackend).reportReady());
+      afterNextRender(() => void reportReady(sender, injector.get(AFTER_READY, null)), { injector });
     }),
   ]);
 }

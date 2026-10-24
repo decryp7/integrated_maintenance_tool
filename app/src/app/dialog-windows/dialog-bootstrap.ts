@@ -72,7 +72,7 @@ export function dialogBaseProviders(): Providers {
     provideActivity(),
     provideDebriefIcons(),
     provideAppInitializer(() => inject(ThemeService).start()),
-    // Reports ready after the first paint (ADR 0057).
+    // Reports ready after the first paint (ADR 0058).
     provideStartupContract(),
     // Commands act on the window that opened the dialog.
     { provide: HOST_COMMAND_FORWARD, useFactory: () => { const injector = inject(Injector); return (id: string) => injector.get(UiSync).runInHost('dialogRun', id); } },

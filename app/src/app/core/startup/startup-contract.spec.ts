@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
-import { ON_RECOVERED, provideStartupContract, ReadyReply, reportReady, retryUntilAnswered } from './startup-contract';
-import { recoveryNotice } from '../../lifecycle/recovery-notice';
+import { AFTER_READY, provideStartupContract, ReadyReply, reportReady, retryUntilAnswered } from './startup-contract';
 
 /** A call whose attempts are answered by hand. */
 function manual<T>() {
@@ -71,17 +70,18 @@ describe('retryUntilAnswered', () => {
 describe('reportReady', () => {
   const fast = { timeoutMs: 1, attempts: 1 };
 
-  it('tells the window why Debrief reloaded it', async () => {
-    const onRecovered = vi.fn();
-    await reportReady(async () => ({ recovered: 'terminated' }), onRecovered, fast);
-    expect(onRecovered).toHaveBeenCalledWith('terminated');
-    onRecovered.mockClear();
-    await reportReady(async () => ({ recovered: null }), onRecovered, fast);
-    expect(onRecovered).not.toHaveBeenCalled();
+  it('hands the reply on, recovered or not', async () => {
+    const after = vi.fn();
+    await reportReady(async () => ({ recovered: 'terminated', ui: { query: {} } }), after, fast);
+    expect(after).toHaveBeenCalledWith({ recovered: 'terminated', ui: { query: {} } });
+    await reportReady(async () => ({ recovered: null }), after, fast);
+    expect(after).toHaveBeenLastCalledWith({ recovered: null });
   });
 
-  it('never throws when the report fails (the Rust watchdog acts instead)', async () => {
-    await expect(reportReady(() => Promise.reject(new Error('down')), vi.fn(), fast)).resolves.toBeNull();
+  it('never throws when the report fails (the Rust watchdog acts instead) and still hands on null', async () => {
+    const after = vi.fn();
+    await expect(reportReady(() => Promise.reject(new Error('down')), after, fast)).resolves.toBeNull();
+    expect(after).toHaveBeenCalledWith(null);
   });
 });
 
@@ -89,30 +89,16 @@ describe('reportReady', () => {
 class Host {}
 
 describe('provideStartupContract', () => {
-  it('reports ready after the first render, not before, and hands on the recovery reason', async () => {
+  it('reports ready after the first render, not before, and hands on the reply', async () => {
     let answer!: (r: ReadyReply) => void;
     const send = vi.fn(() => new Promise<ReadyReply>((resolve) => (answer = resolve)));
-    const onRecovered = vi.fn();
-    TestBed.configureTestingModule({ providers: [provideStartupContract(send), { provide: ON_RECOVERED, useValue: onRecovered }] });
+    const after = vi.fn();
+    TestBed.configureTestingModule({ providers: [provideStartupContract(send), { provide: AFTER_READY, useValue: after }] });
     const fixture = TestBed.createComponent(Host);
     await fixture.whenStable();
     expect(fixture.nativeElement.textContent).toContain('frame');
     expect(send).toHaveBeenCalledTimes(1);
     answer({ recovered: 'unresponsive' });
-    await vi.waitFor(() => expect(onRecovered).toHaveBeenCalledWith('unresponsive'));
-  });
-
-  it('sends nothing in the browser build', async () => {
-    TestBed.configureTestingModule({ providers: [provideStartupContract(null)] });
-    const fixture = TestBed.createComponent(Host);
-    await fixture.whenStable();
-    expect(fixture.nativeElement.textContent).toContain('frame');
-  });
-});
-
-describe('recoveryNotice', () => {
-  it('says calmly what happened and what was kept', () => {
-    expect(recoveryNotice('terminated')).toMatch(/reloaded\. Your open files are kept\./);
-    expect(recoveryNotice('unresponsive')).toMatch(/did not finish starting/);
+    await vi.waitFor(() => expect(after).toHaveBeenCalledWith({ recovered: 'unresponsive' }));
   });
 });
