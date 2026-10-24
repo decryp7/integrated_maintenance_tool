@@ -20,11 +20,48 @@ env:
   FUZZ_TOOLCHAIN: nightly-2026-10-01
 
 jobs:
+  # Decides whether this run is needed at all:
+  # the nightly run is skipped while main is unchanged since the last green one.
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    container:
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      # Exact-key lookup only: nothing is downloaded. The marker is saved by the nightly-mark job after a fully green run.
+      - uses: actions/cache/restore@v4
+        id: green
+        if: github.event_name == 'schedule'
+        with:
+          path: .nightly-green
+          key: fuzz-nightly-green-${{ github.sha }}
+          lookup-only: true
+
+      - name: Decide
+        id: plan
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          GREEN: ${{ steps.green.outputs.cache-hit }}
+        run: |
+          run=true
+          if [ "$EVENT" = schedule ] && [ "$GREEN" = true ]; then
+            run=false
+            echo "::notice::main has not changed since the last green run ($SHA); skipping."
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   # Six shards of up to nine targets instead of one job per target: each shard compiles the fuzz workspace once
   # (cargo fuzz build builds every target in one cargo run) and then fuzzes its targets one after another,
   # where 28 jobs each compiled the whole workspace and queued for the few shared Linux runner slots.
   fuzz:
     name: fuzz (shard ${{ matrix.shard }}/6)
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -146,3 +183,23 @@ jobs:
           name: crashes-${{ matrix.targets[6] }}
           path: fuzz/artifacts/${{ matrix.targets[6] }}/
           if-no-files-found: ignore
+
+  # Records a fully green scheduled run for this commit; `plan` skips the next scheduled run while main is unchanged.
+  # Never runs when anything failed, so a red commit is retried every night.
+  nightly-mark:
+    name: nightly-mark
+    needs: [fuzz]
+    if: github.event_name == 'schedule' && success()
+    runs-on: ubuntu-latest
+    container:
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
+    steps:
+      - name: Marker file
+        run: |
+          mkdir -p .nightly-green
+          echo "${{ github.sha }}" > .nightly-green/sha
+
+      - uses: actions/cache/save@v4
+        with:
+          path: .nightly-green
+          key: fuzz-nightly-green-${{ github.sha }}
