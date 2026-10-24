@@ -255,9 +255,9 @@ describe('dropped plugin packages', () => {
     expect(await drop!(['/l/app.log', '/p/web.debriefplugin', '/p/update.DEBRIEFPLUGIN'])).toEqual(['/p/web.debriefplugin', '/p/update.DEBRIEFPLUGIN']);
     expect(showView).toHaveBeenCalledWith('plugins');
     expect(store.review()?.path).toBe('/p/web.debriefplugin');
-    // The review dialog opened (its effect runs on the next tick).
-    await settle();
-    expect(TestBed.inject(DialogService).stack().map((d) => d.component)).toEqual([PackageReviewDialog]);
+    // The review dialog opens once its code is loaded (lazy, perf/startup): wait for it, not for a number of ticks
+    // (a slow CI machine needed more than settle's rounds).
+    await vi.waitFor(() => expect(TestBed.inject(DialogService).stack().map((d) => d.component)).toEqual([PackageReviewDialog]), { timeout: 10_000 });
   });
 });
 
