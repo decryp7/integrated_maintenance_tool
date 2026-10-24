@@ -13123,28 +13123,35 @@
         <source>Restart</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/health/service-health.types.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">74</context>
         </context-group>
       </trans-unit>
       <trans-unit id="health.repair.liftQuarantine" datatype="html">
         <source>Allow again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/health/service-health.types.ts</context>
-          <context context-type="linenumber">73</context>
+          <context context-type="linenumber">76</context>
         </context-group>
       </trans-unit>
       <trans-unit id="health.repair.install" datatype="html">
         <source>Install</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/health/service-health.types.ts</context>
-          <context context-type="linenumber">75</context>
+          <context context-type="linenumber">78</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="health.repair.openSettings" datatype="html">
+        <source>Open Settings…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/health/service-health.types.ts</context>
+          <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
       <trans-unit id="health.repair.tryAgain" datatype="html">
         <source>Try again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/health/service-health.types.ts</context>
-          <context context-type="linenumber">78</context>
+          <context context-type="linenumber">83</context>
         </context-group>
       </trans-unit>
       <trans-unit id="health.state.quarantined" datatype="html">
@@ -13200,21 +13207,21 @@
         <source>Technical details</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/health/service-status-chip.ts</context>
-          <context context-type="linenumber">68</context>
+          <context context-type="linenumber">70</context>
         </context-group>
       </trans-unit>
       <trans-unit id="health.chip.one" datatype="html">
         <source><x id="name" equiv-text="shortName(p.label)"/>: <x id="state" equiv-text="stateWord(p.state)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/health/service-status-chip.ts</context>
-          <context context-type="linenumber">102</context>
+          <context context-type="linenumber">105</context>
         </context-group>
       </trans-unit>
       <trans-unit id="health.chip.many" datatype="html">
         <source><x id="count" equiv-text="ps.length"/> services need attention</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/health/service-status-chip.ts</context>
-          <context context-type="linenumber">104</context>
+          <context context-type="linenumber">107</context>
         </context-group>
       </trans-unit>
       <trans-unit id="health.waitingFor" datatype="html">
@@ -20308,32 +20315,39 @@
           <context context-type="linenumber">51</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="notifications.action.openSettings" datatype="html">
+        <source>Open Settings…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
+          <context context-type="linenumber">53</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="notifications.action.jobCleared" datatype="html">
         <source>This job was cleared from Jobs; the outcome above is all that is kept.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">85</context>
+          <context context-type="linenumber">87</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.action.failed" datatype="html">
         <source>That did not work.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">111</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.action.setUpFormatTitle" datatype="html">
         <source>Set up format</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">140</context>
+          <context context-type="linenumber">142</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.action.fixTimestampsTitle" datatype="html">
         <source>Fix timestamps</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/notifications/notice-actions.ts</context>
-          <context context-type="linenumber">149</context>
+          <context context-type="linenumber">151</context>
         </context-group>
       </trans-unit>
       <trans-unit id="notifications.panel.filters" datatype="html">

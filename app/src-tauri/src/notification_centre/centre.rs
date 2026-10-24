@@ -126,6 +126,10 @@ pub enum NoticeAction {
     RepairService {
         service: String,
     },
+    /// Opens Settings at `section` (a service fixed by the user's choice there, e.g. Settings ▸ Web browser).
+    OpenSettings {
+        section: String,
+    },
 }
 
 /// One of Debrief's capped processes, as a message's action names it.
@@ -685,6 +689,10 @@ mod tests {
         assert_eq!(
             serde_json::to_value(NoticeAction::RepairService { service: "store".into() }).unwrap(),
             serde_json::json!({"type": "repairService", "service": "store"})
+        );
+        assert_eq!(
+            serde_json::to_value(NoticeAction::OpenSettings { section: "browser".into() }).unwrap(),
+            serde_json::json!({"type": "openSettings", "section": "browser"})
         );
     }
 }

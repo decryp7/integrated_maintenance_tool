@@ -35,6 +35,12 @@ export class NoServices implements ServiceHealthBackend {
  */
 export const RAISE_CAP = new InjectionToken<(cap: RaiseCap) => void | Promise<void>>('RAISE_CAP');
 
+/**
+ * Opens Settings at a section (the `openSettings` repair). The app provides it; without one the chip offers no button for
+ * that repair.
+ */
+export const OPEN_SETTINGS = new InjectionToken<(section: string) => void | Promise<void>>('OPEN_SETTINGS');
+
 export const SERVICE_HEALTH_BACKEND = new InjectionToken<ServiceHealthBackend>('SERVICE_HEALTH_BACKEND', {
   providedIn: 'root',
   factory: () => new NoServices(),

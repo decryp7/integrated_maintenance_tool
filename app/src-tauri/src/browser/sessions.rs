@@ -280,7 +280,6 @@ impl Renderers {
     }
 
     /// Every window's browser that was ever started, for health reports.
-    #[allow(dead_code)] // the service-health registry (ADR 0055) reads it
     pub fn snapshot(&self) -> Vec<(String, Lifecycle)> {
         let mut all: Vec<_> = crate::sync::lock(&self.inner.slots)
             .iter()

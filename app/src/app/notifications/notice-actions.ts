@@ -49,6 +49,8 @@ export function actionLabel(a: NoticeAction): string {
       return $localize`:@@notifications.action.skipAiUpdate:Skip this version`;
     case 'repairService':
       return $localize`:@@notifications.action.repairService:Try again`;
+    case 'openSettings':
+      return $localize`:@@notifications.action.openSettings:Open Settings…`;
   }
 }
 
@@ -179,6 +181,11 @@ export class NoticeActions {
       case 'repairService':
         await this.injector.get(ServiceHealthStore).repair(a.service);
         return null;
+      case 'openSettings': {
+        const { SettingsDialogService } = await import('../settings/settings-dialog');
+        await this.injector.get(SettingsDialogService).open(a.section);
+        return null;
+      }
       case 'showAlert': {
         const [{ AlertsStore }, { LiveAlerts }] = await Promise.all([import('../live/alerts.store'), import('../live/live-alerts')]);
         const entry = this.injector.get(AlertsStore).alerts().find((e) => e.alert.id === a.alertId);

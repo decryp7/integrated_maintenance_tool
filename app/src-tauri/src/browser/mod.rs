@@ -126,18 +126,7 @@ fn placement_of<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<chromium_
         .available_monitors()
         .unwrap_or_default()
         .iter()
-        .map(|m| {
-            let (wp, ws) = (m.work_area().position, m.work_area().size);
-            placement::Display {
-                work: placement::Rect {
-                    x: f64::from(wp.x),
-                    y: f64::from(wp.y),
-                    width: f64::from(ws.width),
-                    height: f64::from(ws.height),
-                },
-                scale: m.scale_factor(),
-            }
-        })
+        .map(crate::dialog_windows::monitor_rect)
         .collect();
     placement::place(&owner_rect, &displays)
 }
@@ -235,6 +224,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     let renderers = renderers(app).unwrap_or_default();
     let a = app.clone();
     renderers.listen(Arc::new(move |owner, life| emit(&a, owner, BrowserEvent::Lifecycle(life))));
+    watch_health(app, &renderers);
     let a = app.clone();
     renderers.set_placer(Arc::new(move |owner| placement_of(&a, owner)));
     runtime::refresh_sources(app, &hub);
@@ -248,6 +238,21 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     ) {
         log::warn!("Web browser settings not registered: {e:#}");
     }
+}
+
+/// Reports the browsers' life cycle to the `browser` service of service health (ADR 0055): now, and on every change.
+pub(crate) fn watch_health<R: Runtime>(app: &AppHandle<R>, renderers: &Arc<sessions::Renderers>) {
+    let report = {
+        let (app, renderers) = (app.clone(), Arc::downgrade(renderers));
+        move || {
+            let (Some(h), Some(r)) = (app.try_state::<Arc<crate::health::hub::Health>>(), renderers.upgrade()) else {
+                return;
+            };
+            h.browser_lifecycle(lifecycle::service_of(&r.snapshot()));
+        }
+    };
+    report();
+    renderers.listen(Arc::new(move |_, _| report()));
 }
 
 /// The managed state alone (the hub and the approvals), for [`init`] and tests.

@@ -39,6 +39,20 @@ struct Extra {
     plugin_caps: BTreeMap<String, u32>,
 }
 
+/// The Settings section of the research browser (`browser::SECTION`).
+pub const BROWSER_SETTINGS: &str = "browser";
+
+/// What the research browsers' life cycles mean for health, kept apart from the browser module's types.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BrowserService {
+    /// None running, running, or ended (by the user or Debrief): nothing is wrong.
+    Idle,
+    /// A browser is being started.
+    Starting,
+    /// The last start of a window's browser failed.
+    LaunchFailed,
+}
+
 /// What the AI worker's state means for health, kept apart from the AI module's DTO so this stays testable.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AiHealth {
@@ -265,6 +279,24 @@ impl Health {
         self.registry.ok(BROWSER);
     }
 
+    /// The research browsers' life cycle as one service state (see `browser::lifecycle::service_of`).
+    pub fn browser_lifecycle(&self, service: BrowserService) {
+        match service {
+            BrowserService::Idle => {
+                self.registry.ok(BROWSER);
+            }
+            BrowserService::Starting => {
+                self.registry.set(BROWSER, ServiceState::Starting, None, None);
+            }
+            BrowserService::LaunchFailed => {
+                let cause = Cause::new("The research browser could not be started.")
+                    .hint("Choose another browser, or download Chromium, in Settings ▸ Web browser. The log has the details.")
+                    .settings(BROWSER_SETTINGS);
+                self.registry.down(BROWSER, cause, Some(RepairAction::OpenSettings));
+            }
+        }
+    }
+
     // ---- downloads ----
 
     /// A download (model, runtime) failed; `job` is the job to run again.
@@ -334,6 +366,10 @@ impl Health {
         let action = current
             .repair
             .ok_or_else(|| format!("nothing repairs {} from here", current.label))?;
+        if action == RepairAction::OpenSettings {
+            // The UI opens the section; the shell has nothing to run.
+            return Err(format!("{} is fixed in Settings", current.label));
+        }
         if !lock(&self.repairs).contains_key(id) {
             return Err(format!("nothing repairs {} from here", current.label));
         }

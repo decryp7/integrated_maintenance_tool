@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, vi } from 'vitest';
 import { all, el, settle, text } from '../../testing/helpers';
 import { MockServiceHealth } from '../core/service-health/mock-service-health.backend';
-import { RAISE_CAP, SERVICE_HEALTH_BACKEND } from './service-health.backend';
+import { OPEN_SETTINGS, RAISE_CAP, SERVICE_HEALTH_BACKEND } from './service-health.backend';
 import { ServiceHealthStore } from './service-health.store';
 import { ServiceStatusChip, shortName } from './service-status-chip';
 import { WaitingFor } from './waiting-for';
@@ -130,5 +130,36 @@ describe('ServiceStatusChip with a memory cap stop', () => {
   it('offers no Raise the cap… where the app cannot open the setting', async () => {
     await capSetup(null);
     expect(document.querySelector('[data-testid=service-health-raise-cap-store]')).toBeNull();
+  });
+});
+
+describe('ServiceStatusChip with a repair in Settings', () => {
+  async function settingsSetup(open: ((section: string) => void) | null) {
+    const mock = new MockServiceHealth();
+    TestBed.configureTestingModule({
+      providers: [{ provide: SERVICE_HEALTH_BACKEND, useValue: mock }, ...(open ? [{ provide: OPEN_SETTINGS, useValue: open }] : [])],
+    });
+    const fixture = TestBed.createComponent(ServiceStatusChip);
+    await settle(fixture);
+    mock.fail('browser', { message: 'The research browser could not be started.', hint: 'Choose another browser in Settings ▸ Web browser.', detail: null, settings: 'browser' }, 'openSettings');
+    await settle(fixture);
+    el<HTMLButtonElement>(fixture, '[data-testid=service-health-chip]').click();
+    await settle(fixture);
+    return { fixture, mock };
+  }
+
+  it('opens Settings at the section instead of asking the shell to repair', async () => {
+    const open = vi.fn();
+    const { mock } = await settingsSetup(open);
+    const button = document.querySelector('[data-testid=service-health-repair-browser]') as HTMLButtonElement;
+    expect(button.textContent?.trim()).toBe('Open Settings…');
+    button.click();
+    expect(open).toHaveBeenCalledWith('browser');
+    expect(mock.repairs).toEqual([]);
+  });
+
+  it('offers no button where the app cannot open Settings', async () => {
+    await settingsSetup(null);
+    expect(document.querySelector('[data-testid=service-health-repair-browser]')).toBeNull();
   });
 });

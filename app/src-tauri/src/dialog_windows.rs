@@ -322,7 +322,8 @@ fn outer_rect<R: Runtime>(w: &Window<R>) -> Option<Rect> {
     })
 }
 
-fn monitor_rect(m: &tauri::Monitor) -> Monitor {
+/// A monitor's work area and scale as the placement policy reads them (also the research browser's placement).
+pub(crate) fn monitor_rect(m: &tauri::Monitor) -> Monitor {
     let a = m.work_area();
     Monitor {
         work: Rect {
@@ -599,8 +600,7 @@ pub fn close_requested<R: Runtime>(app: &AppHandle<R>, label: &str) -> bool {
 
 /// The window watchdog (ADR 0058) found a dialog's page not answering, or answering again. A required-choice dialog
 /// whose page hangs can then be closed by the OS close (rule 19: the way out never depends on the hung page).
-// TODO(integration): the startup watchdog of fix/blank-start calls this when it decides a dialog page is unresponsive.
-#[cfg_attr(not(test), allow(dead_code))]
+/// Called by [`crate::startup_watchdog`] (`gave_up`, `answered`).
 pub fn page_unresponsive<R: Runtime>(app: &AppHandle<R>, label: &str, unresponsive: bool) {
     if let Some(d) = app.try_state::<Dialogs>() {
         if let Some(e) = d.lock().get_mut(label) {
@@ -1140,9 +1140,7 @@ mod tests {
     fn a_required_choice_modal_whose_page_hangs_can_still_be_closed() {
         let app = app();
         let h = app.handle().clone();
-        let mut required = request("close-prompt", Modality::Modal);
-        required.required_choice = true;
-        open(&h, MAIN, required).unwrap();
+        open(&h, MAIN, request("close-prompt")).unwrap();
         assert!(!close_requested(&h, "d-main-1"), "a live page keeps its required choice");
         // The window watchdog decided the page does not answer: nothing could ever answer the choice.
         page_unresponsive(&h, "d-main-1", true);
@@ -1151,6 +1149,18 @@ mod tests {
         page_unresponsive(&h, "d-main-1", false);
         assert!(!close_requested(&h, "d-main-1"));
         page_unresponsive(&h, "d-main-9", true);
+    }
+
+    #[test]
+    fn the_startup_watchdog_giving_up_on_a_required_choice_lets_the_os_close_end_it() {
+        let app = app();
+        let h = app.handle().clone();
+        open(&h, MAIN, request("close-prompt")).unwrap();
+        assert!(!close_requested(&h, "d-main-1"));
+        crate::startup_watchdog::gave_up(&h, "d-main-1");
+        assert!(close_requested(&h, "d-main-1"), "the watchdog gave up: the OS close ends it");
+        crate::startup_watchdog::answered(&h, "d-main-1");
+        assert!(!close_requested(&h, "d-main-1"), "ready again: the choice is required again");
     }
 
     #[test]

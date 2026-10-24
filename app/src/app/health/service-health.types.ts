@@ -7,7 +7,8 @@
 export type ServiceState = 'ok' | 'starting' | 'degraded' | 'down' | 'quarantined' | 'repairing';
 
 /** What the shell can do to bring a service back; it never goes through the service itself. */
-export type RepairAction = 'restart' | 'reset' | 'liftQuarantine' | 'install' | 'retry';
+/** `openSettings` is the UI's own: it opens the Settings section the cause names (`HealthCause.settings`). */
+export type RepairAction = 'restart' | 'reset' | 'liftQuarantine' | 'install' | 'retry' | 'openSettings';
 
 /** A memory cap stopped the process: the user can raise it (the UI opens the setting with this value). */
 export interface RaiseCap {
@@ -25,6 +26,8 @@ export interface HealthCause {
   detail: string | null;
   /** Set when a memory cap stopped the process: "Raise the cap…" is offered next to the repair. */
   raiseCap: RaiseCap | null;
+  /** With the `openSettings` repair: the Settings section that fixes it (e.g. `browser`, Settings ▸ Web browser). */
+  settings?: string | null;
 }
 
 export interface ServiceHealth {
@@ -73,6 +76,8 @@ export function repairLabel(action: RepairAction): string {
       return $localize`:@@health.repair.liftQuarantine:Allow again`;
     case 'install':
       return $localize`:@@health.repair.install:Install`;
+    case 'openSettings':
+      return $localize`:@@health.repair.openSettings:Open Settings…`;
     case 'reset':
     case 'retry':
       return $localize`:@@health.repair.tryAgain:Try again`;

@@ -31,7 +31,9 @@ export type NoticeAction =
   | { type: 'laterAiUpdate'; key: string }
   | { type: 'skipAiUpdate'; key: string }
   /** Repairs a service from the shell (`health_repair`). */
-  | { type: 'repairService'; service: string };
+  | { type: 'repairService'; service: string }
+  /** Opens Settings at `section` (a service the user fixes there, e.g. Settings ▸ Web browser). */
+  | { type: 'openSettings'; section: string };
 
 export interface NoticeLink {
   window: string | null;

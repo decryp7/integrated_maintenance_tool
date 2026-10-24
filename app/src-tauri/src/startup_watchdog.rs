@@ -276,9 +276,21 @@ fn apply<R: Runtime>(app: &AppHandle<R>, action: Action) {
         }
         Action::Recover(label) => {
             log::error!(Window = label.as_str(); "Window {label} did not start after a reload; asking the user");
+            gave_up(app, &label);
             crate::ui_dispatch::run(app, move |app| ask(app, label));
         }
     }
+}
+
+/// The watchdog gave up on window `label`'s page: a dialog whose page cannot answer may then be closed by the OS close
+/// (a required choice included; rule 19).
+pub fn gave_up<R: Runtime>(app: &AppHandle<R>, label: &str) {
+    crate::dialog_windows::page_unresponsive(app, label, true);
+}
+
+/// Window `label`'s page reported ready: it answers again, so a dialog keeps its own close rules.
+pub fn answered<R: Runtime>(app: &AppHandle<R>, label: &str) {
+    crate::dialog_windows::page_unresponsive(app, label, false);
 }
 
 /// What the user chose in the "not responding" dialog.
@@ -358,6 +370,7 @@ fn ask<R: Runtime>(app: &AppHandle<R>, label: String) {
 pub async fn window_ready<R: Runtime>(webview: tauri::Webview<R>, dog: tauri::State<'_, StartupWatchdog>) -> crate::CmdResult<ReadyReply> {
     let label = webview.label().to_string();
     let reply = dog.checkpoints(|c| dog.with(|w| ready_reply(w, c, &label)));
+    answered(webview.app_handle(), &label);
     log::info!(Window = label.as_str(), Recovered = format!("{:?}", reply.recovered), RestoresUi = reply.ui.is_some(); "Window {label} ready");
     Ok(reply)
 }

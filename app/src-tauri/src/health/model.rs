@@ -53,6 +53,9 @@ pub enum RepairAction {
     Install,
     /// Run the failed work again.
     Retry,
+    /// Open the Settings section named by the cause (`settings`): what fixes it is the user's choice there (another
+    /// browser, a download), so the UI opens it instead of asking the shell.
+    OpenSettings,
 }
 
 /// Advice to raise a memory cap that stopped a process: the UI offers "Raise the cap…" (it opens the setting with this value;
@@ -77,6 +80,9 @@ pub struct Cause {
     pub detail: Option<String>,
     /// Set when a memory cap stopped the process: the UI offers "Raise the cap…" next to the repair.
     pub raise_cap: Option<RaiseCap>,
+    /// The Settings section that fixes it (with [`RepairAction::OpenSettings`]).
+    #[serde(default)]
+    pub settings: Option<String>,
 }
 
 impl Cause {
@@ -86,6 +92,7 @@ impl Cause {
             hint: None,
             detail: None,
             raise_cap: None,
+            settings: None,
         }
     }
 
@@ -94,6 +101,12 @@ impl Cause {
             target: target.into(),
             suggested_mb,
         });
+        self
+    }
+
+    /// The Settings section that fixes it.
+    pub fn settings(mut self, section: impl Into<String>) -> Cause {
+        self.settings = Some(section.into());
         self
     }
 

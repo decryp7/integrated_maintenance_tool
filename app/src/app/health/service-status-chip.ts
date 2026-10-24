@@ -1,6 +1,6 @@
 import { CdkConnectedOverlay, CdkOverlayOrigin, ConnectedPosition } from '@angular/cdk/overlay';
 import { ChangeDetectionStrategy, Component, computed, inject, linkedSignal } from '@angular/core';
-import { RAISE_CAP } from './service-health.backend';
+import { OPEN_SETTINGS, RAISE_CAP } from './service-health.backend';
 import { ServiceHealthStore } from './service-health.store';
 import { RaiseCap, repairLabel, ServiceHealth, ServiceState } from './service-health.types';
 
@@ -62,7 +62,9 @@ function stateWord(state: ServiceState): string {
               @if (s.state === 'repairing') {
                 <span class="hint" role="status" i18n="@@health.chip.repairing">Repairing…</span>
               } @else if (s.repair; as action) {
-                <button type="button" class="btn" [attr.data-testid]="'service-health-repair-' + s.service" (click)="repair(s)">{{ label(action) }}</button>
+                @if (canRepair(s)) {
+                  <button type="button" class="btn" [attr.data-testid]="'service-health-repair-' + s.service" (click)="repair(s)">{{ label(action) }}</button>
+                }
               }
               @if (s.cause?.detail; as detail) {
                 <details><summary i18n="@@health.chip.technical">Technical details</summary><code class="debrief-selectable">{{ detail }}</code></details>
@@ -90,6 +92,7 @@ export class ServiceStatusChip {
   private readonly store = inject(ServiceHealthStore);
   private readonly raiseCap = inject(RAISE_CAP, { optional: true });
   protected readonly canRaise = !!this.raiseCap;
+  private readonly openSettings = inject(OPEN_SETTINGS, { optional: true });
   protected readonly problems = this.store.problems;
   /** Opens by itself when a "Waiting for ..." link asks (`showDetails`). */
   protected readonly open = linkedSignal<number, boolean>({ source: () => this.store.detailsRequested(), computation: (_n, prev) => prev !== undefined });
@@ -110,7 +113,17 @@ export class ServiceStatusChip {
     void this.raiseCap?.(cap);
   }
 
+  /** Whether this window can run the service's repair: the shell runs every one but `openSettings`, which needs the app's opener. */
+  protected canRepair(s: ServiceHealth): boolean {
+    return s.repair !== 'openSettings' || (!!this.openSettings && !!s.cause?.settings);
+  }
+
   protected repair(s: ServiceHealth): void {
+    const section = s.cause?.settings;
+    if (s.repair === 'openSettings') {
+      if (section) void this.openSettings?.(section);
+      return;
+    }
     void this.store.repair(s.service);
   }
 }

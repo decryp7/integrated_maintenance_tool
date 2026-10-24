@@ -2,7 +2,7 @@
 //! transition raises (one, with the cause `health:<service>`), the two commands and the status probes.
 
 use super::hub::{self, AiHealth, Health, StoreProbe, AI, BROWSER, DOWNLOADS, PLUGINS, STORE};
-use super::model::{cause_key, Cause, Change, ServiceState, Snapshot, SERVICE_HEALTH_EVENT};
+use super::model::{cause_key, Cause, Change, RepairAction, ServiceState, Snapshot, SERVICE_HEALTH_EVENT};
 use crate::ai::EngineStateDto;
 use crate::app_state::AppState;
 use crate::notification_centre::centre::{NewNotice, NoticeAction, NoticeScope, NoticeSeverity, NoticeSource};
@@ -36,10 +36,16 @@ pub fn notice_for(snapshot: &Snapshot, change: &Change) -> Option<NewNotice> {
         NoticeScope::App,
     )
     .body(cause.hint.clone().unwrap_or_default());
-    if entry.repair.is_some() {
-        n = n.primary(NoticeAction::RepairService {
-            service: entry.service.clone(),
-        });
+    match (entry.repair, &cause.settings) {
+        (Some(RepairAction::OpenSettings), Some(section)) => {
+            n = n.primary(NoticeAction::OpenSettings { section: section.clone() });
+        }
+        (Some(RepairAction::OpenSettings), None) | (None, _) => {}
+        (Some(_), _) => {
+            n = n.primary(NoticeAction::RepairService {
+                service: entry.service.clone(),
+            });
+        }
     }
     Some(n)
 }

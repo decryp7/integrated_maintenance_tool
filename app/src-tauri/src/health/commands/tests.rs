@@ -246,3 +246,29 @@ fn a_real_store_worker_killed_over_and_over_is_quarantined_then_repair_restarts_
     }
     panic!("the store worker (pid {new_pid}) is still running after shutdown");
 }
+
+#[test]
+fn a_browser_that_could_not_start_is_one_error_whose_button_opens_settings_web_browser() {
+    let h = Health::new(Box::new(|_, _| {}));
+    h.browser_lifecycle(hub::BrowserService::LaunchFailed);
+    let snapshot = h.snapshot();
+    let entry = snapshot.services.iter().find(|s| s.service == BROWSER).unwrap();
+    assert_eq!((entry.state, entry.repair), (ServiceState::Down, Some(RepairAction::OpenSettings)));
+    let change = Change {
+        service: BROWSER.into(),
+        from: ServiceState::Ok,
+        to: ServiceState::Down,
+    };
+    let n = notice_for(&snapshot, &change).unwrap();
+    assert_eq!(n.cause, "health:browser");
+    assert_eq!(n.primary, Some(NoticeAction::OpenSettings { section: "browser".into() }));
+    assert_eq!(hub::BROWSER_SETTINGS, crate::browser::SECTION);
+    // The shell has nothing to run for it: the UI opens the section.
+    assert!(h.begin_repair(BROWSER).is_err());
+    assert_eq!(h.state(BROWSER), Some(ServiceState::Down));
+    // Starting again is not an outage; ready, closed or ended by the user is fine.
+    h.browser_lifecycle(hub::BrowserService::Starting);
+    assert_eq!(h.state(BROWSER), Some(ServiceState::Starting));
+    h.browser_lifecycle(hub::BrowserService::Idle);
+    assert_eq!(h.state(BROWSER), Some(ServiceState::Ok));
+}

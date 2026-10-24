@@ -91,6 +91,23 @@ impl Lifecycle {
     };
 }
 
+/// What every window's browser life cycle means for the `browser` service (ADR 0055): a start under way is
+/// `starting`; else a window whose last start failed is down (fixed in Settings ▸ Web browser); anything else (none,
+/// ready, closing, or ended by the user or Debrief) is fine.
+pub fn service_of(all: &[(String, Lifecycle)]) -> crate::health::hub::BrowserService {
+    use crate::health::hub::BrowserService;
+    if all.iter().any(|(_, l)| l.phase == Phase::Launching) {
+        return BrowserService::Starting;
+    }
+    let failed = Phase::Gone {
+        reason: GoneReason::LaunchFailed,
+    };
+    if all.iter().any(|(_, l)| l.phase == failed) {
+        return BrowserService::LaunchFailed;
+    }
+    BrowserService::Idle
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -135,6 +152,43 @@ mod tests {
         ] {
             assert!(!from.may_become(to), "{from:?} → {to:?}");
         }
+    }
+
+    #[test]
+    fn the_browser_service_follows_the_windows_life_cycles() {
+        use crate::health::hub::BrowserService::*;
+        let one = |phase: Phase| vec![("main".to_string(), Lifecycle { phase, kept: false })];
+        assert_eq!(service_of(&[]), Idle);
+        assert_eq!(service_of(&one(Phase::None)), Idle);
+        assert_eq!(service_of(&one(Phase::Launching)), Starting);
+        assert_eq!(service_of(&one(Phase::Ready)), Idle);
+        assert_eq!(service_of(&one(Phase::Closing)), Idle);
+        for reason in [
+            GoneReason::WindowClosed,
+            GoneReason::Exited,
+            GoneReason::Disconnected,
+            GoneReason::Ended,
+        ] {
+            assert_eq!(
+                service_of(&one(Phase::Gone { reason })),
+                Idle,
+                "{reason:?}: the user or Debrief ended it"
+            );
+        }
+        let failed = Phase::Gone {
+            reason: GoneReason::LaunchFailed,
+        };
+        assert_eq!(service_of(&one(failed)), LaunchFailed);
+        // Another window starting its browser is a new attempt: starting, not down.
+        let mut both = one(failed);
+        both.push((
+            "w-2".into(),
+            Lifecycle {
+                phase: Phase::Launching,
+                kept: false,
+            },
+        ));
+        assert_eq!(service_of(&both), Starting);
     }
 
     #[test]

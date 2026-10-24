@@ -38,7 +38,7 @@ impl Rect {
         r.x >= self.x && r.y >= self.y && r.right() <= self.right() && r.bottom() <= self.bottom()
     }
 
-    fn is_usable(&self) -> bool {
+    pub(crate) fn is_usable(&self) -> bool {
         [self.x, self.y, self.width, self.height].iter().all(|v| v.is_finite()) && self.width > 0.0 && self.height > 0.0
     }
 

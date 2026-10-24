@@ -1,5 +1,5 @@
 import { EnvironmentProviders, inject, Injector, makeEnvironmentProviders } from '@angular/core';
-import { RAISE_CAP, ServiceHealthBackend, SERVICE_HEALTH_BACKEND, Unlisten } from '../../health/service-health.backend';
+import { OPEN_SETTINGS, RAISE_CAP, ServiceHealthBackend, SERVICE_HEALTH_BACKEND, Unlisten } from '../../health/service-health.backend';
 import { HealthSnapshot, RaiseCap } from '../../health/service-health.types';
 import { isTauri } from '../platform';
 import { TauriServiceHealthBackend } from './tauri-service-health.backend';
@@ -33,6 +33,14 @@ export function provideServiceHealth(): EnvironmentProviders {
       useFactory: () => {
         const injector = inject(Injector);
         return async (cap: RaiseCap) => (await import('../../settings/performance/memory-actions')).raiseCapOfHealth(injector, cap);
+      },
+    },
+    {
+      // The `openSettings` repair (e.g. the research browser that could not start): Settings at the section that fixes it.
+      provide: OPEN_SETTINGS,
+      useFactory: () => {
+        const injector = inject(Injector);
+        return async (section: string) => injector.get((await import('../../settings/settings-dialog')).SettingsDialogService).open(section);
       },
     },
   ]);

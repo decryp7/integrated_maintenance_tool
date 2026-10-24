@@ -7,88 +7,28 @@
 //! display's physical pixels divided by its scale (points on macOS; device-independent pixels elsewhere, where the
 //! browser's own layout of mixed-scale displays may differ by a little, but the window lands on the right display).
 //!
-//! TODO(integration): pick the display with `dialog_placement::monitor_of` (ADR 0054, feat/dialog-kinds) once it is
-//! merged, so dialogs and the browser follow one rule.
+//! The display is chosen by [`crate::dialog_placement::monitor_of`], the rule dialogs follow too (ADR 0054), so a
+//! dialog and the browser started from the same window open on the same display.
 
 use chromium_driver::WindowBounds;
 
-/// A rectangle in physical screen pixels.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Rect {
-    pub x: f64,
-    pub y: f64,
-    pub width: f64,
-    pub height: f64,
-}
-
-impl Rect {
-    fn right(&self) -> f64 {
-        self.x + self.width
-    }
-
-    fn bottom(&self) -> f64 {
-        self.y + self.height
-    }
-
-    fn usable(&self) -> bool {
-        [self.x, self.y, self.width, self.height].iter().all(|v| v.is_finite()) && self.width > 0.0 && self.height > 0.0
-    }
-
-    fn overlap(&self, r: &Rect) -> f64 {
-        let w = (self.right().min(r.right()) - self.x.max(r.x)).max(0.0);
-        let h = (self.bottom().min(r.bottom()) - self.y.max(r.y)).max(0.0);
-        w * h
-    }
-}
-
-/// A display's usable area (without menu bar, dock or task bar), physical px, and its scale factor.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Display {
-    pub work: Rect,
-    pub scale: f64,
-}
-
-impl Display {
-    fn scale(&self) -> f64 {
-        if self.scale.is_finite() && self.scale > 0.0 {
-            self.scale
-        } else {
-            1.0
-        }
-    }
-}
+pub use crate::dialog_placement::{Monitor as Display, Rect};
 
 /// The browser window's size when the display has room (logical px).
 pub const WANTED: (f64, f64) = (1100.0, 800.0);
 /// The most of the display's work area it takes.
 const SHARE: f64 = 0.9;
 
-/// The display the owner window is on: the one it overlaps most; when it overlaps none, the nearest one.
-pub fn display_of(owner: &Rect, displays: &[Display]) -> Option<usize> {
-    let usable = || displays.iter().enumerate().filter(|(_, d)| d.work.usable());
-    let (best, d) = usable().max_by(|a, b| a.1.work.overlap(owner).total_cmp(&b.1.work.overlap(owner)))?;
-    if d.work.overlap(owner) > 0.0 {
-        return Some(best);
-    }
-    let (cx, cy) = (owner.x + owner.width / 2.0, owner.y + owner.height / 2.0);
-    let distance = |d: &Display| {
-        let dx = (d.work.x - cx).max(cx - d.work.right()).max(0.0);
-        let dy = (d.work.y - cy).max(cy - d.work.bottom()).max(0.0);
-        dx * dx + dy * dy
-    };
-    usable().min_by(|a, b| distance(a.1).total_cmp(&distance(b.1))).map(|(i, _)| i)
-}
-
 /// Where the browser window opens for an owner window at `owner`; `None` when no display is known (the browser then
 /// chooses, as before).
 pub fn place(owner: &Rect, displays: &[Display]) -> Option<WindowBounds> {
-    let d = displays[display_of(owner, displays)?];
+    let d = displays[crate::dialog_placement::monitor_of(owner, displays)?];
     let s = d.scale();
     let (wx, wy, ww, wh) = (d.work.x / s, d.work.y / s, d.work.width / s, d.work.height / s);
     let w = WANTED.0.min(ww * SHARE).floor();
     let h = WANTED.1.min(wh * SHARE).floor();
     // Centred on the owner (clamped to the display), else on the display when the owner is elsewhere.
-    let (cx, cy) = if owner.usable() {
+    let (cx, cy) = if owner.is_usable() {
         ((owner.x + owner.width / 2.0) / s, (owner.y + owner.height / 2.0) / s)
     } else {
         (wx + ww / 2.0, wy + wh / 2.0)

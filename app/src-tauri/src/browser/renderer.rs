@@ -312,6 +312,40 @@ mod tests {
             (dir, s.pid().unwrap())
         }
 
+        #[test]
+        fn service_health_follows_the_browser_life_cycle() {
+            use crate::health::{hub::Health, model::RepairAction, model::ServiceState};
+            use tauri::Manager;
+            let app = crate::test_support::test_app(None);
+            let r = rig(Mode::Obey, 1);
+            crate::browser::watch_health(app.handle(), &r.renderers);
+            let health = app.state::<Arc<Health>>().inner().clone();
+            let browser = || health.snapshot().services.into_iter().find(|s| s.service == "browser").unwrap();
+            assert_eq!(browser().state, ServiceState::Ok, "nothing started: fine");
+            research_step(&r);
+            assert_eq!(browser().state, ServiceState::Ok, "ready");
+            // A start that fails (the chosen browser is not one): down, fixed in Settings ▸ Web browser.
+            r.renderers.kill("main");
+            let not_a_browser = r._dir.path().join("not-a-browser.txt");
+            std::fs::write(&not_a_browser, "text").unwrap();
+            r.renderers.set_sources(Sources {
+                configured: Some(not_a_browser),
+                installed: None,
+            });
+            assert!(r.renderers.session_in("main", &Lease::default()).is_err());
+            let b = browser();
+            assert_eq!((b.state, b.repair), (ServiceState::Down, Some(RepairAction::OpenSettings)));
+            assert_eq!(b.cause.and_then(|c| c.settings).as_deref(), Some(crate::browser::SECTION));
+            // The user fixes it there; the next start works and the outage is over.
+            r.renderers.set_sources(Sources {
+                configured: Some(r.fake.exe.clone()),
+                installed: None,
+            });
+            research_step(&r);
+            assert_eq!(browser().state, ServiceState::Ok);
+            r.renderers.kill_all();
+        }
+
         fn gone(pid: u32) -> bool {
             (0..40).any(|_| {
                 std::thread::sleep(Duration::from_millis(50));
