@@ -35,7 +35,7 @@ test.describe('tab overflow list', () => {
     expect(await topmostIsInside(page, '.dv-tabs-overflow-container')).toBe(true);
     // Whichever tab the strip's width hides first (the width is the plan's, not this test's).
     const hidden = list(page).locator('.dv-tab').first();
-    const name = ((await hidden.innerText()) ?? '').replace(/[▾×📌]/g, '').trim();
+    const name = ((await hidden.innerText()) ?? '').replace(/[▾×]/g, '').replace('📌', '').trim();
     await hidden.click();
     await expect(list(page)).toHaveCount(0);
     await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
