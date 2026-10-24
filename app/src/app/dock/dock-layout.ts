@@ -39,6 +39,8 @@ const NO_SLOT: DockSlot = { referencePanel: null, direction: 'within' };
 export class DockLayout {
   private readonly ctx = inject(DockContext);
   private readonly lazy = inject(Injector);
+  /** Panels in the order they were last opened (newest first): a view opened in the background was still used just now. */
+  private opened: string[] = [];
 
   /**
    * The views as the planner sees them: the docked (not floating) panels, plus the views the plan auto-hid earlier
@@ -73,8 +75,9 @@ export class DockLayout {
   /** How recently the user worked with a panel: just opened is the latest, else its place in the most-recently-used list. */
   private recencyOf(id: string, fresh: readonly string[]): { recency?: number } {
     if (fresh.includes(id)) return { recency: 0 };
-    const at = this.ctx.mru.indexOf(id);
-    return at >= 0 ? { recency: at } : {};
+    // Opened in the background (never activated) still counts as used just now: the later of "opened" and "activated".
+    const at = [this.opened.indexOf(id), this.ctx.mru.indexOf(id)].filter((i) => i >= 0);
+    return at.length ? { recency: Math.min(...at) } : {};
   }
 
   /** What the user asked for: the sizes they dragged views to (never the sizes a fit gave them). */
@@ -107,6 +110,7 @@ export class DockLayout {
    * planned sizes. Returns the plan, or null when the dock is not measured yet (groups are still constrained).
    */
   fit(api: DockviewApi, options: FitOptions = {}): LayoutPlan | null {
+    if (options.fresh?.length) this.opened = [...options.fresh, ...this.opened.filter((id) => !options.fresh!.includes(id))].slice(0, 16);
     const plan = this.plan(api, options.fresh);
     if (plan) this.displace(api, plan, options);
     this.constrain(api);
