@@ -42,6 +42,8 @@ export interface OpenView {
   row?: string;
   /** Views in the same dock group (tabs of one group) give the same key; groups of one row sit side by side. Default: the view's own id. */
   group?: string;
+  /** How recently the user worked with the view: 0 is the latest, absent is unknown (a view that is not tracked, e.g. the Explorer). */
+  recency?: number;
 }
 
 /** Sizes the user or a saved layout asked for; they replace `pref` (still clamped to `min`). */
@@ -167,15 +169,61 @@ export function fitAxis(items: readonly Item[], total: number): Fit {
   }
 }
 
-function hinted(v: OpenView, hints: SavedHints | undefined, axis: keyof Size): number {
+/**
+ * Usability shares (ADR 0056, amendment 2026-10-24): rules about how much of the window a kind of view asks for by
+ * default. They cap the declared `pref` (never `min`, never a size the user asked for), so the events grid and the
+ * timeline plot keep the room.
+ */
+export const SHARES = {
+  /** A side tool the user is working with outranks an idle document column of similar rank: priority + (this - recency * step), below the main views. */
+  recencyBonus: 24,
+  recencyStep: 8,
+  /** A boosted view never reaches the main column's priority. */
+  recencyCeiling: 89,
+  /** A full-height column (Home, Registry) and a document beside the timeline take at most this share of the window width. */
+  width: 0.4,
+  /** A document beside the timeline takes at most this share of the window height (the events grid keeps the rest). */
+  documentHeight: 0.4,
+  /** The timeline row's height once an analysis row shares the column, px (the events grid keeps the rest). */
+  compactRowHeight: 210,
+} as const;
+
+/** The size a view asks for: what the user dragged it to, else its declared `pref` capped at `cap`; never under `min`. */
+function hinted(v: OpenView, hints: SavedHints | undefined, axis: keyof Size, cap = Infinity): number {
   const asked = hints?.sizes?.[v.id]?.[axis];
-  const pref = typeof asked === 'number' && Number.isFinite(asked) ? asked : v.layout.pref[axis];
+  const pref = typeof asked === 'number' && Number.isFinite(asked) ? asked : Math.min(v.layout.pref[axis], cap);
   return Math.max(v.layout.min[axis], pref);
+}
+
+/**
+ * The widths the main column would need to show the first n groups of every row side by side, widest row first, for
+ * n from the most groups in a row down to 2 (descending, so the most generous fit is tried first).
+ */
+function sideBySideNeeds(main: readonly OpenView[]): number[] {
+  const rows = new Map<string, Map<string, number>>();
+  for (const v of [...main].sort(byPriorityThenId)) {
+    const row = rows.get(v.row ?? v.id) ?? new Map<string, number>();
+    const g = v.group ?? v.id;
+    row.set(g, Math.max(row.get(g) ?? 0, v.layout.min.width));
+    rows.set(v.row ?? v.id, row);
+  }
+  const most = Math.max(0, ...[...rows.values()].map((r) => r.size));
+  const out: number[] = [];
+  for (let n = most; n >= 2; n--) out.push(Math.max(...[...rows.values()].map((r) => [...r.values()].slice(0, n).reduce((a, b) => a + b, 0))));
+  return out;
+}
+
+/** A side tool with its priority raised by how recently the user worked with it (see `SHARES`); other views are unchanged. */
+function withRecency(v: OpenView): OpenView {
+  if (v.recency === undefined || v.layout.area !== 'side') return v;
+  const bonus = Math.max(0, SHARES.recencyBonus - v.recency * SHARES.recencyStep);
+  const priority = Math.max(v.layout.priority, Math.min(SHARES.recencyCeiling, v.layout.priority + bonus));
+  return priority === v.layout.priority ? v : { ...v, layout: { ...v.layout, priority } };
 }
 
 /** The pure planner: where every open view goes in `viewport`, and what yields when there is no room. */
 export function planLayout(viewport: Size, open: readonly OpenView[], saved?: SavedHints): LayoutPlan {
-  const views = [...open].sort(byPriorityThenId);
+  const views = open.map(withRecency).sort(byPriorityThenId);
   const hidden: LayoutPlan['hidden'] = [];
   const tabbed: LayoutPlan['tabbed'] = [];
   const shrunk = new Set<string>();
@@ -199,13 +247,25 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
   }
 
   const kinds = (['left', 'main', 'full', 'side'] as const).filter((k) => groups[k].length);
-  const colItems: Item[] = kinds.map((k) => ({
-    key: k,
-    min: Math.max(...groups[k].map((v) => v.layout.min.width)),
-    pref: Math.max(...groups[k].map((v) => hinted(v, saved, 'width'))),
-    priority: Math.max(...groups[k].map((v) => v.layout.priority)),
-  }));
-  const colFit = fitAxis(colItems, Math.max(0, viewport.width));
+  const widthShare = Math.round(viewport.width * SHARES.width);
+  const colItems = (mainMin?: number): Item[] =>
+    kinds.map((k) => ({
+      key: k,
+      min: k === 'main' && mainMin !== undefined ? mainMin : Math.max(...groups[k].map((v) => v.layout.min.width)),
+      pref: Math.max(...groups[k].map((v) => hinted(v, saved, 'width', k === 'full' ? widthShare : Infinity))),
+      priority: Math.max(...groups[k].map((v) => v.layout.priority)),
+    }));
+  let colFit = fitAxis(colItems(), Math.max(0, viewport.width));
+  // The main column's minimum is the room its widest row needs side by side. A full-height column gives way to that (down
+  // to its own minimum) before a document is tabbed; but never at the price of dropping a column that stays without it.
+  const need = sideBySideNeeds(groups.main);
+  for (const n of need) {
+    const wide = fitAxis(colItems(n), Math.max(0, viewport.width));
+    if (!wide.overflow && wide.dropped.length === colFit.dropped.length) {
+      colFit = wide;
+      break;
+    }
+  }
   const anchorKind = colFit.anchor as ColumnKind | null;
   const anchorTarget = (): string | undefined => (anchorKind ? groups[anchorKind][0]?.id : undefined);
 
@@ -242,12 +302,17 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
         }
         rowViews.get(key)!.push(v);
       }
+      const analysisBelow = rowKeys.includes('analysis');
       const rowItems: Item[] = rowKeys.map((key) => {
         const vs = rowViews.get(key)!;
+        const shared = new Set(vs.map((v) => v.group ?? v.id)).size > 1;
+        const cap = shared ? Math.round(viewport.height * SHARES.documentHeight) : Infinity;
+        const compact = analysisBelow && key !== 'analysis' && key !== 'events';
+        const pref = Math.max(...vs.map((v) => hinted(v, saved, 'height', cap)));
         return {
           key,
           min: Math.max(...vs.map((v) => v.layout.min.height)),
-          pref: Math.max(...vs.map((v) => hinted(v, saved, 'height'))),
+          pref: compact ? Math.max(Math.max(...vs.map((v) => v.layout.min.height)), Math.min(pref, SHARES.compactRowHeight)) : pref,
           priority: Math.max(...vs.map((v) => v.layout.priority)),
         };
       });
@@ -274,7 +339,7 @@ export function planLayout(viewport: Size, open: readonly OpenView[], saved?: Sa
         }
         const cellItems: Item[] = cellKeys.map((ck) => {
           const cv = cellViews.get(ck)!;
-          return { key: ck, min: Math.max(...cv.map((v) => v.layout.min.width)), pref: Math.max(...cv.map((v) => hinted(v, saved, 'width'))), priority: Math.max(...cv.map((v) => v.layout.priority)) };
+          return { key: ck, min: Math.max(...cv.map((v) => v.layout.min.width)), pref: Math.max(...cv.map((v) => hinted(v, saved, 'width', widthShare))), priority: Math.max(...cv.map((v) => v.layout.priority)) };
         });
         const cellFit = fitAxis(cellItems, col.width);
         const keptCells = cellKeys.filter((ck) => !cellFit.dropped.includes(ck));

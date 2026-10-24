@@ -90,6 +90,17 @@ describe('DockLayout.fit', () => {
     expect(plan.violations).toEqual([]);
   });
 
+  it('a view opened in the background (auto-open) that has no room never takes the front from the view it joins', () => {
+    const layout = setup();
+    const { api, panels, groups } = fakeDock(1100, 800, { 'timeline+events': { width: 400, height: 800 }, 'ai-chat': { width: 372, height: 800 }, home: { width: 328, height: 800 } });
+    const eventsActive = { api: { setActive: vi.fn() } };
+    (groups[0] as unknown as { activePanel: unknown }).activePanel = eventsActive;
+    layout.fit(api, { sizes: true, fresh: ['home'], background: true });
+    expect(panels.get('home')!.api.moveTo).toHaveBeenCalled();
+    expect(panels.get('home')!.api.setActive).not.toHaveBeenCalled();
+    expect(eventsActive.api.setActive).toHaveBeenCalled();
+  });
+
   it('a view that yields without being opened just now joins as a background tab: the tab in front stays in front', () => {
     const layout = setup();
     const { api, panels, groups } = fakeDock(1100, 800, { 'timeline+events': { width: 400, height: 800 }, 'ai-chat': { width: 372, height: 800 }, home: { width: 328, height: 800 } });
@@ -144,6 +155,25 @@ describe('displaced views and grow-back', () => {
     const slot = { referencePanel: null, direction: 'within' as const, edge: 'right' as const, size: 700 };
     layout.fit(api, { sizes: true, capture: (id) => (id === 'home' ? slot : null) });
     expect(TestBed.inject(DockContext).displaced.get('home')).toEqual({ id: 'home', slot, into: 'events' });
+  });
+
+  it('records a view opened just now as a guest of its host too, so the next plan does not take the host for a full-height column', () => {
+    const layout = setup();
+    const { api, groups } = grid();
+    layout.fit(api, { sizes: true, fresh: ['home'] });
+    expect(TestBed.inject(DockContext).displaced.get('home')?.into).toBe('events');
+    // The panel now lives in the events group (as dockview would have moved it): planning again leaves the timeline alone.
+    groups[0]!.panels.push({ id: 'home' });
+    expect(layout.plan(api)!.tabbed.map((t) => t.id)).toEqual(['home']);
+  });
+
+  it('a second timeline is stacked below the first in a row of its own, never side by side with it', () => {
+    const layout = setup();
+    const { api } = fakeDock(1440, 1000, { timeline: { width: 1440, height: 300 }, 'timeline#2': { width: 1440, height: 300 }, events: { width: 1440, height: 400 } });
+    const plan = layout.plan(api)!;
+    expect(plan.violations).toEqual([]);
+    expect(plan.tabbed).toEqual([]);
+    expect(plan.columns[0]!.rows.map((r) => r.key).sort()).toEqual(['events', 'timeline', 'timeline#2']);
   });
 
   it('records an auto-hidden side tool with no host', () => {

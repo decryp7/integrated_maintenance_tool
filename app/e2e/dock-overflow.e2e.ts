@@ -33,9 +33,12 @@ test.describe('tab overflow list', () => {
     await chip(page).click();
     await expect(list(page)).toBeVisible();
     expect(await topmostIsInside(page, '.dv-tabs-overflow-container')).toBe(true);
-    await list(page).locator('.dv-tab', { hasText: 'Profile' }).click();
+    // Whichever tab the strip's width hides first (the width is the plan's, not this test's).
+    const hidden = list(page).locator('.dv-tab').first();
+    const name = ((await hidden.innerText()) ?? '').replace(/[▾×]/g, '').replace('📌', '').trim();
+    await hidden.click();
     await expect(list(page)).toHaveCount(0);
-    await expect(tab(page, 'Profile')).toHaveAttribute('aria-selected', 'true');
+    await expect(tab(page, name)).toHaveAttribute('aria-selected', 'true');
   });
 
   test('the chip opens with the keyboard', async ({ page }) => {

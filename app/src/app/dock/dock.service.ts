@@ -260,6 +260,8 @@ export class DockService {
       api.onDidRemovePanel(() => this.ctx.refreshOpen()),
       api.onDidLayoutFromJSON(() => this.ctx.refreshOpen()),
       api.onDidLayoutChange(() => {
+        // A tab clicked in a group that is already the active one does not always raise onDidActivePanelChange: re-read what is in front.
+        this.ctx.refreshShown();
         this.ctx.layoutVersion.update((n) => n + 1);
         this.ctx.markPinnedTabs();
         this.persistence.schedule();

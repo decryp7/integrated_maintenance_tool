@@ -41,7 +41,11 @@ test.describe('view home areas', () => {
     await expectNoSeriousViolations(page, testInfo, 'view-areas-analysis');
   });
 
-  test('a document (Metrics) opens beside the timeline, not over it or the events', async ({ page }) => {
+  // ADR 0056: the timeline keeps 560 px and the Registry column 420, so a document beside the timeline needs ~1400 px of dock; below that
+  // it is tabbed with the timeline (see the next test). 1.1 squeezed the timeline to 323 px at 1440 instead.
+  test.describe('on a wide window', () => {
+    test.use({ viewport: { width: 1920, height: 1080 } });
+    test('a document (Metrics) opens beside the timeline, not over it or the events', async ({ page }) => {
     await page.getByRole('button', { name: 'Metrics', exact: true }).click();
     await expect(tab(page, 'Metrics')).toBeVisible();
     const metrics = (await groupOf(page, 'Metrics').boundingBox())!;
@@ -51,6 +55,18 @@ test.describe('view home areas', () => {
     expect(metrics.y + metrics.height).toBeLessThanOrEqual(events.y + 2);
     await expect(tab(page, 'Timeline')).toHaveAttribute('aria-selected', 'true');
     await expect(tab(page, 'Events')).toHaveAttribute('aria-selected', 'true');
+    });
+  });
+
+  test('at 1440 px there is no room beside the timeline: Metrics is a tab of the timeline group, the timeline is not squeezed', async ({ page }) => {
+    await page.getByRole('button', { name: 'Metrics', exact: true }).click();
+    await expect(tab(page, 'Metrics')).toBeVisible();
+    const timeline = groupOf(page, 'Timeline');
+    await expect(timeline.getByRole('tab', { name: 'Metrics', exact: true })).toBeVisible();
+    expect((await timeline.boundingBox())!.width).toBeGreaterThanOrEqual(560);
+    const events = (await groupOf(page, 'Events').boundingBox())!;
+    const metrics = (await groupOf(page, 'Metrics').boundingBox())!;
+    expect(metrics.y + metrics.height).toBeLessThanOrEqual(events.y + 2);
   });
 
   test('a view open behind another shows a dot on its activity button; the accent bar is for a view in front', async ({ page }, testInfo) => {

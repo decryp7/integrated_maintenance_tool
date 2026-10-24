@@ -84,6 +84,9 @@ test.describe('2560 px window (U15) and the explorer (U14)', () => {
 });
 
 test.describe('tool windows beside a full-height column', () => {
+  // ADR 0056: nothing is squeezed under its declared minimum (grid 560, column 420, tool 320), so the three columns need ~1300 px of dock.
+  test.use({ viewport: { width: 1920, height: 1080 } });
+
   test('a tool window opening at the right edge keeps its width: the column and the grid give way instead of squeezing it', async ({ page }) => {
     await openAiApp(page);
     await page.getByRole('tab', { name: 'Registry', exact: true }).click();
@@ -93,9 +96,22 @@ test.describe('tool windows beside a full-height column', () => {
     expect(tool.width).toBeGreaterThanOrEqual(360);
     // Registry keeps a readable column, and the three columns still fit the dock.
     const registry = await box(groupOf(page.getByRole('tree', { name: 'Registry' })));
-    expect(registry.width).toBeGreaterThanOrEqual(270);
+    expect(registry.width).toBeGreaterThanOrEqual(420);
     const grid = await box(groupOf(page.locator('debrief-events-grid')));
     const dock = await box(page.locator('debrief-dock-host'));
     expect(grid.x + grid.width + registry.width + tool.width).toBeLessThanOrEqual(dock.x + dock.width + 4);
+  });
+
+  // 1.1 squeezed the grid to 360 px and the column to 280 px at 1440 px to keep all three; ADR 0056 tabs the idle column instead.
+  test('at 1440 px the column is tabbed with the grid rather than squeezed under its minimum, and the tool keeps its width', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await openAiApp(page);
+    await openChat(page);
+    const tool = await box(groupOf(page.locator('debrief-ai-chat-panel')));
+    expect(tool.width).toBeGreaterThanOrEqual(360);
+    const grid = await box(groupOf(page.locator('debrief-events-grid')));
+    expect(grid.width).toBeGreaterThanOrEqual(560 - 1);
+    // Registry is a tab of the events group (not squeezed, not lost); it is one click away.
+    await expect(groupOf(page.locator('debrief-events-grid')).getByRole('tab', { name: 'Registry', exact: true })).toBeVisible();
   });
 });

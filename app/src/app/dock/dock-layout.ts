@@ -14,6 +14,8 @@ export interface FitOptions {
   sizes?: boolean;
   /** Panels just opened: their current size is not a wish, and a tool window that has no room slides out for the user to see. */
   fresh?: readonly string[];
+  /** The panels were opened in the background (auto-open): they never take the front from the view they join. */
+  background?: boolean;
   /** Where a view was docked, captured before the plan moves it away (so it can return); `DockPlacement.captureSlot`. */
   capture?: (id: string) => DockSlot | null;
 }
@@ -37,12 +39,14 @@ const NO_SLOT: DockSlot = { referencePanel: null, direction: 'within' };
 export class DockLayout {
   private readonly ctx = inject(DockContext);
   private readonly lazy = inject(Injector);
+  /** Panels in the order they were last opened (newest first): a view opened in the background was still used just now. */
+  private opened: string[] = [];
 
   /**
    * The views as the planner sees them: the docked (not floating) panels, plus the views the plan auto-hid earlier
    * (they still count as open: they come back when there is room), plus `extra` views that live outside the dock.
    */
-  openViews(api: DockviewApi, extra: readonly OpenView[] = []): OpenView[] {
+  openViews(api: DockviewApi, extra: readonly OpenView[] = [], fresh: readonly string[] = []): OpenView[] {
     const out: OpenView[] = [];
     // A group that holds a full-height document of its own is a full-height column, whatever else was opened into it. A
     // view the plan itself tabbed in (displaced) is a guest: it does not make its host a full-height column.
@@ -54,13 +58,26 @@ export class DockLayout {
       if (!view) continue;
       const layout = viewLayout(view);
       const full = view.fullHeight || (layout.area === 'document' && columns.has(p.group.id) && !this.ctx.displaced.has(p.id));
-      out.push({ id: p.id, layout, row: viewRow(view), group: p.group.id, ...(full ? { fullHeight: true } : {}) });
+      out.push({ id: p.id, layout, row: this.rowOf(p.id, view), group: this.ctx.displaced.get(p.id)?.into ? p.id : p.group.id, ...this.recencyOf(p.id, fresh), ...(full ? { fullHeight: true } : {}) });
     }
     for (const d of this.ctx.displaced.values()) {
       const view = this.ctx.views.find(d.id);
       if (d.into === null && view && !out.some((o) => o.id === d.id) && this.ctx.isAutoHidden(d.id)) out.push({ id: d.id, layout: viewLayout(view), row: viewRow(view), group: d.id, ...(view.fullHeight ? { fullHeight: true } : {}) });
     }
     return [...out, ...extra];
+  }
+
+  /** The row of the main column a panel sits in: an extra instance of a view (a second timeline) is stacked below the first, in a row of its own. */
+  private rowOf(id: string, view: Parameters<typeof viewRow>[0]): string {
+    return id === view.id ? viewRow(view) : id;
+  }
+
+  /** How recently the user worked with a panel: just opened is the latest, else its place in the most-recently-used list. */
+  private recencyOf(id: string, fresh: readonly string[]): { recency?: number } {
+    if (fresh.includes(id)) return { recency: 0 };
+    // Opened in the background (never activated) still counts as used just now: the later of "opened" and "activated".
+    const at = [this.opened.indexOf(id), this.ctx.mru.indexOf(id)].filter((i) => i >= 0);
+    return at.length ? { recency: Math.min(...at) } : {};
   }
 
   /** What the user asked for: the sizes they dragged views to (never the sizes a fit gave them). */
@@ -80,12 +97,12 @@ export class DockLayout {
   }
 
   /** The plan for the panels docked now (null while the dock has no measured size). */
-  plan(api: DockviewApi): LayoutPlan | null {
+  plan(api: DockviewApi, fresh: readonly string[] = []): LayoutPlan | null {
     if (!(api.width > 0 && api.height > 0)) return null;
     // A container without a layout box (a detached or not yet laid out dock; dockview then reports its 100x100 default) is not a window.
     const box = this.ctx.container?.getBoundingClientRect();
     if (box && (box.width <= 0 || box.height <= 0)) return null;
-    return planLayout({ width: api.width, height: api.height }, this.openViews(api), this.hints());
+    return planLayout({ width: api.width, height: api.height }, this.openViews(api, [], fresh), this.hints());
   }
 
   /**
@@ -93,7 +110,8 @@ export class DockLayout {
    * planned sizes. Returns the plan, or null when the dock is not measured yet (groups are still constrained).
    */
   fit(api: DockviewApi, options: FitOptions = {}): LayoutPlan | null {
-    const plan = this.plan(api);
+    if (options.fresh?.length) this.opened = [...options.fresh, ...this.opened.filter((id) => !options.fresh!.includes(id))].slice(0, 16);
+    const plan = this.plan(api, options.fresh);
     if (plan) this.displace(api, plan, options);
     this.constrain(api);
     if (plan && options.sizes) this.resize(api, plan);
@@ -134,11 +152,13 @@ export class DockLayout {
       const panel = api.getPanel(t.id);
       const target = api.getPanel(t.into);
       if (!panel || !target || panel.group === target.group) continue;
-      if (!this.ctx.displaced.has(t.id) && !fresh.includes(t.id)) this.record({ id: t.id, slot: options.capture?.(t.id) ?? NO_SLOT, into: t.into });
+      // A view opened just now has no earlier place to capture, but it is still recorded as a guest of its host (so the host is not
+      // mistaken for a full-height column on the next plan) and can return to its default place when there is room.
+      if (!this.ctx.displaced.has(t.id)) this.record({ id: t.id, slot: fresh.includes(t.id) ? NO_SLOT : (options.capture?.(t.id) ?? NO_SLOT), into: t.into });
       // A view that yields joins the group as a background tab; the tab in front stays, unless the user just opened it.
       const front = target.group.activePanel;
       panel.api.moveTo({ group: target.group, position: 'center' });
-      if (fresh.includes(t.id)) panel.api.setActive();
+      if (fresh.includes(t.id) && !options.background) panel.api.setActive();
       else front?.api.setActive();
     }
     for (const h of plan.hidden) {
@@ -151,7 +171,7 @@ export class DockLayout {
       const item = { id: h.id, title: view.title, side: 'right' as const, size: viewLayout(view).pref.width, slot: { referencePanel: null, direction: 'within' as const } };
       this.ctx.autoHide.update((s) => {
         const hidden = autoHideReduce(s, { type: 'unpin', item });
-        return fresh.includes(h.id) ? autoHideReduce(hidden, { type: 'activate', id: h.id }) : hidden;
+        return fresh.includes(h.id) && !options.background ? autoHideReduce(hidden, { type: 'activate', id: h.id }) : hidden;
       });
       this.ctx.refreshOpen();
     }

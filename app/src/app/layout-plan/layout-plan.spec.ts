@@ -325,3 +325,59 @@ describe('sanitizeViewLayout (a plugin\'s declaration)', () => {
     expect(sanitizeViewLayout({ area: 'document', edge: 'left' })?.edge).toBeUndefined();
   });
 });
+
+describe('usability shares (ADR 0056 amendment 2026-10-24)', () => {
+  const open = (...ids: (keyof typeof V)[]): OpenView[] => ids.map((i) => V[i]);
+  const column = (plan: ReturnType<typeof planLayout>, id: string) => plan.columns.find((c) => c.views.includes(id))!;
+
+  it('a full-height column takes at most 40% of the window, so the timeline plot keeps its width', () => {
+    const plan = planLayout({ width: 1092, height: 789 }, open('timeline', 'events', 'home'));
+    expect(plan.violations).toEqual([]);
+    expect(column(plan, 'home').width).toBe(437);
+    expect(column(plan, 'events').width).toBe(655);
+  });
+
+  it('a full-height column gives way to a document beside the timeline before that document is tabbed', () => {
+    const plan = planLayout({ width: 1572, height: 900 }, open('timeline', 'events', 'home', 'metrics'));
+    expect(plan.violations).toEqual([]);
+    expect(plan.tabbed).toEqual([]);
+    expect(column(plan, 'home').width).toBeGreaterThanOrEqual(420);
+    const row = column(plan, 'events').rows.find((r) => r.key === 'timeline')!;
+    expect(row.cells.map((c) => c.views)).toEqual([['timeline'], ['metrics']]);
+  });
+
+  it('but never by dropping the column: when both do not fit the document is tabbed', () => {
+    const plan = planLayout({ width: 1092, height: 789 }, open('timeline', 'events', 'home', 'metrics'));
+    expect(plan.tabbed).toEqual([{ id: 'metrics', into: 'timeline' }]);
+    expect(column(plan, 'home').width).toBeGreaterThanOrEqual(420);
+  });
+
+  it('a document beside the timeline takes at most 40% of the window height; the events grid keeps 60%', () => {
+    const plan = planLayout({ width: 1800, height: 789 }, open('timeline', 'events', 'metrics'));
+    const rows = column(plan, 'events').rows;
+    expect(rows.find((r) => r.key === 'timeline')!.height).toBe(316);
+    expect(rows.find((r) => r.key === 'events')!.height).toBe(473);
+  });
+
+  it('an analysis row compacts the timeline row so the events grid keeps its rows', () => {
+    const plan = planLayout({ width: 1440, height: 789 }, open('timeline', 'events', 'markers'));
+    const rows = column(plan, 'events').rows;
+    expect(rows.find((r) => r.key === 'timeline')!.height).toBe(210);
+    expect(rows.find((r) => r.key === 'analysis')!.height).toBe(280);
+    expect(rows.find((r) => r.key === 'events')!.height).toBe(299);
+  });
+
+  it('what the user works with outranks an idle view of similar rank: a tool just opened keeps its place, the idle column yields', () => {
+    const idle = planLayout({ width: 1092, height: 789 }, open('timeline', 'events', 'home', 'notes'));
+    expect(idle.hidden.map((h) => h.id)).toEqual(['notes']);
+    const used = planLayout({ width: 1092, height: 789 }, [V.timeline, V.events, V.home, { ...V.notes, recency: 0 }]);
+    expect(used.hidden).toEqual([]);
+    expect(used.tabbed).toEqual([{ id: 'home', into: 'events' }]);
+    expect(used.violations).toEqual([]);
+  });
+
+  it('recency never lifts a view over the main column', () => {
+    const plan = planLayout({ width: 700, height: 789 }, [V.timeline, V.events, { ...V.ai, recency: 0 }]);
+    expect(plan.hidden.map((h) => h.id)).toEqual(['ai']);
+  });
+});
