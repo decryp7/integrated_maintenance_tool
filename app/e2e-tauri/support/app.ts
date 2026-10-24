@@ -14,11 +14,108 @@ function lit(text: string): string {
   return `concat('${text.split("'").join(`', "'", '`)}')`;
 }
 
-/** A dialog by its title (the dialog host labels `role=dialog` with its heading). */
-export function dialog(title: string) {
+/**
+ * A dialog shown in the page by its title (the dialog host labels `role=dialog` with its heading). In the desktop app
+ * every registered dialog is its own OS window (ADR 0050), so this finds none of them: use `withDialogWindow`.
+ */
+export function inPageDialog(title: string) {
   return $(
     `//*[@role='dialog'][.//*[starts-with(@id,'debrief-dialog-title-')][normalize-space()=${lit(title)}]]`,
   );
+}
+
+/** The driver's window handles, empty once the app is gone. */
+async function windowHandles(): Promise<string[]> {
+  return browser.getWindowHandles().catch(() => [] as string[]);
+}
+
+/**
+ * Finds the dialog window of a registered dialog (`defineDialog` id, e.g. `settings`, `about`, `close-prompt`) and
+ * switches the driver to it. A dialog window loads `index.html#/dialog?id=<id>&host=...&label=...` (dialog_windows.rs
+ * `dialog_url`), so the URL names it; the title bar and the page title do not. Returns its handle. Waits for the window,
+ * and leaves the driver where it was when none appears.
+ */
+async function enterDialogWindow(id: string, timeout = 30_000): Promise<string> {
+  const origin = await browser.getWindowHandle();
+  let found = '';
+  try {
+    await browser.waitUntil(
+      async () => {
+        for (const handle of await windowHandles()) {
+          if (handle === origin) continue;
+          try {
+            await browser.switchToWindow(handle);
+            if ((await browser.getUrl()).includes(`#/dialog?id=${id}&`)) {
+              found = handle;
+              return true;
+            }
+          } catch {
+            /* the window closed while it was scanned */
+          }
+        }
+        await browser.switchToWindow(origin);
+        return false;
+      },
+      { timeout, interval: 250, timeoutMsg: `no "${id}" dialog window appeared` },
+    );
+  } catch (e) {
+    await browser.switchToWindow(origin).catch(() => undefined);
+    throw e;
+  }
+  // The window exists before its content: the shell is `aria-busy` until the dialog's component has loaded, and keys
+  // or clicks before that go nowhere.
+  await $('main.body[aria-busy=false]').waitForExist({ timeout: 30_000 });
+  return found;
+}
+
+/**
+ * Runs `body` with the driver on the `id` dialog window (it waits for the window to open), then switches back to the
+ * window the call came from. The body may close the dialog (Escape, a button); `dismissDialogWindow` closes one and
+ * waits for it to be gone.
+ */
+export async function withDialogWindow<T>(id: string, body: (handle: string) => Promise<T>, timeout?: number): Promise<T> {
+  const origin = await browser.getWindowHandle();
+  const handle = await enterDialogWindow(id, timeout);
+  try {
+    return await body(handle);
+  } finally {
+    if ((await windowHandles()).includes(origin)) await browser.switchToWindow(origin).catch(() => undefined);
+  }
+}
+
+/**
+ * Closes the `id` dialog window and waits until it is gone and the page's modal scrim with it. With
+ * `optional`, a dialog that does not open within `timeout` is fine (returns false) instead of an error.
+ */
+export async function dismissDialogWindow(id: string, opts: { optional?: boolean; timeout?: number } = {}): Promise<boolean> {
+  let handle: string;
+  try {
+    handle = await withDialogWindow(
+      id,
+      async (h) => {
+        // The window's own close control (the shell's Cancel/Close or the dialog's own), else Escape. The window may
+        // vanish while the driver is still answering, which is what closing is.
+        try {
+          const close = $(`//button[@data-dialog-close or starts-with(normalize-space(),'Cancel') or normalize-space()='Close']`);
+          if (await close.isExisting()) await close.click();
+          else await browser.keys('Escape');
+        } catch (e) {
+          if ((await windowHandles()).includes(h)) throw e;
+        }
+        return h;
+      },
+      opts.timeout,
+    );
+  } catch (e) {
+    if (opts.optional) return false;
+    throw e;
+  }
+  await browser.waitUntil(async () => !(await windowHandles()).includes(handle), {
+    timeout: 15_000,
+    timeoutMsg: `the "${id}" dialog window did not close`,
+  });
+  await $('[data-testid=modal-scrim]').waitForExist({ reverse: true, timeout: 15_000 });
+  return true;
 }
 
 /** A button by its aria-label or its text, optionally inside a scope's XPath. */
@@ -38,12 +135,9 @@ export async function waitForShell(): Promise<void> {
   await $('[role=menubar][aria-label="Application menu"]').waitForDisplayed({ timeout: 60_000 });
   // The lifecycle extras are mounted into the title bar after start-up (the crash check has run by then).
   await $('debrief-title-extras').waitForExist({ timeout: 30_000 });
-  // A build that includes the AI worker offers its set-up on a fresh profile; close it so it doesn't cover the app.
-  const aiSetup = dialog('Set up the AI assistant');
-  if (await aiSetup.waitForExist({ timeout: 3_000 }).then(() => true, () => false)) {
-    await browser.keys('Escape');
-    await aiSetup.waitForExist({ reverse: true, timeout: 10_000 });
-  }
+  // A build that includes the AI worker offers its set-up once per profile, as a modal dialog window; the main window
+  // shows its modal scrim until it is closed, so close it before any click. Later starts of the same run do not offer it.
+  await dismissDialogWindow('ai-setup', { optional: true, timeout: 5_000 });
 }
 
 /** Waits until the workspace shows events: grid rows, an event count and at least one timeline lane. */
@@ -143,16 +237,16 @@ async function oneWindowLeft(): Promise<void> {
 export async function quitApp(): Promise<void> {
   await oneWindowLeft();
   await mayEndApp(() => chooseMenu('File', 'Close window'));
-  const prompt = dialog('Close Debrief?');
-  // A remembered "quit" choice closes without asking.
-  const asked = await prompt.waitForDisplayed({ timeout: 10_000 }).then(
+  // The close prompt is a dialog window; a remembered "quit" choice closes without asking.
+  const asked = await enterDialogWindow('close-prompt', 10_000).then(
     () => true,
     () => false,
   );
   if (asked) {
-    const remember = prompt.$('.remember input[type=checkbox]');
+    const remember = $('.remember input[type=checkbox]');
+    await remember.waitForDisplayed();
     if (await remember.isSelected()) await remember.click();
-    await mayEndApp(() => prompt.$(`.//button[normalize-space()='Quit']`).click());
+    await mayEndApp(() => $(`//button[normalize-space()='Quit']`).click());
   }
   await browser.waitUntil(async () => !(await isRunning()), {
     timeout: 30_000,

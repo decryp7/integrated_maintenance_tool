@@ -25,6 +25,10 @@ pub mod page;
 pub mod process;
 pub mod ready;
 
+/// Set (to anything) in the environment of a test's fake browser process. Not behind `test-support`: the app checks it at
+/// start-up in every build, to refuse to start as a fake browser, and a normal (non-test) build has no `fake` module.
+pub const FAKE_CHILD_ENV: &str = "DEBRIEF_FAKE_BROWSER";
+
 pub use challenge::{detect as detect_challenge, Challenge};
 pub use discover::{find, find_for_tests, Browser as BrowserExe, Flavor};
 pub use launch::{Chromium, Gone, LaunchOptions, Profile, WindowBounds};

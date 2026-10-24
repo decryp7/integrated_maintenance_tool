@@ -552,14 +552,14 @@ fn window_state_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
 /// Whether this process was started as a test's fake browser (`chromium_driver::fake`): such a process must never
 /// build the app or open a window on the user's desktop (Paddock rule 7), whatever binary the fake names.
 fn started_as_fake_browser(var: impl Fn(&str) -> Option<std::ffi::OsString>) -> bool {
-    var(chromium_driver::fake::CHILD_ENV).is_some()
+    var(chromium_driver::FAKE_CHILD_ENV).is_some()
 }
 
 pub fn run() {
     if started_as_fake_browser(|k| std::env::var_os(k)) {
         eprintln!(
             "Debrief refuses to start as a test's fake browser ({} is set)",
-            chromium_driver::fake::CHILD_ENV
+            chromium_driver::FAKE_CHILD_ENV
         );
         std::process::exit(2);
     }
@@ -848,7 +848,7 @@ mod fake_browser_guard_tests {
     /// window on the user's desktop and every plugin process). `run` now stops before anything is built.
     #[test]
     fn the_app_refuses_to_start_as_a_fake_browser() {
-        let set = |k: &str| (k == chromium_driver::fake::CHILD_ENV).then(|| "1".into());
+        let set = |k: &str| (k == chromium_driver::FAKE_CHILD_ENV).then(|| "1".into());
         assert!(super::started_as_fake_browser(set));
         assert!(!super::started_as_fake_browser(|_| None));
     }
