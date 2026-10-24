@@ -44,7 +44,9 @@ nothing; tests see it as a rare flake that waits and retries do not fix.
 - The profile editor's header is the first instance: its name, path, Unsaved and Valid are one truncating slot; its
   buttons keep their place at every load state (`view-controls-stay.e2e.ts`).
 - New mock commands become holdable by adding their name to `HOLDABLE` (`core/mock/mock-options.ts`) and wrapping the
-  answer in `MockBackend.held`.
+  answer in `MockBackend.held`. Jobs can be held at their end by kind (`?mockJobsHold=ai`), so a test can assert the
+  state while a job runs (the "running in Jobs" toast) without racing a fast mock. Every hold registers with one release
+  switch (`core/mock/mock-hold.ts`, `releaseMockHolds` in `e2e/ai-support.ts`).
 - Follow-up (after 1.1.1): add the press-across-the-load test to each view that loads after it opens (Markers manager,
   Parsers, History, Health, the analysis views) and fix the ones it catches; replace the planner's last remove-and-add
   paths with moves or a renderer hand-off so a view's component survives auto-hide and grow-back.

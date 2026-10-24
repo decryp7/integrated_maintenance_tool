@@ -1,13 +1,11 @@
-import { expect, Page, test } from '@playwright/test';
-import { openAiApp } from './ai-support';
+import { expect, test } from '@playwright/test';
+import { openAiApp, releaseMockHolds } from './ai-support';
 import { showProfileEditor } from './menu-support';
 
 // ADR 0061: a view's controls do not move when its data arrives after it opened. A click that starts on a control
 // just after the view opened must end on the same control: if the layout shifts between the press and the release,
 // the click is lost (ai-entry-points: "Propose…" opened nothing about 1 run in 8 on WebKit). The mock holds the
 // profile (`mockHold`) so the press always happens before it arrives, and the release always after.
-
-const release = (page: Page) => page.evaluate(() => (globalThis as unknown as { __debriefMockRelease: () => void }).__debriefMockRelease());
 
 test('the profile editor keeps Propose… in place while its profile loads, and a click across the load opens the dialog', async ({ page }) => {
   await openAiApp(page, 'mockHold=getProfile');
@@ -23,7 +21,7 @@ test('the profile editor keeps Propose… in place while its profile loads, and 
   // Press on Propose… while the profile is still on its way, let it arrive, then release the button.
   await page.mouse.move(before.x + before.width / 2, before.y + before.height / 2);
   await page.mouse.down();
-  await release(page);
+  await releaseMockHolds(page);
   await expect(name).toHaveText('OrderService (Serilog) — demo');
   await expect(editor.getByText('Valid', { exact: true })).toBeVisible();
   expect(await propose.boundingBox()).toEqual(before);

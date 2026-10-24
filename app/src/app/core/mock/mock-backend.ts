@@ -69,6 +69,7 @@ import { MockParserLibrary, MockParserSource } from './mock-parsers';
 import { isImagePath } from '../../ai/vision/image-files';
 import { IDLE_PROGRESS, isMockDemoPath, MockFiles, MockImportSim, MockProfileHistory, NOT_IMPORTED_REASON, slowImportFiles } from './mock-import';
 import { MockClock, MockTimer, systemMockClock } from './mock-clock';
+import { onMockRelease } from './mock-hold';
 
 /** Built-in marker icon names the engine accepts (mirrors MARKER_ICONS). */
 const MOCK_ICONS: ReadonlySet<string> = new Set(BUILTIN_ICONS.map((i) => i.name));
@@ -170,7 +171,7 @@ export class MockBackend implements DebriefBackend {
     this.importSim = options.slowImportMs ? new MockImportSim(options.slowImportMs, this.clock, options.slowDiscoveryMs ?? 0) : null;
     if (options.exposeLiveCalls) (globalThis as Record<string, unknown>)['__debriefMockLiveCalls'] = this.liveCalls;
     this.holding = new Set(options.hold ?? []);
-    if (this.holding.size) (globalThis as Record<string, unknown>)['__debriefMockRelease'] = () => this.release();
+    if (this.holding.size) onMockRelease(() => this.release());
     this.apply();
   }
 
