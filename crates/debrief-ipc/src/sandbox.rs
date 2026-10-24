@@ -344,9 +344,9 @@ impl LauncherReport {
 
 /// macOS: the profile `sandbox-exec` starts a contained child with (see [`Containment::Launcher`]): the sandbox's
 /// profile with file access limited to `read` (and the program's folder) and `write`, plus permission to execute
-/// the program itself. `None` for a child that is not contained.
+/// the program itself and to connect to Debrief's private `socket`. `None` for a child that is not contained.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-pub(crate) fn launcher_profile(spec: &SandboxSpec, exe: &std::path::Path) -> Option<String> {
+pub(crate) fn launcher_profile(spec: &SandboxSpec, exe: &std::path::Path, socket: Option<&std::path::Path>) -> Option<String> {
     let Containment::Launcher { read, write, .. } = &spec.containment else {
         return None;
     };
@@ -359,11 +359,48 @@ pub(crate) fn launcher_profile(spec: &SandboxSpec, exe: &std::path::Path) -> Opt
     };
     let mut p = macos_profile(&s)?;
     p.push_str(&format!("(allow process-exec (literal {}))\n", sbpl_quote(exe)));
+    if let Some(sock) = socket {
+        let q = sbpl_quote(sock);
+        p.push_str(&format!(
+            "(allow file-read* file-write* (literal {q}))\n(allow network-outbound (remote unix-socket (path-literal {q})))\n"
+        ));
+        p.push_str(&symlinks_on_the_way([sock]));
+    }
     Some(p)
 }
 
-/// A path as an SBPL string literal.
+/// `p` with symlinks resolved; a path that does not exist yet (a socket about to be created) through its folder.
+fn resolved(p: &std::path::Path) -> PathBuf {
+    std::fs::canonicalize(p)
+        .ok()
+        .or_else(|| Some(std::fs::canonicalize(p.parent()?).ok()?.join(p.file_name()?)))
+        .unwrap_or_else(|| p.to_path_buf())
+}
+
+/// SBPL rules that let a sandboxed process read the symlinks on the way to `p` (as macOS' `/var` → `/private/var`):
+/// without them, opening a path given through a symlink is denied although its resolved target is allowed.
+fn symlinks_on_the_way<'a>(paths: impl IntoIterator<Item = &'a std::path::Path>) -> String {
+    let links: std::collections::BTreeSet<PathBuf> = paths
+        .into_iter()
+        .flat_map(std::path::Path::ancestors)
+        .filter(|a| a.symlink_metadata().is_ok_and(|m| m.file_type().is_symlink()))
+        // The link itself (not its target), in its resolved folder.
+        .filter_map(|a| Some(std::fs::canonicalize(a.parent()?).ok()?.join(a.file_name()?)))
+        .collect();
+    links
+        .iter()
+        .map(|l| format!("(allow file-read-metadata (literal {}))\n", sbpl_literal(l)))
+        .collect()
+}
+
+/// A path as an SBPL string literal, resolved as the sandbox matches it (through symlinks such as macOS'
+/// `/var` → `/private/var`; see [`resolved`]).
 fn sbpl_quote(p: &std::path::Path) -> String {
+    sbpl_literal(&resolved(p))
+}
+
+/// A path as an SBPL string literal, as given.
+fn sbpl_literal(p: &std::path::Path) -> String {
     format!("\"{}\"", p.to_string_lossy().replace('\\', "\\\\").replace('"', "\\\""))
 }
 
@@ -777,7 +814,7 @@ mod platform {
 /// every platform.
 #[cfg_attr(not(target_os = "macos"), allow(dead_code))]
 fn macos_profile(spec: &SandboxSpec) -> Option<String> {
-    let quote = |p: &std::path::Path| format!("\"{}\"", p.to_string_lossy().replace('\\', "\\\\").replace('"', "\\\""));
+    let quote = sbpl_quote;
     let mut rules: Vec<String> = Vec::new();
     if !spec.network {
         rules.push("(deny network*)".into());
@@ -796,6 +833,8 @@ fn macos_profile(spec: &SandboxSpec) -> Option<String> {
                     .iter()
                     .map(|p| format!("(allow file-read* file-write* (subpath {}))", quote(p))),
             );
+            let links = symlinks_on_the_way(read.iter().chain(write).map(PathBuf::as_path));
+            rules.extend(links.lines().map(str::to_string));
         }
     }
     if rules.is_empty() {
@@ -862,9 +901,63 @@ mod tests {
         assert!(p.contains(r#"(literal "/")"#), "{p}");
     }
 
+    /// Regression: the sandbox matches resolved paths, so a profile naming a path through a symlink (macOS' temp
+    /// folder `/var/folders/…` is `/private/var/folders/…`) denied the program's own exec and every contained
+    /// plugin started from such a folder exited with `sandbox-exec`'s status 71.
+    #[test]
+    #[cfg(unix)]
+    fn profiles_name_paths_as_the_sandbox_resolves_them() {
+        let t = tempfile::tempdir().unwrap();
+        let real = t.path().canonicalize().unwrap().join("real");
+        std::fs::create_dir_all(real.join("bin")).unwrap();
+        std::fs::create_dir_all(real.join("data")).unwrap();
+        std::fs::write(real.join("bin/x"), b"").unwrap();
+        let link = t.path().join("link");
+        std::os::unix::fs::symlink(&real, &link).unwrap();
+        let spec = SandboxSpec {
+            containment: Containment::Launcher {
+                name: "debrief.plugin.x".into(),
+                read: vec![link.clone()],
+                write: vec![link.join("data")],
+            },
+            ..SandboxSpec::locked()
+        };
+        let p = launcher_profile(&spec, &link.join("bin/x"), Some(&link.join("w.sock"))).unwrap();
+        let q = |p: &std::path::Path| sbpl_quote(p);
+        for rule in [
+            format!("(allow file-read* (subpath {}))", q(&real)),
+            format!("(allow file-read* (subpath {}))", q(&real.join("bin"))),
+            format!("(allow file-read* file-write* (subpath {}))", q(&real.join("data"))),
+            format!("(allow process-exec (literal {}))", q(&real.join("bin/x"))),
+            // The symlink itself may be read, so paths given through it open.
+            format!(
+                "(allow file-read-metadata (literal {}))",
+                sbpl_literal(&t.path().canonicalize().unwrap().join("link"))
+            ),
+            format!(
+                "(allow network-outbound (remote unix-socket (path-literal {})))",
+                q(&real.join("w.sock"))
+            ),
+        ] {
+            assert!(p.contains(&rule), "{rule} in {p}");
+        }
+        // A path that does not exist yet is named as given.
+        let missing = SandboxSpec {
+            fs: FsAccess::Paths {
+                read: vec!["/definitely/not/here".into()],
+                write: Vec::new(),
+            },
+            ..SandboxSpec::unrestricted()
+        };
+        assert!(macos_profile(&missing).unwrap().contains(r#"(subpath "/definitely/not/here")"#));
+    }
+
     #[test]
     fn contained_children_get_a_launcher_profile_with_their_folders_only() {
-        assert_eq!(launcher_profile(&SandboxSpec::locked(), std::path::Path::new("/p/bin/x")), None);
+        assert_eq!(
+            launcher_profile(&SandboxSpec::locked(), std::path::Path::new("/p/bin/x"), None),
+            None
+        );
         let spec = SandboxSpec {
             containment: Containment::Launcher {
                 name: "debrief.plugin.x".into(),
@@ -874,7 +967,7 @@ mod tests {
             ..SandboxSpec::locked()
         };
         assert!(spec.contained() && !SandboxSpec::locked().contained());
-        let p = launcher_profile(&spec, std::path::Path::new("/p/bin/x")).unwrap();
+        let p = launcher_profile(&spec, std::path::Path::new("/p/bin/x"), Some(std::path::Path::new("/s/w.sock"))).unwrap();
         for rule in [
             "(deny network*)",
             "(deny process-exec*)",
@@ -883,6 +976,8 @@ mod tests {
             r#"(allow file-read* (subpath "/p/bin"))"#,
             r#"(allow file-read* file-write* (subpath "/p/data"))"#,
             r#"(allow process-exec (literal "/p/bin/x"))"#,
+            r#"(allow file-read* file-write* (literal "/s/w.sock"))"#,
+            r#"(allow network-outbound (remote unix-socket (path-literal "/s/w.sock")))"#,
         ] {
             assert!(p.contains(rule), "{rule} in {p}");
         }

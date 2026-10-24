@@ -182,6 +182,10 @@ pub fn launch(spec: &ChildSpec, handler: Arc<dyn Handler>) -> Result<Child, IpcE
     };
     let listener = Listener::create(&spec.spawn.endpoint_prefix, access)
         .map_err(|e| IpcError::Spawn(format!("cannot prepare a private connection for {}: {e}", spec.spawn.label)))?;
+    let mut spawn = spec.spawn.clone();
+    if cfg!(unix) {
+        spawn.ipc_socket = Some(listener.address().into());
+    }
     let bootstrap = Bootstrap {
         address: listener.address().to_string(),
         token: listener.token().to_hex(),
@@ -191,7 +195,7 @@ pub fn launch(spec: &ChildSpec, handler: Arc<dyn Handler>) -> Result<Child, IpcE
     };
     let (process, pid) = match mode {
         crate::elevation::LaunchMode::Plain => {
-            let p = Arc::new(ChildProcess::spawn(&spec.spawn)?);
+            let p = Arc::new(ChildProcess::spawn(&spawn)?);
             if let Err(e) = p.send_line(&bootstrap) {
                 p.kill();
                 return Err(e);
