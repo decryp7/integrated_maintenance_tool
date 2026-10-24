@@ -7,8 +7,9 @@
 //! `DEBRIEF_E2E_LIVE_SEARCH_OUT` names an absolute folder for `live-search.json` and the screenshots; the queries are
 //! neutral (never user data) and the report keeps page addresses without their query string.
 
-use super::renderer::{ChromiumPage, Renderers};
+use super::renderer::ChromiumPage;
 use super::research::ReadOnlyDriver;
+use super::sessions::Renderers;
 use debrief_ai::browser::research::{self, ResearchEnv, ResultsOutcome, ResultsRead};
 use debrief_ai::browser::{AgentLimits, ChatBrowser, PageDiagnostics, PageKind, SearchEngine, SearchSettings};
 use serde::Serialize;

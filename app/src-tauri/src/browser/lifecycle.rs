@@ -1,4 +1,4 @@
-//! The life of a window's AI browser, owned by [`super::renderer::Renderers`] alone:
+//! The life of a window's AI browser, owned by [`super::sessions::Renderers`] alone:
 //!
 //! ```text
 //!   none ──launch──▶ launching ──started──▶ ready ──close/finish/stop──▶ closing ──ended──▶ gone(ended)

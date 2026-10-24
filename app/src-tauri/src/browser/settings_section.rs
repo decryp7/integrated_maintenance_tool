@@ -14,7 +14,7 @@ use std::sync::Arc;
 pub struct BrowserSection {
     pub hub: Arc<BrowserHub>,
     /// Told which browser the user chose (none in tests).
-    pub renderers: Option<Arc<super::renderer::Renderers>>,
+    pub renderers: Option<Arc<super::sessions::Renderers>>,
 }
 
 fn int(min: u32, max: u32) -> FieldKind {

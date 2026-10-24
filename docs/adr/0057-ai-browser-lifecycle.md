@@ -25,7 +25,7 @@ of "running".
 
 ## Decision
 
-1. **One owner, one state machine.** `browser::renderer::Renderers` alone holds each window's browser and its phase
+1. **One owner, one state machine.** `browser::sessions::Renderers` alone holds each window's browser and its phase
    (`browser::lifecycle`): `none → launching → ready → closing → gone(reason)`, and `gone → launching` for the next
    use. Every change goes through one function that checks the step (`Phase::may_become`) and tells the listeners.
    The reasons are `windowClosed`, `exited`, `disconnected`, `ended` (Debrief ended it) and `launchFailed`.

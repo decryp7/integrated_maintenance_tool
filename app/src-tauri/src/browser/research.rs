@@ -9,7 +9,8 @@
 //! leak guard first; with workspace data in it the user confirms (or edits) it before anything is searched.
 
 use super::hub::BrowserHub;
-use super::renderer::{ChromiumPage, Finish, Lease};
+use super::renderer::ChromiumPage;
+use super::sessions::{Finish, Lease};
 use super::ActivityLog;
 use crate::ai::error::{AiCmdError, AiErrorCode, AiResult};
 use crate::jobs::{self, Controls, Done, JobCtx, JobId, JobKind, JobLink, JobProgress, JobResult, JobSpec};

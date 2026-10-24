@@ -22,6 +22,7 @@ mod live;
 pub(crate) mod renderer;
 pub(crate) mod research;
 pub(crate) mod runtime;
+pub(crate) mod sessions;
 mod settings_section;
 #[cfg(test)]
 mod tests;
@@ -115,8 +116,8 @@ pub fn emit<R: Runtime>(app: &AppHandle<R>, owner: &str, event: BrowserEvent) {
 }
 
 /// The renderers as managed state.
-pub fn renderers<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<renderer::Renderers>> {
-    app.try_state::<Arc<renderer::Renderers>>().map(|s| s.inner().clone())
+pub fn renderers<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<sessions::Renderers>> {
+    app.try_state::<Arc<sessions::Renderers>>().map(|s| s.inner().clone())
 }
 
 fn product<R: Runtime>(app: &AppHandle<R>) -> String {
@@ -154,7 +155,7 @@ pub(crate) fn page_for<R: Runtime>(
                 },
             );
         }),
-        lease: renderer::Lease::default(),
+        lease: sessions::Lease::default(),
     })
 }
 
@@ -218,7 +219,7 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
 /// The managed state alone (the hub and the approvals), for [`init`] and tests.
 pub fn manage_state<R: Runtime>(app: &AppHandle<R>, hub: Arc<BrowserHub>) {
     app.manage(BrowserState(hub));
-    app.manage(Arc::new(renderer::Renderers::default()));
+    app.manage(Arc::new(sessions::Renderers::default()));
     app.manage(Arc::new(Approvals::default()));
 }
 
@@ -235,7 +236,7 @@ pub fn owner_destroyed<R: Runtime>(app: &AppHandle<R>, owner: &str) {
 /// Debrief exits: every browser is closed (gracefully, then by force) and its profile removed, even one kept open for the user.
 pub fn shutdown<R: Runtime>(app: &AppHandle<R>) {
     if let Some(r) = renderers(app) {
-        r.close_all(renderer::QUIT_GRACE);
+        r.close_all(sessions::QUIT_GRACE);
     }
 }
 
