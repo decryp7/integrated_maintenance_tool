@@ -395,7 +395,7 @@ impl AiCore {
     /// Loads the model in the background after startup when the settings ask for it.
     pub fn autoload(&self) {
         // While Pitwall answers, the built-in model stays out of memory (one model, ADR 0059).
-        if self.availability().is_err() || !self.settings().autoload || self.engine_kind() != Some(EngineKind::BuiltIn) {
+        if self.built_in_availability().is_err() || !self.settings().autoload || self.engine_kind() != Some(EngineKind::BuiltIn) {
             return;
         }
         if let Active::Lazy { lazy, .. } = &*lock(&self.active) {
@@ -413,8 +413,22 @@ impl AiCore {
         }
     }
 
-    /// Ok when AI can be used in this run; otherwise why not.
+    /// Ok when AI can be used in this run (by either engine); otherwise why not. A missing or broken built-in worker does
+    /// not stop Pitwall (ADR 0059, rule 19); safe mode turns both off.
     pub fn availability(&self) -> AiResult<()> {
+        let built_in = self.built_in_availability();
+        if built_in.is_ok() || self.safe_mode {
+            return built_in;
+        }
+        match self.engine_kind() {
+            Some(EngineKind::BuiltIn) => built_in,
+            _ => Ok(()),
+        }
+    }
+
+    /// Ok when the built-in engine can run in this run (not safe mode, its worker is installed); otherwise why not. The
+    /// built-in engine's own operations (set-up, models, runtimes, updates) check this.
+    pub fn built_in_availability(&self) -> AiResult<()> {
         if self.safe_mode {
             return Err(AiCmdError::unavailable(
                 "Debrief is running in safe mode, so the AI assistant is off. Restart normally to use it.",
@@ -507,7 +521,7 @@ impl AiCore {
     /// As [`recommendations`](Self::recommendations), after reading the headers of the models that could fit
     /// (first bytes only, nothing is downloaded) so that the verdicts use their real architecture.
     pub fn refine_fit(&self) -> AiResult<Recommendations> {
-        self.availability()?;
+        self.built_in_availability()?;
         self.with_setup(|s| Ok(s.refine()))
     }
 
@@ -602,6 +616,7 @@ impl AiCore {
             },
             None => Err(AiCmdError::from(AiError::Engine(self.engine_lost_reason())).in_outage_of(crate::health::hub::AI)),
             Some(EngineKind::BuiltIn) => {
+                self.built_in_availability()?;
                 if let Some(h) = &self.deps.health {
                     h.check().map_err(|e| AiCmdError::unavailable(e.to_string()))?;
                 }
@@ -634,7 +649,7 @@ impl AiCore {
         if self.engine_kind() != Some(EngineKind::BuiltIn) {
             return Ok(self.engine(Priority::Interactive)?.llm());
         }
-        self.availability()?;
+        self.built_in_availability()?;
         if let Some(h) = &self.deps.health {
             h.check().map_err(|e| AiCmdError::unavailable(e.to_string()))?;
         }
@@ -803,7 +818,7 @@ impl AiCore {
     pub(super) fn restart_engine(&self) {
         let was_running = self.engine_running();
         self.install_active(None);
-        if was_running && self.availability().is_ok() {
+        if was_running && self.built_in_availability().is_ok() {
             if let Active::Lazy { lazy, .. } = &*lock(&self.active) {
                 lazy.preload();
             }
@@ -827,7 +842,7 @@ impl AiCore {
 
     /// Reserves the (single) set-up slot; the returned progress carries the cancel flag.
     pub fn begin_setup(&self) -> AiResult<Arc<Progress>> {
-        self.availability()?;
+        self.built_in_availability()?;
         let mut slot = lock(&self.setup);
         if slot.is_some() {
             return Err(AiCmdError::busy("A model is already being set up; wait for it or cancel it first."));
@@ -882,7 +897,7 @@ impl AiCore {
 
     /// What would be set up (the best model unless `model_id` names another), and what it costs.
     pub fn plan(&self, model_id: Option<&str>) -> AiResult<SetupPlan> {
-        self.availability()?;
+        self.built_in_availability()?;
         let mut plan = self.with_setup(|s| s.plan())?;
         if let Some(id) = model_id.filter(|id| plan.chosen.as_ref().is_none_or(|c| c.model.id != *id)) {
             let pick: Recommendation = plan
@@ -1059,7 +1074,7 @@ impl AiCore {
     /// Downloads and verifies the catalog projector of the installed model `file_name` (never automatically: the
     /// user asked). The active model is reloaded with it on its next use. Blocks; call off the UI thread.
     pub fn install_projector(&self, file_name: &str, progress: &Progress, on_stage: &mut dyn FnMut(SetupStage)) -> AiResult<()> {
-        self.availability()?;
+        self.built_in_availability()?;
         let entry = self.projector_entry(file_name)?;
         if !self.store().path_of(file_name)?.is_file() {
             return Err(AiCmdError::not_found(format!("{file_name} is not installed")));
@@ -1073,7 +1088,7 @@ impl AiCore {
     /// this model; a file of the catalog projector's size must have its SHA-256. Hashing reads the file: call off
     /// the UI thread.
     pub fn add_projector(&self, file_name: &str, path: &Path, progress: &Progress) -> AiResult<ModelDto> {
-        self.availability()?;
+        self.built_in_availability()?;
         let store = self.store();
         store.path_of(file_name)?;
         let info = gguf::inspect_projector(path)?;

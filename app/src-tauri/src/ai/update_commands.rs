@@ -195,7 +195,7 @@ pub async fn ai_updates_status<R: Runtime>(app: AppHandle<R>) -> AiResult<AiUpda
 #[tauri::command]
 pub async fn ai_updates_check<R: Runtime>(app: AppHandle<R>, kind: Option<String>) -> AiResult<AiUpdatesStatus> {
     let updates = updates(&app)?;
-    core(&app)?.availability()?;
+    core(&app)?.built_in_availability()?;
     let kinds = match kind.as_deref() {
         None => UpdateKind::ALL.to_vec(),
         Some(k) => vec![UpdateKind::parse(k).ok_or_else(|| AiCmdError::invalid("check runtime or model updates"))?],

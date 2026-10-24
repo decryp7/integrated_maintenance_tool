@@ -224,7 +224,7 @@ impl AiCore {
     /// here, and which one is suggested and in use. Checking the builds runs the worker, so call it off
     /// the UI thread; the answer is cached until the installed builds or the settings change.
     pub fn runtime_overview(&self) -> AiResult<RuntimeOverview> {
-        self.availability()?;
+        self.built_in_availability()?;
         let s = self.settings();
         let rt = &self.deps.runtimes;
         let installed = rt.store.list(&rt.catalog.tag);
@@ -282,7 +282,7 @@ impl AiCore {
 
     /// Reserves the (single) runtime install slot for build `id`; the progress carries the cancel flag.
     pub fn begin_runtime_install(&self, id: &str) -> AiResult<Arc<Progress>> {
-        self.availability()?;
+        self.built_in_availability()?;
         let rt = &self.deps.runtimes;
         if !is_build_id(id) || rt.catalog.find(&rt.platform, id).is_none() {
             return Err(AiCmdError::not_found(format!(

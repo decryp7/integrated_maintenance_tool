@@ -242,7 +242,7 @@ pub async fn ai_image_close(win: CurrentWindow, id: u32) -> Ai<bool> {
 #[tauri::command]
 pub async fn ai_model_install_projector<R: Runtime>(app: AppHandle<R>, file_name: String) -> Ai<u64> {
     let core = core(&app)?;
-    core.availability()?;
+    core.built_in_availability()?;
     // Fails fast for a model the catalog has no projector for.
     core.projector_download_bytes(&file_name)?;
     let progress = Arc::new(debrief_ai::models::Progress::new());
@@ -275,7 +275,7 @@ pub async fn ai_model_add_projector<R: Runtime>(
     path: String,
 ) -> Ai<u64> {
     let core = core(&app)?;
-    core.availability()?;
+    core.built_in_availability()?;
     let file = grants.read_file(&path, &["gguf"])?.path().to_path_buf();
     let progress = Arc::new(debrief_ai::models::Progress::new());
     let (p, q) = (progress.clone(), progress.clone());

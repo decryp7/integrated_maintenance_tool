@@ -124,7 +124,14 @@ pub fn manage<R: Runtime>(app: &AppHandle<R>, core: Arc<AiCore>) {
     if let Some(jobs) = app.try_state::<crate::jobs::Jobs>() {
         // A quarantined worker pauses the AI queue (the waiting requests stay) until "Reset AI".
         let c = core.clone();
-        jobs.set_gate(crate::jobs::JobKind::Ai, move || c.quarantine_reason());
+        // While Pitwall answers, the built-in worker's quarantine does not hold up AI work (ADR 0059).
+        jobs.set_gate(crate::jobs::JobKind::Ai, move || {
+            if c.uses_pitwall() {
+                None
+            } else {
+                c.quarantine_reason()
+            }
+        });
         let handle = app.clone();
         jobs.set_retry(crate::jobs::JobKind::Ai, move |job| requests::retry(&handle, job));
         let handle = app.clone();

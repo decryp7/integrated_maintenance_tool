@@ -190,3 +190,32 @@ fn use_pitwall_pairs_through_the_ipc_and_makes_pitwall_the_setting() {
     let status = ipc(&main, "ai_pitwall_forget", json!({})).unwrap();
     assert_eq!(status["engine"]["pitwall"]["paired"], false);
 }
+
+#[test]
+fn pitwall_works_without_the_built_in_worker() {
+    // Regression: a missing (or broken) built-in worker made all AI unavailable, Pitwall included (rule 19).
+    let mut w = world("pw-noworker", paired(), Some("pw_ok"));
+    w.f.worker = Some(w.f.tmp.0.join("no-such-worker"));
+    let deps = AiDeps {
+        pitwall: Some(w.pw.clone()),
+        ..w.f.deps()
+    };
+    w.core = Arc::new(AiCore::new(Some(ai_dir(&w.f.tmp)), w.f.tmp.0.join("models"), false, deps));
+    w.pw.probe();
+    assert_eq!(w.core.engine_kind(), Some(EngineKind::Pitwall));
+    let s = w.core.status();
+    assert!(s.available, "{s:?}");
+    assert_eq!(s.state, EngineStateDto::Ready);
+    assert_eq!(ai_health_of(&s), AiHealth::Fine);
+    let r = w.core.provider().unwrap().chat(&hello(), &mut |_| {}).unwrap();
+    assert_eq!(r.text, "Hello from Pitwall.");
+    assert!(w.core.engine(debrief_ai::engine::pitwall::Priority::Background).is_ok());
+    // The built-in engine itself is still reported unavailable when it is the one selected.
+    assert!(w.core.built_in_availability().is_err());
+    let mut next = w.core.settings();
+    next.engine = EngineChoice::BuiltIn;
+    w.core.apply_settings(next).unwrap();
+    let s = w.core.status();
+    assert!(!s.available && s.state == EngineStateDto::Unavailable, "{s:?}");
+    assert!(w.core.provider().is_err());
+}

@@ -2198,6 +2198,8 @@ fn finding_values_builds_the_names_and_the_alias_job_runs_on_the_local_model_onl
     assert!(reply["values"].is_array(), "{reply}");
     // With the switch off the model is never asked again.
     ipc(&main, "set_settings", json!({"section": "ai", "values": {"name_aliases": false}})).unwrap();
+    // The second search may have queued another alias job before the switch went off: let it end first.
+    wait_until("the last alias job to finish", || !win.names.job_pending());
     let asked = provider.requests().len();
     assert!(!crate::names::schedule_alias_job(app.handle(), "main", &win.names));
     assert_eq!(provider.requests().len(), asked);

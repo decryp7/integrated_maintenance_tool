@@ -114,7 +114,7 @@ pub async fn ai_hardware<R: Runtime>(app: AppHandle<R>) -> Ai<Hardware> {
 pub async fn ai_recommend<R: Runtime>(app: AppHandle<R>) -> Ai<Recommendations> {
     let core = core(&app)?;
     blocking(move || {
-        core.availability()?;
+        core.built_in_availability()?;
         Ok(core.recommendations())
     })
     .await
@@ -310,7 +310,7 @@ pub async fn ai_model_delete<R: Runtime>(app: AppHandle<R>, file_name: String) -
 #[tauri::command]
 pub async fn ai_model_add_local<R: Runtime>(app: AppHandle<R>, grants: crate::paths::WindowGrants, path: String) -> Ai<u64> {
     let core = core(&app)?;
-    core.availability()?;
+    core.built_in_availability()?;
     // Only a file the user chose in the dialog.
     let path = grants.read_file(&path, &["gguf"])?.path().to_string_lossy().into_owned();
     let name = Path::new(&path)
