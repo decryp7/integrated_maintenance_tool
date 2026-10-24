@@ -179,8 +179,10 @@ pub fn create<R: Runtime>(app: &AppHandle<R>) {
 }
 
 /// Whether the desktop has somewhere to show a tray icon: on Windows the taskbar's window exists (it does
-/// not in session 0 or without Explorer). Elsewhere, and in tests (the mock runtime has its own tray), the
-/// platform reports failures itself.
+/// not in session 0 or without Explorer); on Linux GTK is initialised (the tray menu is a GTK menu, and GTK
+/// panics instead of returning an error when it is not: a display alone is not enough, the event loop
+/// initialises GTK, which the test harness's mock runtime never does). Elsewhere, and in Windows tests (the
+/// mock runtime has its own tray), the platform reports failures itself.
 fn host_available() -> bool {
     #[cfg(all(windows, not(test)))]
     {
@@ -189,7 +191,11 @@ fn host_available() -> bool {
         // SAFETY: a plain lookup with constant, NUL-terminated class names; nothing is retained.
         unsafe { FindWindowW(w!("Shell_TrayWnd"), windows::core::PCWSTR::null()) }.is_ok_and(|h| !h.is_invalid())
     }
-    #[cfg(any(not(windows), test))]
+    #[cfg(target_os = "linux")]
+    {
+        gtk::is_initialized()
+    }
+    #[cfg(not(any(all(windows, not(test)), target_os = "linux")))]
     {
         true
     }
@@ -419,6 +425,18 @@ mod tests {
         assert_eq!(tooltip(0), "Debrief");
         assert_eq!(tooltip(1), "Debrief \u{2014} 1 background task running");
         assert_eq!(tooltip(3), "Debrief \u{2014} 3 background tasks running");
+    }
+
+    /// Linux: without GTK initialised (the mock runtime never does, whatever the display) there is no tray, and
+    /// creating one degrades instead of panicking in GTK.
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn without_gtk_there_is_no_tray_and_asking_for_one_does_not_panic() {
+        let app = test_app(None);
+        assert!(!gtk::is_initialized(), "the test harness never initialises GTK");
+        create(app.handle());
+        assert!(!available(app.handle()));
+        refresh_now(app.handle());
     }
 
     #[test]

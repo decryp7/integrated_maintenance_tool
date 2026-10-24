@@ -879,10 +879,9 @@ mod tests {
         .unwrap()
         .json();
         block(crate::workspace_commands::set_live(app.handle().clone(), state.clone(), true, None)).unwrap();
-        // GTK needs a display for a tray icon (the Linux CI test job has none; the smoke job does).
-        if cfg!(not(target_os = "linux")) || std::env::var_os("DISPLAY").is_some() || std::env::var_os("WAYLAND_DISPLAY").is_some() {
-            crate::tray::create(app.handle());
-        }
+        // Where the platform cannot hold a tray (Linux without GTK initialised, as under the mock runtime) Debrief
+        // runs without one; the teardown must be bounded either way.
+        crate::tray::create(app.handle());
         let (entered, running) = std::sync::mpsc::channel();
         let spec = crate::jobs::JobSpec::new(crate::jobs::JobKind::Export, "Never stops").window("main");
         let controls = crate::jobs::Controls::cancel(|| std::thread::sleep(std::time::Duration::from_secs(30)));

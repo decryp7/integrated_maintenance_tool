@@ -1700,6 +1700,7 @@ dependencies = [
  "debrief-symbols",
  "debrief-video",
  "dirs",
+ "gtk",
  "image",
  "keyring",
  "log",

@@ -113,6 +113,8 @@ objc2-web-kit = { version = "0.3", default-features = false, features = ["std", 
 [target.'cfg(target_os = "linux")'.dependencies]
 # Native window capture (`window_capture::native`, ADR 0034): the versions wry pins.
 webkit2gtk = { version = "=2.0.2", features = ["v2_38"] }
+# Whether GTK is initialised before building the tray's GTK menu (`tray::host_available`): the version tao uses.
+gtk = "0.18"
 cairo-rs = "0.18"
 
 [target.'cfg(windows)'.dependencies]
