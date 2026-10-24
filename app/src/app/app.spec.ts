@@ -1,5 +1,5 @@
 import { inject } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { DeferBlockBehavior, DeferBlockState, TestBed } from '@angular/core/testing';
 import { provideDockTesting, settle, text } from '../testing/helpers';
 import { App } from './app';
 import { MockAnalysisBackend, recordsFrom } from './analysis/mock/mock-analysis-backend';
@@ -30,6 +30,26 @@ describe('App', () => {
     );
     return { fixture, store: TestBed.inject(WorkspaceStore), dock: TestBed.inject(DockService) };
   }
+
+  // Regression: the side bar and the filter bar are deferred (start-up, ADR 0058); without a placeholder of their size
+  // the dock moved by the filter bar's height (and the grid by the side bar's width) when their code arrived after the
+  // window was ready (dock-default-split.e2e under load: 300/540/840 became 282/507/789).
+  it('reserves the room of the deferred side bar and filter bar until their code arrives', async () => {
+    TestBed.configureTestingModule({
+      deferBlockBehavior: DeferBlockBehavior.Manual,
+      providers: [provideDockTesting(), provideToolsBackend(), { provide: AnalysisBackend, useFactory: () => new MockAnalysisBackend(recordsFrom(inject(DebriefBackend))) }],
+    });
+    const fixture = TestBed.createComponent(App);
+    await settle(fixture, 8);
+    const el = fixture.nativeElement as HTMLElement;
+    await vi.waitFor(() => expect(el.querySelector('[data-testid=filter-bar-placeholder]')).not.toBeNull(), { timeout: 10_000 });
+    expect(el.querySelector('[data-testid=sidebar-placeholder]')).not.toBeNull();
+    expect(el.querySelector('debrief-filter-bar')).toBeNull();
+    for (const block of await fixture.getDeferBlocks()) await block.render(DeferBlockState.Complete);
+    await settle(fixture);
+    expect(el.querySelector('[data-testid=filter-bar-placeholder]')).toBeNull();
+    expect(el.querySelector('debrief-filter-bar')).not.toBeNull();
+  });
 
   it('lays out the workbench with the default dock panels', async () => {
     const { fixture, dock } = await render();
