@@ -394,6 +394,14 @@ export class MockJobs implements JobsBackend {
     this.handlers.add(handler);
     return () => this.handlers.delete(handler);
   }
+
+  /** Stops the progress ticker and forgets listeners and waiters (an instance replaced by `resetMockJobs`). */
+  dispose(): void {
+    if (this.ticker) clearInterval(this.ticker);
+    this.ticker = null;
+    this.handlers.clear();
+    this.waiters.clear();
+  }
 }
 
 let instance: MockJobs | null = null;
@@ -404,8 +412,9 @@ export function mockJobs(): MockJobs {
   return instance;
 }
 
-/** Replaces the shared instance (tests). */
+/** Replaces the shared instance (tests); the old one stops ticking, so its jobs cannot reach the next test. */
 export function resetMockJobs(next: MockJobs | null = null): void {
+  if (instance !== next) instance?.dispose();
   instance = next;
 }
 
