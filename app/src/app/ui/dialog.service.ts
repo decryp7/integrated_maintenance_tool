@@ -117,6 +117,33 @@ export class DialogService {
   }
 
   /**
+   * `open` for a registered dialog whose component is loaded when it is needed: callers pass `() => import(...)` instead of
+   * importing the class, so the dialog's code is not part of the first-paint set of the window that can open it (Paddock
+   * rule 35). The ref is returned at once; `close` before the chunk arrived is applied as soon as it opened, and a chunk
+   * that fails to load counts as a dismissed dialog (logged).
+   */
+  openLazy<C extends RegisteredDialog>(load: () => Promise<C>, options: RegisteredDialogOptions<C>): DialogRef<DialogResultOf<C['dialogId']>> {
+    type R = DialogResultOf<C['dialogId']>;
+    let inner: DialogRef<R> | undefined;
+    let early: { result?: R } | undefined;
+    const closed = load().then(
+      (component) => {
+        inner = this.open(component, options);
+        if (early) inner.close(early.result);
+        return inner.closed;
+      },
+      (err: unknown) => {
+        console.error('a dialog could not be loaded', err);
+        return undefined;
+      },
+    );
+    return {
+      closed,
+      close: (result) => (inner ? inner.close(result) : (early = { result })),
+    };
+  }
+
+  /**
    * A dialog window works on its own stores and the engine; what it changed in the engine (the profile, sources,
    * parsers) reaches this window by reloading the summary. (Interaction state syncs through `UiSync`.)
    */

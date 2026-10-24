@@ -1,6 +1,5 @@
 import { inject, Injectable } from '@angular/core';
 import { ExceptionFocus } from '../analysis/exception-focus';
-import { openKnowledgeEditor } from '../ai/knowledge/knowledge-editor';
 import { KnowledgeStore } from '../ai/knowledge/knowledge.store';
 import { WorkspaceStore } from '../core/workspace.store';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
@@ -65,7 +64,9 @@ export class SearchEverythingNavigator {
   private async editKnowledge(scope: DocScope, id: string): Promise<void> {
     if (!this.knowledge.list()) await this.knowledge.load();
     const file = (scope === 'project' ? this.knowledge.project() : this.knowledge.global()).find((f) => f.id === id);
-    if (file) openKnowledgeEditor(this.dialogs, file, scope, this.knowledge.list()?.maxFileBytes ?? 64 * 1024);
-    else this.context.notifyError($localize`:@@search.knowledge.gone:This knowledge file no longer exists.`);
+    if (file) {
+      const maxBytes = this.knowledge.list()?.maxFileBytes ?? 64 * 1024;
+      void import('../ai/knowledge/knowledge-editor').then((m) => m.openKnowledgeEditor(this.dialogs, file, scope, maxBytes));
+    } else this.context.notifyError($localize`:@@search.knowledge.gone:This knowledge file no longer exists.`);
   }
 }

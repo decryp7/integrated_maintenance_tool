@@ -4,6 +4,9 @@ import { badgeFontSize, GlyphSpec, resolveGlyph, sanitizeSvg, shapeGeometry } fr
 import { MarkerStyles } from './marker-styles';
 import { GlyphStyle } from './markers.types';
 
+/** The swatches the marker editors offer for a marker's colour. */
+export const COLOR_PRESETS = ['#f2545b', '#e9ae3f', '#3fbf7f', '#3987e5', '#9085e9', '#ff4fa3', '#2fb8c6', '#a7b0c2'];
+
 /**
  * Draws a marker: a generated badge (1-3 characters in a circle, square, diamond or hexagon), a
  * built-in or custom icon, or the kind's default shape. Give `kind` to look the style up in the

@@ -6,7 +6,6 @@ import { OverwriteGuard } from '../../ui/overwrite-guard';
 import { formatBytes } from '../ai-format';
 import { toAiError } from '../ai-backend';
 import { KnowledgeInfo, KnowledgeScope } from '../ai.types';
-import { openKnowledgeEditor } from './knowledge-editor';
 import { KnowledgePersistence } from './knowledge-persistence';
 import { KnowledgeStore } from './knowledge.store';
 
@@ -156,7 +155,8 @@ export class KnowledgeSettings implements OnInit {
   }
 
   private openEditor(file: KnowledgeInfo | null, scope: KnowledgeScope): void {
-    openKnowledgeEditor(this.dialogs, file, scope, this.store.list()?.maxFileBytes ?? 64 * 1024);
+    const maxBytes = this.store.list()?.maxFileBytes ?? 64 * 1024;
+    void import('./knowledge-editor').then((m) => m.openKnowledgeEditor(this.dialogs, file, scope, maxBytes));
   }
 
   write(scope: KnowledgeScope): void {

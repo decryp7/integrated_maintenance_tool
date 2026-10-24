@@ -4,12 +4,7 @@ import { WorkspaceStore } from '../core/workspace.store';
 import { GridSelection } from '../grid/grid-selection';
 import { ContextMenuService, MenuEntry } from '../ui/context-menu.service';
 import { DialogService } from '../ui/dialog.service';
-import { DropDialog } from './drop-dialog';
-import { ExtractDialog } from './extract-dialog';
-import { InferDialog } from '../markers/regex/infer-dialog';
 import { proposeHighlight } from '../markers/highlight';
-import { MarkDialog } from './mark-dialog';
-import { MaskDialog } from './mask-dialog';
 import { fieldValueConditions, likeThisConditions, recordFieldText } from './rule-builders';
 import { SourceFileActions } from '../sources/source-file-actions';
 import { copyText } from '../tools/clipboard';
@@ -136,14 +131,14 @@ export class RecordActions {
 
   drop(record: RecordView, field?: FieldRef): void {
     const initial = field ? fieldValueConditions(field.name, field.value) : likeThisConditions(record);
-    this.dialogs.open(DropDialog, { title: $localize`:@@context.recordActions.drop.title:Drop events like this`, inputs: { initial }, width: 640 });
+    this.dialogs.openLazy(() => import('./drop-dialog').then((m) => m.DropDialog), { title: $localize`:@@context.recordActions.drop.title:Drop events like this`, inputs: { initial }, width: 640 });
   }
 
   mark(record: RecordView, field?: FieldRef): void {
     const initial = field ? fieldValueConditions(field.name, field.value) : likeThisConditions(record);
     const basis = field ? `${field.name} ${field.value}` : (record.template ?? record.message);
     const suggestedLabel = basis.length > LABEL_MAX ? `${basis.slice(0, LABEL_MAX).trim()}…` : basis;
-    this.dialogs.open(MarkDialog, { title: $localize`:@@context.recordActions.mark.title:Mark events like this`, inputs: { initial, suggestedLabel }, width: 760 });
+    this.dialogs.openLazy(() => import('./mark-dialog').then((m) => m.MarkDialog), { title: $localize`:@@context.recordActions.mark.title:Mark events like this`, inputs: { initial, suggestedLabel }, width: 760 });
   }
 
   /** "Highlight lines…": a marker rule prefilled from the selected text (as a regex), the template or the message. */
@@ -154,7 +149,7 @@ export class RecordActions {
       template: $localize`:@@context.recordActions.highlight.hintTemplate:Highlights every event with this message template.`,
       message: $localize`:@@context.recordActions.highlight.hintMessage:Highlights events whose message looks like this one (numbers generalised).`,
     }[p.basis];
-    this.dialogs.open(MarkDialog, {
+    this.dialogs.openLazy(() => import('./mark-dialog').then((m) => m.MarkDialog), {
       title: $localize`:@@context.recordActions.highlight.title:Highlight lines`,
       inputs: { initial: p.conditions, suggestedLabel: p.label, submitLabel: $localize`:@@context.recordActions.highlight.submit:Add highlight`, hint },
       width: 760,
@@ -163,7 +158,7 @@ export class RecordActions {
 
   /** "Infer pattern from lines…": derives one regex from the messages of these records. */
   infer(records: readonly RecordView[]): void {
-    this.dialogs.open(InferDialog, { title: $localize`:@@context.recordActions.infer.title:Infer pattern from lines`, inputs: { lines: records.map((r) => r.message) }, width: 780 });
+    this.dialogs.openLazy(() => import('../markers/regex/infer-dialog').then((m) => m.InferDialog), { title: $localize`:@@context.recordActions.infer.title:Infer pattern from lines`, inputs: { lines: records.map((r) => r.message) }, width: 780 });
   }
 
   /**
@@ -178,11 +173,11 @@ export class RecordActions {
   }
 
   mask(record: RecordView, selection: MessageSelection): void {
-    this.dialogs.open(MaskDialog, { title: $localize`:@@context.recordActions.mask.title:Mask in message`, inputs: { record, selected: selection.text }, width: 640 });
+    this.dialogs.openLazy(() => import('./mask-dialog').then((m) => m.MaskDialog), { title: $localize`:@@context.recordActions.mask.title:Mask in message`, inputs: { record, selected: selection.text }, width: 640 });
   }
 
   extract(record: RecordView, selection: MessageSelection): void {
-    this.dialogs.open(ExtractDialog, { title: $localize`:@@context.recordActions.extract.title:Extract value`, inputs: { record, start: selection.start, end: selection.end }, width: 680 });
+    this.dialogs.openLazy(() => import('./extract-dialog').then((m) => m.ExtractDialog), { title: $localize`:@@context.recordActions.extract.title:Extract value`, inputs: { record, start: selection.start, end: selection.end }, width: 680 });
   }
 
   /** "Filter only this logger" is the most useful row-level filter when the record has a SourceContext. */

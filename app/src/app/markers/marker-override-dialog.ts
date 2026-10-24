@@ -2,8 +2,7 @@ import { ChangeDetectionStrategy, Component, computed, inject, input, linkedSign
 import { MARKER_SHAPES } from '../core/api.types';
 import { DIALOG_FORM_STYLES } from '../context/dialog-styles';
 import { DIALOG_REF, DialogRef } from '../ui/dialog.service';
-import { COLOR_PRESETS } from './marker-editor';
-import { MarkerGlyph } from './marker-glyph';
+import { COLOR_PRESETS, MarkerGlyph } from './marker-glyph';
 import { OverrideStyle, PluginKindRow, styleProblems } from './marker-overrides';
 
 /**

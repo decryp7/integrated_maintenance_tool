@@ -63,27 +63,27 @@ describe('WhatsNewService', () => {
   const open = (d: DialogService) => d.stack().some((x) => x.component === WhatsNewDialog);
   const version = CHANGELOG[0]!.version;
 
-  it('remembers the version on a first run without opening anything', () => {
+  it('remembers the version on a first run without opening anything', async () => {
     const { svc, dialogs } = setup(version);
-    svc.checkOnStart();
+    await svc.checkOnStart();
     expect(open(dialogs)).toBe(false);
     expect(localStorage.getItem(WHATS_NEW_SEEN_KEY)).toBe(version);
   });
 
-  it('opens once after an update, then stays closed for the same version', () => {
+  it('opens once after an update, then stays closed for the same version', async () => {
     localStorage.setItem(WHATS_NEW_SEEN_KEY, '0.0.1');
     const { svc, dialogs } = setup(version);
-    svc.checkOnStart();
+    await svc.checkOnStart();
     expect(open(dialogs)).toBe(true);
     expect(localStorage.getItem(WHATS_NEW_SEEN_KEY)).toBe(version);
     dialogs.dismissTop();
-    svc.checkOnStart();
+    await svc.checkOnStart();
     expect(open(dialogs)).toBe(false);
   });
 
-  it('does nothing without a known version, and survives unavailable storage', () => {
+  it('does nothing without a known version, and survives unavailable storage', async () => {
     const { svc, dialogs } = setup(null);
-    svc.checkOnStart();
+    await svc.checkOnStart();
     expect(open(dialogs)).toBe(false);
     vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
       throw new Error('blocked');
@@ -92,7 +92,7 @@ describe('WhatsNewService', () => {
       throw new Error('blocked');
     });
     TestBed.inject(LifecycleService).status.set({ version, safeMode: false, previousCrash: false, sessionAvailable: false });
-    expect(() => svc.checkOnStart()).not.toThrow();
+    await expect(svc.checkOnStart()).resolves.toBeUndefined();
   });
 
   it('opens on demand once, and the dialog shows the version, its groups and the earlier releases', async () => {

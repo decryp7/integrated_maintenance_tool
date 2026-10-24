@@ -9,7 +9,6 @@ import { DialogService } from '../../ui/dialog.service';
 import { MarkdownView } from './markdown-view';
 import { ReportActions } from './report-actions';
 import { ReportBlockView } from './report-block';
-import { openReportExport } from './report-export-dialog';
 import { ReportStore } from './report.store';
 
 /**
@@ -149,7 +148,7 @@ export class ReportView {
   }
 
   protected exportReport(): void {
-    void openReportExport(this.dialogs);
+    void import('./report-export-dialog').then((m) => m.openReportExport(this.dialogs));
   }
 
   /**

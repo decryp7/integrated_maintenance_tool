@@ -184,3 +184,41 @@ describe('raising an in-page dialog', () => {
     expect(raise([d(1, 'modeless'), d(2, 'modeless')], 1).map((x) => x.id)).toEqual([2, 1]);
   });
 });
+
+describe('DialogService.openLazy', () => {
+  let windows: FakeWindows;
+  beforeEach(() => {
+    windows = new FakeWindows();
+    TestBed.configureTestingModule({ providers: [{ provide: DialogPresenter, useValue: windows }] });
+  });
+
+  it('loads the component, then opens it with the options, and resolves with the answer', async () => {
+    const dialogs = TestBed.inject(DialogService);
+    const ref = dialogs.openLazy(() => Promise.resolve(ModalX), { title: 'Unsaved', inputs: { name: 'a' } as never });
+    expect(windows.shown).toHaveLength(0);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(windows.shown[0]).toMatchObject({ title: 'Unsaved', inputs: { name: 'a' } });
+    windows.sessions[0]!.resolve('yes');
+    expect(await ref.closed).toBe('yes');
+  });
+
+  it('applies a close that arrives before the chunk did', async () => {
+    const dialogs = TestBed.inject(DialogService);
+    const ref = dialogs.openLazy(() => Promise.resolve(ModalX), { title: 'Unsaved' });
+    ref.close('early' as never);
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(windows.sessions[0]!.closes).toEqual(['early']);
+  });
+
+  it('counts a chunk that fails to load as a dismissed dialog', async () => {
+    const dialogs = TestBed.inject(DialogService);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const ref = dialogs.openLazy(() => Promise.reject(new Error('chunk')), { title: 'Unsaved' });
+    expect(await ref.closed).toBeUndefined();
+    expect(windows.shown).toHaveLength(0);
+    expect(error).toHaveBeenCalled();
+    error.mockRestore();
+  });
+});

@@ -1,7 +1,7 @@
-import { ChangeDetectionStrategy, Component, computed, effect, inject, Injectable, untracked } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, untracked } from '@angular/core';
 import { PermissionDto } from '../core/api.types';
 import { ToolError } from '../tools/elevation-hint';
-import { DIALOG_REF, DialogRef, DialogService } from '../ui/dialog.service';
+import { DIALOG_REF } from '../ui/dialog.service';
 import { permissionTitle, refusalLiftedByTrust, signatureText } from './package-labels';
 import { PluginPackagesStore } from './plugin-packages.store';
 
@@ -126,26 +126,4 @@ export class PackageReviewDialog {
   }
 }
 
-/** Opens the review dialog whenever a review starts (once per review, whichever view or drop started it). Inject it to start it. */
-@Injectable({ providedIn: 'root' })
-export class PackageReviewOpener {
-  private readonly dialogs = inject(DialogService);
-  private readonly store = inject(PluginPackagesStore);
-  private ref: DialogRef | null = null;
-
-  constructor() {
-    effect(() => {
-      if (this.store.review()) untracked(() => this.open());
-    });
-  }
-
-  private open(): void {
-    if (this.ref) return;
-    const ref = this.dialogs.open(PackageReviewDialog, { title: $localize`:@@pluginsPanel.packages.review.title:Install plugin`, width: 600 });
-    this.ref = ref;
-    void ref.closed.then(() => {
-      this.ref = null;
-      if (this.store.review()) this.store.cancelReview();
-    });
-  }
-}
+export { PackageReviewOpener } from './package-review-opener';

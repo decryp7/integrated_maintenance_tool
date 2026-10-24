@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
-import { AddTileDialog } from './add-tile-dialog';
 import { DashboardStore } from './dashboard.store';
 
 /** Commands for dashboards. */
@@ -29,7 +28,7 @@ export class DashboardCommands {
       category: $localize`:@@share.commands.categoryView:View`,
       when: () => this.ds.editing(),
       run: async () => {
-        const tile = await this.dialogs.open(AddTileDialog, { title: $localize`:@@share.addTile.dialogTitle:Add tile`, width: 520 }).closed;
+        const tile = await this.dialogs.openLazy(() => import('./add-tile-dialog').then((m) => m.AddTileDialog), { title: $localize`:@@share.addTile.dialogTitle:Add tile`, width: 520 }).closed;
         if (tile) this.ds.add(tile);
       },
     },

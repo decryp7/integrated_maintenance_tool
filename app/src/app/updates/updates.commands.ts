@@ -1,7 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { DebriefCommand } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
-import { UpdatesDialog } from './updates-dialog';
 import { UpdatesStore } from './updates.store';
 
 /** Phases from which opening the dialog starts a check. */
@@ -15,7 +14,7 @@ export class UpdatesCommands {
 
   /** Opens the Updates dialog and checks, unless an update is already being handled. */
   open(): void {
-    this.dialogs.open(UpdatesDialog, { title: $localize`:@@updates.dialog.title:Check for updates`, width: 520 });
+    this.dialogs.openLazy(() => import('./updates-dialog').then((m) => m.UpdatesDialog), { title: $localize`:@@updates.dialog.title:Check for updates`, width: 520 });
     const kind = this.store.phase()?.kind ?? 'idle';
     if (CHECK_FROM.has(kind)) void this.store.check();
   }

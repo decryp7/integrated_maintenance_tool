@@ -1,7 +1,6 @@
 import { EnvironmentProviders, inject, makeEnvironmentProviders } from '@angular/core';
 import { DebriefCommand, DEBRIEF_COMMANDS } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
-import { openIncidentSummary } from './incident-summary-dialog';
 
 /** The incident summary command: opens the dialog; the report view is shown once a report was built. */
 export function incidentCommands(dialogs: DialogService): DebriefCommand[] {
@@ -12,7 +11,7 @@ export function incidentCommands(dialogs: DialogService): DebriefCommand[] {
       category: $localize`:@@share.commands.categoryAnalyze:Analyze`,
       when: (ctx) => !!ctx.summary?.total,
       run: async (ctx) => {
-        if ((await openIncidentSummary(dialogs)) === 'show') ctx.showView('report');
+        if ((await (await import('./incident-summary-dialog')).openIncidentSummary(dialogs)) === 'show') ctx.showView('report');
       },
     },
   ];

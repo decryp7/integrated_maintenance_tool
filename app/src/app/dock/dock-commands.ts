@@ -3,7 +3,6 @@ import { DebriefCommand } from '../extensions/tokens';
 import { DialogService } from '../ui/dialog.service';
 import { DockService } from './dock.service';
 import { PANEL_WINDOWS } from './panel-windows';
-import { ManageLayoutsDialog, SaveLayoutDialog } from './layout-dialogs';
 import { FullScreenMode, FullScreenPrefs } from './os-window';
 import { Perspectives, PERSPECTIVE_KEYS } from './perspectives';
 
@@ -55,9 +54,9 @@ export class DockCommands {
       id: 'window.layout.save',
       title: $localize`:@@dock.commands.perspective.save:Save current as perspective…`,
       category: CATEGORY,
-      run: () => void this.dialogs.open(SaveLayoutDialog, { title: $localize`:@@dock.commands.perspective.saveDialog:Save as perspective`, width: 420 }),
+      run: () => void this.dialogs.openLazy(() => import('./layout-dialogs').then((m) => m.SaveLayoutDialog), { title: $localize`:@@dock.commands.perspective.saveDialog:Save as perspective`, width: 420 }),
     },
-    { id: 'window.layout.manage', title: $localize`:@@dock.commands.perspective.manage:Manage perspectives…`, category: CATEGORY, run: () => void this.dialogs.open(ManageLayoutsDialog, { title: $localize`:@@dock.commands.perspective.dialogTitle:Perspectives`, width: 620 }) },
+    { id: 'window.layout.manage', title: $localize`:@@dock.commands.perspective.manage:Manage perspectives…`, category: CATEGORY, run: () => void this.dialogs.openLazy(() => import('./layout-dialogs').then((m) => m.ManageLayoutsDialog), { title: $localize`:@@dock.commands.perspective.dialogTitle:Perspectives`, width: 620 }) },
     ...Array.from({ length: PERSPECTIVE_KEYS }, (_, i) => this.perspectiveAt(i + 1)),
     { id: 'window.layout.reset', title: $localize`:@@dock.commands.perspective.reset:Reset perspective`, category: CATEGORY, run: () => this.perspectives.reset() },
   ];
