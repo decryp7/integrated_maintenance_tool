@@ -531,6 +531,7 @@ pub struct NativeMenu {
 }
 
 impl NativeMenu {
+    #[cfg(test)]
     pub fn builds(&self) -> u64 {
         self.builds.load(std::sync::atomic::Ordering::Relaxed)
     }
