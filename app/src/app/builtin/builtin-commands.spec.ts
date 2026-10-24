@@ -115,9 +115,11 @@ describe('built-in commands', () => {
     expect(dock.calls).toContain('reset');
     const dialogs = TestBed.inject(DialogService);
     await registry.run('help.about');
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.options.title).toBe('About Debrief');
     dialogs.dismissTop();
     await registry.run('help.notices');
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.options.title).toBe('About Debrief');
     dialogs.dismissTop();
     await registry.run('help.welcome');

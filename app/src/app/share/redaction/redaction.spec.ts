@@ -96,6 +96,7 @@ describe('RedactionService and commands', () => {
     expect(service.on()).toBe(true);
     void settings.run({} as never);
     await settle();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(TestBed.inject(DialogService).stack()[0]?.options.title).toBe('Redaction settings');
   });
 });

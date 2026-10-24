@@ -151,7 +151,7 @@ describe('ReportCommands', () => {
     expect(byId('report.export').when!(c)).toBe(true);
     const dialogs = TestBed.inject(DialogService);
     const running = byId('report.export').run(c);
-    expect(dialogs.stack()[0]?.component).toBe(ReportExportDialog);
+    await vi.waitFor(() => expect(dialogs.stack()[0]?.component).toBe(ReportExportDialog));
     dialogs.dismissTop();
     await running;
     expect(store.summary()).not.toBeNull();
@@ -243,7 +243,7 @@ describe('ReportView and ReportBlockView', () => {
 
     // Export opens the dialog.
     buttonByText(f, 'Export…').click();
-    expect(TestBed.inject(DialogService).stack()[0]?.component).toBe(ReportExportDialog);
+    await vi.waitFor(() => expect(TestBed.inject(DialogService).stack()[0]?.component).toBe(ReportExportDialog));
   });
 
   it('renders every block type as text, never as markup', async () => {

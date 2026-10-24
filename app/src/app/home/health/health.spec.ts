@@ -152,6 +152,7 @@ describe('HealthActions', () => {
   it('opens the format wizard and panels; ignores mismatched or missing actions', async () => {
     const { ctx, actions } = setup();
     await actions.run(file, 'setupFormat');
+    await TestBed.inject(DialogService).whenLoaded();
     const stack = TestBed.inject(DialogService).stack();
     expect(at(stack, 0).component).toBe(FormatWizard);
     expect(at(stack, 0).options.inputs).toEqual({ path: '/logs/x.reg', name: 'x.reg' });

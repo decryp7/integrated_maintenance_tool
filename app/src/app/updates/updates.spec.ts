@@ -272,6 +272,7 @@ describe('UpdatesCommands and toast', () => {
     expect(at(commands.commands, 0).id).toBe('help.checkForUpdates');
     await at(commands.commands, 0).run({} as never);
     commands.open();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().filter((d) => d.component === UpdatesDialog).length).toBe(1);
     await until(() => store.phase()?.kind === 'available');
     expect(backend.calls.filter((c) => c === 'check').length).toBeGreaterThanOrEqual(1);
@@ -286,6 +287,7 @@ describe('UpdatesCommands and toast', () => {
     expect(el.querySelector('[data-testid=notification]')?.textContent).toContain('Debrief 0.2.0 is available');
     el.querySelector<HTMLButtonElement>('[data-testid=notification-action]')!.click();
     fixture.detectChanges();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(TestBed.inject(DialogService).stack().some((d) => d.component === UpdatesDialog)).toBe(true);
     expect(el.querySelector('[data-testid=notification]')).toBeNull();
   });

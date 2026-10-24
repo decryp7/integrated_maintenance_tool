@@ -24,6 +24,7 @@ describe('provideIncident', () => {
     const { command, dialogs } = setup();
     const c = ctx(5);
     const run = command.run(c) as Promise<void>;
+    await vi.waitFor(() => expect(dialogs.stack()).toHaveLength(1));
     dialogs.stack().at(0)?.ref.close('show');
     await run;
     expect(c.showView).toHaveBeenCalledWith('report');
@@ -33,6 +34,7 @@ describe('provideIncident', () => {
     const { command, dialogs } = setup();
     const c = ctx(5);
     const run = command.run(c) as Promise<void>;
+    await vi.waitFor(() => expect(dialogs.stack()).toHaveLength(1));
     dialogs.stack().at(0)?.ref.close();
     await run;
     expect(c.showView).not.toHaveBeenCalled();

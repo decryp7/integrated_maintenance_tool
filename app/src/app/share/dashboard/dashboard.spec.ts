@@ -447,6 +447,7 @@ describe('DashboardView', () => {
     buttonByText(fixture, 'Edit').click();
     await settle(fixture);
     buttonByText(fixture, /Add tile/).click();
+    await TestBed.inject(DialogService).whenLoaded();
     await settle(fixture);
     at(dialogs.stack(), 0).ref.close({ ...tile('new one'), type: 'annotations' });
     await settle(fixture);

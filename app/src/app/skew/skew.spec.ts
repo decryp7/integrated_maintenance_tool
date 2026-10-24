@@ -239,6 +239,7 @@ describe('clock section, commands, sidebar and inspector', () => {
     await settle(fixture);
     const dialogs = TestBed.inject(DialogService);
     buttonByText(fixture, /Align app\.log on reference/).click();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.options.inputs).toEqual({ sourceId: other.source });
     expect(dialogs.stack()[0]?.options.title).toBe('Adjust clock — app.log');
     fixture.componentRef.setInput('record', r[0]);
@@ -248,6 +249,7 @@ describe('clock section, commands, sidebar and inspector', () => {
     expect(CLOCK_SECTION.when!(at(r, 0))).toBe(true);
     expect(CLOCK_SECTION.when!(r.find((x) => x.ts === null)!)).toBe(false);
     TestBed.inject(ClockDialogService).open(3);
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[1]?.options.title).toBe('Adjust clock');
   });
 
@@ -263,6 +265,7 @@ describe('clock section, commands, sidebar and inspector', () => {
     await registry.run(find('skew.reference').id);
     expect(skew.reference()?.id).toBe(at(r, 1).id);
     await registry.run(find('skew.adjust').id);
+    await TestBed.inject(DialogService).whenLoaded();
     expect(TestBed.inject(DialogService).stack()).toHaveLength(1);
     store.select(null);
     await find('skew.adjust').run(null as never);
@@ -286,8 +289,10 @@ describe('clock section, commands, sidebar and inspector', () => {
     expect(menu.menu()?.items.map((i) => i.label)).toEqual(['Open file', 'Show in folder', 'Parse with…', 'Add note…', 'Adjust clock…', 'Remove']);
     at(menu.menu()!.items, 4).run();
     const dialogs = TestBed.inject(DialogService);
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.options.inputs).toEqual({ sourceId: 1 });
     el(fixture, '[aria-label="Adjust clock of app.clef"]').click();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()).toHaveLength(2);
     at(menu.menu()!.items, 5).run();
     await settle(fixture);

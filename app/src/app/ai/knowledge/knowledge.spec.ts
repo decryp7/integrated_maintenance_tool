@@ -192,6 +192,7 @@ describe('KnowledgeSettings', () => {
     await settle(f);
     expect((await backend.listKnowledge()).global).toHaveLength(0);
     el<HTMLButtonElement>(f, '[data-testid=knowledge-new-project]').click();
+    await vi.waitFor(() => expect(dialogs.stack().length).toBeGreaterThan(0));
     dlg = dialogs.stack().at(-1);
     expect(dlg?.options.title).toBe('New knowledge file');
     expect(dlg?.options.inputs).toMatchObject({ file: null, scope: 'project', maxBytes: 65536 });
@@ -201,7 +202,7 @@ describe('KnowledgeSettings', () => {
     await settle(f);
     expect(at(all(f, '[data-testid=knowledge-project] li'), 0).textContent).toContain('Incident');
     buttonByText(f, 'Edit…').click();
-    expect(dialogs.stack().at(-1)?.options.title).toBe('Edit knowledge file');
+    await vi.waitFor(() => expect(dialogs.stack().at(-1)?.options.title).toBe('Edit knowledge file'));
   });
 
   it('shows warnings, a failed listing with Retry and refusals', async () => {

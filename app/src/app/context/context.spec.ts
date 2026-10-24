@@ -282,9 +282,11 @@ describe('RecordActions and the context menu', () => {
     expect(items.map((i) => i.group)).toEqual(['copy', 'mark', 'open', 'open', 'open', 'rules', 'rules', 'rules']);
     const byLabel = (label: string) => actions.itemsFor(rec).find((i) => i.label === label)!;
     byLabel('Drop events like this (pipeline)…').run();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.component).toBe(DropDialog);
     expect(dialogs.stack()[0]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'eq', value: rec.message }]);
     byLabel('Mark events like this…').run();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[1]?.component).toBe(MarkDialog);
   });
 
@@ -345,15 +347,20 @@ describe('RecordActions and the context menu', () => {
     run('Exclude this MachineName');
     expect(store.query().filters.map((f) => f.op)).toEqual(['eq', 'ne']);
     run('Drop events like this (pipeline)…');
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.options.inputs?.['initial']).toEqual([{ field: 'MachineName', op: 'eq', value: 'WEB01' }]);
     run('Mark events like this…');
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[1]?.options.inputs?.['suggestedLabel']).toBe('MachineName WEB01');
     run('Highlight lines…');
     run('Infer pattern from lines…');
     run('Mask in message…');
     run('Extract value…');
-    expect(dialogs.stack().map((d) => d.component)).toEqual([DropDialog, MarkDialog, MarkDialog, InferDialog, MaskDialog, ExtractDialog]);
-    expect(dialogs.stack()[2]?.options.inputs?.['initial']).toEqual([{ field: '@message', op: 'matches', value: '\\d+' }]);
+    await TestBed.inject(DialogService).whenLoaded();
+    // The dialogs load their code on demand, so they may appear in any order.
+    expect(dialogs.stack().map((d) => d.component)).toHaveLength(6);
+    expect(dialogs.stack().map((d) => d.component)).toEqual(expect.arrayContaining([DropDialog, MarkDialog, InferDialog, MaskDialog, ExtractDialog]));
+    expect(dialogs.stack().filter((d) => d.component === MarkDialog).map((d) => d.options.inputs?.['initial'])).toContainEqual([{ field: '@message', op: 'matches', value: '\\d+' }]);
     expect(actions.itemsFor(rec, { selection: { text: '  ', start: 0, end: 2 } })).toHaveLength(8);
   });
 
@@ -362,10 +369,13 @@ describe('RecordActions and the context menu', () => {
     const other = { ...rec, id: rec.id + 1, message: 'Slow request 2' };
     const infer = (target: Parameters<RecordActions['itemsFor']>[1]) => actions.itemsFor(rec, target).find((i) => i.label === 'Infer pattern from lines…')!.run();
     infer({ records: [rec, other] });
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.options.inputs?.['lines']).toEqual([rec.message, 'Slow request 2']);
     infer({ records: [] });
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[1]?.options.inputs?.['lines']).toEqual([rec.message]);
     infer({});
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[2]?.options.inputs?.['lines']).toEqual([rec.message]);
   });
 
@@ -378,9 +388,11 @@ describe('RecordActions and the context menu', () => {
     expect(dialogs.stack()).toHaveLength(0);
     store.select(rec);
     expect(actions.inferSelected()).toBe(true);
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[0]?.options.inputs?.['lines']).toEqual([rec.message]);
     grid.publish([rec, other]);
     expect(actions.inferSelected()).toBe(true);
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack()[1]?.options.inputs?.['lines']).toEqual([rec.message, 'Slow request 2']);
   });
 
@@ -390,6 +402,7 @@ describe('RecordActions and the context menu', () => {
     const items = actions.itemsFor(withContext);
     expect(items[1]?.label).toBe('Only this SourceContext');
     actions.mark(withContext);
+    await TestBed.inject(DialogService).whenLoaded();
     expect(String(dialogs.stack()[0]?.options.inputs?.['suggestedLabel'])).toHaveLength(41);
   });
 

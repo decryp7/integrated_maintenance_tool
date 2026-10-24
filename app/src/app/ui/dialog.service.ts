@@ -59,6 +59,7 @@ export class DialogService {
   private readonly inPage = inject(InPageDialogBackend);
   private readonly live = new Map<string, DialogRef>();
   private readonly sessions = new Map<string, DialogSession>();
+  private readonly loads = new Set<Promise<unknown>>();
   private readonly gate = inject(ModalGate);
   private readonly injector = inject(Injector);
   private readonly modalWindows = signal(0);
@@ -126,21 +127,28 @@ export class DialogService {
     type R = DialogResultOf<C['dialogId']>;
     let inner: DialogRef<R> | undefined;
     let early: { result?: R } | undefined;
-    const closed = load().then(
+    const opened = load().then(
       (component) => {
         inner = this.open(component, options);
         if (early) inner.close(early.result);
-        return inner.closed;
+        return inner;
       },
       (err: unknown) => {
         console.error('a dialog could not be loaded', err);
         return undefined;
       },
     );
+    this.loads.add(opened);
+    void opened.finally(() => this.loads.delete(opened));
     return {
-      closed,
+      closed: opened.then((ref) => ref?.closed),
       close: (result) => (inner ? inner.close(result) : (early = { result })),
     };
+  }
+
+  /** Resolves once every `openLazy` dialog asked for so far has been opened (or failed to load): tests wait on it, never on a timer. */
+  async whenLoaded(): Promise<void> {
+    while (this.loads.size) await Promise.allSettled([...this.loads]);
   }
 
   /**

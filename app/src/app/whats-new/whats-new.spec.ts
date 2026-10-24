@@ -74,6 +74,7 @@ describe('WhatsNewService', () => {
     localStorage.setItem(WHATS_NEW_SEEN_KEY, '0.0.1');
     const { svc, dialogs } = setup(version);
     await svc.checkOnStart();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(open(dialogs)).toBe(true);
     expect(localStorage.getItem(WHATS_NEW_SEEN_KEY)).toBe(version);
     dialogs.dismissTop();
@@ -99,6 +100,7 @@ describe('WhatsNewService', () => {
     const { svc, dialogs } = setup(version);
     svc.open();
     svc.open();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().filter((d) => d.component === WhatsNewDialog)).toHaveLength(1);
     dialogs.dismissTop();
     const fixture = await dialogFixture();

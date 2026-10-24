@@ -93,4 +93,33 @@ describe('shared UI state of a window group', () => {
     expect(store.dataVersion()).toBe(version + 1);
     expect(typeof read('data')).toBe('number');
   });
+
+  describe('a guest that shows less creates fewer stores (Paddock rules 32/34)', () => {
+    /** The tokens `sharedUiState` asks the injector for, in order. */
+    function asked(scope: 'full' | 'summary' | 'display'): { keys: string[]; tokens: unknown[] } {
+      TestBed.configureTestingModule({ providers: provideTinyBackend() });
+      const real = TestBed.inject(Injector);
+      const tokens: unknown[] = [];
+      const spy = { get: (t: unknown) => (tokens.push(t), real.get(t as never)) } as unknown as Injector;
+      return { keys: sharedUiState(spy, scope).map((v) => v.key), tokens };
+    }
+
+    it('display: only the preference stores, no workspace, cursor, follow or live tail', () => {
+      const { keys, tokens } = asked('display');
+      expect(keys).toEqual(['theme', 'scheme', 'uiFont', 'timezone', 'lifecycle', 'dateFormat', 'density', 'sourceColors']);
+      for (const heavy of [WorkspaceStore, TimeCursor, LiveFollow, LiveTail]) expect(tokens).not.toContain(heavy);
+    });
+
+    it('summary: adds the data version through the data store, still no workspace facade', () => {
+      const { keys, tokens } = asked('summary');
+      expect(keys).toEqual(['theme', 'scheme', 'uiFont', 'timezone', 'lifecycle', 'dateFormat', 'density', 'sourceColors', 'data']);
+      for (const heavy of [WorkspaceStore, TimeCursor, LiveFollow, LiveTail]) expect(tokens).not.toContain(heavy);
+    });
+
+    it('full: everything, as a pop-out and the host need', () => {
+      const { keys, tokens } = asked('full');
+      expect(keys).toEqual(expect.arrayContaining(['query', 'selected', 'jump', 'sort', 'columns', 'cursor', 'range', 'follow', 'live', 'data', 'theme']));
+      for (const heavy of [WorkspaceStore, TimeCursor, LiveFollow, LiveTail]) expect(tokens).toContain(heavy);
+    });
+  });
 });
