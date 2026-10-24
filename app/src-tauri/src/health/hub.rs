@@ -37,6 +37,8 @@ struct Extra {
     cap_stops: BTreeMap<&'static str, Cause>,
     /// Plugins a memory cap stopped: id, then the advice.
     plugin_caps: BTreeMap<String, u32>,
+    /// No browser was found at the last start: its outage offers Install, not Settings.
+    browser_missing: bool,
 }
 
 /// The Settings section of the research browser (`browser::SECTION`).
@@ -272,22 +274,27 @@ impl Health {
         let cause = Cause::new("The research browser is not available.")
             .hint("Install the downloaded Chromium (Repair), or install Edge, Chrome or Chromium.")
             .detail(why);
+        lock(&self.extra).browser_missing = true;
         self.registry.down(BROWSER, cause, Some(RepairAction::Install));
     }
 
     pub fn browser_available(&self) {
+        lock(&self.extra).browser_missing = false;
         self.registry.ok(BROWSER);
     }
 
     /// The research browsers' life cycle as one service state (see `browser::lifecycle::service_of`).
+    /// A failed start keeps the "no browser was found" outage (with Install) when that is why it failed.
     pub fn browser_lifecycle(&self, service: BrowserService) {
         match service {
             BrowserService::Idle => {
-                self.registry.ok(BROWSER);
+                self.browser_available();
             }
             BrowserService::Starting => {
+                lock(&self.extra).browser_missing = false;
                 self.registry.set(BROWSER, ServiceState::Starting, None, None);
             }
+            BrowserService::LaunchFailed if lock(&self.extra).browser_missing => {}
             BrowserService::LaunchFailed => {
                 let cause = Cause::new("The research browser could not be started.")
                     .hint("Choose another browser, or download Chromium, in Settings ▸ Web browser. The log has the details.")

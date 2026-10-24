@@ -81,8 +81,9 @@ pub struct Cause {
     /// Set when a memory cap stopped the process: the UI offers "Raise the cap…" next to the repair.
     pub raise_cap: Option<RaiseCap>,
     /// The Settings section that fixes it (with [`RepairAction::OpenSettings`]).
+    /// Boxed: `Cause` is the error of every repair, kept small (clippy `result_large_err`).
     #[serde(default)]
-    pub settings: Option<String>,
+    pub settings: Option<Box<str>>,
 }
 
 impl Cause {
@@ -106,7 +107,7 @@ impl Cause {
 
     /// The Settings section that fixes it.
     pub fn settings(mut self, section: impl Into<String>) -> Cause {
-        self.settings = Some(section.into());
+        self.settings = Some(section.into().into_boxed_str());
         self
     }
 

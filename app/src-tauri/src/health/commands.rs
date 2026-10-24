@@ -38,7 +38,9 @@ pub fn notice_for(snapshot: &Snapshot, change: &Change) -> Option<NewNotice> {
     .body(cause.hint.clone().unwrap_or_default());
     match (entry.repair, &cause.settings) {
         (Some(RepairAction::OpenSettings), Some(section)) => {
-            n = n.primary(NoticeAction::OpenSettings { section: section.clone() });
+            n = n.primary(NoticeAction::OpenSettings {
+                section: section.to_string(),
+            });
         }
         (Some(RepairAction::OpenSettings), None) | (None, _) => {}
         (Some(_), _) => {

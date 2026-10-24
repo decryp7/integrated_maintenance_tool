@@ -379,9 +379,10 @@ impl Renderers {
 
     fn start(&self, owner: &str) -> Result<Arc<Session>, BrowserError> {
         let exe = crate::sync::read(&self.inner.sources).resolve().ok_or_else(|| {
-            BrowserError::Failed(
-                "no Chromium-based browser was found: install Edge, Chrome or Chromium, or download one in Settings ▸ Web browser".into(),
-            )
+            let why = "no Chromium-based browser was found: install Edge, Chrome or Chromium, or download one in Settings ▸ Web browser";
+            // Service health offers Install for this outage (the failed start that follows keeps it).
+            crate::health::hub::report_browser_missing(why);
+            BrowserError::Failed(why.into())
         })?;
         let placer = crate::sync::read(&self.inner.placer).clone();
         let opts = LaunchOptions {

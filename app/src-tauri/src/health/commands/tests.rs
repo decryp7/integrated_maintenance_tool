@@ -266,6 +266,13 @@ fn a_browser_that_could_not_start_is_one_error_whose_button_opens_settings_web_b
     // The shell has nothing to run for it: the UI opens the section.
     assert!(h.begin_repair(BROWSER).is_err());
     assert_eq!(h.state(BROWSER), Some(ServiceState::Down));
+    // No browser found at all: the failed start keeps the Install repair (downloading Chromium fixes it).
+    h.browser_lifecycle(hub::BrowserService::Starting);
+    h.browser_missing("no Chromium-based browser was found");
+    h.browser_lifecycle(hub::BrowserService::LaunchFailed);
+    let snapshot = h.snapshot();
+    let entry = snapshot.services.iter().find(|s| s.service == BROWSER).unwrap();
+    assert_eq!((entry.state, entry.repair), (ServiceState::Down, Some(RepairAction::Install)));
     // Starting again is not an outage; ready, closed or ended by the user is fine.
     h.browser_lifecycle(hub::BrowserService::Starting);
     assert_eq!(h.state(BROWSER), Some(ServiceState::Starting));
