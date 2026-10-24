@@ -177,7 +177,12 @@ fn imports_and_queries_within(mode: MemoryMode, import_budget_mb: u64) {
     let session = store.open(&paths).unwrap();
     while !session.is_finished() {
         let p = session.progress();
-        assert!(p.done <= p.total);
+        // "Finding" counts the files found so far on a scale of its own (`total` is unknown, 0): only the phases
+        // that read files have a total to stay within.
+        assert!(
+            p.phase == debrief_core::workspace::ImportPhase::Finding || p.done <= p.total,
+            "{p:?}"
+        );
         std::thread::sleep(Duration::from_millis(50));
     }
     let report = session.wait().unwrap();
