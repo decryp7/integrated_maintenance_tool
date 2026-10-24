@@ -9,7 +9,7 @@ import { WindowingService } from '../../windowing/windowing.service';
 import { AppMenu, MENU_MODE } from './app-menu.service';
 import { RecentOpener } from './recent-opener';
 import { TopMenu } from './menu-model';
-import { NATIVE_MENU_PORT, NativeMenuBridge, NativeMenuPort, toNativeModel } from './native-menu';
+import { NATIVE_MENU_GATE, NATIVE_MENU_PORT, NATIVE_MENU_TIMING, NativeMenuBridge, NativeMenuPort, toNativeModel } from './native-menu';
 import { NativeMenuModel } from './native-menu.types';
 import { at } from '../../../testing/must';
 
@@ -117,7 +117,23 @@ describe('native menu bar', () => {
     });
   });
 
-  function bridge(port: Partial<NativeMenuPort>) {
+  /** Timers run by hand (no sleeps): `fire(ms)` runs the timers set for `ms`. */
+  function manualTimers() {
+    const timers: { fn: () => void; ms: number; live: boolean }[] = [];
+    const setTimer = (fn: () => void, ms: number) => {
+      const t = { fn, ms, live: true };
+      timers.push(t);
+      return () => void (t.live = false);
+    };
+    const fire = (ms: number) =>
+      timers.filter((t) => t.live && t.ms === ms).forEach((t) => {
+        t.live = false;
+        t.fn();
+      });
+    return { setTimer, fire, live: () => timers.filter((t) => t.live).length };
+  }
+
+  function bridge(port: Partial<NativeMenuPort>, gate = signal(true), timers = manualTimers()) {
     const menus = signal(MENUS);
     const ran: string[] = [];
     TestBed.configureTestingModule({
@@ -127,39 +143,94 @@ describe('native menu bar', () => {
         provideToolsBackend(),
         { provide: AppMenu, useValue: { menus, run: (id: string) => ran.push(id), mode: 'native' } },
         { provide: NATIVE_MENU_PORT, useValue: { setAppMenu: async () => undefined, onMenu: async () => () => undefined, ...port } },
+        { provide: NATIVE_MENU_GATE, useValue: gate },
+        { provide: NATIVE_MENU_TIMING, useValue: { debounceMs: 150, firstDebounceMs: 600, maxWaitMs: 3000, setTimer: timers.setTimer } },
       ],
     });
     const b = TestBed.inject(NativeMenuBridge);
     b.start();
     b.start();
-    return { b, menus, ran };
+    return { b, menus, ran, timers };
   }
 
-  it('sends the model once per change and again when the window gets the focus', async () => {
+  /** Lets the effects run, then the debounce timers (the first build's and later ones') fire. */
+  async function debounced(timers: ReturnType<typeof manualTimers>) {
+    await settle();
+    timers.fire(600);
+    timers.fire(150);
+    await settle();
+  }
+
+  it('waits longer before the first build than between later ones (features deferred to idle register late)', async () => {
     const sent: NativeMenuModel[] = [];
-    const { menus } = bridge({ setAppMenu: async (m) => void sent.push(m) });
+    const { menus, timers } = bridge({ setAppMenu: async (m) => void sent.push(m) });
     await settle();
-    expect(sent).toHaveLength(1);
-    menus.set([...MENUS]);
-    await settle();
+    timers.fire(150);
+    expect(sent).toHaveLength(0);
+    timers.fire(600);
     expect(sent).toHaveLength(1);
     menus.set([at(MENUS, 0)]);
     await settle();
+    timers.fire(150);
+    expect(sent).toHaveLength(2);
+  });
+
+  it('sends the model once per change and again when the window gets the focus', async () => {
+    const sent: NativeMenuModel[] = [];
+    const { menus, timers } = bridge({ setAppMenu: async (m) => void sent.push(m) });
+    await debounced(timers);
+    expect(sent).toHaveLength(1);
+    menus.set([...MENUS]);
+    await debounced(timers);
+    expect(sent).toHaveLength(1);
+    menus.set([at(MENUS, 0)]);
+    await debounced(timers);
     expect(sent).toHaveLength(2);
     window.dispatchEvent(new Event('focus'));
     expect(sent).toHaveLength(3);
   });
 
+  it('builds the menu bar once at start: nothing before the workspace loaded, the changes of the start as one', async () => {
+    const sent: NativeMenuModel[] = [];
+    const gate = signal(false);
+    const { menus, timers } = bridge({ setAppMenu: async (m) => void sent.push(m) }, gate);
+    // Commands and plugins register while the workspace loads: the menus change several times.
+    menus.set([at(MENUS, 0)]);
+    await debounced(timers);
+    menus.set([...MENUS]);
+    await debounced(timers);
+    expect(sent).toHaveLength(0);
+    window.dispatchEvent(new Event('focus'));
+    expect(sent).toHaveLength(0);
+    gate.set(true);
+    await settle();
+    menus.set([at(MENUS, 1)]);
+    await settle();
+    menus.set([...MENUS]);
+    await debounced(timers);
+    expect(sent).toEqual([toNativeModel(MENUS)]);
+  });
+
+  it('sends the menus after the longest wait when the workspace never loads', async () => {
+    const sent: NativeMenuModel[] = [];
+    const { timers } = bridge({ setAppMenu: async (m) => void sent.push(m) }, signal(false));
+    await debounced(timers);
+    expect(sent).toHaveLength(0);
+    timers.fire(3000);
+    await debounced(timers);
+    expect(sent).toHaveLength(1);
+  });
+
   it('retries after a failed update and logs it', async () => {
     let fail = true;
     const sent: NativeMenuModel[] = [];
-    bridge({
+    const { timers } = bridge({
       setAppMenu: async (m) => {
         if (fail) throw new Error('no menu');
         sent.push(m);
       },
     });
-    await settle();
+    await debounced(timers);
     expect(testLogger().entries.some((e) => e.category === 'ui.menu' && e.level === 'warn')).toBe(true);
     fail = false;
     window.dispatchEvent(new Event('focus'));

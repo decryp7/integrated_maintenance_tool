@@ -526,3 +526,28 @@ fn the_store_pane_reaches_the_worker() {
         "the console works after a cancel"
     );
 }
+
+/// Warming up starts the worker before any store call (the app's first query does not wait for the start), once.
+#[test]
+fn warm_up_starts_the_worker_before_the_first_call() {
+    use debrief_ipc::supervisor::ChildState;
+    let w = worker();
+    assert_eq!(w.status().state, ChildState::Stopped, "a new worker starts on demand");
+    w.warm_up().unwrap();
+    let status = w.status();
+    assert_eq!(status.state, ChildState::Running);
+    let pid = status.pid;
+    w.warm_up().unwrap();
+    assert_eq!(w.status().pid, pid, "a running worker is kept");
+    let dir = TempDir::new("store");
+    w.open_store(&dir.0, Profile::default_profile(), true, None).unwrap();
+    assert_eq!(w.status().pid, pid, "the first store call uses the warmed-up worker");
+    w.shutdown();
+}
+
+/// A worker that cannot start says why, without panicking.
+#[test]
+fn warm_up_reports_a_worker_that_cannot_start() {
+    let w = StoreWorker::new(WorkerConfig::new("/nonexistent/debrief-store-worker")).unwrap();
+    assert!(w.warm_up().is_err());
+}

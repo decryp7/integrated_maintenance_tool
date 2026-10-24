@@ -28,8 +28,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decides whether this run is needed at all:
+  # the nightly run is skipped while main is unchanged since the last green one.
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    container:
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      # Exact-key lookup only: nothing is downloaded. The marker is saved by the nightly-mark job after a fully green run.
+      - uses: actions/cache/restore@v4
+        id: green
+        if: github.event_name == 'schedule'
+        with:
+          path: .nightly-green
+          key: bench-nightly-green-${{ github.sha }}
+          lookup-only: true
+
+      - name: Decide
+        id: plan
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          GREEN: ${{ steps.green.outputs.cache-hit }}
+        run: |
+          run=true
+          if [ "$EVENT" = schedule ] && [ "$GREEN" = true ]; then
+            run=false
+            echo "::notice::main has not changed since the last green run ($SHA); skipping."
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   bench:
     name: engine benchmarks
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -94,7 +131,8 @@ jobs:
   # demand only (about 15 minutes); the corpus (3.7 GB of CLEF) is generated once into a cached folder.
   store-bench:
     name: store benchmarks (10M events)
-    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -144,3 +182,23 @@ jobs:
         env:
           DEBRIEF_BENCH_COPIES: "20"
         run: cargo test --release -p debrief-store-worker --test worker -- --nocapture
+
+  # Records a fully green scheduled run for this commit; `plan` skips the next scheduled run while main is unchanged.
+  # Never runs when anything failed, so a red commit is retried every night.
+  nightly-mark:
+    name: nightly-mark
+    needs: [bench, store-bench]
+    if: github.event_name == 'schedule' && success()
+    runs-on: ubuntu-latest
+    container:
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
+    steps:
+      - name: Marker file
+        run: |
+          mkdir -p .nightly-green
+          echo "${{ github.sha }}" > .nightly-green/sha
+
+      - uses: actions/cache/save@v4
+        with:
+          path: .nightly-green
+          key: bench-nightly-green-${{ github.sha }}

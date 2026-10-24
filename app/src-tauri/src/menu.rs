@@ -526,6 +526,15 @@ pub fn applies(caller_focused: bool, caller_is_target: bool) -> bool {
 #[derive(Default)]
 pub struct NativeMenu {
     shown: Mutex<Option<Vec<Native>>>,
+    /// How often the menu bar was built (a start builds it twice: the standard menus, then the UI's once loaded).
+    builds: std::sync::atomic::AtomicU64,
+}
+
+impl NativeMenu {
+    #[cfg(test)]
+    pub fn builds(&self) -> u64 {
+        self.builds.load(std::sync::atomic::Ordering::Relaxed)
+    }
 }
 
 fn build<R: Runtime>(app: &AppHandle<R>, spec: &[Native]) -> tauri::Result<tauri::menu::Menu<R>> {
@@ -626,6 +635,15 @@ fn set_states<R: Runtime>(app: &AppHandle<R>, changed: &[Item]) -> tauri::Result
 
 /// Shows `spec` in the menu bar: nothing when unchanged, states in place when only they changed, else a rebuild.
 pub fn apply<R: Runtime>(app: &AppHandle<R>, spec: Vec<Native>) -> tauri::Result<Update> {
+    apply_with(app, spec, |app, spec| app.set_menu(build(app, spec)?).map(drop))
+}
+
+/// [`apply`] with the menu bar built by `set` (tests count builds without a native menu bar).
+fn apply_with<R: Runtime>(
+    app: &AppHandle<R>,
+    spec: Vec<Native>,
+    set: impl FnOnce(&AppHandle<R>, &[Native]) -> tauri::Result<()>,
+) -> tauri::Result<Update> {
     let state = app.state::<NativeMenu>();
     let mut shown = crate::sync::lock(&state.shown);
     let update = diff(shown.as_deref(), &spec);
@@ -635,7 +653,8 @@ pub fn apply<R: Runtime>(app: &AppHandle<R>, spec: Vec<Native>) -> tauri::Result
         Update::Rebuild => true,
     };
     if rebuild {
-        app.set_menu(build(app, &spec)?)?;
+        set(app, &spec)?;
+        state.builds.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         log::info!(Menus = spec.len(), Items = item_ids(&spec).len(); "Native menu bar built with {} menus", spec.len());
     }
     *shown = Some(spec);
@@ -1003,5 +1022,25 @@ mod tests {
                 serde_json::from_value(json!({ "menus": [{ "id": "f", "label": "F", "items": [item("a", "x")] }] })).unwrap();
             assert_eq!(set_app_menu(app.handle().clone(), main.as_ref().window(), good).now(), Ok(()));
         }
+    }
+
+    /// A start builds the menu bar once with the standard menus and once with the UI's (the UI sends it once its
+    /// workspace loaded, coalesced: `native-menu.ts`); the same model again builds nothing (check marks that changed
+    /// are updated in place: see the diff test).
+    #[test]
+    fn a_start_builds_the_menu_bar_once_per_real_change() {
+        let app = crate::test_support::test_app(None);
+        app.manage(NativeMenu::default());
+        let h = app.handle();
+        let set = |_: &AppHandle<tauri::test::MockRuntime>, _: &[Native]| Ok(());
+        let builds = || app.state::<NativeMenu>().builds();
+        apply_with(h, native_spec(&AppMenu::default()), set).unwrap();
+        assert_eq!(builds(), 1);
+        apply_with(h, native_spec(&sample()), set).unwrap();
+        assert_eq!(builds(), 2);
+        for _ in 0..3 {
+            assert_eq!(apply_with(h, native_spec(&sample()), set).unwrap(), Update::Unchanged);
+        }
+        assert_eq!(builds(), 2, "the same model again builds nothing");
     }
 }

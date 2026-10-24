@@ -3,7 +3,7 @@ import { InstalledPluginDto, PermissionDto } from '../core/api.types';
 import { ToolError } from '../tools/elevation-hint';
 import { DialogService } from '../ui/dialog.service';
 import { permissionTitle, signatureText, stateLabel } from './package-labels';
-import { PackageReviewOpener } from './package-review-dialog';
+import { PackageReviewOpener } from './package-review-opener';
 import { PluginPackagesStore } from './plugin-packages.store';
 import { PluginPermissionsDialog } from './plugin-permissions-dialog';
 

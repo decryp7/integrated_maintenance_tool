@@ -113,6 +113,7 @@ describe('MarkersManager', () => {
     const dialogs = TestBed.inject(DialogService);
     btn(fixture, 'Edit Error').click();
     buttonByText(fixture, /New marker/).click();
+    await TestBed.inject(DialogService).whenLoaded();
     const stack = dialogs.stack();
     const edit = at(stack, 0);
     const add = at(stack, 1);

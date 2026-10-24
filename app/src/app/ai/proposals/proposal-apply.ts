@@ -2,7 +2,6 @@ import { inject, Injectable } from '@angular/core';
 import { QuerySession } from '../../analysis/query-session';
 import { ActivityLog } from '../../core/activity/activity-log';
 import { isCancellation } from '../../core/activity/runtime';
-import { MarkDialog } from '../../context/mark-dialog';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
 import { ProfileUndo } from '../../undo/profile-undo';
 import { WorkspaceStore } from '../../core/workspace.store';
@@ -48,7 +47,7 @@ export class ProposalApply {
     switch (p.kind) {
       case 'regex': {
         const label = p.rationale.trim() || $localize`:@@ai.proposalApply.defaultLabel:AI pattern`;
-        const ref = this.dialogs.open(MarkDialog, {
+        const ref = this.dialogs.openLazy(() => import('../../context/mark-dialog').then((m) => m.MarkDialog), {
           title: $localize`:@@ai.proposalApply.highlight.title:Highlight lines`,
           width: 760,
           inputs: {

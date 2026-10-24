@@ -562,9 +562,25 @@ fn check_section_id(id: &str) -> Result<(), String> {
 /// Creates the service from the running app and applies the stored settings.
 /// Call from `setup` (after `AppState` and `Lifecycle` are managed); commands
 /// also create it on first use.
-#[allow(dead_code)] // called from `setup` once integrated
+///
+/// The service exists when this returns (sections register with it next); the stored values are applied on a
+/// background thread, because applying a plugin's section starts that plugin's process, which must not hold up the
+/// first window (Paddock rule 10).
 pub fn init<R: Runtime>(app: &AppHandle<R>) {
-    let _ = service(app);
+    init_with(app, |start| {
+        if let Err(e) = std::thread::Builder::new().name("settings-apply".into()).spawn(start) {
+            log::warn!("Could not apply the stored settings in the background: {e}");
+        }
+    });
+}
+
+/// [`init`] with the stored values applied by `run` (tests run it by hand).
+fn init_with<R: Runtime>(app: &AppHandle<R>, run: impl FnOnce(Box<dyn FnOnce() + Send>)) {
+    if app.try_state::<SettingsService>().is_some() || !app.manage(build(app)) {
+        return;
+    }
+    let handle = app.clone();
+    run(Box::new(move || handle.state::<SettingsService>().start()));
 }
 
 /// Live tail debounce chosen in the settings (default before they are loaded).
@@ -1215,6 +1231,31 @@ pub(crate) mod tests {
             .set("net.decryptology.windows", &json!({}))
             .unwrap_err()
             .contains("disabled"));
+    }
+
+    #[test]
+    fn init_applies_the_stored_values_off_the_calling_thread() {
+        let _serial = serial();
+        let t = Temp::new("init-bg");
+        std::fs::write(
+            t.0.join(FILE),
+            r#"{"version":1,"sections":{"workspace":{"liveTailDebounce":1500}}}"#,
+        )
+        .unwrap();
+        let app = crate::test_support::test_app(Some(t.0.join("profiles")));
+        let mut deferred = None;
+        init_with(app.handle(), |start| deferred = Some(start));
+        assert!(app.try_state::<SettingsService>().is_some(), "sections can register at once");
+        assert_eq!(
+            live_tail_debounce(app.handle()),
+            DEFAULT_LIVE_TAIL_DEBOUNCE,
+            "nothing applied on the calling thread"
+        );
+        (deferred.expect("the apply was handed to the runner"))();
+        assert_eq!(live_tail_debounce(app.handle()), Duration::from_millis(1500));
+        let mut again = false;
+        init_with(app.handle(), |_| again = true);
+        assert!(!again, "applied once");
     }
 
     #[test]

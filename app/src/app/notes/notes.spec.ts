@@ -239,6 +239,7 @@ describe('NoteActions', () => {
     const ws = TestBed.inject(WorkspaceStore);
     await settle();
     const written = actions.write(anchors.instant(5.4));
+    await TestBed.inject(DialogService).whenLoaded();
     const dlg = dialogs.stack().at(-1);
     expect(dlg?.options.title).toBe('Add a note');
     expect(dlg?.options.inputs).toEqual({ anchor: { kind: 'instant', at: 5 } });
@@ -250,6 +251,7 @@ describe('NoteActions', () => {
     expect(n?.anchor).toEqual({ kind: 'range', from: 3, to: 9 });
     const it = at(store.items(), 0);
     const edited = actions.edit(it);
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().at(-1)?.options.title).toBe('Edit note');
     dialogs.stack().at(-1)?.ref.close();
     expect(await edited).toBeNull();
@@ -372,6 +374,7 @@ describe('NotesPanel', () => {
     expect(context.showView).toHaveBeenCalledWith('events');
     const dialogs = TestBed.inject(DialogService);
     at(all<HTMLButtonElement>(f, '[data-testid=note-edit]'), 0).click();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().at(-1)?.options.title).toBe('Edit note');
     dialogs.stack().at(-1)?.ref.close();
     at(all<HTMLButtonElement>(f, '[data-testid=note-delete]'), 1).click();
@@ -379,6 +382,7 @@ describe('NotesPanel', () => {
     await settle(f);
     expect(all(f, '[data-testid=note-item]')).toHaveLength(1);
     el<HTMLButtonElement>(f, '[data-testid=notes-add-project]').click();
+    await TestBed.inject(DialogService).whenLoaded();
     expect(dialogs.stack().at(-1)?.options.inputs).toEqual({ anchor: { kind: 'project' } });
   });
 
@@ -424,6 +428,7 @@ describe('NotesPanel drop (drag and drop between views)', () => {
     const drop = dragEvent('drop', { 'application/x-debrief-event': payload });
     host.dispatchEvent(drop);
     expect(drop.defaultPrevented).toBe(true);
+    await TestBed.inject(DialogService).whenLoaded();
     const dialog = TestBed.inject(DialogService).stack().at(-1);
     expect(dialog?.options.title).toBe('Add a note');
     expect(dialog?.options.inputs).toEqual({ anchor: { kind: 'event', eventId: 9, ts: 5_000, source: 'app.log', excerpt: 'boom' } });

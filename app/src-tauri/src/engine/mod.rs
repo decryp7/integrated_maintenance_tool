@@ -42,6 +42,8 @@ pub(crate) trait StoreHost: Send + Sync {
     /// The installed third-party plugins that read files now (after a grant change or a removal), for hosts that
     /// start plugins themselves.
     fn set_third_party(&self, _plugins: Vec<debrief_store_client::protocol::ThirdPartyPlugin>) {}
+    /// Starts what serves the stores ahead of the first one (a background thread calls it after the first paint).
+    fn warm_up(&self) {}
 }
 
 /// The store worker of the app: one process for every window's store.
@@ -127,6 +129,14 @@ impl StoreHost for WorkerHost {
         self.lift_quarantine();
         let (store, manifest) = self.worker.open_project(path, dest_root, profile.clone(), None)?;
         Ok((Arc::new(store), manifest))
+    }
+
+    fn warm_up(&self) {
+        let started = std::time::Instant::now();
+        match self.worker.warm_up() {
+            Ok(()) => log::info!(ElapsedMs = started.elapsed().as_millis() as u64; "Store worker started ahead of the first query"),
+            Err(e) => log::warn!("The store worker did not start ahead of the first query: {e}"),
+        }
     }
 
     fn set_third_party(&self, plugins: Vec<debrief_store_client::protocol::ThirdPartyPlugin>) {

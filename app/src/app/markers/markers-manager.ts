@@ -3,7 +3,6 @@ import { AiButton } from '../ai/ai-button';
 import { AiLauncher } from '../ai/ai-launcher';
 import { ChangeDetectionStrategy, Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { MatchCounter } from '../context/match-count';
-import { MarkDialog } from '../context/mark-dialog';
 import { formatCount } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
 import { Icon } from '../shared/icon';
@@ -332,7 +331,7 @@ export class MarkersManager {
   }
 
   protected edit(r: RuleRow): void {
-    this.dialogs.open(MarkDialog, {
+    this.dialogs.openLazy(() => import('../context/mark-dialog').then((m) => m.MarkDialog), {
       title: $localize`:@@markers.manager.editTitle:Edit marker "${r.rule.label || r.rule.kind}:name:"`,
       inputs: { rule: r.rule, submitLabel: $localize`:@@markers.manager.editSubmit:Save marker`,
         hint: $localize`:@@markers.manager.editHint:Change how this marker looks, what it means and which events it marks.`,
@@ -342,7 +341,7 @@ export class MarkersManager {
   }
 
   protected add(): void {
-    this.dialogs.open(MarkDialog, {
+    this.dialogs.openLazy(() => import('../context/mark-dialog').then((m) => m.MarkDialog), {
       title: $localize`:@@markers.manager.newTitle:New marker`,
       inputs: {
         initial: [{ field: '@message', op: 'matches', value: '' }],

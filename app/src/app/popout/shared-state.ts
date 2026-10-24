@@ -2,7 +2,8 @@ import { Injector } from '@angular/core';
 import { Query, RecordView } from '../core/api.types';
 import { DateFormat, TimeZoneMode } from '../core/format';
 import { WorkspaceStore } from '../core/workspace.store';
-import { isSchemeMode, isUiFont } from '../core/workspace/ui-prefs.store';
+import { WorkspaceDataStore } from '../core/workspace/workspace-data.store';
+import { isSchemeMode, isUiFont, UiPrefsStore } from '../core/workspace/ui-prefs.store';
 import { isThemeId } from '../theme/themes';
 import { TimeCursor } from '../analysis/time-cursor';
 import { sanitizeQuery } from '../core/sanitize-query';
@@ -40,16 +41,54 @@ export function sharedRange(v: unknown): { from: number; to: number } | null {
   return isRecord(v) && typeof v['from'] === 'number' && typeof v['to'] === 'number' ? { from: v['from'], to: v['to'] } : null;
 }
 
-/**
- * The interaction state a host and its pop-outs share: the query, selection and jumps, time cursor and brushed
- * range, live follow, theme and display settings, plus what only the host decides (data versions, live tail on/off).
- */
-export function sharedUiState(injector: Injector): SyncedValue[] {
+/** How much of the host's state a guest window shares (Paddock rules 32/34: a window instantiates only the stores it uses). */
+export type SharedScope =
+  /** Everything: a pop-out, the host, and a dialog that shows the workspace's events. */
+  | 'full'
+  /** Display settings and the data version (a dialog that reads the workspace summary). */
+  | 'summary'
+  /** Display settings only (theme, formats, density): a dialog that never reads the workspace. */
+  | 'display';
+
+/** Theme and display settings: they need only the preference stores. */
+function displayState(injector: Injector): SyncedValue[] {
+  const prefs = injector.get(UiPrefsStore);
+  const settings = injector.get(SettingsStore);
+  return [
+    { key: 'theme', read: () => prefs.theme(), apply: (v) => (v === null || isThemeId(v)) && prefs.setTheme(v) },
+    { key: 'scheme', read: () => prefs.scheme(), apply: (v) => isSchemeMode(v) && prefs.setScheme(v) },
+    { key: 'uiFont', read: () => prefs.uiFont(), apply: (v) => isUiFont(v) && prefs.setUiFont(v) },
+    { key: 'timezone', read: () => prefs.timezone(), apply: (v) => ZONES.includes(v as TimeZoneMode) && prefs.setTimezone(v as TimeZoneMode) },
+    { key: 'lifecycle', read: () => prefs.alwaysShowLifecycle(), apply: (v) => typeof v === 'boolean' && prefs.setAlwaysShowLifecycle(v) },
+    { key: 'dateFormat', read: () => settings.dateFormat(), apply: (v) => DATE_FORMATS.includes(v as DateFormat) && settings.setDateFormat(v as DateFormat) },
+    { key: 'density', read: () => settings.density(), apply: (v) => DENSITIES.includes(v as GridDensity) && settings.setDensity(v as GridDensity) },
+    {
+      key: 'sourceColors',
+      read: () => settings.sourceColors(),
+      apply: (v) => SOURCE_COLOR_MODES.includes(v as SourceColorMode) && settings.setSourceColors(v as SourceColorMode),
+    },
+  ];
+}
+
+/** The host's data versions: a guest reloads its summary when they move. */
+function dataState(injector: Injector): SyncedValue[] {
+  const data = injector.get(WorkspaceDataStore);
+  return [
+    {
+      key: 'data',
+      direction: 'fromHost',
+      read: () => data.dataVersion() + data.profileVersion() * 1e6,
+      apply: () => void data.refreshSummary().catch(() => undefined),
+    },
+  ];
+}
+
+/** The workspace interaction state: query, selection, jumps, sort and columns, time cursor, live follow and tail. */
+function workspaceState(injector: Injector): SyncedValue[] {
   const store = injector.get(WorkspaceStore);
   const cursor = injector.get(TimeCursor);
   const follow = injector.get(LiveFollow);
   const live = injector.get(LiveTail);
-  const settings = injector.get(SettingsStore);
   return [
     { key: 'query', read: () => store.query(), apply: (v) => store.restoreQuery(sharedQuery(v)) },
     { key: 'selected', read: () => store.selected(), apply: (v) => store.select(sharedRecord(v)) },
@@ -60,11 +99,6 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
         if (isRecord(v) && typeof v['id'] === 'number') store.jumpTo(v['id']);
       },
     },
-    { key: 'theme', read: () => store.theme(), apply: (v) => (v === null || isThemeId(v)) && store.setTheme(v) },
-    { key: 'scheme', read: () => store.scheme(), apply: (v) => isSchemeMode(v) && store.setScheme(v) },
-    { key: 'uiFont', read: () => store.uiFont(), apply: (v) => isUiFont(v) && store.setUiFont(v) },
-    { key: 'timezone', read: () => store.timezone(), apply: (v) => ZONES.includes(v as TimeZoneMode) && store.setTimezone(v as TimeZoneMode) },
-    { key: 'lifecycle', read: () => store.alwaysShowLifecycle(), apply: (v) => typeof v === 'boolean' && store.setAlwaysShowLifecycle(v) },
     {
       key: 'sort',
       read: () => store.descending(),
@@ -92,13 +126,6 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
         if (isRecord(v) && v['paused'] === true) follow.pause();
       },
     },
-    { key: 'dateFormat', read: () => settings.dateFormat(), apply: (v) => DATE_FORMATS.includes(v as DateFormat) && settings.setDateFormat(v as DateFormat) },
-    { key: 'density', read: () => settings.density(), apply: (v) => DENSITIES.includes(v as GridDensity) && settings.setDensity(v as GridDensity) },
-    {
-      key: 'sourceColors',
-      read: () => settings.sourceColors(),
-      apply: (v) => SOURCE_COLOR_MODES.includes(v as SourceColorMode) && settings.setSourceColors(v as SourceColorMode),
-    },
     {
       key: 'live',
       direction: 'fromHost',
@@ -108,11 +135,17 @@ export function sharedUiState(injector: Injector): SyncedValue[] {
         else if (v === false) live.enabled.set(false);
       },
     },
-    {
-      key: 'data',
-      direction: 'fromHost',
-      read: () => store.dataVersion() + store.profileVersion() * 1e6,
-      apply: () => void store.refreshSummary().catch(() => undefined),
-    },
   ];
+}
+
+/**
+ * The interaction state a host and its guests share: the query, selection and jumps, time cursor and brushed
+ * range, live follow, theme and display settings, plus what only the host decides (data versions, live tail on/off).
+ * A guest that shows less asks for a narrower `scope`, so it never creates the stores of what it does not show.
+ * A window ignores the keys it was not given.
+ */
+export function sharedUiState(injector: Injector, scope: SharedScope = 'full'): SyncedValue[] {
+  if (scope === 'display') return displayState(injector);
+  if (scope === 'summary') return [...displayState(injector), ...dataState(injector)];
+  return [...workspaceState(injector), ...displayState(injector), ...dataState(injector)];
 }

@@ -59,6 +59,7 @@ export class DialogService {
   private readonly inPage = inject(InPageDialogBackend);
   private readonly live = new Map<string, DialogRef>();
   private readonly sessions = new Map<string, DialogSession>();
+  private readonly loads = new Set<Promise<unknown>>();
   private readonly gate = inject(ModalGate);
   private readonly injector = inject(Injector);
   private readonly modalWindows = signal(0);
@@ -114,6 +115,40 @@ export class DialogService {
       });
     }
     return ref;
+  }
+
+  /**
+   * `open` for a registered dialog whose component is loaded when it is needed: callers pass `() => import(...)` instead of
+   * importing the class, so the dialog's code is not part of the first-paint set of the window that can open it (Paddock
+   * rule 35). The ref is returned at once; `close` before the chunk arrived is applied as soon as it opened, and a chunk
+   * that fails to load counts as a dismissed dialog (logged).
+   */
+  openLazy<C extends RegisteredDialog>(load: () => Promise<C>, options: RegisteredDialogOptions<C>): DialogRef<DialogResultOf<C['dialogId']>> {
+    type R = DialogResultOf<C['dialogId']>;
+    let inner: DialogRef<R> | undefined;
+    let early: { result?: R } | undefined;
+    const opened = load().then(
+      (component) => {
+        inner = this.open(component, options);
+        if (early) inner.close(early.result);
+        return inner;
+      },
+      (err: unknown) => {
+        console.error('a dialog could not be loaded', err);
+        return undefined;
+      },
+    );
+    this.loads.add(opened);
+    void opened.finally(() => this.loads.delete(opened));
+    return {
+      closed: opened.then((ref) => ref?.closed),
+      close: (result) => (inner ? inner.close(result) : (early = { result })),
+    };
+  }
+
+  /** Resolves once every `openLazy` dialog asked for so far has been opened (or failed to load): tests wait on it, never on a timer. */
+  async whenLoaded(): Promise<void> {
+    while (this.loads.size) await Promise.allSettled([...this.loads]);
   }
 
   /**

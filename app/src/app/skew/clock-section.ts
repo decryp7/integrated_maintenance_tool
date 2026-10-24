@@ -1,7 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, Injectable, input } from '@angular/core';
 import { RecordView } from '../core/api.types';
 import { DialogService } from '../ui/dialog.service';
-import { ClockDialog } from './clock-dialog';
 import { ClockSkewStore } from './clock-skew.store';
 
 /** Opens the "Adjust clock…" dialog of a source. */
@@ -10,7 +9,7 @@ export class ClockDialogService {
   private readonly dialogs = inject(DialogService);
 
   open(sourceId: number, sourceName = ''): void {
-    this.dialogs.open(ClockDialog, { title: sourceName ? $localize`:@@skew.section.titleNamed:Adjust clock — ${sourceName}:name:` : $localize`:@@skew.section.title:Adjust clock`, inputs: { sourceId }, width: 560 });
+    this.dialogs.openLazy(() => import('./clock-dialog').then((m) => m.ClockDialog), { title: sourceName ? $localize`:@@skew.section.titleNamed:Adjust clock — ${sourceName}:name:` : $localize`:@@skew.section.title:Adjust clock`, inputs: { sourceId }, width: 560 });
   }
 }
 

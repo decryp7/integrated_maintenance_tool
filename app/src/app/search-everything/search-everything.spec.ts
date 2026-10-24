@@ -601,15 +601,17 @@ describe('search everything palette', () => {
 });
 
 describe('search everything command and launcher', () => {
-  it('opens one palette in a CDK dialog on Mod+Shift+F, and focuses it again when open', () => {
+  it('opens one palette in a CDK dialog on Mod+Shift+F, and focuses it again when open', async () => {
     provide();
     const launcher = TestBed.inject(SearchEverythingLauncher);
     const dialog = TestBed.inject(Dialog);
     const command = at(searchEverythingCommands(launcher), 0);
     expect(command).toMatchObject({ id: SEARCH_EVERYTHING_COMMAND, keybinding: 'Mod+Shift+F' });
     command.run({} as CommandContext);
+    // The palette's code is fetched on first use: the launcher counts as open while it loads, and a second open waits for it.
     expect(launcher.isOpen).toBe(true);
-    expect(dialog.openDialogs.length).toBe(1);
+    launcher.open();
+    await vi.waitFor(() => expect(dialog.openDialogs.length).toBe(1));
     expect(document.querySelector('debrief-search-everything')).not.toBeNull();
     launcher.open();
     expect(dialog.openDialogs.length).toBe(1);

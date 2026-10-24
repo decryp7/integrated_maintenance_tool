@@ -9,13 +9,11 @@ import { builtinIcon } from './builtin-icons';
 import { GlyphMode, GlyphPicker } from './glyph-picker';
 import { qlToConditions } from './highlight';
 import { cleanRule, nextFreeBadge, ruleProblems, uniqueKind, upsertIcon, pruneIcons, writeRows } from './marker-rules';
-import { MarkerGlyph } from './marker-glyph';
+import { COLOR_PRESETS, MarkerGlyph } from './marker-glyph';
 import { MarkerProfile } from './marker-profile';
 import { livePreview } from './marker-preview';
 import { GlyphStyle, MarkerRuleX, PendingIcon, RuleRow, SaveFailure } from './markers.types';
 import { RegexAssist } from './regex/regex-assist';
-
-export const COLOR_PRESETS = ['#f2545b', '#e9ae3f', '#3fbf7f', '#3987e5', '#9085e9', '#ff4fa3', '#2fb8c6', '#a7b0c2'];
 
 /**
  * The one editor for a marker rule: used by "Manage markers", "Highlight lines…" and

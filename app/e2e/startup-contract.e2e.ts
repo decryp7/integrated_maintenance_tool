@@ -13,10 +13,12 @@ async function fakeTauri(page: Page, readyReply: { recovered: string | null }): 
     const w = window as unknown as Record<string, unknown>;
     const held: Held[] = [];
     const calls: string[] = [];
+    const args: { cmd: string; args: unknown }[] = [];
     let open = false;
     let cb = 1;
     const answer = (h: Held) => (h.cmd === 'window_ready' ? h.resolve(reply) : h.reject('unavailable in this test'));
     w['__ipcCalls'] = calls;
+    w['__ipcArgs'] = args;
     w['__ipcRelease'] = () => {
       open = true;
       held.splice(0).forEach(answer);
@@ -31,9 +33,10 @@ async function fakeTauri(page: Page, readyReply: { recovered: string | null }): 
       },
       unregisterCallback: () => undefined,
       convertFileSrc: (p: string) => p,
-      invoke: (cmd: string) =>
+      invoke: (cmd: string, a: unknown) =>
         new Promise((resolve, reject) => {
           calls.push(cmd);
+          args.push({ cmd, args: a });
           const h = { cmd, resolve, reject };
           if (open) answer(h);
           else held.push(h);
@@ -41,6 +44,14 @@ async function fakeTauri(page: Page, readyReply: { recovered: string | null }): 
     };
   }, readyReply);
 }
+
+/** The start-up marks the page sent (`startup_mark`), in the order sent. */
+const marks = (page: Page) =>
+  page.evaluate(() =>
+    (window as unknown as { __ipcArgs: { cmd: string; args: { mark: string; atEpochMs: number } }[] }).__ipcArgs
+      .filter((c) => c.cmd === 'startup_mark')
+      .map((c) => ({ ...c.args, origin: performance.timeOrigin, now: Date.now() })),
+  );
 
 const calls = (page: Page) => page.evaluate(() => (window as unknown as { __ipcCalls: string[] }).__ipcCalls.slice());
 
@@ -74,6 +85,24 @@ test.describe('start-up contract', () => {
     await expect(page.locator('debrief-status-bar')).toContainText('No workspace');
     await expect(page.getByRole('navigation', { name: 'Activity bar' }).getByRole('button', { name: 'Explorer' })).toBeVisible();
     expect((await calls(page)).filter((c) => c === 'window_ready')).toHaveLength(1);
+  });
+
+  test('the main window reports its start-up marks once each, as wall-clock times, without waiting for any reply', async ({ page }) => {
+    await fakeTauri(page, { recovered: null });
+    await page.goto('/');
+    // The first paint is reported before any reply arrives (the timings never hold up the start).
+    await expect.poll(async () => (await marks(page)).map((m) => m.mark)).toContain('firstPaint');
+    await page.evaluate(() => (window as unknown as { __ipcRelease: () => void }).__ipcRelease());
+    // The first workspace load (here: a failed one) and the first frame after it.
+    await expect.poll(async () => (await marks(page)).map((m) => m.mark).sort()).toEqual(['firstInteractive', 'firstPaint', 'workspaceLoaded']);
+    const sent = await marks(page);
+    for (const m of sent) {
+      expect(m.atEpochMs).toBeGreaterThanOrEqual(Math.floor(m.origin));
+      expect(m.atEpochMs).toBeLessThanOrEqual(m.now);
+    }
+    const at = (name: string) => sent.find((m) => m.mark === name)!.atEpochMs;
+    expect(at('firstInteractive')).toBeGreaterThanOrEqual(at('workspaceLoaded'));
+    expect(at('workspaceLoaded')).toBeGreaterThanOrEqual(at('firstPaint'));
   });
 
   for (const [why, text] of [

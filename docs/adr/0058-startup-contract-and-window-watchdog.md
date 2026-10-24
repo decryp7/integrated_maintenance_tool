@@ -89,6 +89,11 @@ tested with a passed-in clock; the ticker only applies them.
 - Paddock: the contract is family-wide. The pure watchdog and the UI half (`retryUntilAnswered`, `reportReady`,
   boot-error forwarding, the splash) belong in the shared crate and `paddock-ui` once a second app adopts them
   (rule 39); Pitcrew is next. A family lesson records: "every window reports ready; Rust watches it".
+- Start-up timings (2026-10-24, rule 16): the main window's `window_ready` is also its `windowReady` mark and starts
+  the work the first window does not need (`after_first_paint`: the store worker, the tray icon; a 10 s fallback when
+  no paint is reported, e.g. a start in the tray). The page reports `firstPaint`, `workspaceLoaded` and
+  `firstInteractive` with `startup_mark` (`Quiet [MAIN]`), fire-and-forget: the contract above is unchanged, nothing
+  awaits these calls, and their failures are ignored. See docs/performance.md.
 
 ## Tests
 

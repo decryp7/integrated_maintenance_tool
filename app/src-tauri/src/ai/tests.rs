@@ -2225,3 +2225,20 @@ fn the_name_commands_validate_what_the_webview_sends() {
     }
     assert_eq!(ipc(&main, "names_undo", json!({})).unwrap()["undone"], Value::Null);
 }
+
+/// The start-up log line reads the light status: the same state and model as the full one, without the scan of every
+/// process for the workers' memory (up to seconds on a busy Mac, which held the first window back).
+#[test]
+fn the_light_status_is_the_full_status_without_the_memory_scan() {
+    let f = Fixture::new("status-light");
+    let core = f.core();
+    core.set_fixed_provider(scripted(vec![]));
+    let light = core.status_light();
+    let full = core.status();
+    assert_eq!(light.state, super::core::EngineStateDto::Ready);
+    assert_eq!(light.rss_bytes, 0, "no process scan");
+    assert_eq!(
+        (light.state, light.model.clone(), light.available),
+        (full.state, full.model.clone(), full.available)
+    );
+}

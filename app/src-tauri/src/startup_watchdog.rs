@@ -227,6 +227,9 @@ pub fn on_page_load<R: Runtime>(webview: &tauri::Webview<R>, payload: &tauri::we
     if let Some(w) = webview.try_state::<StartupWatchdog>() {
         w.with(|w| w.page_started(webview.label(), Instant::now()));
     }
+    if webview.label() == crate::windows::MAIN {
+        crate::startup_timings::mark(webview, crate::startup_timings::Mark::PageLoad);
+    }
 }
 
 /// A web content process terminated: the reloaded page will hear why.
@@ -371,6 +374,11 @@ pub async fn window_ready<R: Runtime>(webview: tauri::Webview<R>, dog: tauri::St
     let label = webview.label().to_string();
     let reply = dog.checkpoints(|c| dog.with(|w| ready_reply(w, c, &label)));
     answered(webview.app_handle(), &label);
+    if label == crate::windows::MAIN {
+        crate::startup_timings::mark(&webview, crate::startup_timings::Mark::WindowReady);
+        // The window painted: the start-up work it did not need starts now, in the background.
+        crate::after_first_paint::first_paint(&webview);
+    }
     log::info!(Window = label.as_str(), Recovered = format!("{:?}", reply.recovered), RestoresUi = reply.ui.is_some(); "Window {label} ready");
     Ok(reply)
 }

@@ -2,7 +2,6 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, Eleme
 import { TileCfg } from '../../core/api.types';
 import { Icon } from '../../shared/icon';
 import { DialogService } from '../../ui/dialog.service';
-import { AddTileDialog } from './add-tile-dialog';
 import { DashboardStore } from './dashboard.store';
 import { DashboardTile } from './dashboard-tile';
 
@@ -174,7 +173,7 @@ export class DashboardView {
   }
 
   protected async addTile(): Promise<void> {
-    const tile = await this.dialogs.open(AddTileDialog, { title: $localize`:@@share.addTile.dialogTitle:Add tile`, width: 520 }).closed;
+    const tile = await this.dialogs.openLazy(() => import('./add-tile-dialog').then((m) => m.AddTileDialog), { title: $localize`:@@share.addTile.dialogTitle:Add tile`, width: 520 }).closed;
     if (tile) this.ds.add(tile);
   }
 

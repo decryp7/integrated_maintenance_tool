@@ -1,13 +1,9 @@
 import { NgTemplateOutlet } from '@angular/common';
-import { ChangeDetectionStrategy, Component, computed, inject, Injectable, Injector, resource } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, resource } from '@angular/core';
 import { LifecycleBackend } from '../core/tools-backend';
-import { LifecycleService } from '../lifecycle/lifecycle.service';
-import { DialogService, DIALOG_REF } from '../ui/dialog.service';
+import { DIALOG_REF } from '../ui/dialog.service';
 import { CHANGELOG } from './changelog.generated';
-import { ChangelogRelease, decideWhatsNew, releaseFor } from './changelog';
-
-/** The last version whose notes the user was shown (localStorage: a per-machine convenience). */
-export const WHATS_NEW_SEEN_KEY = 'debrief.whatsnew.seen';
+import { ChangelogRelease, releaseFor } from './changelog';
 
 /** What's new: the notes of the running version, with earlier releases below. */
 @Component({
@@ -85,40 +81,4 @@ export class WhatsNewDialog {
   protected readonly earlier = computed(() => CHANGELOG.filter((r) => r !== this.current()));
 }
 
-/** Opens What's new on demand (Help menu, palette) and once after an update. */
-@Injectable({ providedIn: 'root' })
-export class WhatsNewService {
-  private readonly dialogs = inject(DialogService);
-  // Resolved on use: registering the command must not need the lifecycle backend.
-  private readonly injector = inject(Injector);
-
-  open(): void {
-    this.dialogs.open(WhatsNewDialog, { title: $localize`:@@whatsNew.title:What's new`, width: 560 });
-  }
-
-  /** Shows the notes once per version: after an update, never on a first run. Call when the app status is known. */
-  checkOnStart(): void {
-    const version = this.injector.get(LifecycleService).status()?.version;
-    const hasNotes = releaseFor(CHANGELOG, version) !== null;
-    const decision = decideWhatsNew(this.seen(), version, hasNotes);
-    if (decision === 'nothing' || !version) return;
-    this.remember(version);
-    if (decision === 'show') this.open();
-  }
-
-  private seen(): string | null {
-    try {
-      return localStorage.getItem(WHATS_NEW_SEEN_KEY);
-    } catch {
-      return null;
-    }
-  }
-
-  private remember(version: string): void {
-    try {
-      localStorage.setItem(WHATS_NEW_SEEN_KEY, version);
-    } catch {
-      /* storage unavailable: the notes may show again next start */
-    }
-  }
-}
+export { WHATS_NEW_SEEN_KEY, WhatsNewService } from './whats-new.service';

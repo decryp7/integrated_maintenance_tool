@@ -1,5 +1,6 @@
 import { StartupBackend } from './startup-backend';
 import type { Recovery, ReadyReply } from './startup-contract';
+import type { PageMark, StartupReport } from './startup-timings';
 
 /** Test hook: set to `terminated` or `unresponsive` before a reload to play "Debrief reloaded this window". */
 export const MOCK_RECOVER_KEY = 'debrief.mock.recover';
@@ -34,5 +35,17 @@ export class MockStartupBackend implements StartupBackend {
 
   async checkpointUi(ui: unknown): Promise<void> {
     storage()?.setItem(MOCK_CHECKPOINT_KEY, JSON.stringify(ui));
+  }
+
+  /** The page's marks, in the order they arrived (ms since the page's time origin stands in for the process start). */
+  private readonly marks: { mark: PageMark; ms: number }[] = [];
+
+  async reportMark(mark: PageMark, atEpochMs: number): Promise<void> {
+    if (this.marks.some((m) => m.mark === mark)) return;
+    this.marks.push({ mark, ms: Math.max(0, Math.round(atEpochMs - performance.timeOrigin)) });
+  }
+
+  async startupTimings(): Promise<StartupReport> {
+    return { marks: [{ mark: 'processStart', ms: 0 }, ...this.marks], steps: [], complete: false };
   }
 }

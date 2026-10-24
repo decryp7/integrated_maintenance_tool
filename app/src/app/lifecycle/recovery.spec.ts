@@ -16,6 +16,10 @@ class FakeStartup implements StartupBackend {
   async checkpointUi(ui: unknown) {
     this.checkpoints.push(ui);
   }
+  async reportMark() {}
+  async startupTimings() {
+    return { marks: [], steps: [], complete: false };
+  }
 }
 
 async function setup() {

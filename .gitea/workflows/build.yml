@@ -35,12 +35,64 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Decides whether this run is needed at all:
+  # a push to main whose commit carries a v* tag is covered by the tag run;
+  # a nightly run is skipped while main is unchanged since the last green one.
+  plan:
+    name: plan
+    runs-on: ubuntu-latest
+    container:
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
+    outputs:
+      run: ${{ steps.plan.outputs.run }}
+    steps:
+      # The checkout is only for `git ls-remote` (credentials and remote URL); it fetches no history.
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        with:
+          fetch-depth: 1
+
+      # Exact-key lookup only: nothing is downloaded. The marker is saved by the nightly-mark job after a fully green run.
+      - uses: actions/cache/restore@v4
+        id: green
+        if: github.event_name == 'schedule'
+        with:
+          path: .nightly-green
+          key: nightly-green-${{ github.sha }}
+          lookup-only: true
+
+      - name: Decide
+        id: plan
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          REF: ${{ github.ref }}
+          SHA: ${{ github.sha }}
+          GREEN: ${{ steps.green.outputs.cache-hit }}
+        run: |
+          run=true
+          if [ "$EVENT" = schedule ] && [ "$GREEN" = true ]; then
+            run=false
+            echo "::notice::main has not changed since the last green run ($SHA); skipping."
+          fi
+          if [ "$EVENT" = push ] && [ "$REF" = refs/heads/main ]; then
+            # Lightweight tags list the commit itself, annotated ones list the tag object and the peeled commit (^{}).
+            tag=$(git ls-remote --tags origin 'refs/tags/v*' | awk -v sha="$SHA" '$1 == sha { sub("refs/tags/", "", $2); sub(/\^\{\}$/, "", $2); print $2; exit }')
+            if [ -n "$tag" ]; then
+              run=false
+              echo "::notice::commit is tagged $tag; the tag run is the gate."
+            fi
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
   # The checks run as parallel jobs; the installers and smoke tests wait for all of them. Cargo caches are
   # restored and saved separately (actions/cache/restore + save with `if: always()`), so a failing run still
   # warms the cache for the next one; a cache is saved again when Cargo.lock changes. Each job keys its own cache.
 
   rust-lint:
     name: rust format + clippy
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       # garage: the Paddock CI image (dev.decryptology.net/decryp7/garage) with Rust tools, Tauri libraries, Node 24 and Playwright browsers pre-installed
@@ -111,6 +163,8 @@ jobs:
 
   rust-test:
     name: rust tests
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -208,6 +262,8 @@ jobs:
   # in GITHUB_ENV, never under `nice`/`env`, which macOS's SIP would strip it from).
   rust-test-macos:
     name: rust tests (macOS)
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: macos-latest
     timeout-minutes: 120
     steps:
@@ -268,6 +324,8 @@ jobs:
   # workspace members and run in `rust tests`.
   plugin-sdk:
     name: plugin SDK templates
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -309,6 +367,8 @@ jobs:
 
   licences:
     name: licences, notices + commits
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -352,7 +412,7 @@ jobs:
 
       - name: Third-party notices are up to date
         run: |
-          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/check-dialog-commands.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs app/e2e/retried-reporter.test.mjs
+          node --test scripts/notices/generate.test.mjs app/scripts/build-info.test.mjs app/scripts/whats-new.test.mjs app/scripts/build-sidecars.test.mjs app/scripts/libduckdb.test.mjs app/scripts/lint-styles.test.mjs app/scripts/lint-effects.test.mjs app/scripts/check-dialog-commands.test.mjs app/scripts/window-weight.test.mjs scripts/commit-lint.test.mjs scripts/ci/check-icons.test.mjs scripts/ci/check-temp-leaks.test.mjs scripts/ci/check-index.test.mjs scripts/ci/install-test-browser.test.mjs scripts/ci/check-quarantine.test.mjs scripts/ci/scan-fixtures.test.mjs scripts/ci/startup-bench.test.mjs app/e2e/retried-reporter.test.mjs
           node scripts/ci/check-quarantine.mjs
           node scripts/ci/scan-fixtures.mjs
           node scripts/ci/check-icons.mjs
@@ -370,6 +430,8 @@ jobs:
 
   frontend:
     name: frontend build, lint + unit tests
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -397,8 +459,18 @@ jobs:
       - name: Dialog command lint tests
         run: node --test scripts/check-dialog-commands.test.mjs
 
+      # --stats-json writes dist/app/browser-stats.json for the window-weight step below (the one build of this job).
       - name: Frontend build
-        run: npx ng build
+        run: npx ng build --stats-json
+
+      # Paddock rule 35: the JS the main window loads before first paint (static closure of main, bootstrap, app and
+      # app.config) stays under its budget (measured + 10%, docs/performance.md); pop-out and dialog are reported, the
+      # About dialog window is bounded too.
+      - name: First-paint JS budget (main window)
+        run: |
+          node scripts/window-weight.mjs main --max 1355
+          node scripts/window-weight.mjs popout
+          node scripts/window-weight.mjs about --max 480
 
       # No inline <style>/<script> (Tauri's CSP nonce would disable the app's styles) and the start-up splash is present.
       - name: Built index.html (no inline elements, splash present)
@@ -419,6 +491,8 @@ jobs:
 
   e2e:
     name: end-to-end (shard ${{ matrix.shard }}/2)
+    needs: [plan]
+    if: needs.plan.outputs.run == 'true'
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -469,7 +543,8 @@ jobs:
   # macOS has no WKWebView driver. Locally: see docs/testing-manual.md ("Smoke tests of the real app").
   tauri-smoke:
     name: real-app smoke (${{ matrix.os }})
-    needs: [rust-lint]
+    needs: [plan, rust-lint]
+    if: needs.plan.outputs.run == 'true'
     strategy:
       fail-fast: false
       matrix:
@@ -722,6 +797,37 @@ jobs:
           DEBRIEF_E2E_LIVE_SEARCH_OUT: ${{ runner.temp }}/live-search
         run: cargo test -p debrief-app --lib live_search -- --ignored --nocapture
 
+      # The start-up benchmark (Paddock rule 16; startup_timings.rs): five everyday starts of the built app after a
+      # first run, each one's "Startup timings" line read and the medians checked against scripts/ci/startup-budgets.json.
+      # Nightly and manual runs only. macOS has measured budgets; Linux reports until its first nightly numbers are in.
+      - name: Start-up benchmark (macOS)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os == 'macOS'
+        shell: bash
+        run: |
+          app=$(find "${CARGO_TARGET_DIR:-target}/debug/bundle/macos" -maxdepth 1 -name '*.app' | head -n 1)
+          node --test scripts/ci/startup-bench.test.mjs
+          node scripts/ci/startup-bench.mjs "$app" --runs 5 --out "${RUNNER_TEMP:-/tmp}/startup-timings.json"
+
+      - name: Start-up benchmark (Linux, report only)
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os == 'Linux'
+        env:
+          WEBKIT_DISABLE_SANDBOX_THIS_IS_DANGEROUS: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+          WEBKIT_DISABLE_COMPOSITING_MODE: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          dbus-run-session -- xvfb-run -a --server-args="-screen 0 1600x1000x24" \
+            node scripts/ci/startup-bench.mjs "${CARGO_TARGET_DIR:-target}/debug/debrief-app" --runs 5 --report-only \
+            --out "${RUNNER_TEMP:-/tmp}/startup-timings.json"
+
+      - name: Start-up timings
+        if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os != 'Windows'
+        uses: actions/upload-artifact@v3
+        with:
+          name: startup-timings-${{ runner.os }}
+          path: ${{ runner.temp }}/startup-timings.json
+          if-no-files-found: ignore
+
       # The report and page screenshots, passed or not (a warning is worth a look too).
       - name: Live search test report
         if: (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && !cancelled() && runner.os != 'macOS'
@@ -742,8 +848,8 @@ jobs:
   # installers still shows up within 24 hours, in the nightly run.
   bundle:
     name: bundle (${{ matrix.os }})
-    needs: [rust-lint]
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    needs: [plan, rust-lint]
+    if: needs.plan.outputs.run == 'true' && (startsWith(github.ref, 'refs/tags/') || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
     strategy:
       fail-fast: false
       matrix:
@@ -973,8 +1079,8 @@ jobs:
 
   release:
     name: release
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: [bundle, tauri-smoke, rust-lint, rust-test, rust-test-macos, licences, frontend, e2e]
+    if: needs.plan.outputs.run == 'true' && startsWith(github.ref, 'refs/tags/v')
+    needs: [plan, bundle, tauri-smoke, rust-lint, rust-test, rust-test-macos, licences, frontend, e2e]
     runs-on: ubuntu-latest
     container:
       image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
@@ -1046,3 +1152,23 @@ jobs:
           node --test scripts/release/publish.test.mjs
           node scripts/release/publish.mjs --api "${{ github.server_url }}/api/v1" --repo "${{ github.repository }}" \
             --tag "${{ github.ref_name }}" --notes artifacts/RELEASE_NOTES.md --dir artifacts
+
+  # Records a fully green scheduled run for this commit; `plan` skips the next scheduled run while main is unchanged.
+  # Never runs when anything failed, so a red commit is retried every night.
+  nightly-mark:
+    name: nightly-mark
+    needs: [rust-lint, rust-test, rust-test-macos, plugin-sdk, licences, frontend, e2e, tauri-smoke, bundle]
+    if: github.event_name == 'schedule' && success()
+    runs-on: ubuntu-latest
+    container:
+      image: dev.decryptology.net/decryp7/garage:ubuntu-24.04-20261023-r5
+    steps:
+      - name: Marker file
+        run: |
+          mkdir -p .nightly-green
+          echo "${{ github.sha }}" > .nightly-green/sha
+
+      - uses: actions/cache/save@v4
+        with:
+          path: .nightly-green
+          key: nightly-green-${{ github.sha }}

@@ -2,7 +2,7 @@ import { computed, inject, Injectable } from '@angular/core';
 import { CommandRegistry } from '../extensions/command-registry';
 import { HostAction, HostNotification, NotificationSource } from '../health/notification-host.model';
 import { ErrorSnapshotService } from './error-snapshot.service';
-import { SETTINGS_COMMAND } from './error-snapshots-view';
+import { SETTINGS_DIAGNOSTICS_COMMAND } from '../settings/settings-dialog';
 import { SnapshotBackend } from './snapshot-backend';
 import { REPORT_PROBLEM_COMMAND, SNAPSHOT_NOTICE } from './snapshot.types';
 
@@ -51,7 +51,7 @@ export class SnapshotSource implements NotificationSource {
           { label: $localize`:@@diagnostics.toast.report:Report a problem…`, id: 'report', run: run(REPORT_PROBLEM_COMMAND) },
           { label: $localize`:@@diagnostics.toast.viewSnapshot:View snapshot`, kind: 'ghost', run: run('diagnostics.snapshots.show') },
           { label: $localize`:@@diagnostics.toast.openFolder:Open folder`, kind: 'ghost', run: () => void this.backend.openFolder().catch(() => undefined) },
-          { label: $localize`:@@diagnostics.toast.settings:Settings…`, kind: 'ghost', run: () => void this.commands.run(SETTINGS_COMMAND) },
+          { label: $localize`:@@diagnostics.toast.settings:Settings…`, kind: 'ghost', run: () => void this.commands.run(SETTINGS_DIAGNOSTICS_COMMAND) },
         ],
         dismiss,
       },

@@ -1,0 +1,14 @@
+{
+  "_comment": "Start-up budgets in ms since the process start (median of 5 everyday starts of the debug app; scripts/ci/startup-bench.mjs). macOS: measured 2026-10-24 on the Mac mini runner host (215/264/524/610/611/619/624 ms) plus 50% for CI load; tighten as starts get faster. Linux reports only until its first nightly numbers are recorded here.",
+  "macos": {
+    "marks": {
+      "windowCreated": 325,
+      "setupDone": 400,
+      "pageLoad": 790,
+      "firstPaint": 915,
+      "windowReady": 920,
+      "workspaceLoaded": 930,
+      "firstInteractive": 940
+    }
+  }
+}

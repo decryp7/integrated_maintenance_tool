@@ -16,11 +16,12 @@ import {
 import { deniedCommand } from '../core/denied-command';
 import { Logger } from '../core/logger';
 import { REPORT_PROBLEM_COMMAND } from '../diagnostics/snapshot.types';
-import { WorkspaceStore } from '../core/workspace.store';
-import { WORKSPACE_SUMMARY } from '../core/workspace/workspace-queries';
+import { WorkspaceDataStore } from '../core/workspace/workspace-data.store';
+import { WorkspaceStatusStore } from '../core/workspace/status.store';
+import { WORKSPACE_QUERIES, WORKSPACE_SUMMARY } from '../core/workspace/workspace-queries';
 import { PopoutBackend } from '../popout/popout-backend';
 
-import { sharedUiState } from '../popout/shared-state';
+import { SharedScope, sharedUiState } from '../popout/shared-state';
 import { UiSync } from '../popout/ui-sync';
 import { errorMessage } from '../tools/tool-errors';
 import { DIALOG_REF, DialogRef } from '../ui/dialog.service';
@@ -96,10 +97,13 @@ export class DialogShell {
   private readonly lookup = inject(DIALOG_LOOKUP);
   private readonly injector = inject(Injector);
   private readonly queries = inject(WORKSPACE_SUMMARY);
+  private readonly timeline = inject(WORKSPACE_QUERIES);
   private readonly destroyRef = inject(DestroyRef);
   private readonly logger = inject(Logger);
   private readonly sync = inject(UiSync);
-  private readonly store = inject(WorkspaceStore);
+  // Only a window that loads the workspace summary has these stores (Paddock rules 32/34).
+  private readonly data = this.queries ? inject(WorkspaceDataStore) : null;
+  private readonly status = this.queries ? inject(WorkspaceStatusStore) : null;
   private readonly backend = inject(PopoutBackend);
   private readonly body = viewChild.required<ElementRef<HTMLElement>>('body');
   private readonly host = viewChild.required('host', { read: ViewContainerRef });
@@ -319,20 +323,25 @@ export class DialogShell {
       if (started) return;
       started = true;
       const port = this.backend.syncPort(this.route.host, false, () => [this.route.host]);
-      this.sync.start(port, false, this.route.label, sharedUiState(this.injector));
+      const scope: SharedScope = this.timeline ? 'full' : this.queries ? 'summary' : 'display';
+      this.sync.start(port, false, this.route.label, sharedUiState(this.injector, scope));
     };
     // A window that does not load the workspace has nothing to wait for.
     if (!this.queries) start();
     const fallback = setTimeout(start, SYNC_START_TIMEOUT_MS);
-    const ref = effect(
-      () => {
-        if (this.store.summary() && !this.store.busy()) untracked(start);
-      },
-      { injector: this.injector },
-    );
+    const data = this.data;
+    const status = this.status;
+    const ref = data && status
+      ? effect(
+          () => {
+            if (data.summary() && !status.busy()) untracked(start);
+          },
+          { injector: this.injector },
+        )
+      : null;
     destroy.onDestroy(() => {
       clearTimeout(fallback);
-      ref.destroy();
+      ref?.destroy();
     });
   }
 }

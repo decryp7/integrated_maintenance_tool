@@ -2,7 +2,6 @@ import { inject, Injectable } from '@angular/core';
 import { Platform } from '../core/platform';
 import { WorkspaceStore } from '../core/workspace.store';
 import { DialogService } from '../ui/dialog.service';
-import { ImportRangeDialog } from './import-range-dialog';
 
 /** `YYYY-MM-DD`, optionally with `HH:MM[:SS[.fff]]` (a `T` or a space between) and an optional `Z` or `+HH:MM` offset. */
 const ISO_TIME = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?))?\s*(Z|[+-]\d{2}:\d{2})?$/i;
@@ -37,7 +36,7 @@ export class ImportRange {
   async pickAndOpen(directory: boolean): Promise<void> {
     const paths = await this.platform.pickPaths(directory);
     if (!paths.length) return;
-    const range = await this.dialogs.open(ImportRangeDialog, {
+    const range = await this.dialogs.openLazy(() => import('./import-range-dialog').then((m) => m.ImportRangeDialog), {
       title: $localize`:@@import.range.title:Open a time range`,
       width: 520,
     }).closed;

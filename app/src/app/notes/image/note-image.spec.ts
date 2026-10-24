@@ -96,6 +96,7 @@ describe('NoteImageView', () => {
     expect(all(f, '[data-testid=note-region-pending]')).toHaveLength(1);
     const dialogs = TestBed.inject(DialogService);
     el<HTMLButtonElement>(f, '[data-testid=note-image-add]').click();
+    await TestBed.inject(DialogService).whenLoaded();
     const dlg = dialogs.stack().at(-1);
     expect(dlg?.options.inputs?.['anchor']).toMatchObject({ kind: 'image', image: { name: 'screen.png', width: 800, height: 450 }, regions: [{ x: 20, y: 20, w: 100, h: 50 }] });
     const n = await TestBed.inject(NotesStore).add({ anchor: dlg?.options.inputs?.['anchor'] as never, text: 'red banner' });

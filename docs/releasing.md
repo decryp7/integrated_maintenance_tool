@@ -8,8 +8,16 @@ Installers are built only for tags, the nightly run of `main` and manual runs (*
 start the workflow by hand or take them from the latest nightly run's artifacts.
 
 ```sh
-git tag v1.2.0 && git push origin v1.2.0
+git tag v1.2.0 && git push --atomic origin main v1.2.0
 ```
+
+Push the release commit and its tag together (`--atomic`): the `plan` job of the push-to-main run asks the server
+whether a `v*` tag points at the commit and, if so, skips that run (notice: "commit is tagged vX; the tag run is the
+gate"), because the tag run checks the same commit and is the gate for the release. If the tag is pushed later, the
+main run has already started and simply runs as before. The nightly runs (`build`, `bench`, `corpus`, and the weekly
+`mutants`) skip while `main` is unchanged since their last fully green run: a green run saves a cache key
+`<workflow>-green-<sha>` that the next scheduled `plan` looks up. Manual runs, tags, pull requests and untagged pushes
+always run; fuzzing runs every night (each run explores new inputs).
 
 The version in the tag must match `app/src-tauri/tauri.conf.json` / `Cargo.toml` (it is what Debrief compares
 against). Pre-releases are not offered to users: updaters read `latest.json` of the *latest* release.

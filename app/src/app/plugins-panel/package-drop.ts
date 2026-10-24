@@ -1,7 +1,7 @@
 import { inject, Injector } from '@angular/core';
 import { DroppedFilesHandler } from '../core/dropped-files';
 import { COMMAND_CONTEXT } from '../extensions/command-registry';
-import { PackageReviewOpener } from './package-review-dialog';
+import { PackageReviewOpener } from './package-review-opener';
 import { isPackagePath, PluginPackagesStore } from './plugin-packages.store';
 
 /** The Plugins panel's view id (see builtin-views.ts). */

@@ -5,7 +5,6 @@ import { WorkspaceStore } from '../../core/workspace.store';
 import { DEBRIEF_ACTIVITY_ITEMS, DEBRIEF_COMMANDS, DebriefActivityItem, DebriefCommand } from '../../extensions/tokens';
 import { DialogService } from '../../ui/dialog.service';
 import { FolderSetupStore } from './folder-setup.store';
-import { FolderSetupWizard } from './folder-setup-wizard';
 
 export const FOLDER_SETUP_COMMAND = 'folder.setupAnalysis';
 
@@ -25,7 +24,7 @@ export class FolderSetupLauncher {
 
   /** Opens the wizard on what the store holds (View of a finished survey or refinement). */
   show(): void {
-    const ref = this.dialogs.open(FolderSetupWizard, {
+    const ref = this.dialogs.openLazy(() => import('./folder-setup-wizard').then((m) => m.FolderSetupWizard), {
       title: $localize`:Dialog title@@ai.folderSetup.title:Set up analysis for this folder`,
       width: 820,
     });

@@ -3,7 +3,6 @@ import { Finding } from '../../core/api.types';
 import { AnalysisBackend } from '../../core/analysis-backend';
 import { WorkspaceStore } from '../../core/workspace.store';
 import { COMMAND_CONTEXT } from '../../extensions/command-registry';
-import { FormatWizard } from '../../format/format-wizard';
 import { DialogService } from '../../ui/dialog.service';
 import { ActionId, panelTarget, zoomWindow } from './health-model';
 
@@ -41,7 +40,7 @@ export class HealthActions {
           return;
         case 'setupFormat':
           if (action.kind !== 'setupFormat') return;
-          this.dialogs.open(FormatWizard, { title: $localize`:@@overview.actions.setupFormat:Set up format`, inputs: { path: action.path, name: action.path.split(/[\\/]/).pop() ?? action.path }, width: 760 });
+          this.dialogs.openLazy(() => import('../../format/format-wizard').then((m) => m.FormatWizard), { title: $localize`:@@overview.actions.setupFormat:Set up format`, inputs: { path: action.path, name: action.path.split(/[\\/]/).pop() ?? action.path }, width: 760 });
           return;
         case 'openPanel':
           if (action.kind === 'openPanel') this.ctx.showView(panelTarget(action.panel).view);

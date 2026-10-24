@@ -48,6 +48,7 @@ import { provideNotificationHost, provideNotificationSource } from './health/pro
 import { provideServiceHealth } from './core/service-health/provide-service-health';
 import { WorkspaceSource } from './shell/workspace-source';
 import { provideStartupContract } from './core/startup/startup-contract';
+import { provideStartupTimings } from './core/startup/startup-timings';
 import { provideRecovery } from './lifecycle/recovery';
 
 export const appConfig: ApplicationConfig = {
@@ -103,6 +104,8 @@ export const appConfig: ApplicationConfig = {
     provideNotificationSource(WorkspaceSource),
     // Reports ready after the first paint; Rust's watchdog recovers a window that never does (ADR 0058).
     provideStartupContract(),
+    // The main window's start-up marks for Rust's "Startup timings" line (rule 16).
+    provideStartupTimings(),
     provideRecovery(),
   ],
 };

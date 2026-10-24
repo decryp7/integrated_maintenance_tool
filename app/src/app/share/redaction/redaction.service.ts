@@ -6,7 +6,6 @@ import { errorMessage } from '../../tools/tool-errors';
 import { DialogService } from '../../ui/dialog.service';
 import { ShareBackend } from '../share-backend';
 import { readRedact } from './redact-section';
-import { RedactionDialog } from './redaction-dialog';
 
 /** The window's redacted view (switched in the engine) and the profile's redaction defaults. */
 @Injectable({ providedIn: 'root' })
@@ -54,6 +53,6 @@ export class RedactionService {
   }
 
   async openSettings(): Promise<void> {
-    await this.dialogs.open(RedactionDialog, { title: $localize`:@@share.redactionService.dialogTitle:Redaction settings`, width: 640 }).closed;
+    await this.dialogs.openLazy(() => import('./redaction-dialog').then((m) => m.RedactionDialog), { title: $localize`:@@share.redactionService.dialogTitle:Redaction settings`, width: 640 }).closed;
   }
 }

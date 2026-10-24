@@ -1,9 +1,8 @@
-import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, Injectable, Injector, signal, viewChild } from '@angular/core';
+import { afterNextRender, ChangeDetectionStrategy, Component, computed, DestroyRef, ElementRef, inject, Injector, signal, viewChild } from '@angular/core';
 import { LifecycleBackend } from '../core/tools-backend';
 import { AppStatus, Platform } from '../core/tools.types';
 import { DIALOG_REF } from '../ui/dialog.service';
 import { copyText } from '../tools/clipboard';
-import { DialogService } from '../ui/dialog.service';
 import { AppLogo } from '../shared/app-logo';
 import { BUILD_INFO } from './build-info';
 import { READ_ONLY_DETAIL, READ_ONLY_PROMISE } from '../shared/read-only';
@@ -183,12 +182,4 @@ export class AboutDialog {
   }
 }
 
-/** Opens the About dialog (Help → About Debrief, the "About Debrief" palette command). */
-@Injectable({ providedIn: 'root' })
-export class AboutService {
-  private readonly dialogs = inject(DialogService);
-
-  open(): void {
-    this.dialogs.open(AboutDialog, { title: $localize`:@@about.title:About Debrief`, width: 720 });
-  }
-}
+export { AboutService } from './about.service';
