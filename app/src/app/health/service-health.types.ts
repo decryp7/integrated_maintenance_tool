@@ -8,7 +8,7 @@ export type ServiceState = 'ok' | 'starting' | 'degraded' | 'down' | 'quarantine
 
 /** What the shell can do to bring a service back; it never goes through the service itself. */
 /** `openSettings` is the UI's own: it opens the Settings section the cause names (`HealthCause.settings`). */
-export type RepairAction = 'restart' | 'reset' | 'liftQuarantine' | 'install' | 'retry' | 'openSettings';
+export type RepairAction = 'restart' | 'reset' | 'liftQuarantine' | 'install' | 'retry' | 'openSettings' | 'useFallback';
 
 /** A memory cap stopped the process: the user can raise it (the UI opens the setting with this value). */
 export interface RaiseCap {
@@ -78,6 +78,8 @@ export function repairLabel(action: RepairAction): string {
       return $localize`:@@health.repair.install:Install`;
     case 'openSettings':
       return $localize`:@@health.repair.openSettings:Open Settings…`;
+    case 'useFallback':
+      return $localize`:@@health.repair.useFallback:Use the fallback`;
     case 'reset':
     case 'retry':
       return $localize`:@@health.repair.tryAgain:Try again`;

@@ -462,6 +462,12 @@ profile's time zone) and with the same text, and lists them with a reason for ea
 matches lane OrderWorker*, *text 'HttpRequestException'*). Without a readable time it says the links come from text
 and title only; when the clocks disagree it says by how much and offers the clock-offset correction.
 
+**Pitwall as the engine** (ADR 0059): when the family's local model server Pitwall runs on this computer, Debrief can
+use it instead of its own engine (one model in memory for all apps, no second download). Connecting uses Pitwall's
+pairing (a six-digit code you approve in Pitwall); the key is kept in the OS credential store. *Settings ▸ AI ▸ AI
+engine*: Automatic, Pitwall or Built-in. Both engines share the same prompts, tool protocol and parsing; if Pitwall stops
+mid-session the AI service shows as limited with *Use the fallback* (the built-in engine) and never switches silently.
+
 ## The AI's browser (real Chromium)
 
 *Search the web for this error* (the event's context menu, the inspector, the chat, the palette) opens the search in

@@ -10,6 +10,7 @@ pub mod catalog;
 pub mod chat;
 #[cfg(windows)]
 mod dxgi;
+pub mod engine;
 pub mod error;
 pub mod fit;
 pub mod gguf;

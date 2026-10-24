@@ -198,6 +198,7 @@ impl Fixture {
             download_backoff: Duration::from_millis(1),
             runtimes: test_runtimes_with(&self.tmp, self.host_delay, self.build_tests.clone()),
             settings: Arc::default(),
+            pitwall: None,
         }
     }
 
@@ -2137,6 +2138,7 @@ fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
 }
 
 mod knowledge;
+mod pitwall;
 mod update_checks;
 mod vision;
 
@@ -2201,8 +2203,8 @@ fn finding_values_builds_the_names_and_the_alias_job_runs_on_the_local_model_onl
     assert!(reply["values"].is_array(), "{reply}");
     // With the switch off the model is never asked again.
     ipc(&main, "set_settings", json!({"section": "ai", "values": {"name_aliases": false}})).unwrap();
-    // A job queued by a later rebuild of the table may still be running: it ends before the refusal is checked.
-    wait_until("any alias job to finish", || !win.names.job_pending());
+    // The second search may have queued another alias job before the switch went off: let it end first.
+    wait_until("the last alias job to finish", || !win.names.job_pending());
     let asked = provider.requests().len();
     assert!(!crate::names::schedule_alias_job(app.handle(), "main", &win.names));
     assert_eq!(provider.requests().len(), asked);

@@ -9,7 +9,10 @@ import {
   AiErrorCode,
   AiImage,
   AiRuntimeEvent,
+  AiEngineChoice,
+  AiEngineStatus,
   AiStatus,
+  PitwallStatus,
   AiUpdateKind,
   AiUpdatesStatus,
   ChatContext,
@@ -91,7 +94,24 @@ export interface MockAiOptions {
   vision?: MockVisionMode;
   /** The clock of every simulated step, download and update check (default: the page's timers). */
   clock?: MockClock;
+  /** Pitwall (the family's local LLM server, ADR 0059): `absent` (default), `installed` (not running), `running` (not
+   * paired: connecting shows a code and is approved after a moment), `deny` (as `running`, but the request is denied),
+   * `paired` (already usable and the active engine). */
+  pitwall?: MockPitwallMode;
 }
+
+export type MockPitwallMode = 'absent' | 'installed' | 'running' | 'deny' | 'paired';
+
+/** Placeholder only: `currentStatus` always replaces it with the real engine state. */
+const NO_ENGINE: AiEngineStatus = {
+  choice: 'auto',
+  active: 'builtIn',
+  builtInForSession: false,
+  pitwall: { found: 'absent', version: null, paired: false, pairing: null, model: null, usable: false, problem: null },
+};
+
+const MOCK_PITWALL_MODEL = 'qwen3-8b-q4km';
+const MOCK_PITWALL_CODE = '482913';
 
 export type MockVisionMode = 'on' | 'missing' | 'none';
 
@@ -103,6 +123,7 @@ export type MockVisionMode = 'on' | 'missing' | 'none';
  *   ?mockAiNet=tls|proxyAuth|proxy|offline|timeout|httpStatus  downloads fail like behind a corporate proxy
  *   ?mockAiUpdates=available|automatic|manual  a runtime update to find (Ask, or that policy)
  *   ?mockAiVision=missing|none  the active model reads text only (its image support can be added, or not)
+ *   ?mockPitwall=running|deny|installed|paired  Pitwall found on this computer (see MockAiOptions.pitwall)
  *   ?mockAiStepMs=5          streaming speed
  */
 export function mockAiOptionsFromSearch(search: string): MockAiOptions {
@@ -124,6 +145,8 @@ export function mockAiOptionsFromSearch(search: string): MockAiOptions {
   if (updates === 'available' || updates === 'automatic' || updates === 'manual' || updates === 'none') o.updates = updates;
   const vision = p.get('mockAiVision');
   if (vision === 'on' || vision === 'missing' || vision === 'none') o.vision = vision;
+  const pitwall = p.get('mockPitwall');
+  if (pitwall === 'running' || pitwall === 'deny' || pitwall === 'installed' || pitwall === 'paired' || pitwall === 'absent') o.pitwall = pitwall;
   return o;
 }
 
@@ -162,6 +185,12 @@ export class MockAiBackend extends AiBackend {
   /** Open images (the engine's per-window cache of clean copies, at most 8). */
   private readonly images = new Map<number, AiImage>();
   private imageCounter = 0;
+  private readonly pitwallMode: MockPitwallMode;
+  private pitwall: PitwallStatus;
+  private engineChoice: AiEngineChoice = 'auto';
+  private builtInForSession = false;
+  /** Bumped by cancel/forget so a pairing that was waiting for approval ends quietly. */
+  private pairingEpoch = 0;
 
   constructor(options: MockAiOptions = {}) {
     super();
@@ -169,6 +198,18 @@ export class MockAiBackend extends AiBackend {
     this.stepMs = options.stepMs ?? 25;
     this.clock = options.clock ?? systemMockClock;
     this.fails = new Set(options.fail ?? []);
+    this.pitwallMode = options.pitwall ?? 'absent';
+    const found = this.pitwallMode === 'absent' ? 'absent' : this.pitwallMode === 'installed' ? 'installed' : 'running';
+    const paired = this.pitwallMode === 'paired';
+    this.pitwall = {
+      found,
+      version: found === 'running' ? '1.0.4' : null,
+      paired,
+      pairing: null,
+      model: paired ? MOCK_PITWALL_MODEL : null,
+      usable: paired,
+      problem: null,
+    };
     this.net = options.net ?? null;
     const ready = this.mode === 'ready';
     const active = installedFrom(catalogModel(1), true);
@@ -230,6 +271,17 @@ export class MockAiBackend extends AiBackend {
   }
 
   private currentStatus(): AiStatus {
+    const s = this.builtInStatus();
+    const usePitwall = this.mode !== 'off' && this.pitwall.usable && this.engineChoice !== 'builtIn' && !this.builtInForSession;
+    const active = usePitwall ? 'pitwall' : this.engineChoice === 'pitwall' && !this.builtInForSession ? null : 'builtIn';
+    const engine = { choice: this.engineChoice, active, builtInForSession: this.builtInForSession, pitwall: structuredClone(this.pitwall) } as const;
+    if (this.mode === 'off') return { ...s, engine };
+    if (usePitwall) return { ...s, state: 'ready', model: this.pitwall.model, reason: null, engine };
+    if (active === null) return { ...s, state: 'failed', reason: this.pitwall.problem ?? 'Pitwall is not available.', engine };
+    return { ...s, engine };
+  }
+
+  private builtInStatus(): AiStatus {
     if (this.mode === 'off') {
       return {
         available: false,
@@ -242,6 +294,7 @@ export class MockAiBackend extends AiBackend {
         safeMode: false,
         setupRunning: false,
         vision: false,
+        engine: NO_ENGINE,
       };
     }
     return {
@@ -266,6 +319,7 @@ export class MockAiBackend extends AiBackend {
             chatTemplate: true,
           }
         : null,
+      engine: NO_ENGINE,
     };
   }
 
@@ -548,6 +602,62 @@ export class MockAiBackend extends AiBackend {
 
   reset() {
     return this.later(() => this.currentStatus(), 0);
+  }
+
+  // ---- Pitwall (ADR 0059) ----
+
+  async pitwallConnect(useForDebrief: boolean): Promise<PitwallStatus> {
+    this.check();
+    if (this.pitwall.found !== 'running') {
+      this.pitwall = { ...this.pitwall, problem: 'Pitwall is not running.' };
+      this.emitStatus();
+      return structuredClone(this.pitwall);
+    }
+    if (useForDebrief) this.engineChoice = 'pitwall';
+    this.builtInForSession = false;
+    if (this.pitwall.paired) {
+      this.pitwall = { ...this.pitwall, problem: null };
+      this.emitStatus();
+      return structuredClone(this.pitwall);
+    }
+    const epoch = ++this.pairingEpoch;
+    this.pitwall = { ...this.pitwall, problem: null, pairing: { code: MOCK_PITWALL_CODE, expiresAtMs: Date.now() + 120_000 } };
+    this.emitStatus();
+    const waiting = structuredClone(this.pitwall);
+    void this.clock.sleep(this.stepMs * 8).then(() => {
+      if (epoch !== this.pairingEpoch || !this.pitwall.pairing) return;
+      this.pitwall =
+        this.pitwallMode === 'deny'
+          ? { ...this.pitwall, pairing: null, problem: 'Pitwall denied the request.' }
+          : { ...this.pitwall, pairing: null, paired: true, usable: true, model: MOCK_PITWALL_MODEL, problem: null };
+      this.emitStatus();
+    });
+    return waiting;
+  }
+
+  async pitwallCancel(): Promise<boolean> {
+    const waiting = !!this.pitwall.pairing;
+    this.pairingEpoch++;
+    this.pitwall = { ...this.pitwall, pairing: null };
+    this.emitStatus();
+    return waiting;
+  }
+
+  async pitwallForget(): Promise<AiStatus> {
+    this.pairingEpoch++;
+    this.pitwall = { ...this.pitwall, paired: false, usable: false, model: null, pairing: null, problem: null };
+    this.emitStatus();
+    return this.currentStatus();
+  }
+
+  async pitwallRefresh(): Promise<AiStatus> {
+    return this.currentStatus();
+  }
+
+  async useBuiltInEngine(): Promise<AiStatus> {
+    this.builtInForSession = true;
+    this.emitStatus();
+    return this.currentStatus();
   }
 
   // ---- images (ADR 0025) ----

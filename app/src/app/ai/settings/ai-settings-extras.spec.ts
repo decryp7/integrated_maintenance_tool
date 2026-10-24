@@ -3,7 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { Logger } from '../../core/logger';
 import { MockAiBackend, MockAiOptions } from '../../core/mock/mock-ai-backend';
 import { MemoryLogger, settle } from '../../../testing/helpers';
-import { AiBackend } from '../ai-backend';
+import { gatedPairingClock } from '../../../testing/pitwall-clock';
+import { AiBackend, AiError } from '../ai-backend';
 import { AiLauncher } from '../ai-launcher';
 import { AiStatusStore } from '../ai-status.store';
 import { AiSettingsExtras } from './ai-settings-extras';
@@ -71,5 +72,89 @@ describe('AiSettingsExtras', () => {
     await flush();
     expect(q('ai-settings-unavailable')!.textContent).toContain('not installed');
     expect(q('ai-settings-setup')).toBeNull();
+  });
+
+  describe('Pitwall', () => {
+    const text = (el: HTMLElement) => el.textContent!.replace(/\s+/g, ' ');
+
+    it('says built-in when Pitwall is absent, with no Pitwall buttons', async () => {
+      const { q, flush } = setup();
+      await flush();
+      expect(q('ai-engine-status')!.textContent).toBe('Engine: built-in');
+      for (const id of ['ai-pitwall-connect', 'ai-pitwall-cancel', 'ai-pitwall-forget', 'ai-use-built-in']) expect(q(id)).toBeNull();
+    });
+
+    it('offers to connect when Pitwall runs unpaired, shows the code while waiting and ends in Pitwall', async () => {
+      const gate = gatedPairingClock();
+      const { q, flush, backend } = setup({ pitwall: 'running', stepMs: 1, clock: gate.clock });
+      await flush();
+      expect(q('ai-engine-status')!.textContent).toContain('Pitwall is running on this computer. Connect Debrief to it');
+      const connect = vi.spyOn(backend, 'pitwallConnect');
+      q('ai-pitwall-connect')!.click();
+      await flush();
+      expect(connect).toHaveBeenCalledWith(false);
+      expect(q('ai-pitwall-code')!.textContent).toBe('482 913');
+      expect(q('ai-pitwall-connect')).toBeNull();
+      expect(q('ai-pitwall-cancel')).not.toBeNull();
+      gate.approve();
+      for (let i = 0; i < 50 && !q('ai-pitwall-forget'); i++) await flush();
+      expect(q('ai-engine-status')!.textContent).toBe('Engine: Pitwall 1.0.4 · model qwen3-8b-q4km');
+      expect(q('ai-pitwall-code')).toBeNull();
+      expect(q('ai-pitwall-connect')).toBeNull();
+    });
+
+    it('cancels a waiting pairing', async () => {
+      const { q, flush, backend } = setup({ pitwall: 'running', stepMs: 1, clock: gatedPairingClock().clock });
+      await flush();
+      q('ai-pitwall-connect')!.click();
+      await flush();
+      const cancel = vi.spyOn(backend, 'pitwallCancel');
+      q('ai-pitwall-cancel')!.click();
+      await flush();
+      expect(cancel).toHaveBeenCalled();
+      expect(q('ai-pitwall-code')).toBeNull();
+      expect(q('ai-pitwall-connect')).not.toBeNull();
+    });
+
+    it('forgets a paired Pitwall and shows the denial as the problem', async () => {
+      const { q, flush, backend } = setup({ pitwall: 'paired' });
+      await flush();
+      expect(q('ai-engine-status')!.textContent).toContain('Engine: Pitwall 1.0.4');
+      const forget = vi.spyOn(backend, 'pitwallForget');
+      q('ai-pitwall-forget')!.click();
+      await flush();
+      expect(forget).toHaveBeenCalled();
+      expect(q('ai-pitwall-forget')).toBeNull();
+      expect(q('ai-engine-status')!.textContent).toContain('Engine: built-in');
+    });
+
+    it('offers the built-in engine when Pitwall is chosen but cannot be used, and shows the problem', async () => {
+      const { q, el, flush, backend } = setup({ pitwall: 'installed' });
+      await flush();
+      const store = TestBed.inject(AiStatusStore);
+      const s = store.status()!;
+      store.setStatus({
+        ...s,
+        engine: { ...s.engine, choice: 'pitwall', active: null, pitwall: { ...s.engine.pitwall, problem: 'Pitwall stopped.' } },
+      });
+      await flush();
+      expect(text(el)).toContain('Engine: none');
+      expect(text(el)).toContain('Pitwall is installed but not running. Open Pitwall to use it.');
+      expect(text(el)).toContain('Pitwall stopped.');
+      const useBuiltIn = vi.spyOn(backend, 'useBuiltInEngine');
+      q('ai-use-built-in')!.click();
+      await flush();
+      expect(useBuiltIn).toHaveBeenCalled();
+    });
+
+    it('shows a rejected command inline', async () => {
+      const { q, flush, backend } = setup({ pitwall: 'running' });
+      await flush();
+      vi.spyOn(backend, 'pitwallConnect').mockRejectedValue(new AiError('engine', 'Pitwall did not answer.'));
+      q('ai-pitwall-connect')!.click();
+      await flush();
+      expect(q('ai-engine-error')!.textContent).toBe('Pitwall did not answer.');
+      expect(q('ai-engine-error')!.getAttribute('role')).toBe('alert');
+    });
   });
 });

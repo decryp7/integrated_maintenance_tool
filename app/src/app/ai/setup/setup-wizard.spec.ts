@@ -4,6 +4,7 @@ import { Logger } from '../../core/logger';
 import { MockAiBackend, MockAiOptions } from '../../core/mock/mock-ai-backend';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { MemoryLogger, settle } from '../../../testing/helpers';
+import { gatedPairingClock } from '../../../testing/pitwall-clock';
 import { AiBackend, AiError } from '../ai-backend';
 import { SetupPlan } from '../ai.types';
 import { AiSetupWizard } from './setup-wizard';
@@ -175,5 +176,96 @@ describe('AiSetupWizard', () => {
     await until(fixture, () => !!el.querySelector('.note'));
     expect(el.querySelector('.note')!.textContent).toContain('licence');
     fixture.componentInstance.close();
+  });
+
+  describe('Pitwall', () => {
+    const pitwallReady = async (options: MockAiOptions) => {
+      const t = setup({ mode: 'setup', ...options });
+      await until(t.fixture, () => !!t.q('ai-setup-pitwall'));
+      return t;
+    };
+
+    it('looks as before when Pitwall is not running', async () => {
+      const { fixture, q } = setup({ mode: 'setup', pitwall: 'installed' });
+      await until(fixture, () => !!q('ai-hardware'));
+      expect(q('ai-setup-pitwall')).toBeNull();
+      expect(q('ai-local-note')).not.toBeNull();
+    });
+
+    it('offers Pitwall first, without the download note, and approves through a code', async () => {
+      const gate = gatedPairingClock();
+      const { fixture, q, ref, el } = await pitwallReady({ pitwall: 'running', stepMs: 1, clock: gate.clock });
+      expect(q('ai-local-note')).toBeNull();
+      expect(q('ai-hardware')).toBeNull();
+      expect(q('ai-setup-pitwall')!.textContent).toContain('Pitwall is running on this computer');
+      expect(el.textContent).toContain("Debrief can use Pitwall's models instead of downloading its own copy.");
+      q('ai-setup-use-pitwall')!.click();
+      await until(fixture, () => !!q('ai-setup-pitwall-code'));
+      expect(q('ai-setup-pitwall-code')!.textContent).toBe('482 913');
+      expect(q('ai-setup-use-pitwall')).toBeNull();
+      expect(ref.close).not.toHaveBeenCalled();
+      gate.approve();
+      await until(fixture, () => ref.close.mock.calls.length > 0);
+    });
+
+    it('says so when Pitwall already is the engine', async () => {
+      const t = await pitwallReady({ pitwall: 'paired' });
+      expect(t.q('ai-setup-pitwall-inuse')!.textContent).toContain('Debrief uses Pitwall (model qwen3-8b-q4km).');
+      expect(t.ref.close).not.toHaveBeenCalled();
+      t.q('ai-setup-pitwall-close')!.click();
+      expect(t.ref.close).toHaveBeenCalledTimes(1);
+    });
+
+    it('"Use Pitwall" on a paired but unchosen Pitwall closes the dialog from the result', async () => {
+      const { fixture, q, ref, backend } = await pitwallReady({ pitwall: 'running' });
+      vi.spyOn(backend, 'pitwallConnect').mockResolvedValue({
+        found: 'running', version: '1.0.4', paired: true, pairing: null, model: 'm', usable: true, problem: null,
+      });
+      q('ai-setup-use-pitwall')!.click();
+      await until(fixture, () => ref.close.mock.calls.length > 0);
+    });
+
+    it('cancels a waiting pairing and does not close afterwards', async () => {
+      const { fixture, q, ref, backend } = await pitwallReady({ pitwall: 'running', stepMs: 1, clock: gatedPairingClock().clock });
+      q('ai-setup-use-pitwall')!.click();
+      await until(fixture, () => !!q('ai-setup-pitwall-cancel'));
+      const cancel = vi.spyOn(backend, 'pitwallCancel');
+      q('ai-setup-pitwall-cancel')!.click();
+      await until(fixture, () => !!q('ai-setup-use-pitwall'));
+      expect(cancel).toHaveBeenCalled();
+      expect(ref.close).not.toHaveBeenCalled();
+    });
+
+    it('shows a denial and allows trying again', async () => {
+      const gate = gatedPairingClock();
+      const { fixture, q, ref, backend } = await pitwallReady({ pitwall: 'deny', stepMs: 1, clock: gate.clock });
+      const connect = vi.spyOn(backend, 'pitwallConnect');
+      q('ai-setup-use-pitwall')!.click();
+      gate.approve();
+      await until(fixture, () => !!q('ai-setup-pitwall-error'));
+      expect(q('ai-setup-pitwall-error')!.textContent).toBe('Pitwall denied the request.');
+      expect(q('ai-setup-pitwall-error')!.getAttribute('role')).toBe('alert');
+      expect((q('ai-setup-use-pitwall') as HTMLButtonElement).disabled).toBe(false);
+      q('ai-setup-use-pitwall')!.click();
+      await until(fixture, () => connect.mock.calls.length === 2);
+      expect(ref.close).not.toHaveBeenCalled();
+    });
+
+    it('shows a rejected connect inline', async () => {
+      const { fixture, q, backend } = await pitwallReady({ pitwall: 'running' });
+      vi.spyOn(backend, 'pitwallConnect').mockRejectedValue(new AiError('engine', 'Pitwall did not answer.'));
+      q('ai-setup-use-pitwall')!.click();
+      await until(fixture, () => !!q('ai-setup-pitwall-error'));
+      expect(q('ai-setup-pitwall-error')!.textContent).toBe('Pitwall did not answer.');
+    });
+
+    it('"Download a model for Debrief instead" shows the model list and the download note', async () => {
+      const { fixture, q } = await pitwallReady({ pitwall: 'running' });
+      q('ai-setup-download-instead')!.click();
+      await until(fixture, () => !!q('ai-hardware'));
+      expect(q('ai-setup-pitwall')).toBeNull();
+      expect(q('ai-local-note')!.textContent).toContain('Hugging Face');
+      expect(q('ai-model-qwen3.5-9b-q4km')).not.toBeNull();
+    });
   });
 });

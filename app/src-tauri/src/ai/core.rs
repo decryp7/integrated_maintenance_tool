@@ -6,6 +6,8 @@ use super::error::{AiCmdError, AiErrorCode, AiResult};
 use super::runtimes::{RuntimeDeps, RuntimeJobs};
 use debrief_ai::assistant::{Assistant, AssistantConfig};
 use debrief_ai::catalog::Catalog;
+use debrief_ai::engine::pitwall::{Pitwall, PitwallView, Priority};
+use debrief_ai::engine::{select, AiEngine, BuiltInEngine, EngineChoice, EngineKind, PitwallEngine, SelectInput};
 use debrief_ai::fit::{self, assess, Assessment, Live, Subject};
 use debrief_ai::gguf::{self, GgufInfo};
 use debrief_ai::hardware::{Hardware, HardwareProbe, SystemProbe};
@@ -24,7 +26,7 @@ use debrief_ai::worker::{FramesLauncher, Health, WorkerConfig, WorkerRuntime};
 use debrief_ai::AiError;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 use std::time::Duration;
 
@@ -52,6 +54,8 @@ pub struct AiDeps {
     /// The current settings, shared with the worker launcher (its environment names the chosen build and is
     /// evaluated at every launch). [`AiCore`] keeps it up to date.
     pub settings: Arc<RwLock<AiSettings>>,
+    /// Pitwall, when Debrief may look for it (ADR 0059). `None`: only the built-in engine (tests that do not set one).
+    pub pitwall: Option<Arc<Pitwall>>,
 }
 
 impl AiDeps {
@@ -99,6 +103,7 @@ impl AiDeps {
             download_backoff: Duration::from_secs(2),
             runtimes,
             settings,
+            pitwall: None,
         }
     }
 }
@@ -140,6 +145,20 @@ pub struct AiStatus {
     pub vision: bool,
     /// What the running inference server reported about itself, once a model is loaded.
     pub server: Option<AiServerDto>,
+    /// Which engine answers and what Debrief knows about Pitwall (ADR 0059).
+    pub engine: AiEngineStatus,
+}
+
+/// The engine choice and state (wire contract: `AiEngineStatus` in `ai.types.ts`).
+#[derive(Debug, Clone, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub struct AiEngineStatus {
+    pub choice: EngineChoice,
+    /// The engine requests go to now; `None`: the wanted one (Pitwall) is not usable.
+    pub active: Option<EngineKind>,
+    /// The user switched this session to the built-in engine after Pitwall went away.
+    pub built_in_for_session: bool,
+    pub pitwall: PitwallView,
 }
 
 /// An installed model with what it means for this machine.
@@ -330,6 +349,8 @@ pub struct AiCore {
     knowledge: super::knowledge::GlobalKnowledge,
     /// Header-derived KV shapes of catalog models (see `Setup::refine`).
     shapes: debrief_ai::fit::ShapeCache,
+    /// The repair "Use the fallback": the built-in engine for the rest of the session (ADR 0059).
+    built_in_for_session: AtomicBool,
 }
 
 impl AiCore {
@@ -364,14 +385,17 @@ impl AiCore {
             setup: Mutex::default(),
             jobs: RuntimeJobs::default(),
             shapes: debrief_ai::fit::ShapeCache::default(),
+            built_in_for_session: AtomicBool::new(false),
         };
         core.install_active(None);
+        core.pitwall_needs();
         core
     }
 
     /// Loads the model in the background after startup when the settings ask for it.
     pub fn autoload(&self) {
-        if self.availability().is_err() || !self.settings().autoload {
+        // While Pitwall answers, the built-in model stays out of memory (one model, ADR 0059).
+        if self.built_in_availability().is_err() || !self.settings().autoload || self.engine_kind() != Some(EngineKind::BuiltIn) {
             return;
         }
         if let Active::Lazy { lazy, .. } = &*lock(&self.active) {
@@ -389,8 +413,22 @@ impl AiCore {
         }
     }
 
-    /// Ok when AI can be used in this run; otherwise why not.
+    /// Ok when AI can be used in this run (by either engine); otherwise why not. A missing or broken built-in worker does
+    /// not stop Pitwall (ADR 0059, rule 19); safe mode turns both off.
     pub fn availability(&self) -> AiResult<()> {
+        let built_in = self.built_in_availability();
+        if built_in.is_ok() || self.safe_mode {
+            return built_in;
+        }
+        match self.engine_kind() {
+            Some(EngineKind::BuiltIn) => built_in,
+            _ => Ok(()),
+        }
+    }
+
+    /// Ok when the built-in engine can run in this run (not safe mode, its worker is installed); otherwise why not. The
+    /// built-in engine's own operations (set-up, models, runtimes, updates) check this.
+    pub fn built_in_availability(&self) -> AiResult<()> {
         if self.safe_mode {
             return Err(AiCmdError::unavailable(
                 "Debrief is running in safe mode, so the AI assistant is off. Restart normally to use it.",
@@ -483,7 +521,7 @@ impl AiCore {
     /// As [`recommendations`](Self::recommendations), after reading the headers of the models that could fit
     /// (first bytes only, nothing is downloaded) so that the verdicts use their real architecture.
     pub fn refine_fit(&self) -> AiResult<Recommendations> {
-        self.availability()?;
+        self.built_in_availability()?;
         self.with_setup(|s| Ok(s.refine()))
     }
 
@@ -532,9 +570,86 @@ impl AiCore {
         }
     }
 
+    /// Pitwall, when Debrief looks for it.
+    pub fn pitwall(&self) -> Option<&Arc<Pitwall>> {
+        self.deps.pitwall.as_ref()
+    }
+
+    /// Which engine answers now (ADR 0059): the setting, what the last look at Pitwall found and the session's fallback.
+    pub fn engine_kind(&self) -> Option<EngineKind> {
+        let Some(pw) = self.pitwall() else {
+            return Some(EngineKind::BuiltIn);
+        };
+        select(SelectInput {
+            choice: self.settings().engine,
+            pitwall_usable: pw.view().usable,
+            pitwall_served: pw.served(),
+            built_in_for_session: self.built_in_for_session.load(Ordering::Relaxed),
+        })
+    }
+
+    /// Switches the session to the built-in engine (the repair of a lost Pitwall; never depends on Pitwall).
+    pub fn use_built_in_for_session(&self) {
+        self.built_in_for_session.store(true, Ordering::Relaxed);
+    }
+
+    /// Ends the session's fallback (the user changed the engine setting or connected to Pitwall again).
+    pub fn clear_session_fallback(&self) {
+        self.built_in_for_session.store(false, Ordering::Relaxed);
+    }
+
+    /// Whether Pitwall answers Debrief's requests now: the built-in engine's downloads and updates wait (no second copy).
+    pub fn uses_pitwall(&self) -> bool {
+        self.engine_kind() == Some(EngineKind::Pitwall)
+    }
+
+    /// The engine requests go to (ADR 0059), with `priority` for Pitwall's queue.
+    pub fn engine(&self, priority: Priority) -> AiResult<Arc<dyn AiEngine>> {
+        self.availability()?;
+        match self.engine_kind() {
+            Some(EngineKind::Pitwall) => match self.pitwall() {
+                Some(pw) => Ok(Arc::new(PitwallEngine {
+                    pitwall: pw.clone(),
+                    priority,
+                })),
+                None => Err(AiError::NoModel.into()),
+            },
+            None => Err(AiCmdError::from(AiError::Engine(self.engine_lost_reason())).in_outage_of(crate::health::hub::AI)),
+            Some(EngineKind::BuiltIn) => {
+                self.built_in_availability()?;
+                if let Some(h) = &self.deps.health {
+                    h.check().map_err(|e| AiCmdError::unavailable(e.to_string()))?;
+                }
+                match &*lock(&self.active) {
+                    Active::None => Err(AiError::NoModel.into()),
+                    Active::Lazy { lazy, file } => Ok(Arc::new(BuiltInEngine {
+                        lazy: lazy.clone(),
+                        file: file.clone(),
+                    })),
+                    Active::Fixed(p) => Ok(Arc::new(FixedEngine(p.clone()))),
+                }
+            }
+        }
+    }
+
+    /// Why no engine answers (Pitwall chosen or lost, not usable).
+    pub fn engine_lost_reason(&self) -> String {
+        self.pitwall()
+            .and_then(|p| p.view().problem)
+            .unwrap_or_else(|| "Pitwall is not ready for Debrief. Open Pitwall, or use the built-in engine (Settings ▸ AI).".into())
+    }
+
+    /// The model for background work (Pitwall queues it behind what the user waits for).
+    pub fn background_provider(&self) -> AiResult<Arc<dyn LlmProvider>> {
+        Ok(self.engine(Priority::Background)?.llm())
+    }
+
     /// The model, for a use case or a chat turn.
     pub fn provider(&self) -> AiResult<Arc<dyn LlmProvider>> {
-        self.availability()?;
+        if self.engine_kind() != Some(EngineKind::BuiltIn) {
+            return Ok(self.engine(Priority::Interactive)?.llm());
+        }
+        self.built_in_availability()?;
         if let Some(h) = &self.deps.health {
             h.check().map_err(|e| AiCmdError::unavailable(e.to_string()))?;
         }
@@ -600,6 +715,7 @@ impl AiCore {
             setup_running: self.setup_running(),
             vision: false,
             server: info.server.as_ref().map(AiServerDto::from),
+            engine: self.engine_status(),
         };
         drop(info);
         if let Err(e) = self.availability() {
@@ -607,6 +723,30 @@ impl AiCore {
             s.state = EngineStateDto::Unavailable;
             s.reason = Some(e.message);
             return s;
+        }
+        match s.engine.active {
+            Some(EngineKind::Pitwall) => {
+                let p = &s.engine.pitwall;
+                s.state = EngineStateDto::Ready;
+                s.model = p.model.clone();
+                s.backend = Some(match &p.version {
+                    Some(v) => format!("Pitwall {v}"),
+                    None => "Pitwall".into(),
+                });
+                s.vision = self
+                    .pitwall()
+                    .and_then(|pw| pw.provider(Priority::Interactive).ok())
+                    .is_some_and(|p| p.vision());
+                s.server = None;
+                return s;
+            }
+            None => {
+                s.state = EngineStateDto::Failed;
+                s.reason = Some(self.engine_lost_reason());
+                s.server = None;
+                return s;
+            }
+            Some(EngineKind::BuiltIn) => {}
         }
         if let Some(reason) = self.deps.health.as_ref().and_then(|h| h.disabled_reason()) {
             s.state = EngineStateDto::Disabled;
@@ -640,6 +780,16 @@ impl AiCore {
         s
     }
 
+    /// The engine part of the status.
+    pub fn engine_status(&self) -> AiEngineStatus {
+        AiEngineStatus {
+            choice: self.settings().engine,
+            active: self.engine_kind(),
+            built_in_for_session: self.built_in_for_session.load(Ordering::Relaxed),
+            pitwall: self.pitwall().map(|p| p.view()).unwrap_or_default(),
+        }
+    }
+
     /// Why the engine was switched off for the session (repeated worker crashes), if it was.
     pub fn quarantine_reason(&self) -> Option<String> {
         self.deps.health.as_ref().and_then(|h| h.disabled_reason())
@@ -668,7 +818,7 @@ impl AiCore {
     pub(super) fn restart_engine(&self) {
         let was_running = self.engine_running();
         self.install_active(None);
-        if was_running && self.availability().is_ok() {
+        if was_running && self.built_in_availability().is_ok() {
             if let Active::Lazy { lazy, .. } = &*lock(&self.active) {
                 lazy.preload();
             }
@@ -692,7 +842,7 @@ impl AiCore {
 
     /// Reserves the (single) set-up slot; the returned progress carries the cancel flag.
     pub fn begin_setup(&self) -> AiResult<Arc<Progress>> {
-        self.availability()?;
+        self.built_in_availability()?;
         let mut slot = lock(&self.setup);
         if slot.is_some() {
             return Err(AiCmdError::busy("A model is already being set up; wait for it or cancel it first."));
@@ -747,7 +897,7 @@ impl AiCore {
 
     /// What would be set up (the best model unless `model_id` names another), and what it costs.
     pub fn plan(&self, model_id: Option<&str>) -> AiResult<SetupPlan> {
-        self.availability()?;
+        self.built_in_availability()?;
         let mut plan = self.with_setup(|s| s.plan())?;
         if let Some(id) = model_id.filter(|id| plan.chosen.as_ref().is_none_or(|c| c.model.id != *id)) {
             let pick: Recommendation = plan
@@ -924,7 +1074,7 @@ impl AiCore {
     /// Downloads and verifies the catalog projector of the installed model `file_name` (never automatically: the
     /// user asked). The active model is reloaded with it on its next use. Blocks; call off the UI thread.
     pub fn install_projector(&self, file_name: &str, progress: &Progress, on_stage: &mut dyn FnMut(SetupStage)) -> AiResult<()> {
-        self.availability()?;
+        self.built_in_availability()?;
         let entry = self.projector_entry(file_name)?;
         if !self.store().path_of(file_name)?.is_file() {
             return Err(AiCmdError::not_found(format!("{file_name} is not installed")));
@@ -938,7 +1088,7 @@ impl AiCore {
     /// this model; a file of the catalog projector's size must have its SHA-256. Hashing reads the file: call off
     /// the UI thread.
     pub fn add_projector(&self, file_name: &str, path: &Path, progress: &Progress) -> AiResult<ModelDto> {
-        self.availability()?;
+        self.built_in_availability()?;
         let store = self.store();
         store.path_of(file_name)?;
         let info = gguf::inspect_projector(path)?;
@@ -1005,7 +1155,11 @@ impl AiCore {
         // Another llama-server build needs a new worker process (its environment names the build).
         let runtime_changed = before.inference_build != next.inference_build || before.llama_server_path != next.llama_server_path;
         let idle_changed = before.idle_unload_minutes != next.idle_unload_minutes;
+        if before.engine != next.engine {
+            self.clear_session_fallback();
+        }
         self.update_settings(|s| *s = next.clone())?;
+        self.pitwall_needs();
         if runtime_changed {
             self.restart_engine();
         } else if reload {
@@ -1016,6 +1170,40 @@ impl AiCore {
             }
         }
         Ok(())
+    }
+}
+
+impl AiCore {
+    /// Tells Pitwall what Debrief's prompts need (the context length setting).
+    pub fn pitwall_needs(&self) {
+        if let Some(pw) = self.pitwall() {
+            pw.set_needs(debrief_ai::engine::pitwall::Needs {
+                context_tokens: self.settings().context_length,
+            });
+        }
+    }
+}
+
+/// A provider given directly (tests) as an engine.
+struct FixedEngine(Arc<dyn LlmProvider>);
+
+impl AiEngine for FixedEngine {
+    fn kind(&self) -> EngineKind {
+        EngineKind::BuiltIn
+    }
+    fn state(&self) -> LoadState {
+        LoadState::Ready
+    }
+    fn model(&self) -> Option<String> {
+        Some(self.0.display_name())
+    }
+    fn vision(&self) -> bool {
+        self.0.vision()
+    }
+    fn preload(&self) {}
+    fn release(&self) {}
+    fn llm(&self) -> Arc<dyn LlmProvider> {
+        self.0.clone()
     }
 }
 

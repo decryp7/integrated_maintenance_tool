@@ -93,6 +93,8 @@ pub struct AiSettings {
     /// Let Debrief's own local model suggest human names and aliases for the names in the logs (needs a model set up).
     /// Nothing leaves this computer; suggestions are labelled AI-generated and can be removed.
     pub name_aliases: bool,
+    /// Which engine answers (ADR 0059): Pitwall when it is usable, else the built-in one (`auto`); or one of them.
+    pub engine: crate::engine::EngineChoice,
 }
 
 /// The default hours between update checks (daily).
@@ -121,6 +123,7 @@ impl Default for AiSettings {
             model_updates: UpdatePolicy::Ask,
             update_check_hours: DEFAULT_UPDATE_CHECK_HOURS,
             name_aliases: true,
+            engine: crate::engine::EngineChoice::Auto,
         }
     }
 }
@@ -274,6 +277,7 @@ pub fn schema() -> Value {
         o
     };
     json!([
+        f("engine", "AI engine", "Which engine answers. Automatic uses Pitwall when it is running on this computer and Debrief is connected to it (one model shared by your apps), otherwise Debrief's built-in engine. Pitwall uses only Pitwall; Built-in uses only Debrief's own engine and models. Everything stays on this computer either way.", "enum", json!(d.engine.as_str()), json!({"options": ["auto", "pitwall", "builtIn"]}), false),
         f("active_model", "Model", "The model file to use. Choose or add one in the AI assistant dialog.", "string", Value::Null, json!({}), false),
         f("autoload", "Load in the background at startup", "Prepare the model after Debrief starts so the first answer is quick.", "bool", json!(d.autoload), json!({}), false),
         f("idle_unload_minutes", "Unload when idle (minutes)", "Free the memory after this long without use. 0 keeps the model loaded.", "int", json!(d.idle_unload_minutes), json!({"min": 0, "max": 1440}), false),

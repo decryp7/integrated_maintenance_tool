@@ -80,6 +80,43 @@ export interface AiStatus {
   vision: boolean;
   /** What the running inference server reported about itself (`/props`), once a model is loaded. */
   server?: AiServerInfo | null;
+  /** Which engine answers (the built-in one or Pitwall), and the state of the Pitwall connection (ADR 0059). */
+  engine: AiEngineStatus;
+}
+
+export type AiEngineChoice = 'auto' | 'pitwall' | 'builtIn';
+export type AiEngineKind = 'builtIn' | 'pitwall';
+
+export interface AiEngineStatus {
+  choice: AiEngineChoice;
+  /** The engine requests go to now; null: none (Pitwall chosen but not usable). */
+  active: AiEngineKind | null;
+  /** The user switched this session to the built-in engine after Pitwall went away (until restart or a settings change). */
+  builtInForSession: boolean;
+  pitwall: PitwallStatus;
+}
+
+export type PitwallFound = 'absent' | 'installed' | 'running' | 'incompatible';
+
+export interface PitwallStatus {
+  found: PitwallFound;
+  /** Pitwall's version when it is running, e.g. "1.0.4". */
+  version: string | null;
+  /** Debrief holds a key Pitwall accepted. */
+  paired: boolean;
+  /** A pairing waits for approval in Pitwall: the six-digit code the user compares. */
+  pairing: PitwallPairing | null;
+  /** The model Pitwall picked for Debrief. */
+  model: string | null;
+  /** Ready to serve Debrief (running, compatible, paired, a model fits). */
+  usable: boolean;
+  /** One plain sentence: why not usable or what happened (pairing denied/expired, key revoked, stopped); null when fine. */
+  problem: string | null;
+}
+
+export interface PitwallPairing {
+  code: string;
+  expiresAtMs: number;
 }
 
 /** What a running llama-server reported (ADR 0009); `null` fields were not reported by that build. */

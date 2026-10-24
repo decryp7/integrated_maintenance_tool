@@ -132,7 +132,7 @@
         <source>The AI assistant failed.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/ai-backend.ts</context>
-          <context context-type="linenumber">57</context>
+          <context context-type="linenumber">58</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.vision.models.textImages" datatype="html">
@@ -3152,6 +3152,55 @@
           <context context-type="linenumber">54</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="ai.engine.pitwallModel" datatype="html">
+        <source>Engine: Pitwall<x id="version" equiv-text="version"/> · model <x id="model" equiv-text="p.model"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/pitwall-format.ts</context>
+          <context context-type="linenumber">14</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.engine.pitwall" datatype="html">
+        <source>Engine: Pitwall<x id="version" equiv-text="version"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/pitwall-format.ts</context>
+          <context context-type="linenumber">15</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.engine.builtIn" datatype="html">
+        <source>Engine: built-in</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/pitwall-format.ts</context>
+          <context context-type="linenumber">18</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.engine.none" datatype="html">
+        <source>Engine: none. Pitwall is chosen but cannot be used right now.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/pitwall-format.ts</context>
+          <context context-type="linenumber">22</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.engine.running" datatype="html">
+        <source>Pitwall is running on this computer. Connect Debrief to it to share its models.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/pitwall-format.ts</context>
+          <context context-type="linenumber">32</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.engine.installed" datatype="html">
+        <source>Pitwall is installed but not running. Open Pitwall to use it.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/pitwall-format.ts</context>
+          <context context-type="linenumber">34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.engine.incompatible" datatype="html">
+        <source>Pitwall <x id="version" equiv-text="version"/> speaks a newer connection version; update Debrief.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/pitwall-format.ts</context>
+          <context context-type="linenumber">37</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="ai.parserVerdict.rule.format" datatype="html">
         <source>no pattern</source>
         <context-group purpose="location">
@@ -4382,105 +4431,162 @@
         <source>Set up AI assistant…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">15,16</context>
+          <context context-type="linenumber">17,18</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.models" datatype="html">
         <source>Manage models…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">16,18</context>
+          <context context-type="linenumber">18,20</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.engine" datatype="html">
+        <source>AI engine</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">21</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.pitwall.codeLabel" datatype="html">
+        <source>Pairing code</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">26</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">31</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.pitwall.approve" datatype="html">
+        <source>Approve Debrief in Pitwall ▸ Apps &amp; keys and check it shows this code.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">27,29</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">32,34</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.pitwall.connect" datatype="html">
+        <source>Connect to Pitwall…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">31,33</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.pitwall.cancel" datatype="html">
+        <source>Cancel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">34,36</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.pitwall.forget" datatype="html">
+        <source>Forget Pitwall</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">37,39</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.settings.pitwall.useBuiltIn" datatype="html">
+        <source>Use the built-in engine</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
+          <context context-type="linenumber">40,43</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.unavailableReason" datatype="html">
         <source>The AI assistant is not available in this run: <x id="reason" equiv-text="reason"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">44</context>
+          <context context-type="linenumber">113</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.unavailable" datatype="html">
         <source>The AI assistant is not available in this run.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">45</context>
+          <context context-type="linenumber">114</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.status.noModel" datatype="html">
         <source>No model is set up yet.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">50</context>
+          <context context-type="linenumber">119</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.status.modelNone" datatype="html">
         <source>none</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">51</context>
+          <context context-type="linenumber">120</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.status.model" datatype="html">
         <source>Model: <x id="model" equiv-text="model"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">52</context>
+          <context context-type="linenumber">121</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.status.memory" datatype="html">
         <source><x id="size" equiv-text="formatBytes(s.rssBytes)"/> in memory</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">54</context>
+          <context context-type="linenumber">123</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.server.unknownBuild" datatype="html">
         <source>unknown build</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">63</context>
+          <context context-type="linenumber">132</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.server.build" datatype="html">
         <source>llama-server <x id="build" equiv-text="build"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">64</context>
+          <context context-type="linenumber">133</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.server.context" datatype="html">
         <source><x id="tokens" equiv-text="v.context"/> tokens of context</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">65</context>
+          <context context-type="linenumber">134</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.server.vision" datatype="html">
         <source>reads images</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">66</context>
+          <context context-type="linenumber">135</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.server.noVision" datatype="html">
         <source>text only</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">67</context>
+          <context context-type="linenumber">136</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.server.marker" datatype="html">
         <source>image marker <x id="marker" equiv-text="v.mediaMarker"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">70</context>
+          <context context-type="linenumber">139</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.settings.server.defaultMarker" datatype="html">
         <source>default image marker</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/settings/ai-settings-extras.ts</context>
-          <context context-type="linenumber">71</context>
+          <context context-type="linenumber">140</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.stage.probing" datatype="html">
@@ -4539,130 +4645,183 @@
           <context context-type="linenumber">22</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="ai.setup.localNote" datatype="html">
-        <source> The assistant runs <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>fully on this computer<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/>. Nothing about your logs leaves it: only the model file is downloaded, once, from Hugging Face (and, if none is installed yet, the inference runtime from llama.cpp&apos;s GitHub releases). </source>
+      <trans-unit id="ai.setup.pitwall.inUseTitle" datatype="html">
+        <source>Pitwall is your AI engine</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">21,24</context>
+          <context context-type="linenumber">24,25</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="ai.setup.checking" datatype="html">
-        <source>Checking this computer…</source>
+      <trans-unit id="ai.setup.pitwall.inUse" datatype="html">
+        <source>Debrief uses Pitwall (model <x id="INTERPOLATION" equiv-text="{{ used.model ?? &apos;&apos; }}"/>).</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">27,29</context>
+          <context context-type="linenumber">25,26</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="ai.setup.thisComputer" datatype="html">
-        <source>This computer</source>
+      <trans-unit id="ai.setup.pitwall.title" datatype="html">
+        <source>Pitwall is running on this computer</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">32,33</context>
+          <context context-type="linenumber">27,28</context>
         </context-group>
       </trans-unit>
-      <trans-unit id="ai.setup.chooseModel" datatype="html">
-        <source>Choose a model</source>
+      <trans-unit id="ai.setup.pitwall.text" datatype="html">
+        <source>Debrief can use Pitwall&apos;s models instead of downloading its own copy. Everything stays on this computer.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">41,42</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.setup.badge.best" datatype="html">
-        <source>Best</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">60,61</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.setup.badge.fastest" datatype="html">
-        <source>Fastest</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">62,64</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.setup.badge.installed" datatype="html">
-        <source>Installed</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">65,67</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.setup.licence" datatype="html">
-        <source>Licence: <x id="INTERPOLATION" equiv-text="{{ r.model.license }}"/></source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">72,73</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.setup.summary.installed" datatype="html">
-        <source><x id="INTERPOLATION" equiv-text="{{ r.model.name }}"/> is already downloaded; it will be loaded and checked.</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">90,91</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.setup.summary.download" datatype="html">
-        <source><x id="INTERPOLATION" equiv-text="{{ r.model.name }}"/>: <x id="INTERPOLATION_1" equiv-text="{{ size(r.model.sizeBytes) }}"/> will be downloaded from huggingface.co/<x id="INTERPOLATION_2" equiv-text="{{ r.model.hfRepo }}"/> (licence <x id="INTERPOLATION_3" equiv-text="{{ r.model.license }}"/>).</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">92,93</context>
-        </context-group>
-      </trans-unit>
-      <trans-unit id="ai.setup.notNow" datatype="html">
-        <source>Not now</source>
-        <context-group purpose="location">
-          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">106,108</context>
+          <context context-type="linenumber">28,30</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.close" datatype="html">
         <source>Close</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">123,124</context>
+          <context context-type="linenumber">39,40</context>
+        </context-group>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">152,153</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.pitwall.cancel" datatype="html">
+        <source>Cancel</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">41,43</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.pitwall.use" datatype="html">
+        <source>Use Pitwall</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">43,45</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.pitwall.downloadInstead" datatype="html">
+        <source>Download a model for Debrief instead</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">45,48</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.localNote" datatype="html">
+        <source> The assistant runs <x id="START_TAG_STRONG" ctype="x-strong" equiv-text="&lt;strong&gt;"/>fully on this computer<x id="CLOSE_TAG_STRONG" ctype="x-strong" equiv-text="&lt;/strong&gt;"/>. Nothing about your logs leaves it: only the model file is downloaded, once, from Hugging Face (and, if none is installed yet, the inference runtime from llama.cpp&apos;s GitHub releases). </source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">50,53</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.checking" datatype="html">
+        <source>Checking this computer…</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">56,58</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.thisComputer" datatype="html">
+        <source>This computer</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">61,62</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.chooseModel" datatype="html">
+        <source>Choose a model</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">70,71</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.badge.best" datatype="html">
+        <source>Best</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">89,90</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.badge.fastest" datatype="html">
+        <source>Fastest</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">91,93</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.badge.installed" datatype="html">
+        <source>Installed</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">94,96</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.licence" datatype="html">
+        <source>Licence: <x id="INTERPOLATION" equiv-text="{{ r.model.license }}"/></source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">101,102</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.summary.installed" datatype="html">
+        <source><x id="INTERPOLATION" equiv-text="{{ r.model.name }}"/> is already downloaded; it will be loaded and checked.</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">119,120</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.summary.download" datatype="html">
+        <source><x id="INTERPOLATION" equiv-text="{{ r.model.name }}"/>: <x id="INTERPOLATION_1" equiv-text="{{ size(r.model.sizeBytes) }}"/> will be downloaded from huggingface.co/<x id="INTERPOLATION_2" equiv-text="{{ r.model.hfRepo }}"/> (licence <x id="INTERPOLATION_3" equiv-text="{{ r.model.license }}"/>).</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">121,122</context>
+        </context-group>
+      </trans-unit>
+      <trans-unit id="ai.setup.notNow" datatype="html">
+        <source>Not now</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
+          <context context-type="linenumber">135,137</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.retry" datatype="html">
         <source>Retry</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">124,126</context>
+          <context context-type="linenumber">153,155</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.runtimeNote" datatype="html">
         <source>The inference runtime (<x id="build" equiv-text="r.label"/>, <x id="size" equiv-text="formatBytes(r.downloadBytes)"/>) is downloaded first.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">283</context>
+          <context context-type="linenumber">344</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.start.installed" datatype="html">
         <source>Set up</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">300</context>
+          <context context-type="linenumber">361</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.start.download" datatype="html">
         <source>Download and set up</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">300</context>
+          <context context-type="linenumber">361</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.toolCalling" datatype="html">
         <source>Tool calling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">306</context>
+          <context context-type="linenumber">367</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.setup.noToolCalling" datatype="html">
         <source>No tool calling</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/ai/setup/setup-wizard.ts</context>
-          <context context-type="linenumber">306</context>
+          <context context-type="linenumber">367</context>
         </context-group>
       </trans-unit>
       <trans-unit id="ai.updates.kind.runtime" datatype="html">
@@ -13154,11 +13313,18 @@
           <context context-type="linenumber">80</context>
         </context-group>
       </trans-unit>
+      <trans-unit id="health.repair.useFallback" datatype="html">
+        <source>Use the fallback</source>
+        <context-group purpose="location">
+          <context context-type="sourcefile">src/app/health/service-health.types.ts</context>
+          <context context-type="linenumber">82</context>
+        </context-group>
+      </trans-unit>
       <trans-unit id="health.repair.tryAgain" datatype="html">
         <source>Try again</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/health/service-health.types.ts</context>
-          <context context-type="linenumber">83</context>
+          <context context-type="linenumber">85</context>
         </context-group>
       </trans-unit>
       <trans-unit id="health.state.quarantined" datatype="html">

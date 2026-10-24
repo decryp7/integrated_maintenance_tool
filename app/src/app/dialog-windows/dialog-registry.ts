@@ -22,10 +22,10 @@ export const DIALOG_DEFS = [
     result: type<void>(),
     backends: ['summary'],
     commands: [
-      'ai_knowledge_export', 'ai_knowledge_import', 'ai_knowledge_list', 'ai_knowledge_project_record',
+      'ai_engine_use_built_in', 'ai_knowledge_export', 'ai_knowledge_import', 'ai_knowledge_list', 'ai_knowledge_project_record',
       'ai_knowledge_remove', 'ai_knowledge_update', 'ai_manual_download', 'ai_manual_download_open',
-      'ai_model_add_local', 'ai_runtime_add_archives', 'ai_runtime_choose', 'ai_runtime_delete',
-      'ai_runtime_install', 'ai_runtimes', 'ai_status', 'ai_updates_apply', 'ai_updates_check',
+      'ai_model_add_local', 'ai_pitwall_cancel', 'ai_pitwall_connect', 'ai_pitwall_forget', 'ai_runtime_add_archives',
+      'ai_runtime_choose', 'ai_runtime_delete', 'ai_runtime_install', 'ai_runtimes', 'ai_status', 'ai_updates_apply', 'ai_updates_check',
       'ai_updates_skip', 'ai_updates_status', 'browser_runtime_install', 'browser_runtime_remove',
       'browser_runtime_status', 'dialog_open', 'export_settings', 'find_values', 'import_settings',
       'jobs_cancel', 'jobs_unwait', 'jobs_wait', 'parsers_list', 'performance_preset', 'performance_suggest',
@@ -284,7 +284,7 @@ export const DIALOG_DEFS = [
     result: type<void>(),
     backends: ['ai'],
     commands: [
-      'ai_refine_fit', 'ai_runtime_add_archives', 'ai_runtime_choose', 'ai_runtime_delete',
+      'ai_pitwall_cancel', 'ai_pitwall_connect', 'ai_refine_fit', 'ai_runtime_add_archives', 'ai_runtime_choose', 'ai_runtime_delete',
       'ai_runtime_install', 'ai_runtimes', 'ai_setup_background', 'ai_setup_plan', 'find_values',
       'jobs_cancel', 'run_query',
     ],

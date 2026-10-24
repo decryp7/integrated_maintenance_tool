@@ -167,82 +167,152 @@ impl<E: TextEngine> LlmProvider for PromptedProvider<E> {
     }
 
     fn chat(&self, req: &ChatRequest, on_delta: &mut dyn FnMut(&str)) -> Result<ChatResponse> {
-        let with_tools = !req.tools.is_empty() && req.json_schema.is_none();
-        let mut system = strip_media_markers(&req.system);
-        if with_tools {
-            system.push_str("\n\n");
-            system.push_str(&tools_prompt(&req.tools));
-        }
-        let mut images: Vec<ImageInput> = Vec::new();
-        let turns: Vec<(&str, String)> = req
-            .messages
-            .iter()
-            .map(|m| {
-                let (role, text) = render_message(m);
-                let text = strip_media_markers(&text);
-                if m.images.is_empty() {
-                    return (role, text);
-                }
-                images.extend(m.images.iter().cloned());
-                (role, format!("{}\n{text}", MEDIA_MARKER.repeat(m.images.len())))
-            })
-            .collect();
-        if !images.is_empty() && !self.engine.vision() {
-            return Err(crate::error::AiError::NoVision);
-        }
-        let prompt = self.format.render(&system, &turns);
-        let params = GenParams {
-            max_tokens: if req.max_tokens == 0 { DEFAULT_MAX_TOKENS } else { req.max_tokens },
-            temperature: req.temperature.unwrap_or(DEFAULT_TEMPERATURE),
-            json_schema: req.json_schema.clone(),
-            cancel: req.cancel.clone(),
-            images,
-        };
-        let json_mode = req.json_schema.is_some();
-        let mut think = ThinkFilter::new();
-        let mut tags = StreamFilter::new();
-        let generated = {
-            let mut sink = |piece: &str| {
-                if json_mode {
-                    on_delta(piece);
-                } else if with_tools {
-                    think.feed(piece, &mut |p| tags.feed(p, on_delta));
-                } else {
-                    think.feed(piece, on_delta);
-                }
+        let format = self.format;
+        prompted_chat(req, self.engine.vision(), on_delta, &mut |prepared, sink| {
+            // llama.cpp's multimodal marker stands where each image goes, in the order of `params.images`.
+            let mut images: Vec<ImageInput> = Vec::new();
+            let turns: Vec<(&str, String)> = prepared
+                .turns
+                .iter()
+                .map(|t| {
+                    if t.images.is_empty() {
+                        return (t.role, t.text.clone());
+                    }
+                    images.extend(t.images.iter().cloned());
+                    (t.role, format!("{}\n{}", MEDIA_MARKER.repeat(t.images.len()), t.text))
+                })
+                .collect();
+            let prompt = format.render(&prepared.system, &turns);
+            let params = GenParams {
+                max_tokens: prepared.max_tokens,
+                temperature: prepared.temperature,
+                json_schema: prepared.json_schema.clone(),
+                cancel: prepared.cancel.clone(),
+                images,
             };
-            self.engine.generate(&prompt, &params, &mut sink)?
-        };
-        if !json_mode {
-            if with_tools {
-                think.finish(&mut |p| tags.feed(p, on_delta));
-                tags.finish(on_delta);
-            } else {
-                think.finish(on_delta);
-            }
-        }
-        let cleaned = if json_mode {
-            generated.text.trim().to_string()
-        } else {
-            strip_think(&generated.text)
-        };
-        let (text, tool_calls) = if with_tools { parse_output(&cleaned) } else { (cleaned, vec![]) };
-        let stop_reason = match generated.finish {
-            Finish::Cancelled => StopReason::Cancelled,
-            _ if !tool_calls.is_empty() => StopReason::ToolUse,
-            Finish::Length => StopReason::MaxTokens,
-            Finish::Stop => StopReason::EndTurn,
-        };
-        Ok(ChatResponse {
-            text,
-            tool_calls,
-            stop_reason,
-            usage: Some(Usage {
-                input_tokens: generated.prompt_tokens,
-                output_tokens: generated.completion_tokens,
-            }),
+            self.engine.generate(&prompt, &params, sink)
         })
     }
+}
+
+/// One turn of a prepared conversation: the role as the model sees it, its text (tool calls and results inlined, no
+/// media markers) and the images shown with it.
+#[derive(Debug, Clone)]
+pub struct PreparedTurn {
+    pub role: &'static str,
+    pub text: String,
+    pub images: Vec<ImageInput>,
+}
+
+/// A request ready for an engine: the system prompt (with the tool protocol when tools are offered), the turns and the
+/// generation parameters. Every engine (the built-in raw-prompt one and Pitwall's chat API) runs the same preparation, so
+/// they behave the same (ADR 0059).
+#[derive(Debug, Clone)]
+pub struct Prepared {
+    pub system: String,
+    pub turns: Vec<PreparedTurn>,
+    pub max_tokens: usize,
+    pub temperature: f32,
+    pub json_schema: Option<Value>,
+    pub cancel: Option<Arc<AtomicBool>>,
+    /// Whether the tool protocol is in the system prompt (and tool calls are parsed from the answer).
+    pub with_tools: bool,
+}
+
+impl Prepared {
+    /// Whether any turn carries images.
+    pub fn has_images(&self) -> bool {
+        self.turns.iter().any(|t| !t.images.is_empty())
+    }
+}
+
+/// An engine's generation for [`prompted_chat`]: streams raw text through the sink and returns all of it.
+pub type Generate<'a> = dyn FnMut(&Prepared, &mut dyn FnMut(&str)) -> Result<Generated> + 'a;
+
+/// Prepares `req` for an engine (tool protocol, no media markers in any text, images per turn).
+pub fn prepare(req: &ChatRequest) -> Prepared {
+    let with_tools = !req.tools.is_empty() && req.json_schema.is_none();
+    let mut system = strip_media_markers(&req.system);
+    if with_tools {
+        system.push_str("\n\n");
+        system.push_str(&tools_prompt(&req.tools));
+    }
+    let turns = req
+        .messages
+        .iter()
+        .map(|m| {
+            let (role, text) = render_message(m);
+            PreparedTurn {
+                role,
+                text: strip_media_markers(&text),
+                images: m.images.clone(),
+            }
+        })
+        .collect();
+    Prepared {
+        system,
+        turns,
+        max_tokens: if req.max_tokens == 0 { DEFAULT_MAX_TOKENS } else { req.max_tokens },
+        temperature: req.temperature.unwrap_or(DEFAULT_TEMPERATURE),
+        json_schema: req.json_schema.clone(),
+        cancel: req.cancel.clone(),
+        with_tools,
+    }
+}
+
+/// Runs a chat on any engine that generates text for a [`Prepared`] conversation: refuses images without `vision`,
+/// hides thinking and protocol markup from the stream, parses tool calls and maps the finish reason. `generate` streams
+/// the raw text through its sink and returns the whole of it.
+pub fn prompted_chat(req: &ChatRequest, vision: bool, on_delta: &mut dyn FnMut(&str), generate: &mut Generate<'_>) -> Result<ChatResponse> {
+    let prepared = prepare(req);
+    if prepared.has_images() && !vision {
+        return Err(crate::error::AiError::NoVision);
+    }
+    let with_tools = prepared.with_tools;
+    let json_mode = prepared.json_schema.is_some();
+    let mut think = ThinkFilter::new();
+    let mut tags = StreamFilter::new();
+    let generated = {
+        let mut sink = |piece: &str| {
+            if json_mode {
+                on_delta(piece);
+            } else if with_tools {
+                think.feed(piece, &mut |p| tags.feed(p, on_delta));
+            } else {
+                think.feed(piece, on_delta);
+            }
+        };
+        generate(&prepared, &mut sink)?
+    };
+    if !json_mode {
+        if with_tools {
+            think.finish(&mut |p| tags.feed(p, on_delta));
+            tags.finish(on_delta);
+        } else {
+            think.finish(on_delta);
+        }
+    }
+    let cleaned = if json_mode {
+        generated.text.trim().to_string()
+    } else {
+        strip_think(&generated.text)
+    };
+    let (text, tool_calls) = if with_tools { parse_output(&cleaned) } else { (cleaned, vec![]) };
+    let stop_reason = match generated.finish {
+        Finish::Cancelled => StopReason::Cancelled,
+        _ if !tool_calls.is_empty() => StopReason::ToolUse,
+        Finish::Length => StopReason::MaxTokens,
+        Finish::Stop => StopReason::EndTurn,
+    };
+    Ok(ChatResponse {
+        text,
+        tool_calls,
+        stop_reason,
+        usage: Some(Usage {
+            input_tokens: generated.prompt_tokens,
+            output_tokens: generated.completion_tokens,
+        }),
+    })
 }
 
 #[cfg(test)]

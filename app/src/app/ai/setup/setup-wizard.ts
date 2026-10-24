@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, OnInit, signal } from '@angular/core';
 import { DIALOG_REF } from '../../ui/dialog.service';
 import { AiBackend, toAiError } from '../ai-backend';
 import { fitAdvice, fitFacts, fitLabel, fitNumbers, formatBytes, hardwareLines, speedLabel, visionLabel } from '../ai-format';
 import { AiStatusStore } from '../ai-status.store';
+import { groupCode } from '../pitwall-format';
 import { Recommendation } from '../ai.types';
 import { AiRuntimeStore } from '../runtimes/ai-runtime.store';
 import { canStart, choices, INITIAL, next, selected, WizardEvent, WizardState } from './wizard';
@@ -17,6 +18,34 @@ import { canStart, choices, INITIAL, next, selected, WizardEvent, WizardState } 
   selector: 'debrief-ai-setup-wizard',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    @if (pitwallChoice()) {
+      <section class="pitwall" aria-labelledby="ai-pitwall-title" data-testid="ai-setup-pitwall">
+        @if (usingPitwall(); as used) {
+          <h3 id="ai-pitwall-title" i18n="@@ai.setup.pitwall.inUseTitle">Pitwall is your AI engine</h3>
+          <p data-testid="ai-setup-pitwall-inuse" i18n="@@ai.setup.pitwall.inUse">Debrief uses Pitwall (model {{ used.model ?? '' }}).</p>
+        } @else {
+          <h3 id="ai-pitwall-title" i18n="@@ai.setup.pitwall.title">Pitwall is running on this computer</h3>
+          <p i18n="@@ai.setup.pitwall.text">Debrief can use Pitwall's models instead of downloading its own copy. Everything stays on this computer.</p>
+        }
+        @if (pitwall()?.pairing; as pairing) {
+          <p class="code" data-testid="ai-setup-pitwall-code" aria-label="Pairing code" i18n-aria-label="@@ai.settings.pitwall.codeLabel">{{ group(pairing.code) }}</p>
+          <p class="muted" i18n="@@ai.settings.pitwall.approve">Approve Debrief in Pitwall ▸ Apps & keys and check it shows this code.</p>
+        }
+        @if (pairingError(); as e) {
+          <p class="err" role="alert" data-testid="ai-setup-pitwall-error">{{ e }}</p>
+        }
+        <div class="inline-actions">
+          @if (usingPitwall()) {
+            <button type="button" class="btn primary" data-testid="ai-setup-pitwall-close" (click)="close()" i18n="@@ai.setup.close">Close</button>
+          } @else if (pitwall()?.pairing) {
+            <button type="button" class="btn" data-testid="ai-setup-pitwall-cancel" (click)="cancelPitwall()" i18n="@@ai.setup.pitwall.cancel">Cancel</button>
+          } @else {
+            <button type="button" class="btn primary" data-testid="ai-setup-use-pitwall" [disabled]="connecting()" (click)="usePitwall()" i18n="@@ai.setup.pitwall.use">Use Pitwall</button>
+          }
+          <button type="button" class="btn" data-testid="ai-setup-download-instead" (click)="downloadInstead.set(true)" i18n="@@ai.setup.pitwall.downloadInstead">Download a model for Debrief instead</button>
+        </div>
+      </section>
+    } @else {
     <p class="local" data-testid="ai-local-note" i18n="@@ai.setup.localNote">
       The assistant runs <strong>fully on this computer</strong>. Nothing about your logs leaves it:
       only the model file is downloaded, once, from Hugging Face (and, if none is installed yet, the
@@ -126,6 +155,7 @@ import { canStart, choices, INITIAL, next, selected, WizardEvent, WizardState } 
         }
       }
     }
+    }
   `,
   styles: `
     :host {
@@ -146,6 +176,22 @@ import { canStart, choices, INITIAL, next, selected, WizardEvent, WizardState } 
       border: 1px solid var(--border);
       border-radius: 6px;
       background: var(--bg-1);
+    }
+    .pitwall {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .code {
+      font-size: var(--fs-lg, 1.5em);
+      font-weight: 600;
+      letter-spacing: 0.15em;
+      font-variant-numeric: tabular-nums;
+    }
+    .inline-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
     }
     .hw {
       margin: 0 0 4px;
@@ -255,6 +301,21 @@ export class AiSetupWizard implements OnInit {
   readonly modelId = input<string | null>(null);
 
   readonly state = signal<WizardState>(INITIAL);
+  /** "Download a model for Debrief instead": shows the model list even though Pitwall is running. */
+  protected readonly downloadInstead = signal(false);
+  protected readonly connecting = signal(false);
+  /** The user asked for Pitwall in this dialog: closes it once Pitwall is paired and the engine. */
+  private readonly waitingForPitwall = signal(false);
+  protected readonly pairingFailure = signal<string | null>(null);
+  protected readonly pitwall = computed(() => this.status.status()?.engine.pitwall ?? null);
+  protected readonly pitwallChoice = computed(() => this.pitwall()?.found === 'running' && !this.downloadInstead());
+  /** Pitwall is the engine already (and the dialog was not waiting for it): says so instead of offering it. */
+  protected readonly usingPitwall = computed(() => {
+    const e = this.status.status()?.engine;
+    return e?.active === 'pitwall' ? e.pitwall : null;
+  });
+  protected readonly pairingError = computed(() => this.pairingFailure() ?? this.pitwall()?.problem ?? null);
+  protected readonly group = groupCode;
   protected readonly starting = signal(false);
   protected readonly startError = signal<string | null>(null);
   protected readonly plan = computed(() => (this.state().kind === 'plan' ? (this.state() as Extract<WizardState, { kind: 'plan' }>).plan : null));
@@ -304,6 +365,40 @@ export class AiSetupWizard implements OnInit {
 
   protected toolCalling(r: Recommendation): string {
     return r.model.toolCalling ? $localize`:@@ai.setup.toolCalling:Tool calling` : $localize`:@@ai.setup.noToolCalling:No tool calling`;
+  }
+
+  constructor() {
+    // Closing the dialog is a side effect outside the signal graph: done once Pitwall accepted the pairing.
+    effect(() => {
+      const e = this.status.status()?.engine;
+      if (this.waitingForPitwall() && e?.pitwall.paired && e.active === 'pitwall') this.close();
+    });
+  }
+
+  /** "Use Pitwall": pairs (or just chooses it when already paired); the dialog closes when Pitwall is the engine. */
+  async usePitwall(): Promise<void> {
+    if (this.connecting()) return;
+    this.connecting.set(true);
+    this.pairingFailure.set(null);
+    this.waitingForPitwall.set(true);
+    try {
+      const result = await this.backend.pitwallConnect(true);
+      if (result.usable) this.close();
+    } catch (e) {
+      this.waitingForPitwall.set(false);
+      this.pairingFailure.set(toAiError(e).message);
+    } finally {
+      this.connecting.set(false);
+    }
+  }
+
+  async cancelPitwall(): Promise<void> {
+    this.waitingForPitwall.set(false);
+    try {
+      await this.backend.pitwallCancel();
+    } catch (e) {
+      this.pairingFailure.set(toAiError(e).message);
+    }
   }
 
   ngOnInit(): void {

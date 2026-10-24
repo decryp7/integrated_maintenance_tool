@@ -5,6 +5,10 @@ panel reads it at build time); `git cliff` lists every commit if you need the fu
 
 ## 1.1.0
 
+### Added
+
+- **AI:** When Pitwall runs on this computer, Debrief can use it as its AI engine: choose Use Pitwall in the AI set-up, approve the six-digit code in Pitwall, and one model serves all your apps without a second download. Settings ▸ AI ▸ AI engine chooses Automatic, Pitwall or Built-in; if Pitwall stops, Debrief says so and offers the built-in engine instead of switching by itself
+
 ### Changed
 
 - **Notifications:** One failure is now one notification. A repeated message updates the one already on screen (with a count) instead of adding another, errors stay until you dismiss them or the problem is gone, and technical details are folded behind Details. Job results, update offers, live alerts, error snapshots and errors all appear in the same place

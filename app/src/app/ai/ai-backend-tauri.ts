@@ -13,6 +13,7 @@ import {
   AiRuntimeOverview,
   AiImage,
   AiStatus,
+  PitwallStatus,
   AiUpdateKind,
   AiUpdatesStatus,
   ChatContext,
@@ -136,6 +137,21 @@ export class TauriAiBackend extends AiBackend {
   }
   reset() {
     return this.run<AiStatus>('ai_reset');
+  }
+  pitwallConnect(useForDebrief: boolean) {
+    return this.run<PitwallStatus>('ai_pitwall_connect', { useForDebrief });
+  }
+  pitwallCancel() {
+    return this.run<boolean>('ai_pitwall_cancel');
+  }
+  pitwallForget() {
+    return this.run<AiStatus>('ai_pitwall_forget');
+  }
+  pitwallRefresh() {
+    return this.run<AiStatus>('ai_pitwall_refresh');
+  }
+  useBuiltInEngine() {
+    return this.run<AiStatus>('ai_engine_use_built_in');
   }
   runtimes() {
     return this.run<AiRuntimeOverview>('ai_runtimes');

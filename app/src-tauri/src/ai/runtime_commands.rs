@@ -273,7 +273,7 @@ pub async fn ai_runtime_delete<R: Runtime>(app: AppHandle<R>, tag: String, id: S
     let id = short("an inference build", &id)?;
     let c = core.clone();
     blocking(move || {
-        c.availability()?;
+        c.built_in_availability()?;
         c.delete_runtime(&tag, &id)
     })
     .await?;
@@ -290,7 +290,7 @@ pub async fn ai_runtime_choose<R: Runtime>(app: AppHandle<R>, id: String) -> AiR
     let c = core.clone();
     let a = app.clone();
     blocking(move || {
-        c.availability()?;
+        c.built_in_availability()?;
         let choice = c.check_build_choice(&id)?;
         let overview = Ok::<_, AiCmdError>(crate::settings::overview(&a))?;
         let mut values = overview

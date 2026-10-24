@@ -12,6 +12,6 @@ pub mod utf8;
 pub use fake::{Reply, ScriptedProvider};
 pub use lazy::{LazyProvider, LoadState, ModelLoader};
 pub use prompt_format::PromptFormat;
-pub use prompted::{Finish, GenParams, Generated, PromptedProvider, TextEngine};
+pub use prompted::{prepare, prompted_chat, Finish, GenParams, Generated, Prepared, PreparedTurn, PromptedProvider, TextEngine};
 pub use provider::LlmProvider;
 pub use types::*;

@@ -6,6 +6,7 @@ import {
   AiRuntimeEvent,
   AiRuntimeOverview,
   AiStatus,
+  PitwallStatus,
   AiUpdateKind,
   AiUpdatesStatus,
   ChatContext,
@@ -90,6 +91,18 @@ export abstract class AiBackend {
   /** Adds a projector file the user chose for an installed model (checked like a download). */
   abstract addProjector(fileName: string, path: string): Promise<InstalledModel>;
   abstract reset(): Promise<AiStatus>;
+
+  /** Starts pairing with Pitwall (or, when already paired, just chooses it when `useForDebrief`); returns at once with
+   * the code to compare while the pairing waits for approval. Changes also arrive through `onStatus`. */
+  abstract pitwallConnect(useForDebrief: boolean): Promise<PitwallStatus>;
+  /** Stops a pairing that waits for approval. */
+  abstract pitwallCancel(): Promise<boolean>;
+  /** Deletes the stored Pitwall key. */
+  abstract pitwallForget(): Promise<AiStatus>;
+  /** Probes Pitwall now. */
+  abstract pitwallRefresh(): Promise<AiStatus>;
+  /** Switches this session to the built-in engine. */
+  abstract useBuiltInEngine(): Promise<AiStatus>;
 
   /** The inference runtimes (llama-server builds) for this platform: installed, usable, suggested, active. */
   abstract runtimes(): Promise<AiRuntimeOverview>;

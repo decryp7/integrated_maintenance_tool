@@ -123,9 +123,15 @@ fn restart_store_worker(worker: &debrief_store_client::StoreWorker) -> Result<()
     })
 }
 
-/// Lets the AI worker run again (the engine's own reset) and checks it is no longer switched off.
+/// Lets the AI worker run again (the engine's own reset) and checks it is no longer switched off. When Pitwall was lost, the
+/// repair is the fallback: the built-in engine for the session (it never depends on Pitwall, ADR 0059).
 fn repair_ai<R: Runtime>(app: &AppHandle<R>) -> Result<(), Cause> {
     let core = crate::ai::commands::core(app).map_err(|e| Cause::new(e.message))?;
+    if core.engine_kind().is_none() {
+        core.use_built_in_for_session();
+        crate::ai::pitwall::announce(app, &core);
+        return Ok(());
+    }
     core.reset();
     if let Some(jobs) = app.try_state::<crate::jobs::Jobs>() {
         jobs.pump();
@@ -159,6 +165,25 @@ fn repair_downloads<R: Runtime>(app: &AppHandle<R>, health: &Health) -> Result<(
         Ok(Some(_)) => Ok(()),
         Ok(None) => Err(Cause::new("That download cannot be run again.").hint("Start it again from Settings.")),
         Err(e) => Err(Cause::new("The download could not be started again.").detail(e)),
+    }
+}
+
+/// The AI's health from its status: a lost engine (Pitwall) first, else the worker's state (ADR 0059).
+pub fn ai_health_of(status: &crate::ai::AiStatus) -> AiHealth {
+    if status.engine.active.is_none() {
+        AiHealth::EngineLost
+    } else {
+        ai_health(status.state)
+    }
+}
+
+/// The AI's health after the engine changed (Pitwall found, lost, connected), without waiting for the next probe.
+pub fn refresh_ai_engine<R: Runtime>(app: &AppHandle<R>, status: &crate::ai::AiStatus) {
+    if !status.available {
+        return;
+    }
+    if let Some(h) = app.try_state::<Arc<Health>>() {
+        h.ai(ai_health_of(status), status.reason.as_deref());
     }
 }
 
@@ -201,7 +226,7 @@ fn probe<R: Runtime>(app: &AppHandle<R>, health: &Health) {
     if let Ok(core) = crate::ai::commands::core(app) {
         let s = core.status();
         if s.available {
-            health.ai(ai_health(s.state), s.reason.as_deref());
+            health.ai(ai_health_of(&s), s.reason.as_deref());
         }
     }
 }

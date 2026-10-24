@@ -435,7 +435,8 @@ impl AiUpdates {
 
     /// The scheduler's beat (every minute): due checks, waiting automatic installs, builds to retire.
     pub fn tick(&self) {
-        if self.core.availability().is_err() {
+        // While Pitwall answers, the built-in engine's runtime and models are not updated (no second copy, ADR 0059).
+        if self.core.built_in_availability().is_err() || self.core.uses_pitwall() {
             return;
         }
         let s = self.core.settings();
@@ -480,7 +481,7 @@ impl AiCore {
     /// the model host first (no download): a network failure fails the check (retried later); a host that serves
     /// another file than the pinned one drops that update.
     pub fn update_candidates(&self, kind: UpdateKind) -> AiResult<Vec<UpdateCandidate>> {
-        self.availability()?;
+        self.built_in_availability()?;
         match kind {
             UpdateKind::Runtime => {
                 let rt = &self.deps.runtimes;

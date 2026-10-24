@@ -201,6 +201,8 @@
       "instanced": false,
       "minSize": null,
       "commands": [
+        "ai_pitwall_cancel",
+        "ai_pitwall_connect",
         "ai_refine_fit",
         "ai_runtime_add_archives",
         "ai_runtime_choose",
@@ -727,6 +729,7 @@
       "instanced": false,
       "minSize": null,
       "commands": [
+        "ai_engine_use_built_in",
         "ai_knowledge_export",
         "ai_knowledge_import",
         "ai_knowledge_list",
@@ -736,6 +739,9 @@
         "ai_manual_download",
         "ai_manual_download_open",
         "ai_model_add_local",
+        "ai_pitwall_cancel",
+        "ai_pitwall_connect",
+        "ai_pitwall_forget",
         "ai_runtime_add_archives",
         "ai_runtime_choose",
         "ai_runtime_delete",
