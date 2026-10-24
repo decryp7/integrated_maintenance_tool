@@ -78,6 +78,31 @@ pub fn args(data_dir: &Path, window: Option<WindowBounds>) -> Vec<String> {
     a
 }
 
+/// Set to `1` (by a CI job that runs as root in a container) to start the browser without its sandbox.
+pub const NO_SANDBOX_ENV: &str = "DEBRIEF_BROWSER_NO_SANDBOX";
+
+/// Chromium refuses to start as root ("Running as root without --no-sandbox is not supported"), which is how every
+/// CI container runs. `--no-sandbox` is passed only when the process is root AND the environment asks for it
+/// explicitly: a user's browser keeps its sandbox, and root without the opt-in still gets Chromium's own refusal.
+pub fn no_sandbox_args(env_value: Option<&str>, root: bool) -> Vec<String> {
+    if root && env_value.is_some_and(|v| !v.is_empty() && v != "0") {
+        vec!["--no-sandbox".into()]
+    } else {
+        Vec::new()
+    }
+}
+
+#[cfg(unix)]
+fn running_as_root() -> bool {
+    // SAFETY: geteuid has no preconditions and cannot fail.
+    unsafe { libc::geteuid() == 0 }
+}
+
+#[cfg(not(unix))]
+fn running_as_root() -> bool {
+    false
+}
+
 /// Browser theme preferences that colour the window frame. Chrome and Edge read the user colour from
 /// `browser.theme.user_color2` (ARGB integer) with a scheme and variant; the older `user_color` is written too.
 /// Best effort: a version that ignores them still shows the other indicators.
@@ -166,6 +191,7 @@ impl Chromium {
         }
         let mut cmd = std::process::Command::new(&exe.path);
         cmd.args(args(&dir, opts.window))
+            .args(no_sandbox_args(std::env::var(NO_SANDBOX_ENV).ok().as_deref(), running_as_root()))
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
@@ -343,6 +369,15 @@ mod tests {
             .iter()
             .all(|x| !x.contains("AutomationControlled") && !x.contains("user-agent") && !x.contains("headless")));
         assert!(a.contains(&"--user-data-dir=/tmp/p".to_string()));
+    }
+
+    #[test]
+    fn the_sandbox_is_dropped_only_for_root_that_asked_for_it() {
+        assert_eq!(no_sandbox_args(Some("1"), true), vec!["--no-sandbox".to_string()]);
+        assert!(no_sandbox_args(Some("1"), false).is_empty(), "a user's browser keeps its sandbox");
+        assert!(no_sandbox_args(None, true).is_empty(), "root without the opt-in is not changed");
+        assert!(no_sandbox_args(Some(""), true).is_empty());
+        assert!(no_sandbox_args(Some("0"), true).is_empty());
     }
 
     #[test]
