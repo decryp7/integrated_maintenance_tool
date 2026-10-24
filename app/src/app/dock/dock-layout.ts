@@ -58,7 +58,7 @@ export class DockLayout {
       if (!view) continue;
       const layout = viewLayout(view);
       const full = view.fullHeight || (layout.area === 'document' && columns.has(p.group.id) && !this.ctx.displaced.has(p.id));
-      out.push({ id: p.id, layout, row: this.rowOf(p.id, view), group: p.group.id, ...this.recencyOf(p.id, fresh), ...(full ? { fullHeight: true } : {}) });
+      out.push({ id: p.id, layout, row: this.rowOf(p.id, view), group: this.ctx.displaced.get(p.id)?.into ? p.id : p.group.id, ...this.recencyOf(p.id, fresh), ...(full ? { fullHeight: true } : {}) });
     }
     for (const d of this.ctx.displaced.values()) {
       const view = this.ctx.views.find(d.id);
