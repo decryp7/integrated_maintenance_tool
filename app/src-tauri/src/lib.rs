@@ -1052,7 +1052,7 @@ mod plugin_processes_tests {
     use crate::test_support::{import, main_window, samples, test_app};
 
     fn children() -> usize {
-        let out = std::process::Command::new("pgrep")
+        let out = debrief_core::process::quiet_command("pgrep")
             .args(["-P", &std::process::id().to_string()])
             .output()
             .expect("pgrep runs");
@@ -1086,7 +1086,7 @@ mod plugin_processes_tests {
     #[cfg(unix)]
     fn plugin_processes_do_not_outlive_the_test_that_started_them() {
         let name = "plugin_processes_tests::plugin_processes_do_not_outlive_the_test_that_started_them_in_a_lone_process";
-        let out = std::process::Command::new(std::env::current_exe().unwrap())
+        let out = debrief_core::process::quiet_command(std::env::current_exe().unwrap())
             .args(["--exact", name, "--test-threads=1", "--nocapture"])
             .env("DEBRIEF_PLUGIN_LEAK_PROBE", "1")
             .output()
