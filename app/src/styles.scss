@@ -325,6 +325,13 @@ textarea,
     border-color: var(--accent);
     color: var(--accent-ink);
     font-weight: 600;
+    /* A disabled primary is a plain neutral button in both themes (a dimmed accent reads as half-enabled on dark, as pale on light). */
+    &:disabled {
+      background: var(--bg-3);
+      border-color: var(--border-3);
+      color: var(--faint);
+      opacity: 0.8;
+    }
   }
   &.ghost {
     background: transparent;

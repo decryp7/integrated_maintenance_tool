@@ -140,12 +140,18 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await expect(page.locator('debrief-welcome')).toBeVisible();
   });
   await fresh(page, theme);
-  await growTimeline(page, 40); // all seven lanes whole, with the first grid rows below
+  await growTimeline(page, 100); // every lane whole (the demo has three instances), with the first grid rows below
   await shot(page, 'workspace', async () => {
     // The default layout keeps the inspector auto-hidden; the README shot shows it docked with an event selected.
     await clickRow(page, 'HTTP POST');
     await ensureInspector(page).catch(() => undefined); // an inspector that stays auto-hidden is fine for the shot
     await expect(page.locator('debrief-timeline-panel .lane').first()).toBeVisible();
+  });
+
+  await shot(page, 'inspector', async () => {
+    await clickRow(page, 'HTTP POST');
+    await ensureInspector(page).catch(() => undefined);
+    await expect(page.locator('debrief-inspector')).toBeVisible();
   });
 
   await shot(page, 'format-wizard', async () => {
@@ -154,6 +160,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   });
   await page.keyboard.press('Escape');
 
+  await fresh(page, theme); // the same Explorer in every shot (the format wizard leaves a file selected)
   // Dialogs are OS windows on the desktop (ADR 0050); the browser build shows the same dialogs in the page: a modeless
   // tool beside the work, and a modal question with the page dimmed behind it.
   await shot(page, 'dialog-modeless', async () => {
@@ -164,6 +171,16 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await shot(page, 'dialog-modal', async () => {
     await need(page, 'Paste as log');
     await expect(page.getByRole('dialog', { name: 'Paste as log' })).toHaveAttribute('data-modality', 'modal');
+    // Invented lines, never a real log.
+    await page.getByTestId('paste-text').fill(
+      [
+        '2026-10-14T10:41:07.120Z INF checkout order=A-1042 total=59.90 ms=212',
+        '2026-10-14T10:41:07.480Z WRN checkout retry order=A-1042 attempt=2 reason=timeout',
+        '2026-10-14T10:41:08.015Z ERR payments declined order=A-1042 code=insufficient_funds',
+        '2026-10-14T10:41:08.300Z INF checkout order=A-1043 total=12.00 ms=187',
+      ].join('\n'),
+    );
+    await page.getByTestId('paste-text').blur();
   });
   await page.keyboard.press('Escape');
 
@@ -178,6 +195,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   });
   await page.keyboard.press('Escape');
 
+  await fresh(page, theme); // both themes start from the same layout, with no event selected (so no inspector)
   await shot(page, 'timeline-zoom', async () => {
     const zoomIn = page.getByRole('button', { name: 'Zoom in' });
     for (let i = 0; i < 3; i++) await zoomIn.click();
@@ -185,22 +203,23 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   });
   await page.getByRole('button', { name: 'Fit', exact: true }).click().catch(() => undefined);
 
-  await shot(page, 'inspector', async () => {
-    await clickRow(page, 'HTTP POST');
-    await ensureInspector(page).catch(() => undefined);
-    await expect(page.locator('debrief-inspector')).toBeVisible();
-  });
-
+  // The query shots: two panes (events and results) so every row is whole; the query bar shows what produced the results.
+  await fresh(page, theme);
+  await page.locator('.debrief-tab[data-panel-id="timeline"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
   await shot(page, 'query', async () => {
     await need(page, 'Query: focus the search field');
-    const input = page.getByTestId('query-field');
-    await input.fill('level >= warning | stats count() as n by SourceContext | sort n desc | head 10');
+    await page.getByTestId('query-field').fill('level >= debug\n| stats count()\n  by SourceContext\n| head 6'); // several short lines: the field grows while focused, so the whole query shows
     await page.keyboard.press('ControlOrMeta+Enter');
     await page.waitForTimeout(800);
   });
 
   await shot(page, 'query-results', async () => {
+    await need(page, 'Query: focus the search field');
+    await page.getByTestId('query-field').fill('level >= debug\n| stats count()\n  by SourceContext,\n     level');
+    await page.getByTestId('query-field').press('ControlOrMeta+Enter');
+    await page.waitForTimeout(1200);
     await need(page, 'Query: show results');
+    await expect(page.getByText('Results of the previous query')).toHaveCount(0);
     await page.waitForTimeout(800);
   }, 'Query results');
 
@@ -227,7 +246,11 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
       name,
       async () => {
         await need(page, show);
-        if (name === 'exceptions') await (await page.waitForTimeout(1200), await page.locator('debrief-exceptions-view button.head').first().click().catch(() => undefined));
+        if (name === 'exceptions') {
+          await page.waitForTimeout(1200);
+          // Expand the groups (the first click re-renders the list, so re-query each time).
+          for (let i = 0; i < 4; i++) await page.locator('debrief-exceptions-view button.head[aria-expanded=false]').first().click().catch(() => undefined);
+        }
         if (name === 'compare') await page.getByRole('button', { name: 'Before / after selected time' }).click();
         await page.waitForTimeout(1500);
       },
@@ -257,6 +280,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'profile', async () => {
     await showPanel(page, 'Profile', 'Profile editor', 'Show Profile editor');
+    await page.locator('debrief-profile-form .nav-item').filter({ hasText: 'Extractors' }).click();
     await page.waitForTimeout(800);
   }, 'Profile');
 
@@ -270,7 +294,15 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await fresh(page, theme); // a clean tab strip: only this view
   await shot(page, 'process-monitor', async () => {
     await showPanel(page, 'Process Monitor', 'Open Process Monitor');
-    await page.waitForTimeout(800);
+    // A running monitor (mock) with its live charts, as the intro describes.
+    const panel = page.locator('debrief-monitor-view');
+    await panel.getByLabel('Target value 1').fill('OrderService*');
+    await panel.getByRole('button', { name: 'Start' }).click();
+    await expect(page.getByTestId('monitor-live')).toBeVisible();
+    await page.waitForTimeout(2500);
+    // Opening the samples with live tail brings the timeline to the front of this group: back to the monitor.
+    await page.getByRole('tab', { name: 'Process Monitor', exact: true }).click();
+    await expect(page.getByTestId('monitor-live')).toBeVisible();
   }, 'Process Monitor');
 
   await fresh(page, theme); // a clean tab strip: only this view
@@ -315,8 +347,13 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await fresh(page, theme);
   await shot(page, 'watched-folders', async () => {
     await need(page, 'Show watched folders');
-    await page.getByTestId('watch-add').click();
-    await page.waitForTimeout(1200);
+    // The browser build's folder picker answers with ?mockOpen=<path>: pick three invented folders in turn.
+    for (const folder of ['/demo/extra-folder', '/demo/exports/nightly', '/demo/support-cases']) {
+      await page.evaluate((f) => history.replaceState(null, '', `/?mockOpen=${encodeURIComponent(f)}`), folder);
+      await page.getByTestId('watch-add').click();
+      await page.waitForTimeout(500);
+    }
+    await page.waitForTimeout(800);
   }, 'Watched folders');
 
   await fresh(page, theme);
@@ -364,8 +401,10 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
     await need(page, 'View: Jobs');
     await expect(page.locator('debrief-jobs-panel')).toBeVisible();
     // Toasts would cover the pane, and the report editor behind it is not the point of this shot.
-    for (const x of await page.getByTestId('notice-toast').getByRole('button', { name: /close|dismiss/i }).all()) await x.click().catch(() => undefined);
+    for (const x of await page.getByTestId('notification-dismiss').all()) await x.click().catch(() => undefined);
     await page.locator('.debrief-tab[data-panel-id="report"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
+    // The timeline is not the point of this shot either: closing it leaves the events grid its rows above the Jobs panel.
+    await page.locator('.debrief-tab[data-panel-id="timeline"] .debrief-tab-close').click({ timeout: 2000 }).catch(() => undefined);
     await need(page, 'View: Jobs').catch(() => undefined);
     await page.waitForTimeout(800);
   });
@@ -377,6 +416,7 @@ async function captureAll(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await shot(page, 'dialog-ai-setup', async () => {
     await need(page, 'Set up AI assistant');
     await expect(page.getByTestId('ai-hardware')).toBeVisible();
+    await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur()); // no focus ring on the close button
   });
   await page.keyboard.press('Escape');
 

@@ -20,12 +20,46 @@ export function engineLegalSourceWith(call: typeof invoke): LegalSource {
 
 export const engineLegalSource: LegalSource = engineLegalSourceWith(invoke);
 
+const STAND_IN_NOTICES = [
+  { kind: 'crate', name: 'serde', version: '1.0', licence: 'MIT OR Apache-2.0' },
+  { kind: 'crate', name: 'serde_json', version: '1.0', licence: 'MIT OR Apache-2.0' },
+  { kind: 'crate', name: 'tokio', version: '1.4', licence: 'MIT' },
+  { kind: 'crate', name: 'regex', version: '1.1', licence: 'MIT OR Apache-2.0' },
+  { kind: 'crate', name: 'memchr', version: '2.7', licence: 'Unlicense OR MIT' },
+  { kind: 'crate', name: 'rayon', version: '1.1', licence: 'MIT OR Apache-2.0' },
+  { kind: 'crate', name: 'duckdb', version: '1.1', licence: 'MIT' },
+  { kind: 'crate', name: 'tauri', version: '2.0', licence: 'MIT OR Apache-2.0' },
+  { kind: 'crate', name: 'postcard', version: '1.0', licence: 'MIT OR Apache-2.0' },
+  { kind: 'crate', name: 'chrono', version: '0.4', licence: 'MIT OR Apache-2.0' },
+  { kind: 'ui', name: 'Angular', version: '22', licence: 'MIT' },
+  { kind: 'ui', name: 'Angular CDK', version: '22', licence: 'MIT' },
+  { kind: 'ui', name: 'Apache ECharts', version: '6.1', licence: 'Apache-2.0' },
+  { kind: 'ui', name: 'zrender', version: '6.1', licence: 'BSD-3-Clause' },
+  { kind: 'ui', name: 'dockview', version: '4', licence: 'MIT' },
+  { kind: 'ui', name: 'RxJS', version: '7.8', licence: 'Apache-2.0' },
+] as const;
+
+const line = (n: { name: string; version: string; licence: string }) => `- ${n.name} ${n.version} — ${n.licence}`;
+
 /** The browser build (dev server, UI tests) has no engine: it shows a short stand-in. */
 export const browserLegalSource: LegalSource = {
   async load(doc) {
     switch (doc) {
       case 'notices':
-        return ['# Third-party notices', '', 'The full list of third-party software is shown by the desktop app.', '', '- serde_json 1.0.0 — MIT OR Apache-2.0', '- zrender 6.1.0 — BSD-3-Clause'].join('\n');
+        return [
+          '# Third-party notices',
+          '',
+          'The desktop app shows the full list with every licence text.',
+          'A sample of it:',
+          '',
+          '## Rust crates',
+          '',
+          ...STAND_IN_NOTICES.filter((n) => n.kind === 'crate').map(line),
+          '',
+          '## UI libraries',
+          '',
+          ...STAND_IN_NOTICES.filter((n) => n.kind === 'ui').map(line),
+        ].join('\n');
       case 'mit':
         return 'MIT License\n\nThe full text is shown by the desktop app.';
       case 'apache':

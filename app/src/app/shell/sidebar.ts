@@ -1,5 +1,6 @@
 import { RovingTabindex } from '../shared/roving-tabindex';
 import { PathText } from '../shared/path-text';
+import { ScrollFade } from '../shared/scroll-fade';
 import { NgTemplateOutlet } from '@angular/common';
 import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { DialogService } from '../ui/dialog.service';
@@ -56,7 +57,7 @@ function shortPath(path: string): string {
 @Component({
   selector: 'debrief-sidebar',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RovingTabindex, PathText, Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch, TimestampWarning],
+  imports: [RovingTabindex, PathText, ScrollFade, Icon, FieldsPanel, NgTemplateOutlet, SourceSwatch, TimestampWarning],
   template: `
     <div class="head">
       <span class="section-title" i18n="@@shell.sidebar.explorer">Explorer</span>
@@ -69,7 +70,7 @@ function shortPath(path: string): string {
       </span>
     </div>
 
-    <div class="sources" role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="debrief-sources-read-only">
+    <div class="sources" debriefScrollFade role="region" aria-label="Opened files" i18n-aria-label="@@shell.sidebar.openedFiles" [title]="readOnly" aria-describedby="debrief-sources-read-only">
       <span id="debrief-sources-read-only" class="sr">{{ readOnly }}</span>
       @if (layout().root; as root) {
         <div class="folder-root" data-testid="folder-root" [title]="root"><debrief-icon name="folder" [size]="12" /><span>{{ root }}</span></div>
@@ -182,6 +183,8 @@ function shortPath(path: string): string {
     .tools { display: flex; gap: 2px; }
     .small { font-size: var(--fs-xs); }
     .sources { padding: 0 8px 4px; max-height: 40%; overflow: auto; flex: none; }
+    /* Rows that continue below the edge fade out instead of showing a half row. */
+    .sources[data-more-below] { mask-image: linear-gradient(to bottom, var(--text) calc(100% - 20px), transparent); }
     .src { position: relative; display: flex; align-items: center; gap: 8px; height: 26px; padding: 0 2px 0 6px; border-radius: 5px; color: var(--text-2); }
     .src:hover { background: var(--bg-hover); }
     /* Truncates with an ellipsis but never collapses to nothing next to the badge, count and row buttons. */
