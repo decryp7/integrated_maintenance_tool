@@ -27,7 +27,7 @@ pub mod ready;
 
 pub use challenge::{detect as detect_challenge, Challenge};
 pub use discover::{find, find_for_tests, Browser as BrowserExe, Flavor};
-pub use launch::{Chromium, Gone, LaunchOptions, Profile};
+pub use launch::{Chromium, Gone, LaunchOptions, Profile, WindowBounds};
 pub use page::Page;
 
 /// Everything that can go wrong; messages tell the user what to do.

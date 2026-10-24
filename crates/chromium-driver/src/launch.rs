@@ -20,6 +20,16 @@ pub enum Profile {
     Persistent(PathBuf),
 }
 
+/// Where the browser window opens, in the screen units the browser reads its `--window-position`/`--window-size` in
+/// (points on macOS, device-independent pixels elsewhere). The caller decides (the display of the window that asked).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WindowBounds {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
 #[derive(Debug, Clone)]
 pub struct LaunchOptions {
     pub profile: Profile,
@@ -27,6 +37,8 @@ pub struct LaunchOptions {
     pub accent: Option<u32>,
     /// The browser is ended after this long, whatever it does.
     pub max_lifetime: Duration,
+    /// Where its window opens; the browser's own choice when `None`.
+    pub window: Option<WindowBounds>,
 }
 
 impl Default for LaunchOptions {
@@ -35,14 +47,15 @@ impl Default for LaunchOptions {
             profile: Profile::Throwaway,
             accent: None,
             max_lifetime: Duration::from_secs(30 * 60),
+            window: None,
         }
     }
 }
 
 /// The command-line arguments. `--enable-automation` keeps Chrome's "controlled by automated test software"
-/// banner and `navigator.webdriver = true`; nothing hides either. The window opens on screen like any other:
-/// no off-screen position and no headless mode.
-pub fn args(data_dir: &Path) -> Vec<String> {
+/// banner and `navigator.webdriver = true`; nothing hides either. The window opens on screen like any other: no
+/// headless mode, and a position only where the caller placed it (on a display, never off screen).
+pub fn args(data_dir: &Path, window: Option<WindowBounds>) -> Vec<String> {
     let mut a = vec![
         "--remote-debugging-port=0".to_string(),
         format!("--user-data-dir={}", data_dir.display()),
@@ -53,8 +66,14 @@ pub fn args(data_dir: &Path) -> Vec<String> {
         "--disable-extensions".into(),
         "--password-store=basic".into(),
         "--use-mock-keychain".into(),
-        "--window-size=1100,800".into(),
     ];
+    match window {
+        Some(w) => {
+            a.push(format!("--window-position={},{}", w.x, w.y));
+            a.push(format!("--window-size={},{}", w.width.max(1), w.height.max(1)));
+        }
+        None => a.push("--window-size=1100,800".into()),
+    }
     a.push("about:blank".into());
     a
 }
@@ -146,7 +165,7 @@ impl Chromium {
             }
         }
         let mut cmd = std::process::Command::new(&exe.path);
-        cmd.args(args(&dir))
+        cmd.args(args(&dir, opts.window))
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null());
@@ -318,7 +337,7 @@ mod tests {
 
     #[test]
     fn keeps_the_automation_banner_and_hides_nothing() {
-        let a = args(Path::new("/tmp/p"));
+        let a = args(Path::new("/tmp/p"), None);
         assert!(a.contains(&"--enable-automation".to_string()));
         assert!(a
             .iter()
@@ -328,9 +347,21 @@ mod tests {
 
     #[test]
     fn the_window_opens_on_screen() {
-        assert!(!args(Path::new("/p"))
+        assert!(!args(Path::new("/p"), None)
             .iter()
             .any(|x| x.starts_with("--window-position") || x.contains("headless") || x.contains("offscreen")));
+        let placed = args(
+            Path::new("/p"),
+            Some(WindowBounds {
+                x: -1800,
+                y: 40,
+                width: 1100,
+                height: 800,
+            }),
+        );
+        assert!(placed.contains(&"--window-position=-1800,40".to_string()), "{placed:?}");
+        assert!(placed.contains(&"--window-size=1100,800".to_string()));
+        assert_eq!(placed.iter().filter(|a| a.starts_with("--window-size")).count(), 1);
     }
 
     #[test]

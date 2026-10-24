@@ -6,7 +6,7 @@
 use super::lifecycle::{GoneReason, Lifecycle, Phase};
 use super::renderer::{failed, ACCENT};
 use chromium_driver::launch::{LaunchOptions, Profile};
-use chromium_driver::{Chromium, Page};
+use chromium_driver::{Chromium, Page, WindowBounds};
 use debrief_ai::browser::BrowserError;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -163,6 +163,9 @@ impl Slot {
     }
 }
 
+/// Where a window's browser opens (on that window's display), or `None` to let the browser choose.
+pub type Placer = Arc<dyn Fn(&str) -> Option<WindowBounds> + Send + Sync>;
+
 /// Hears every change of a window's browser life cycle (`owner`, new state).
 pub type Listener = Arc<dyn Fn(&str, Lifecycle) + Send + Sync>;
 
@@ -179,6 +182,7 @@ struct Inner {
     changed: Condvar,
     sources: RwLock<Sources>,
     listeners: RwLock<Vec<Listener>>,
+    placer: RwLock<Option<Placer>>,
     generations: AtomicU64,
 }
 
@@ -257,6 +261,11 @@ impl Renderers {
         crate::sync::write(&self.inner.sources).installed = p;
     }
 
+    /// Tells where each window's browser opens ([`super::placement`]).
+    pub fn set_placer(&self, f: Placer) {
+        *crate::sync::write(&self.inner.placer) = Some(f);
+    }
+
     /// Adds a listener of every life-cycle change (the window's `lifecycle` events; the service-health registry).
     pub fn listen(&self, f: Listener) {
         crate::sync::write(&self.inner.listeners).push(f);
@@ -320,7 +329,7 @@ impl Renderers {
 
     /// Starts the browser of a `Launching` slot (no lock held meanwhile) and makes it ready, unless it was stopped.
     fn launch(&self, owner: &str, generation: u64) -> Result<Arc<Session>, BrowserError> {
-        let started = self.start();
+        let started = self.start(owner);
         let mut slots = crate::sync::lock(&self.inner.slots);
         let launching = matches!(slots.get(owner), Some(Slot::Launching { generation: g }) if *g == generation);
         let stopped = matches!(slots.get(owner), Some(Slot::Closing { generation: g }) if *g == generation);
@@ -369,15 +378,17 @@ impl Renderers {
         }
     }
 
-    fn start(&self) -> Result<Arc<Session>, BrowserError> {
+    fn start(&self, owner: &str) -> Result<Arc<Session>, BrowserError> {
         let exe = crate::sync::read(&self.inner.sources).resolve().ok_or_else(|| {
             BrowserError::Failed(
                 "no Chromium-based browser was found: install Edge, Chrome or Chromium, or download one in Settings ▸ Web browser".into(),
             )
         })?;
+        let placer = crate::sync::read(&self.inner.placer).clone();
         let opts = LaunchOptions {
             profile: Profile::Throwaway,
             accent: Some(ACCENT),
+            window: placer.and_then(|p| p(owner)),
             ..LaunchOptions::default()
         };
         let chromium = Chromium::launch(&exe, &opts).map_err(failed)?;

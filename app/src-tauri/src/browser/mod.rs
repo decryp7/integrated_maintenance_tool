@@ -19,6 +19,7 @@ mod hub;
 pub(crate) mod lifecycle;
 #[cfg(test)]
 mod live;
+mod placement;
 pub(crate) mod renderer;
 pub(crate) mod research;
 pub(crate) mod runtime;
@@ -108,6 +109,37 @@ pub enum BrowserEvent {
         host: String,
         title: String,
     },
+}
+
+/// Where `owner`'s browser opens: on the display that window is on ([`placement`]). Called from the launching thread,
+/// never the main thread.
+fn placement_of<R: Runtime>(app: &AppHandle<R>, owner: &str) -> Option<chromium_driver::WindowBounds> {
+    let w = app.get_webview_window(owner)?;
+    let (p, s) = (w.outer_position().ok()?, w.outer_size().ok()?);
+    let owner_rect = placement::Rect {
+        x: f64::from(p.x),
+        y: f64::from(p.y),
+        width: f64::from(s.width),
+        height: f64::from(s.height),
+    };
+    let displays: Vec<placement::Display> = app
+        .available_monitors()
+        .unwrap_or_default()
+        .iter()
+        .map(|m| {
+            let (wp, ws) = (m.work_area().position, m.work_area().size);
+            placement::Display {
+                work: placement::Rect {
+                    x: f64::from(wp.x),
+                    y: f64::from(wp.y),
+                    width: f64::from(ws.width),
+                    height: f64::from(ws.height),
+                },
+                scale: m.scale_factor(),
+            }
+        })
+        .collect();
+    placement::place(&owner_rect, &displays)
 }
 
 /// Sends a browser event to the owner window.
@@ -203,6 +235,8 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
     let renderers = renderers(app).unwrap_or_default();
     let a = app.clone();
     renderers.listen(Arc::new(move |owner, life| emit(&a, owner, BrowserEvent::Lifecycle(life))));
+    let a = app.clone();
+    renderers.set_placer(Arc::new(move |owner| placement_of(&a, owner)));
     runtime::refresh_sources(app, &hub);
     if let Err(e) = crate::settings::register(
         app,

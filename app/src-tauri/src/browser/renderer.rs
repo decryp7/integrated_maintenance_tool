@@ -335,6 +335,29 @@ mod tests {
         }
 
         #[test]
+        fn the_browser_opens_where_the_owner_window_s_display_says() {
+            let r = rig(Mode::Obey, 1);
+            let asked = Arc::new(Mutex::new(Vec::new()));
+            let a2 = asked.clone();
+            r.renderers.set_placer(Arc::new(move |owner: &str| {
+                a2.lock().unwrap().push(owner.to_string());
+                Some(chromium_driver::WindowBounds {
+                    x: -1650,
+                    y: 100,
+                    width: 1100,
+                    height: 800,
+                })
+            }));
+            research_step(&r);
+            assert_eq!(*asked.lock().unwrap(), ["main"], "placed for the window that started it");
+            let args = r.fake.args();
+            assert!(args.contains(&"--window-position=-1650,100".to_string()), "{args:?}");
+            assert!(args.contains(&"--window-size=1100,800".to_string()), "{args:?}");
+            assert!(!args.iter().any(|a| a.contains("headless") || a.contains("-32000")), "{args:?}");
+            r.renderers.kill_all();
+        }
+
+        #[test]
         fn finished_research_closes_the_browser_and_removes_its_profile() {
             let r = rig(Mode::Obey, 1);
             let (dir, pid) = research_step(&r);
