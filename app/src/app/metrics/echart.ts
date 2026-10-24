@@ -1,6 +1,7 @@
 import { afterNextRender, ChangeDetectionStrategy, Component, DestroyRef, effect, ElementRef, inject, input, output } from '@angular/core';
 import type { ECharts, EChartsCoreOption } from 'echarts/core';
 import { ECHARTS_INIT } from './echarts-init';
+import { spreadLabels } from './label-spread';
 
 interface BrushEndEvent {
   areas?: { coordRange?: [number, number] }[];
@@ -65,6 +66,11 @@ export class EChart {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly init = inject(ECHARTS_INIT);
   private chart: ECharts | null = null;
+  private lastOptions: EChartsCoreOption | null = null;
+  private lastMerge = false;
+  private spreadTimer: ReturnType<typeof setTimeout> | undefined;
+  /** The offsets last applied to the end labels; a re-render that computes the same ones is left alone (no loop). */
+  private labelSig = '';
 
   constructor() {
     const destroyRef = inject(DestroyRef);
@@ -112,10 +118,20 @@ export class EChart {
         const at: unknown = (chart.convertFromPixel({ gridIndex: 0 }, pixel) as unknown as unknown[] | undefined)?.[0];
         if (typeof at === 'number' && Number.isFinite(at)) this.plotClick.emit(Math.round(at));
       });
+      // ECharts does not lay end labels out against each other (labelLayout does not reach them): spread them after each render.
+      // ECharts refuses setOption while it is still rendering ("main process"), so the re-apply runs on the next task.
+      chart.on('finished', () => {
+        if (this.spreadTimer !== undefined) return;
+        this.spreadTimer = setTimeout(() => {
+          this.spreadTimer = undefined;
+          this.spreadEndLabels();
+        });
+      });
       const ro = new ResizeObserver(() => chart.resize());
       ro.observe(this.host.nativeElement);
       destroyRef.onDestroy(() => {
         ro.disconnect();
+        clearTimeout(this.spreadTimer);
         chart.dispose();
         this.chart = null;
       });
@@ -123,11 +139,69 @@ export class EChart {
     });
   }
 
-  private apply(options: EChartsCoreOption, merge: boolean): void {
+  private apply(options: EChartsCoreOption, merge: boolean, keepSig = false): void {
     const chart = this.chart;
     if (!chart) return;
+    if (!keepSig) {
+      this.lastOptions = options;
+      this.lastMerge = merge;
+      this.labelSig = '';
+    }
     chart.setOption(options, merge ? { notMerge: false, replaceMerge: ['series'], lazyUpdate: true } : { notMerge: true });
     // Arm x-range brushing without a toolbox: drag anywhere on the plot to select a time range.
     chart.dispatchAction({ type: 'takeGlobalCursor', key: 'brush', brushOption: { brushType: 'lineX', brushMode: 'single' } });
   }
+
+  /**
+   * ECharts does not lay end labels out against each other (`labelLayout` does not reach them, `endLabel.offset` is
+   * ignored). After a render, measure where each line ends and, when labels would overprint, spread them (see
+   * `spreadLabels`) and re-apply the option with those labels drawn as graphic text at the spread positions.
+   */
+  private spreadEndLabels(): void {
+    const chart = this.chart;
+    const options = this.lastOptions as { series?: EndSeries[] } | null;
+    const series = options?.series;
+    if (!chart || !options || !series) return;
+    const labelled: { index: number; x: number; y: number }[] = [];
+    series.forEach((s, index) => {
+      if (s.type !== 'line' || !s.endLabel?.show || !s.data) return;
+      for (let k = s.data.length - 1; k >= 0; k--) {
+        const p = pointOf(s.data[k]);
+        if (!p || p.value === null) continue;
+        const px = chart.convertToPixel({ seriesIndex: index }, [p.at, p.value]) as unknown as number[] | undefined;
+        if (px && Number.isFinite(px[0]) && Number.isFinite(px[1])) labelled.push({ index, x: px[0] as number, y: px[1] as number });
+        break;
+      }
+    });
+    if (labelled.length < 2) return;
+    const offsets = spreadLabels(labelled.map((l) => l.y), undefined, 8, chart.getHeight() - 8).map((o) => Math.round(o));
+    if (offsets.every((o) => o === 0)) return;
+    const sig = labelled.map((l, i) => `${Math.round(l.x)}:${Math.round(l.y)}:${offsets[i]}`).join(',');
+    if (sig === this.labelSig) return;
+    this.labelSig = sig;
+    // Overlapping end labels are drawn as graphic text at their spread positions instead of by the series.
+    const patched = series.map((s) => s);
+    const elements: object[] = [];
+    labelled.forEach((l, i) => {
+      const s = series[l.index];
+      const e = s?.endLabel;
+      if (!s || !e) return;
+      patched[l.index] = { ...s, endLabel: { ...e, show: false } };
+      elements.push({
+        type: 'text',
+        silent: true,
+        x: l.x + (e.distance ?? 8),
+        y: l.y + (offsets[i] ?? 0),
+        style: { text: !e.formatter || e.formatter === '{a}' ? s.name : e.formatter, fill: e.color, font: `${e.fontSize ?? 10.5}px ${e.fontFamily ?? 'monospace'}`, textVerticalAlign: 'middle', verticalAlign: 'middle' },
+      });
+    });
+    this.apply({ ...options, series: patched, graphic: { elements } } as EChartsCoreOption, this.lastMerge, true);
+  }
+}
+
+interface EndSeries {
+  name?: string;
+  type?: string;
+  data?: unknown[];
+  endLabel?: { show?: boolean; distance?: number; formatter?: string; color?: string; fontSize?: number; fontFamily?: string };
 }
