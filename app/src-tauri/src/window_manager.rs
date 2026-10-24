@@ -261,6 +261,7 @@ fn may_reload(history: &mut std::collections::HashMap<String, Vec<std::time::Ins
 #[cfg_attr(not(any(target_os = "macos", target_os = "ios")), allow(dead_code))]
 pub fn web_content_terminated<R: Runtime>(webview: &tauri::Webview<R>) {
     let label = webview.label().to_string();
+    crate::startup_watchdog::note_terminated(webview);
     content_terminated(&label, std::time::Instant::now(), || webview.reload().map_err(anyhow::Error::from));
 }
 

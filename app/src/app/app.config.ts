@@ -47,6 +47,8 @@ import { provideStorePane } from './store-pane/provide-store-pane';
 import { provideNotificationHost, provideNotificationSource } from './health/provide-notification-host';
 import { provideServiceHealth } from './core/service-health/provide-service-health';
 import { WorkspaceSource } from './shell/workspace-source';
+import { provideStartupContract } from './core/startup/startup-contract';
+import { provideRecovery } from './lifecycle/recovery';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -99,5 +101,8 @@ export const appConfig: ApplicationConfig = {
     provideServiceHealth(),
     provideNotificationHost(),
     provideNotificationSource(WorkspaceSource),
+    // Reports ready after the first paint; Rust's watchdog recovers a window that never does (ADR 0058).
+    provideStartupContract(),
+    provideRecovery(),
   ],
 };

@@ -5,6 +5,7 @@ import { parseDialogRoute } from './app/dialog-windows/dialog-route';
 import { parsePopoutRoute } from './app/popout/popout-route';
 import { loadBrowserMocks } from './app/core/mock-registry';
 import { isTauri } from './app/core/platform';
+import { reportBootstrapFailure } from './app/core/startup/boot-errors';
 
 // Loaded by main.ts once the translations are in place: everything imported from here may use `$localize`.
 // A pop-out panel window (`#/popout?...`) boots the small pop-out shell; its code and the full app shell's are
@@ -13,8 +14,16 @@ const popout = parsePopoutRoute(location.hash) !== null;
 const dialogRoute = parseDialogRoute(location.hash);
 const dialog = dialogRoute !== null;
 const locale = { provide: LOCALE_ID, useValue: activeLocale() };
-if (popout) document.querySelector('debrief-root')?.replaceWith(document.createElement('debrief-popout-shell'));
-if (dialog) document.querySelector('debrief-root')?.replaceWith(document.createElement('debrief-dialog-shell'));
+/** Swaps the root element for another shell's, keeping the start-up splash (index.html) until Angular renders. */
+function swapRoot(tag: string): void {
+  const root = document.querySelector('debrief-root');
+  if (!root) return;
+  const el = document.createElement(tag);
+  el.append(...Array.from(root.childNodes));
+  root.replaceWith(el);
+}
+if (popout) swapRoot('debrief-popout-shell');
+if (dialog) swapRoot('debrief-dialog-shell');
 // The main window and pop-outs boot the whole app's providers; a dialog window its own small set (ADR 0050), so the
 // feature code of the full config is a chunk a dialog never loads.
 const configOf = dialogRoute
@@ -32,4 +41,7 @@ const started = Promise.all([
   configOf,
   mocks,
 ]).then(([component, appConfig]) => bootstrapApplication(component, { ...appConfig, providers: [...appConfig.providers, locale] }));
-started.catch((err) => console.error(err));
+started.catch((err: unknown) => {
+  console.error(err);
+  reportBootstrapFailure(err);
+});

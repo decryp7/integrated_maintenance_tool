@@ -298,7 +298,7 @@ impl Lifecycle {
 
     /// The session a window can restore or reopen: its own autosave of this
     /// run, else (for the main window) the previous run's main window.
-    fn session_path(&self, label: &str) -> Option<PathBuf> {
+    pub(crate) fn session_path(&self, label: &str) -> Option<PathBuf> {
         self.sessions.as_ref().and_then(|s| s.last_session(label))
     }
 
@@ -712,14 +712,21 @@ pub async fn restart_app<R: tauri::Runtime>(
     safe_mode: bool,
     reopen_session: bool,
 ) -> CmdResult<()> {
-    let exe = std::env::current_exe().map_err(err)?;
-    let args = relaunch_args(safe_mode, session_to_reopen(&state, &lifecycle, reopen_session).as_deref());
+    relaunch(&app, safe_mode, session_to_reopen(&state, &lifecycle, reopen_session).as_deref()).map_err(err)?;
+    Ok(())
+}
+
+/// Starts a new Debrief process (optionally in safe mode, reopening `session`) and quits this one. Also used by
+/// the start-up watchdog's "Restart in Safe Mode" (`startup_watchdog`).
+pub(crate) fn relaunch<R: tauri::Runtime>(app: &tauri::AppHandle<R>, safe_mode: bool, session: Option<&Path>) -> anyhow::Result<()> {
+    let exe = std::env::current_exe()?;
+    let args = relaunch_args(safe_mode, session);
     let mut cmd = debrief_core::process::quiet_command(exe);
     // The new process must become the running instance, not hand over to this one.
-    crate::instance::release(&app);
-    cmd.args(&args).spawn().map_err(err)?;
+    crate::instance::release(app);
+    cmd.args(&args).spawn()?;
     log::info!(SafeMode = safe_mode, Reopen = args.len() > usize::from(safe_mode); "Restarting");
-    crate::window_manager::quit(&app);
+    crate::window_manager::quit(app);
     Ok(())
 }
 

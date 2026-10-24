@@ -9,6 +9,7 @@
   <link rel="icon" type="image/x-icon" href="favicon.ico">
 </head>
 <body>
-  <debrief-root></debrief-root>
+  <!-- The start-up splash (ADR 0058): shown until Angular renders the shell; styled by the global stylesheet. -->
+  <debrief-root><div class="boot-splash" role="status" data-testid="boot-splash"><div class="boot-splash-mark" aria-hidden="true"></div><span>Starting Debrief…</span></div></debrief-root>
 </body>
 </html>

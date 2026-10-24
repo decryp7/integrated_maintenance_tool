@@ -671,3 +671,33 @@ input[type='radio'] {
     background: var(--accent-ink);
   }
 }
+
+/* Start-up splash (index.html, ADR 0058): what the window shows until Angular renders its shell, so a slow or paused
+   start is never an empty window. System colours (the theme is not applied yet); it fades in after 400 ms so a fast
+   start does not flash it. Angular replaces it when the root component renders. */
+.boot-splash {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: Canvas;
+  color: GrayText;
+  font: message-box; /* the system UI font: the theme's tokens are not applied yet */
+  opacity: 0;
+  animation: boot-splash-in 240ms ease-out 400ms forwards;
+}
+.boot-splash-mark {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 2px solid currentColor;
+  opacity: 0.6;
+}
+@keyframes boot-splash-in {
+  to {
+    opacity: 1;
+  }
+}
