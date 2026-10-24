@@ -1,5 +1,5 @@
 import { BrowserRuntimeBackend } from './browser-runtime-backend';
-import { RuntimeStatus } from './browser.types';
+import { ResearchProfileStatus, RuntimeStatus } from './browser.types';
 
 const PINNED = '131.0.6778.204';
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -7,16 +7,26 @@ const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve,
 /**
  * The Chromium runtime for the browser build (dev and UI tests). `?mockChromium=none` starts without any browser,
  * `installed` with a downloaded one, `outdated` with a downloaded older one; the default finds one on the machine.
- * `?mockChromiumFail=1` makes the download fail. The engine (`app/src-tauri/src/browser/runtime.rs`) is the reference.
+ * `?mockChromiumFail=1` makes the download fail. `?mockResearchProfile=on` keeps a research profile (`busy`: in use,
+ * `damaged`: it was not used). The engine (`app/src-tauri/src/browser/runtime.rs`) is the reference.
  */
 export class MockBrowserRuntimeBackend extends BrowserRuntimeBackend {
   private status: RuntimeStatus;
   private readonly fail: boolean;
+  private profile: ResearchProfileStatus;
 
   constructor(search = '') {
     super();
     const q = new URLSearchParams(search);
     this.fail = q.get('mockChromiumFail') === '1';
+    const kept = q.get('mockResearchProfile');
+    this.profile = {
+      keep: !!kept,
+      sizeBytes: kept ? 12 << 20 : 0,
+      maxBytes: 500 << 20,
+      inUse: kept === 'busy',
+      problem: kept === 'damaged' ? 'The research profile is damaged (Default/Preferences cannot be read), so this research used a throwaway profile. Clear it in Settings ▸ Web browser to start a fresh one.' : null,
+    };
     const start = q.get('mockChromium');
     this.status =
       start === 'none'
@@ -41,6 +51,17 @@ export class MockBrowserRuntimeBackend extends BrowserRuntimeBackend {
     await delay(0);
     this.status = { available: true, source: 'found', path: '/usr/bin/chromium', installedVersion: null, pinnedVersion: PINNED, canInstall: true };
     return { ...this.status };
+  }
+
+  getResearchProfile() {
+    return Promise.resolve({ ...this.profile });
+  }
+
+  async clearResearchProfile() {
+    await delay(0);
+    if (this.profile.inUse) throw new Error('The research profile is in use by the AI browser. Close its window (or wait for the research to finish), then clear it.');
+    this.profile = { ...this.profile, sizeBytes: 0, problem: null };
+    return { ...this.profile };
   }
 
   private installed(version: string): RuntimeStatus {

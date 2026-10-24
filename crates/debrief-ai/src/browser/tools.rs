@@ -165,6 +165,8 @@ pub struct BrowserTools<'a> {
     store: StoreRef<'a>,
     limits: ToolLimits,
     next_request: u64,
+    /// `web_research` calls in this turn (one question): at most the pacing's searches per question (ADR 0060).
+    researches: u8,
 }
 
 impl<'a> BrowserTools<'a> {
@@ -175,6 +177,7 @@ impl<'a> BrowserTools<'a> {
             store: store.into(),
             limits,
             next_request: 1,
+            researches: 0,
         }
     }
 
@@ -296,6 +299,14 @@ impl<'a> BrowserTools<'a> {
                 "research needs confirmation",
             );
         }
+        let cap = researcher.settings().pacing.max_searches;
+        if self.researches >= cap {
+            return ToolOutcome::err(format!(
+                "this question already had {cap} web researches, the most allowed per question: answer from what they found, \
+                 or say what is still unknown"
+            ));
+        }
+        self.researches += 1;
         let max = input
             .get("max_results")
             .and_then(Value::as_i64)

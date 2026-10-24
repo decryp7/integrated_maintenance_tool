@@ -3,6 +3,17 @@
 What changed for people who use Debrief, one section per release. This file is curated by hand (the in-app "What's new"
 panel reads it at build time); `git cliff` lists every commit if you need the full history.
 
+## Unreleased
+
+### Added
+
+- **Research:** Fewer "verify you are human" checks: research waits a short, varying pause before each search and each page (1.5 to 4 seconds by default), makes at most three searches per question, and reuses the results and pages one chat already fetched (the same question gets the earlier answer at once). Another research waits in the Jobs pane ("Waiting for the current research"). The pauses and searches per question are in Settings ▸ Web browser
+- **Research:** Settings ▸ Web browser ▸ Keep a research profile (off by default) keeps cookies and consent between researches in a profile of research's own (never your browser's), with its size, a size limit and Clear research profile
+
+### Fixed
+
+- **Research browser:** The research browser closes again when research ends, unless you used it; it no longer opens an empty second tab
+
 ## 1.1.0 (2026-10-24)
 
 ### Added

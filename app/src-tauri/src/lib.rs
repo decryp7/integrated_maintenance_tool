@@ -488,6 +488,8 @@ command_table! {
     Mutation [WINDOW] => browser::commands::browser_open_suggested,
     Mutation [WINDOW] => browser::commands::browser_stop,
     Mutation [WINDOW] => browser::commands::research_browser_close,
+    Query [WINDOW] => browser::commands::browser_research_profile_status,
+    Mutation [WINDOW] => browser::commands::browser_research_profile_clear,
     Query [WINDOW] => browser::runtime::browser_runtime_status,
     Mutation [WINDOW] => browser::runtime::browser_runtime_install,
     Mutation [WINDOW] => browser::runtime::browser_runtime_remove,

@@ -18,7 +18,7 @@ use crate::windows::{CurrentWindow, WindowState};
 use debrief_ai::browser::policy::ScrollDirection;
 use debrief_ai::browser::research::{self, ResearchEnv, ResearchModel, ResearchStep, WithModel};
 use debrief_ai::browser::{
-    draft_or, AgentLimits, BrowserError, ChatBrowser, CheckedQuery, Drafted, Element, PageDriver, QueryDrafter, QuerySource,
+    draft_or, AgentLimits, BrowserError, ChatBrowser, CheckedQuery, Drafted, Element, PageDriver, QueryDrafter, QuerySource, ResearchCache,
     ResearchReport, ResearchRequest, ResearchSettings, Researcher, WebUrl,
 };
 use debrief_ai::{StoreAccess, StoreRef};
@@ -33,6 +33,14 @@ const TITLE_CHARS: usize = 60;
 
 static SLEEP: fn(Duration) = std::thread::sleep;
 static NOW: fn() -> Instant = Instant::now;
+
+/// A number in `0.0..1.0` for the pause of each step (the pacing's jitter; not for anything secret).
+fn jitter() -> f64 {
+    use std::hash::{BuildHasher, Hasher};
+    let mut h = std::collections::hash_map::RandomState::new().build_hasher();
+    h.write_u64(NOW().elapsed().as_nanos() as u64);
+    (h.finish() >> 11) as f64 / (1u64 << 53) as f64
+}
 
 fn snippet(s: &str) -> String {
     let one: String = s.split_whitespace().collect::<Vec<_>>().join(" ");
@@ -84,6 +92,10 @@ impl PageDriver for ReadOnlyDriver {
     }
 }
 
+fn hub_of<R: Runtime>(app: &AppHandle<R>) -> Option<Arc<BrowserHub>> {
+    app.try_state::<super::BrowserState>().map(|s| s.0.clone())
+}
+
 /// The research settings (Settings ▸ Web browser).
 pub fn settings<R: Runtime>(app: &AppHandle<R>) -> ResearchSettings {
     app.try_state::<super::BrowserState>()
@@ -109,7 +121,13 @@ fn spec(owner: &str, req: &ResearchRequest, session: Option<&str>) -> JobSpec {
 /// When it ends (done, cancelled or failed) the browser window is closed, unless the user took part in it (a page
 /// needed them, or they used the window): then it stays open, the window is told (its `lifecycle` event says `kept`)
 /// and the returned [`Finish`] says so, so the chat can tell the user and offer to close it.
-fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchRequest, ctx: &JobCtx) -> AiResult<(ResearchReport, Finish)> {
+fn run_research<R: Runtime>(
+    app: &AppHandle<R>,
+    owner: &str,
+    req: &ResearchRequest,
+    ctx: &JobCtx,
+    cache: &ResearchCache,
+) -> AiResult<(ResearchReport, Finish)> {
     let core = crate::ai::commands::core(app)?;
     let assistant = core.assistant(&crate::ai::knowledge::project_of(app, owner), ctx.cancel_flag())?;
     let hub: Arc<BrowserHub> = app
@@ -141,15 +159,19 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     };
     let log = ActivityLog { window: owner.to_string() };
     let cancel = ctx.cancel_flag();
+    let settings = hub.settings();
     let env = ResearchEnv {
         reader: &reader,
         results: &reader,
         driver: &driver,
-        search: hub.settings().search,
+        search: settings.search,
         log: &log,
         id: key.clone(),
         cancel: &cancel,
-        pace: research::PAGE_PACE,
+        pacing: settings.research.pacing,
+        jitter: &jitter,
+        searches: &hub.searches,
+        cache: Some(cache),
         total: research::TOTAL_TIME,
         sleep: &SLEEP,
         now: &NOW,
@@ -161,6 +183,16 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
         if let ResearchStep::Reading { page, of, .. } = step {
             ctx.progress(JobProgress::counts(*page as u64, *of as u64));
         }
+    });
+    // A throwaway profile was used although the kept one is on (damaged, too large): the answer says so, once.
+    let profile_note = super::renderers(app)
+        .and_then(|r| r.current(owner))
+        .and_then(|s| s.profile_note().map(str::to_string));
+    let r = r.map(|mut report| {
+        if let Some(note) = profile_note {
+            report.answer = format!("{}\n\n{note}", report.answer);
+        }
+        report
     });
     hub.end_driving(owner, &key);
     hub.forget_chat(owner, &key);
@@ -199,14 +231,15 @@ impl<R: Runtime> Researcher for TurnResearcher<R> {
             .app
             .try_state::<jobs::Jobs>()
             .ok_or_else(|| debrief_ai::AiError::Engine("Debrief is not ready yet".into()))?;
-        let (app, owner) = (self.app.clone(), self.owner.clone());
+        let (app, owner, chat) = (self.app.clone(), self.owner.clone(), self.chat.clone());
         let r2 = req.clone();
         let handle = jobs
             .submit(
                 spec(&self.owner, &req, Some(&self.chat)),
                 Controls::default(),
                 move |ctx: &JobCtx| -> AiResult<Done<ResearchReport>> {
-                    let (report, _) = run_research(&app, &owner, &r2, ctx)?;
+                    let cache = hub_of(&app).map(|h| h.research_cache(&owner, &chat)).unwrap_or_default();
+                    let (report, _) = run_research(&app, &owner, &r2, ctx, &cache)?;
                     Ok(Done::new(report))
                 },
             )
@@ -286,11 +319,21 @@ pub(crate) fn start<R: Runtime>(
         super::driving::refresh(&h, &owner);
     });
     jobs::spawn(app, spec, controls, move |ctx: &JobCtx| -> AiResult<Done<()>> {
-        let (mut report, finish) = run_research(&a, w.label(), &req, ctx)?;
+        // The chat's earlier findings are reused; a research for a new chat starts with none, and what it fetched
+        // becomes that chat's.
+        let hub = hub_of(&a);
+        let cache = match (&hub, session.as_deref()) {
+            (Some(h), Some(s)) => h.research_cache(w.label(), s),
+            _ => Arc::default(),
+        };
+        let (mut report, finish) = run_research(&a, w.label(), &req, ctx, &cache)?;
         if finish.kept() {
             report.answer = format!("{}\n\n{KEPT_OPEN_NOTE}", report.answer);
         }
         let sid = record_in_chat(&a, &w, &emit, session.as_deref(), &req.question, &report)?;
+        if let Some(h) = hub {
+            h.adopt_research_cache(w.label(), &sid, cache);
+        }
         Ok(Done::new(()).with_result(JobResult::Chat { session_id: sid }))
     })
     .map_err(AiCmdError::busy)

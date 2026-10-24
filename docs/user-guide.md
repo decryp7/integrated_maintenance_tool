@@ -464,6 +464,23 @@ If you took part (you signed in, solved a check, navigated or opened a tab) it s
 to the front, you deal with it, and the AI goes on. The browser has a throwaway profile (no cookies of yours, nothing
 kept) and the real user agent. If no browser is found, research and the modes say so and point to Settings.
 
+**Fewer checks.** Debrief never solves or skips a "verify you are human" check; it goes about the web gently so engines
+ask less often:
+
+- *A human pace.* Research waits a short, different time before each search and each page it opens (1.5 to 4 seconds
+  by default), and asks the engine for at most three results pages per question. The Jobs pane shows it ("Pausing before
+  the next search"). Settings ▸ Web browser (advanced) sets the pauses and *Searches per question*.
+- *One research at a time.* Another research waits in the Jobs pane ("Waiting for the current research") and starts
+  when the first one is done.
+- *Nothing fetched twice.* In one chat, the same question with the same search gets the earlier answer at once, and a
+  later research reuses the results and pages it already read instead of loading them again.
+- *A research profile (optional).* Settings ▸ Web browser ▸ *Keep a research profile* (off by default) gives research a
+  browser profile of its own in Debrief's data folder (never your own browser's), so a consent you gave or a check you
+  passed is remembered next time. Only one browser uses it at a time; a second one (another window's chat) gets a
+  throwaway profile. Settings shows its size; *Clear research profile* empties it (not while a research runs or the
+  browser is open). When it is damaged or over its size limit, research uses a throwaway profile, says so once, and
+  *Clear research profile* repairs it.
+
 **The search text.** For *Search the web for this error* and *Research this*, the AI writes the search from your
 question and the event: it keeps the exception type, the decisive words of the message, error codes and the
 framework or library with its version, and leaves out ids, GUIDs, host, machine and user names, paths, ports,

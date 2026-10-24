@@ -70,6 +70,14 @@ impl JobKind {
         }
     }
 
+    /// What a queued job of this kind shows while it waits for its turn (none: only its place in the queue).
+    pub fn waiting_message(self) -> Option<&'static str> {
+        match self {
+            JobKind::Research => Some("Waiting for the current research"),
+            _ => None,
+        }
+    }
+
     /// Whether the limit counts per window instead of app-wide.
     pub fn per_window(self) -> bool {
         self == JobKind::Import

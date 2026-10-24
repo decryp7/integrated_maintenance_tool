@@ -163,7 +163,10 @@ fn read(
         log: &NoLog,
         id: "live".into(),
         cancel: &cancel,
-        pace: research::PAGE_PACE,
+        pacing: debrief_ai::browser::Pacing::default(),
+        jitter: &|| 0.5,
+        searches: &debrief_ai::browser::SearchClock::default(),
+        cache: None,
         total: research::TOTAL_TIME,
         sleep: &SLEEP,
         now: &NOW,
@@ -175,7 +178,7 @@ fn read(
             let first = match &read.outcome {
                 ResultsOutcome::Links(links) => match links.first() {
                     Some((link, _)) => {
-                        std::thread::sleep(research::PAGE_PACE);
+                        std::thread::sleep(debrief_ai::browser::gentle::DEFAULT_PAUSE_MIN);
                         Some(research::open_result(&env, link, &url, 1)?.map(|o| o.url.site().to_string()))
                     }
                     None => None,

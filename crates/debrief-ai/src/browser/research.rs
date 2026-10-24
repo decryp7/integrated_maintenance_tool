@@ -13,8 +13,9 @@
 //! Everything here is pure or behind the [`PageReader`]/[`PageDriver`] ports and the [`ResearchModel`] trait,
 //! so it is tested without a webview or a model.
 
-use super::capture::MAX_CAPTURE_CHARS;
+use super::capture::{PageCapture, MAX_CAPTURE_CHARS};
 use super::engines::SearchSettings;
+use super::gentle::{pause_between, Pacing, ResearchCache, SearchClock};
 use super::leak::{self, LeakReport};
 use super::port::{ActionEntry, ActionLog, ActionOutcome, BrowserError, PageDriver, PageReader};
 use super::readiness;
@@ -45,8 +46,6 @@ const TIME_PER_RESULT: Duration = Duration::from_secs(45);
 const NOTES_CHARS: usize = 16_000;
 /// Candidate links of one results page the model picks from.
 const MAX_CANDIDATES_SHOWN: usize = found::MAX_CANDIDATES;
-/// Pause between two page loads (a human pace for the sites).
-pub const PAGE_PACE: Duration = Duration::from_millis(1500);
 /// Page text given to the model per page.
 const PAGE_CHARS: usize = 6_000;
 /// What the model may say about one page.
@@ -76,6 +75,8 @@ pub struct ResearchSettings {
     /// The model may research on its own (`web_research`); off: it only offers a "Research this" button.
     pub auto: bool,
     pub max_results: u8,
+    /// Pauses before searches and page loads, and the searches per research ([`super::gentle`]).
+    pub pacing: Pacing,
 }
 
 impl Default for ResearchSettings {
@@ -83,6 +84,7 @@ impl Default for ResearchSettings {
         ResearchSettings {
             auto: true,
             max_results: DEFAULT_RESULTS,
+            pacing: Pacing::default(),
         }
     }
 }
@@ -219,17 +221,35 @@ impl ResearchReport {
     }
 }
 
+/// What a research pauses before.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PauseBefore {
+    Search,
+    Page,
+}
+
 /// Where the research is ("page 2 of 5").
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResearchStep {
+    /// A short pause, so the engine and the sites see a human pace.
+    Pausing(PauseBefore),
     Searching,
-    Reading { page: usize, of: usize, site: String },
+    /// The chat already researched this: its answer is used, nothing is searched.
+    Reusing,
+    Reading {
+        page: usize,
+        of: usize,
+        site: String,
+    },
     Writing,
 }
 
 impl ResearchStep {
     pub fn describe(&self) -> String {
         match self {
+            ResearchStep::Pausing(PauseBefore::Search) => "Pausing before the next search".into(),
+            ResearchStep::Pausing(PauseBefore::Page) => "Pausing before the next page".into(),
+            ResearchStep::Reusing => "Using what this chat already found".into(),
             ResearchStep::Searching => "searching".into(),
             ResearchStep::Reading { page, of, site } => format!("Reading result {page} of {of}: {site}"),
             ResearchStep::Writing => "writing the answer".into(),
@@ -267,7 +287,13 @@ pub struct ResearchEnv<'a> {
     /// The id the activity log names it by (`research:<job>`).
     pub id: String,
     pub cancel: &'a AtomicBool,
-    pub pace: Duration,
+    pub pacing: Pacing,
+    /// A number in `0.0..1.0` that picks each pause within the pacing's range (tests pass a fixed one).
+    pub jitter: &'a (dyn Fn() -> f64 + Sync),
+    /// When the app's last search went out (shared by all researches).
+    pub searches: &'a SearchClock,
+    /// What the chat already fetched: reused before searching or loading again (none: nothing is reused).
+    pub cache: Option<&'a ResearchCache>,
     pub total: Duration,
     /// Waits (tests pass a no-op or a fake clock's advance).
     pub sleep: &'a (dyn Fn(Duration) + Sync),
@@ -292,6 +318,30 @@ impl ResearchEnv<'_> {
         }
         if self.cancelled() {
             return Err(AiError::Cancelled);
+        }
+        Ok(())
+    }
+
+    fn pause(&self) -> Duration {
+        pause_between(self.pacing.pause_min, self.pacing.pause_max, (self.jitter)())
+    }
+
+    /// Before a search request: what is left of a pause since the app's last search (none for the first one).
+    fn pause_before_search(&self, on_step: &mut dyn FnMut(&ResearchStep)) -> Result<()> {
+        let left = self.searches.wait_for(self.pause(), (self.now)());
+        if !left.is_zero() {
+            on_step(&ResearchStep::Pausing(PauseBefore::Search));
+            self.wait(left)?;
+        }
+        Ok(())
+    }
+
+    /// Before a result page load.
+    fn pause_before_page(&self, on_step: &mut dyn FnMut(&ResearchStep)) -> Result<()> {
+        let d = self.pause();
+        if !d.is_zero() {
+            on_step(&ResearchStep::Pausing(PauseBefore::Page));
+            self.wait(d)?;
         }
         Ok(())
     }
@@ -325,16 +375,22 @@ fn browser_closed(e: &AiError) -> bool {
 /// Searches `query` with the engine of `env` in the browser (the engine's ordinary results page) and returns its
 /// address once the page load finished (the results may still be rendering: [`read_results`] waits for them).
 pub fn search(env: &ResearchEnv<'_>, query: &str) -> Result<WebUrl> {
-    let search_url = env
-        .search
-        .search_url(env.search.engine, query)
-        .map_err(|e| AiError::Invalid(e.to_string()))?;
+    let search_url = search_url(env, query)?;
+    env.searches.record((env.now)());
     env.driver.navigate(&search_url).map_err(browser_error)?;
     env.log("research.search", Some(search_url.site().to_string()), ActionOutcome::Done, 0);
     Ok(search_url)
 }
 
-/// Runs a research (blocking): search, read the results, answer. `on_step` hears the progress.
+fn search_url(env: &ResearchEnv<'_>, query: &str) -> Result<WebUrl> {
+    env.search
+        .search_url(env.search.engine, query)
+        .map_err(|e| AiError::Invalid(e.to_string()))
+}
+
+/// Runs a research (blocking): search, read the results, answer. `on_step` hears the progress. What the chat already
+/// fetched ([`ResearchEnv::cache`]) is used first: the same question and search text gets the earlier answer, a
+/// search done before its result links, a page read before its text; nothing of it is fetched again.
 pub fn research(
     env: &ResearchEnv<'_>,
     model: &dyn ResearchModel,
@@ -344,8 +400,22 @@ pub fn research(
     let question = clip(req.question.trim(), MAX_QUESTION_CHARS);
     let max = usize::from(req.max_results.clamp(MIN_RESULTS, MAX_RESULTS));
     let started = (env.now)();
-    on_step(&ResearchStep::Searching);
-    let search_url = search(env, &req.query)?;
+    if let Some(report) = env.cache.and_then(|c| c.answer(&question, &req.query)) {
+        on_step(&ResearchStep::Reusing);
+        log::info!("Research used the answer this chat already has for the same question and search");
+        return Ok(report);
+    }
+    let cached_links = env.cache.and_then(|c| c.links(&req.query));
+    let search_url = match cached_links {
+        Some(_) => search_url(env, &req.query)?,
+        None => {
+            env.pause_before_search(on_step)?;
+            on_step(&ResearchStep::Searching);
+            search(env, &req.query)?
+        }
+    };
+    let mut cached_links = cached_links;
+    let mut searches = 1u8;
     // The model picks the results from each results page itself (never from a page shown before it, nor later from a
     // result page); each result is opened directly by its address, or through the engine's own redirect when the
     // engine hides the address behind it (one redirect, to whatever site the engine sends it). Every picked result is
@@ -361,8 +431,19 @@ pub fn research(
     let mut skipped: Vec<SkippedPage> = Vec::new();
     'pages: loop {
         // A later results page that fails ends the paging; what was read so far still makes the answer.
-        let links = match collect_results(env, model, &question, &results_page, max - tried) {
-            Ok(Found::Links(links)) => links,
+        let collected = match cached_links.take() {
+            Some(links) => Ok(Found::Links(links)),
+            None => collect_results(env, model, &question, &results_page, max - tried),
+        };
+        let links = match collected {
+            Ok(Found::Links(links)) => {
+                if page_no == 0 {
+                    if let Some(c) = env.cache {
+                        c.put_links(&req.query, links.clone());
+                    }
+                }
+                links
+            }
             Ok(Found::Nothing(why)) if page_no == 0 => return Ok(nothing_found(env, req, &search_url, why)),
             Err(e) if page_no == 0 || matches!(e, AiError::Cancelled) || browser_closed(&e) => return Err(e),
             Ok(Found::Nothing(_)) | Err(_) => break,
@@ -387,8 +468,9 @@ pub fn research(
                 skipped.push(skip("not read: the research took long enough"));
                 continue;
             }
-            if tried > 1 {
-                env.wait(env.pace)?;
+            let cached_page = env.cache.and_then(|c| c.page(link.as_str()));
+            if tried > 1 && cached_page.is_none() {
+                env.pause_before_page(on_step)?;
             }
             on_step(&ResearchStep::Reading {
                 page: tried,
@@ -399,31 +481,24 @@ pub fn research(
                     link.site().to_string()
                 },
             });
-            let OpenedResult { url, page } = match open_result(env, link, &results_page, step)? {
-                Ok(opened) => opened,
-                Err(reason) => {
-                    skipped.push(skip(&reason));
-                    continue;
-                }
+            let (url, capture) = match cached_page {
+                Some(c) => match WebUrl::parse(&c.url) {
+                    Ok(u) => (u, c),
+                    Err(_) => (link.clone(), c),
+                },
+                None => match read_result(env, link, &results_page, step)? {
+                    Ok(read) => read,
+                    Err(reason) => {
+                        skipped.push(skip(&reason));
+                        continue;
+                    }
+                },
             };
             let url = &url;
             let skip = |reason: &str| SkippedPage {
                 title: title.clone(),
                 url: url.as_str().to_string(),
                 reason: reason.to_string(),
-            };
-            if let Some(h) = page.hand_off {
-                env.log("research.skip", Some(url.site().to_string()), ActionOutcome::HandedBack, step);
-                skipped.push(skip(&format!("skipped: {}", h.describe())));
-                continue;
-            }
-            let capture = match env.reader.capture() {
-                Ok(c) => c,
-                Err(BrowserError::Closed) => return Err(browser_error(BrowserError::Closed)),
-                Err(e) => {
-                    skipped.push(skip(&format!("could not be read ({e})")));
-                    continue;
-                }
             };
             if capture.text.trim().is_empty() {
                 skipped.push(skip("the page has no readable text"));
@@ -451,12 +526,18 @@ pub fn research(
         if tried >= max || (env.now)().duration_since(started) >= budget {
             break;
         }
-        // The engine's next results page, when it has one this research can ask for.
+        // The engine's next results page, when it has one this research can ask for (within the searches allowed).
+        if searches >= env.pacing.max_searches {
+            log::info!("Research made its {searches} searches allowed per question");
+            break;
+        }
         page_no += 1;
         let Ok(Some(next)) = env.search.results_page_url(env.search.engine, &req.query, page_no) else {
             break;
         };
-        env.wait(env.pace)?;
+        env.pause_before_search(on_step)?;
+        searches += 1;
+        env.searches.record((env.now)());
         match env.driver.navigate(&next) {
             Ok(()) => {}
             Err(BrowserError::Closed) => return Err(browser_error(BrowserError::Closed)),
@@ -474,14 +555,48 @@ pub fn research(
         on_step(&ResearchStep::Writing);
         model.answer(&question, &notes.join("\n"))?
     };
-    Ok(ResearchReport {
+    let report = ResearchReport {
         query: req.query.clone(),
         answer: with_sources(answer.trim(), &read, &skipped),
         no_results: None,
         results_page: None,
         read,
         skipped,
-    })
+    };
+    if let Some(c) = env.cache {
+        c.put_answer(&question, &req.query, report.clone());
+    }
+    Ok(report)
+}
+
+/// Opens one result and reads it: the address it was read at and its text, kept in the chat's cache; `Ok(Err(why))`
+/// when it was skipped (it did not open, a page needed the user, it could not be read).
+fn read_result(
+    env: &ResearchEnv<'_>,
+    link: &WebUrl,
+    search: &WebUrl,
+    step: u32,
+) -> Result<std::result::Result<(WebUrl, PageCapture), String>> {
+    let OpenedResult { url, page } = match open_result(env, link, search, step)? {
+        Ok(opened) => opened,
+        Err(reason) => return Ok(Err(reason)),
+    };
+    if let Some(h) = page.hand_off {
+        env.log("research.skip", Some(url.site().to_string()), ActionOutcome::HandedBack, step);
+        return Ok(Err(format!("skipped: {}", h.describe())));
+    }
+    let capture = match env.reader.capture() {
+        Ok(c) => c,
+        Err(BrowserError::Closed) => return Err(browser_error(BrowserError::Closed)),
+        Err(e) => return Ok(Err(format!("could not be read ({e})"))),
+    };
+    if let Some(c) = env.cache {
+        c.put_page(link.as_str(), capture.clone());
+        if url != *link {
+            c.put_page(url.as_str(), capture.clone());
+        }
+    }
+    Ok(Ok((url, capture)))
 }
 
 /// A result shown in the browser: the address it was read at (where the engine's redirect went, for a result opened
@@ -1167,7 +1282,10 @@ mod tests {
             log,
             id: "research:1".into(),
             cancel,
-            pace: Duration::from_millis(300),
+            pacing: Pacing::fixed(Duration::from_millis(300)),
+            jitter: &|| 0.0,
+            searches: &SearchClock::default(),
+            cache: None,
             total: TOTAL_TIME,
             sleep: &|_| {},
             now: &Instant::now,
@@ -1299,6 +1417,7 @@ mod tests {
         let w = three_results();
         let log = MemoryLog::default();
         let (r, steps) = run(&w, &model(), 3, &AtomicBool::new(false), &log);
+        let steps: Vec<String> = steps.into_iter().filter(|s| !s.starts_with("Pausing")).collect();
         let r = r.unwrap();
         assert_eq!(
             visits(&w),
@@ -1365,7 +1484,8 @@ mod tests {
             ResearchSettings::default(),
             ResearchSettings {
                 auto: true,
-                max_results: 10
+                max_results: 10,
+                pacing: Pacing::default(),
             }
         );
         // A request below the smallest choice still tries every result the model picked, up to 10.
@@ -1471,7 +1591,10 @@ mod tests {
             log: &log,
             id: "research:2".into(),
             cancel: &AtomicBool::new(false),
-            pace: Duration::from_secs(100),
+            pacing: Pacing::fixed(Duration::from_secs(100)),
+            jitter: &|| 0.0,
+            searches: &SearchClock::default(),
+            cache: None,
             total: Duration::from_secs(150),
             sleep: &|d| {
                 let mut c = clock.lock().unwrap();
@@ -1486,6 +1609,145 @@ mod tests {
         };
         let r = research(&env, &model(), &req, &mut |_| {}).unwrap();
         assert!(r.skipped.iter().any(|s| s.reason.contains("took long enough")), "{:?}", r.skipped);
+    }
+
+    /// A research of `web()` with a fake clock (sleeping only moves it), the given pacing, search clock and cache.
+    fn paced(
+        w: &FakeWeb,
+        question: &str,
+        pacing: Pacing,
+        searches: &SearchClock,
+        cache: Option<&ResearchCache>,
+        clock: &Mutex<Instant>,
+    ) -> (ResearchReport, Vec<String>) {
+        let log = MemoryLog::default();
+        let env = ResearchEnv {
+            reader: w,
+            results: w,
+            driver: w,
+            search: SearchSettings::default(),
+            log: &log,
+            id: "research:4".into(),
+            cancel: &AtomicBool::new(false),
+            pacing,
+            jitter: &|| 0.5,
+            searches,
+            cache,
+            total: TOTAL_TIME,
+            sleep: &|d| *clock.lock().unwrap() += d,
+            now: &|| *clock.lock().unwrap(),
+        };
+        let req = ResearchRequest {
+            question: question.into(),
+            query: "HRESULT 0x80070005 IIS".into(),
+            max_results: 5,
+        };
+        let mut steps = Vec::new();
+        let r = research(&env, &model(), &req, &mut |s| steps.push(s.describe())).unwrap();
+        (r, steps)
+    }
+
+    #[test]
+    fn searches_and_pages_wait_a_jittered_pause_that_the_job_shows() {
+        let w = web();
+        let t0 = Instant::now();
+        let clock = Mutex::new(t0);
+        let searches = SearchClock::default();
+        // Another research searched just now: this one pauses before its search too.
+        searches.record(t0);
+        let pacing = Pacing::new(Duration::from_millis(1500), Duration::from_millis(4000), 2);
+        let (_, steps) = paced(&w, "q", pacing, &searches, None, &clock);
+        let pause = Duration::from_millis(2750);
+        assert_eq!(steps[0], "Pausing before the next search");
+        assert_eq!(steps[1], "searching");
+        assert!(steps[2].starts_with("Reading result 1 of"), "{steps:?}");
+        assert_eq!(steps[3], "Pausing before the next page", "{steps:?}");
+        assert!(steps[4].starts_with("Reading result 2 of"), "{steps:?}");
+        let page_pauses = steps.iter().filter(|s| *s == "Pausing before the next page").count();
+        let search_pauses = steps.iter().filter(|s| *s == "Pausing before the next search").count();
+        // One before each page after the first. The next results page needs no pause of its own: more than a pause
+        // went by since the last search (the page pauses).
+        assert_eq!((page_pauses, search_pauses), (4, 1), "{steps:?}");
+        assert!(
+            w.visited.lock().unwrap().iter().any(|u| u.contains("&start=")),
+            "the second search was made"
+        );
+        let waited = clock.lock().unwrap().duration_since(t0);
+        assert!(waited >= pause * 5, "{waited:?}");
+        let hour = Duration::from_secs(3600);
+        assert!(
+            searches.wait_for(hour, *clock.lock().unwrap()) > hour - waited,
+            "this research's last search is noted for the next one"
+        );
+    }
+
+    #[test]
+    fn the_first_search_goes_at_once_and_the_searches_per_question_are_capped() {
+        let w = web();
+        let clock = Mutex::new(Instant::now());
+        let (_, steps) = paced(
+            &w,
+            "q",
+            Pacing::new(Duration::ZERO, Duration::ZERO, 1),
+            &SearchClock::default(),
+            None,
+            &clock,
+        );
+        assert_eq!(steps[0], "searching", "nothing to wait for");
+        assert!(!steps.iter().any(|s| s.starts_with("Pausing")), "zero pauses are not announced");
+        assert!(
+            !w.visited.lock().unwrap().iter().any(|u| u.contains("&start=")),
+            "one search allowed: no next results page"
+        );
+        let w = web();
+        paced(
+            &w,
+            "q",
+            Pacing::new(Duration::ZERO, Duration::ZERO, 3),
+            &SearchClock::default(),
+            None,
+            &clock,
+        );
+        assert!(
+            w.visited.lock().unwrap().iter().any(|u| u.contains("&start=")),
+            "more allowed: the next page is asked for"
+        );
+    }
+
+    #[test]
+    fn a_chat_reuses_what_it_already_fetched_before_searching_again() {
+        let w = web();
+        let clock = Mutex::new(Instant::now());
+        let (searches, cache) = (SearchClock::default(), ResearchCache::default());
+        let none = Pacing::new(Duration::ZERO, Duration::ZERO, 1);
+        let (first, _) = paced(&w, "what does it mean?", none, &searches, Some(&cache), &clock);
+        let opened = w.visited.lock().unwrap().len();
+        // The same question and search: the earlier answer, nothing fetched.
+        let (again, steps) = paced(&w, "What does it  mean?", none, &searches, Some(&cache), &clock);
+        assert_eq!(again, first);
+        assert_eq!(steps, ["Using what this chat already found"]);
+        assert_eq!(w.visited.lock().unwrap().len(), opened, "no page loaded");
+        // Another question on the same search: no search, and the page read before is not loaded again.
+        let (other, steps) = paced(&w, "how do I fix it?", none, &searches, Some(&cache), &clock);
+        assert!(!steps.iter().any(|s| s == "searching"), "{steps:?}");
+        let visited = w.visited.lock().unwrap().clone();
+        assert_eq!(
+            visited.iter().filter(|u| u.as_str() == SEARCH).count(),
+            1,
+            "searched once: {visited:?}"
+        );
+        assert_eq!(
+            visited
+                .iter()
+                .filter(|u| u.as_str() == "https://learn.microsoft.com/iis/access-denied")
+                .count(),
+            1,
+            "a page read once is read from the cache: {visited:?}"
+        );
+        assert_eq!(other.read[0].url, "https://learn.microsoft.com/iis/access-denied");
+        // Without a cache, everything is fetched again.
+        paced(&w, "how do I fix it?", none, &searches, None, &clock);
+        assert_eq!(w.visited.lock().unwrap().iter().filter(|u| u.as_str() == SEARCH).count(), 2);
     }
 
     #[test]
@@ -1540,7 +1802,10 @@ mod tests {
             log: &log,
             id: "research:3".into(),
             cancel: &AtomicBool::new(false),
-            pace: Duration::ZERO,
+            pacing: Pacing::fixed(Duration::ZERO),
+            jitter: &|| 0.0,
+            searches: &SearchClock::default(),
+            cache: None,
             total: TOTAL_TIME,
             sleep: &|_| {},
             now: &Instant::now,
@@ -1715,7 +1980,10 @@ mod tests {
             log: &log,
             id: "research:4".into(),
             cancel: &AtomicBool::new(false),
-            pace: Duration::ZERO,
+            pacing: Pacing::fixed(Duration::ZERO),
+            jitter: &|| 0.0,
+            searches: &SearchClock::default(),
+            cache: None,
             total: TOTAL_TIME,
             sleep: &|d| *clock.lock().unwrap() += d,
             now: &|| *clock.lock().unwrap(),

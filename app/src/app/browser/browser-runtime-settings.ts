@@ -1,5 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, inject, OnInit } from '@angular/core';
 import { BrowserRuntimeStore } from './browser-runtime.store';
+import { ResearchProfileSettings } from './research-profile-settings';
 
 /**
  * Settings ▸ Web browser ▸ Browser for research: which Chromium-based browser research and the chat's browser modes
@@ -8,6 +9,7 @@ import { BrowserRuntimeStore } from './browser-runtime.store';
  */
 @Component({
   selector: 'debrief-browser-runtime-settings',
+  imports: [ResearchProfileSettings],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <section class="runtime" aria-labelledby="browser-runtime-title" data-testid="browser-runtime">
@@ -45,6 +47,7 @@ import { BrowserRuntimeStore } from './browser-runtime.store';
         <p class="err" role="alert" data-testid="browser-runtime-error">{{ e }} <button type="button" class="link" (click)="retry()" data-testid="browser-runtime-retry" i18n="@@browser.runtime.retry">Retry</button></p>
       }
     </section>
+    <debrief-research-profile-settings />
   `,
   styles: `
     :host { display: block; margin-top: 16px; }

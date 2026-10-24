@@ -2,7 +2,8 @@
 
 - Status: Accepted (2026-10-24)
 - Date: 2026-10-24
-- Related: ADR 0043 (the renderer: a real Chromium driven over DevTools), ADR 0055 (service health), Paddock rules 5,
+- Related: ADR 0043 (the renderer: a real Chromium driven over DevTools), ADR 0055 (service health), ADR 0060 (gentler
+  research: pacing, a chat's cache, the opt-in research profile), Paddock rules 5,
   7, 11, 19 and 40
 
 ## Context
@@ -36,7 +37,8 @@ of "running".
    second (a close it did not report); every use checks it too. A page call or load wait on a closed page returns
    `Error::Closed` at once instead of waiting for its timeout.
 3. **Gone means gone.** The transition to `gone` drops the "kept open" mark, ends what is left (a browser without a
-   window is closed, then killed), removes the throwaway profile and tells the window (`lifecycle` event). The next
+   window is closed, then killed), removes the throwaway profile (the opt-in research profile of ADR 0060 is kept, and
+   released for the next browser) and tells the window (`lifecycle` event). The next
    use launches a fresh browser.
 4. **A run keeps to its browser.** Research holds a `Lease`: the first use pins the browser generation, and once it
    is gone the run fails with `BrowserError::Closed` instead of opening another window behind the user's back.

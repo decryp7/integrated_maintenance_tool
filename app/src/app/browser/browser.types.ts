@@ -107,6 +107,18 @@ export interface RuntimeStatus {
   canInstall: boolean;
 }
 
+/** `browser_research_profile_status` (and what clearing returns): the kept research profile of Settings ▸ Web browser. */
+export interface ResearchProfileStatus {
+  /** Keep a research profile is on. */
+  keep: boolean;
+  sizeBytes: number;
+  maxBytes: number;
+  /** A browser uses it now: it cannot be cleared. */
+  inUse: boolean;
+  /** Why it was not used last time (damaged, too large), until it is fine again or cleared. */
+  problem: string | null;
+}
+
 /** The user's answer on an agent approval card. */
 export type AgentDecision = 'allow' | 'allowSite' | 'deny';
 

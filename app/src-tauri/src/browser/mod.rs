@@ -20,6 +20,7 @@ pub(crate) mod lifecycle;
 #[cfg(test)]
 mod live;
 mod placement;
+pub(crate) mod profile;
 pub(crate) mod renderer;
 pub(crate) mod research;
 pub(crate) mod runtime;
@@ -230,6 +231,9 @@ pub fn init<R: Runtime>(app: &AppHandle<R>) {
         Arc::new(settings_section::BrowserSection {
             hub,
             renderers: Some(renderers),
+            profile_dir: crate::app_dirs::resolve(app, crate::app_dirs::AppDir::Data)
+                .ok()
+                .map(|d| profile::folder(&d)),
         }),
         crate::settings::SectionGroup::App,
     ) {

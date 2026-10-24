@@ -3,7 +3,7 @@
 //! handed to a chat, links a chat suggested, and each chat's hold on the browser (`debrief_ai::browser::ChatBrowser`).
 //! Plain Rust, no Tauri.
 
-use debrief_ai::browser::{AgentLimits, ChatBrowser, PageCapture, ResearchSettings, SearchSettings};
+use debrief_ai::browser::{AgentLimits, ChatBrowser, PageCapture, ResearchCache, ResearchSettings, SearchClock, SearchSettings};
 use serde::Serialize;
 use std::collections::{HashMap, VecDeque};
 use std::sync::{Arc, Mutex, MutexGuard, RwLock};
@@ -40,6 +40,25 @@ pub struct BrowserSettings {
     pub research: ResearchSettings,
     /// A browser the user chose (empty: the installed or discovered one).
     pub browser_path: Option<std::path::PathBuf>,
+    /// The kept research profile (ADR 0058).
+    pub profile: ProfileSettings,
+}
+
+/// Settings ▸ Web browser ▸ Keep a research profile: off, every browser starts with a throwaway profile.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ProfileSettings {
+    pub keep: bool,
+    /// Above this size the profile is not used (a throwaway one is) until the user clears it.
+    pub max_bytes: u64,
+}
+
+impl Default for ProfileSettings {
+    fn default() -> Self {
+        ProfileSettings {
+            keep: false,
+            max_bytes: super::profile::DEFAULT_MAX_BYTES,
+        }
+    }
 }
 
 #[derive(Default)]
@@ -51,6 +70,8 @@ struct Owner {
     announced: Option<AiDriver>,
     attachments: HashMap<String, Vec<PageCapture>>,
     suggested: HashMap<String, VecDeque<String>>,
+    /// What each chat's researches fetched, reused before searching again (ADR 0058).
+    research_caches: HashMap<String, Arc<ResearchCache>>,
 }
 
 impl Owner {
@@ -72,6 +93,8 @@ impl Owner {
 pub struct BrowserHub {
     owners: Mutex<HashMap<String, Owner>>,
     settings: RwLock<BrowserSettings>,
+    /// When the app's last search went out: every research keeps the pause after it (ADR 0058).
+    pub searches: SearchClock,
 }
 
 impl BrowserHub {
@@ -112,9 +135,22 @@ impl BrowserHub {
             }
             o.attachments.remove(chat);
             o.suggested.remove(chat);
+            o.research_caches.remove(chat);
             if o.driving.as_deref() == Some(chat) {
                 o.driving = None;
             }
+        });
+    }
+
+    /// What chat `chat`'s researches fetched (created on first use; forgotten with the chat).
+    pub fn research_cache(&self, owner: &str, chat: &str) -> Arc<ResearchCache> {
+        self.with(owner, |o| o.research_caches.entry(chat.to_string()).or_default().clone())
+    }
+
+    /// A research that started without a chat recorded its answer in `chat`: what it fetched becomes that chat's.
+    pub fn adopt_research_cache(&self, owner: &str, chat: &str, cache: Arc<ResearchCache>) {
+        self.with(owner, |o| {
+            o.research_caches.entry(chat.to_string()).or_insert(cache);
         });
     }
 

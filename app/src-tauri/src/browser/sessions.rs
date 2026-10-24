@@ -52,6 +52,43 @@ pub struct Session {
     pub(super) handed_off: AtomicBool,
     /// The address the AI last navigated to (after redirects); a different one later means the user navigated.
     last_url: Mutex<Option<String>>,
+    /// Why this browser got a throwaway profile although the kept one is on (told once; see [`Session::profile_note`]).
+    profile_note: Option<String>,
+    /// This browser uses the kept research profile; released when the browser is gone (dropped after `chromium`).
+    _kept: Option<KeptHold>,
+}
+
+/// The kept research profile is in use by `owner`'s browser until this is dropped.
+struct KeptHold(Arc<Mutex<Option<String>>>);
+
+impl Drop for KeptHold {
+    fn drop(&mut self) {
+        *crate::sync::lock(&self.0) = None;
+    }
+}
+
+/// The kept research profile (Settings ▸ Web browser ▸ Keep a research profile; ADR 0058).
+#[derive(Debug, Clone)]
+struct KeptProfile {
+    dir: PathBuf,
+    /// The setting is on: browsers use it.
+    keep: bool,
+    max_bytes: u64,
+}
+
+/// The kept research profile as Settings ▸ Web browser shows it.
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ProfileStatus {
+    /// The setting is on.
+    pub keep: bool,
+    /// Its size now (0 when it does not exist).
+    pub size_bytes: u64,
+    pub max_bytes: u64,
+    /// A browser uses it now: it cannot be cleared.
+    pub in_use: bool,
+    /// Why it was not used last time (damaged, too large), until it is fine again or cleared.
+    pub problem: Option<String>,
 }
 
 impl Session {
@@ -83,6 +120,18 @@ impl Session {
     /// Closes the browser (gracefully, then by force) and removes its throwaway profile.
     fn close(&self, grace: Duration) {
         crate::sync::lock(&self.chromium).close_gracefully(grace);
+    }
+
+    /// Why this browser got a throwaway profile although the kept research profile is on (damaged, too large, did not
+    /// start); `None` when it uses the kept profile, the setting is off, or the reason was told before.
+    pub fn profile_note(&self) -> Option<&str> {
+        self.profile_note.as_deref()
+    }
+
+    /// Whether this browser uses the kept research profile.
+    #[cfg(test)]
+    pub fn kept_profile(&self) -> bool {
+        self._kept.is_some()
     }
 
     pub(super) fn remember_url(&self) {
@@ -230,6 +279,14 @@ struct Inner {
     listeners: RwLock<Vec<Listener>>,
     placer: RwLock<Option<Placer>>,
     generations: AtomicU64,
+    /// The kept research profile's folder and setting (none: no data folder, as in tests without one).
+    kept: RwLock<Option<KeptProfile>>,
+    /// The window whose browser uses the kept profile now (one browser per profile; others get a throwaway one).
+    kept_user: Arc<Mutex<Option<String>>>,
+    /// Why the kept profile was not used last time, until it is fine again or cleared.
+    kept_problem: Mutex<Option<String>>,
+    /// Reasons already told (each is told once, until the profile is cleared).
+    told: Mutex<std::collections::HashSet<String>>,
 }
 
 impl Inner {
@@ -305,6 +362,77 @@ impl Renderers {
 
     pub fn set_installed(&self, p: Option<PathBuf>) {
         crate::sync::write(&self.inner.sources).installed = p;
+    }
+
+    /// The kept research profile's folder (`dir`; none when there is no data folder) and whether browsers use it.
+    pub fn set_kept_profile(&self, dir: Option<PathBuf>, keep: bool, max_bytes: u64) {
+        *crate::sync::write(&self.inner.kept) = dir.map(|dir| KeptProfile { dir, keep, max_bytes });
+    }
+
+    /// The kept research profile as Settings shows it (its size is counted: call off the IPC thread for a big one).
+    pub fn kept_profile_status(&self) -> ProfileStatus {
+        let kept = crate::sync::read(&self.inner.kept).clone();
+        let default_max = super::profile::DEFAULT_MAX_BYTES;
+        ProfileStatus {
+            keep: kept.as_ref().is_some_and(|k| k.keep),
+            size_bytes: kept.as_ref().map_or(0, |k| super::profile::size(&k.dir)),
+            max_bytes: kept.as_ref().map_or(default_max, |k| k.max_bytes),
+            in_use: crate::sync::lock(&self.inner.kept_user).is_some(),
+            problem: crate::sync::lock(&self.inner.kept_problem).clone(),
+        }
+    }
+
+    /// Removes the kept research profile; refused while a browser uses it (the reason says what to do).
+    pub fn clear_kept_profile(&self) -> Result<(), String> {
+        // Held while clearing: no browser can take the profile meanwhile.
+        let user = crate::sync::lock(&self.inner.kept_user);
+        if user.is_some() {
+            return Err(
+                "The research profile is in use by the AI browser. Close its window (or wait for the research to finish), then clear it."
+                    .into(),
+            );
+        }
+        if let Some(k) = crate::sync::read(&self.inner.kept).as_ref() {
+            super::profile::clear(&k.dir)?;
+        }
+        *crate::sync::lock(&self.inner.kept_problem) = None;
+        crate::sync::lock(&self.inner.told).clear();
+        log::info!("The research profile was cleared");
+        Ok(())
+    }
+
+    /// The profile for `owner`'s next browser: the kept one when it is on, free and usable; else a throwaway one, with
+    /// the reason to tell (once) when the kept one has a problem.
+    fn profile_for(&self, owner: &str) -> (Profile, Option<KeptHold>, Option<String>) {
+        let Some(kept) = crate::sync::read(&self.inner.kept).clone().filter(|k| k.keep) else {
+            return (Profile::Throwaway, None, None);
+        };
+        let mut user = crate::sync::lock(&self.inner.kept_user);
+        if let Some(other) = user.as_deref() {
+            // One browser per profile: Chrome locks it. Research runs one at a time, so this is another window's chat.
+            log::info!("The research profile is in use by the AI browser of {other}; the one of {owner} gets a throwaway profile");
+            return (Profile::Throwaway, None, None);
+        }
+        match super::profile::check(&kept.dir, kept.max_bytes) {
+            super::profile::Check::Usable => {
+                *user = Some(owner.to_string());
+                *crate::sync::lock(&self.inner.kept_problem) = None;
+                let hold = KeptHold(self.inner.kept_user.clone());
+                (Profile::Persistent(kept.dir), Some(hold), None)
+            }
+            bad => {
+                let why = bad.message().unwrap_or_default();
+                drop(user);
+                (Profile::Throwaway, None, self.problem(why))
+            }
+        }
+    }
+
+    /// Records why the kept profile was not used; the reason to tell when it was not told before.
+    fn problem(&self, why: String) -> Option<String> {
+        log::warn!("{why}");
+        *crate::sync::lock(&self.inner.kept_problem) = Some(why.clone());
+        crate::sync::lock(&self.inner.told).insert(why.clone()).then_some(why)
     }
 
     /// Tells where each window's browser opens ([`super::placement`]).
@@ -457,19 +585,39 @@ impl Renderers {
             BrowserError::Failed(why.into())
         })?;
         let placer = crate::sync::read(&self.inner.placer).clone();
+        let (profile, mut kept, mut note) = self.profile_for(owner);
         let opts = LaunchOptions {
-            profile: Profile::Throwaway,
+            disk_cache_bytes: kept.is_some().then_some(super::profile::DISK_CACHE_BYTES),
+            profile,
             accent: Some(ACCENT),
             window: placer.and_then(|p| p(owner)),
             ..LaunchOptions::default()
         };
-        let chromium = Chromium::launch(&exe, &opts).map_err(failed)?;
+        let chromium = match Chromium::launch(&exe, &opts) {
+            Ok(c) => c,
+            Err(e) if kept.is_some() => {
+                // The kept profile would not start (damaged in a way the checks did not see): a throwaway one this time.
+                kept = None;
+                note = self.problem(format!(
+                    "The browser did not start with the research profile ({e}), so this research used a throwaway profile. Clear it in Settings ▸ Web browser to start a fresh one."
+                ));
+                let throwaway = LaunchOptions {
+                    profile: Profile::Throwaway,
+                    disk_cache_bytes: None,
+                    ..opts
+                };
+                Chromium::launch(&exe, &throwaway).map_err(failed)?
+            }
+            Err(e) => return Err(failed(e)),
+        };
         let page = chromium.start_page().map_err(failed)?;
         Ok(Arc::new(Session {
             chromium: Mutex::new(chromium),
             page,
             handed_off: AtomicBool::new(false),
             last_url: Mutex::new(None),
+            profile_note: note,
+            _kept: kept,
         }))
     }
 
