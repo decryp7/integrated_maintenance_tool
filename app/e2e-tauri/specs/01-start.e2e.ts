@@ -1,7 +1,7 @@
 import { $, browser, expect } from '@wdio/globals';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { chooseMenu, dialog, visibleAlerts, waitForEvents, waitForShell } from '../support/app';
+import { chooseMenu, dismissDialogWindow, visibleAlerts, withDialogWindow, waitForEvents, waitForShell } from '../support/app';
 import { APP_DIR } from '../support/paths';
 
 const version = (
@@ -26,10 +26,10 @@ describe('real app: start-up', () => {
 
   it('About shows the version of this build', async () => {
     await chooseMenu('Help', 'About Debrief');
-    const about = dialog('About Debrief');
-    await about.waitForDisplayed();
-    await expect(about.$('.version')).toHaveText(version);
-    await browser.keys('Escape');
-    await about.waitForExist({ reverse: true });
+    // About is a dialog window of its own (ADR 0050), not part of the page.
+    await withDialogWindow('about', async () => {
+      await expect($('.version')).toHaveText(version);
+    });
+    await dismissDialogWindow('about');
   });
 });
