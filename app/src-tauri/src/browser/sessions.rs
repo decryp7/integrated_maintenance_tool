@@ -91,22 +91,46 @@ impl Session {
         }
     }
 
-    /// The user took part in this browser: a page needed them, they navigated the page, or they opened another one.
-    fn user_took_part(&self) -> bool {
+    /// How the user took part in this browser, if they did: a page needed them, they navigated the page, or they
+    /// opened another one (the browser drives the page it opened with, so any further page is theirs).
+    fn took_part(&self) -> Option<TookPart> {
         if self.handed_off.load(Ordering::SeqCst) {
-            return true;
+            return Some(TookPart::PageNeededThem);
         }
         let moved = match (crate::sync::lock(&self.last_url).as_ref(), self.page.info()) {
             (Some(last), Ok(now)) => *last != now.url,
             _ => false,
         };
-        moved || crate::sync::lock(&self.chromium).page_count().is_ok_and(|n| n > 1)
+        if moved {
+            return Some(TookPart::Navigated);
+        }
+        match crate::sync::lock(&self.chromium).page_count() {
+            Ok(n) if n > 1 => Some(TookPart::OpenedPages(n)),
+            _ => None,
+        }
+    }
+
+    /// A new run starts in this browser: what the user did during an earlier one no longer counts.
+    fn begin_run(&self) {
+        self.handed_off.store(false, Ordering::SeqCst);
+        *crate::sync::lock(&self.last_url) = None;
     }
 
     #[cfg(test)]
     pub fn pid(&self) -> Option<u32> {
         crate::sync::lock(&self.chromium).pid()
     }
+}
+
+/// How the user took part in a research's browser (so it is not closed behind their back).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TookPart {
+    /// A page needed them (a check, consent, a sign-in).
+    PageNeededThem,
+    /// The page shows another address than the one the AI last went to.
+    Navigated,
+    /// The browser has this many pages: the user opened more than the one the AI drives.
+    OpenedPages(usize),
 }
 
 /// What happened to a window's browser when its work ended.
@@ -116,8 +140,30 @@ pub enum Finish {
     NotRunning,
     /// The browser was closed and its profile removed.
     Closed,
-    /// The user took part (a page needed them, or they used the window): it stays open until they close it.
-    KeptOpen,
+    /// The user took part: it stays open until they close it (the window is told through its life cycle, `kept`).
+    KeptOpen(TookPart),
+}
+
+impl Finish {
+    pub fn kept(self) -> bool {
+        matches!(self, Finish::KeptOpen(_))
+    }
+
+    /// The log line of the decision (no addresses or page content).
+    pub fn describe(self, owner: &str) -> String {
+        let what = match self {
+            Finish::NotRunning => "no browser was running".to_string(),
+            Finish::Closed => "its browser was closed (nobody used it)".to_string(),
+            Finish::KeptOpen(TookPart::PageNeededThem) => {
+                "its browser was left open because a page needed the user (a check, consent or a sign-in)".to_string()
+            }
+            Finish::KeptOpen(TookPart::Navigated) => "its browser was left open because the user navigated the page".to_string(),
+            Finish::KeptOpen(TookPart::OpenedPages(n)) => {
+                format!("its browser was left open because the user opened another page ({n} pages)")
+            }
+        };
+        format!("Research in {owner} ended: {what}")
+    }
 }
 
 /// One run's hold on a browser (a research): the first page use picks the browser, and once that browser is gone the
@@ -307,6 +353,9 @@ impl Renderers {
                 }
                 if let Some(p) = &lease.0 {
                     *crate::sync::lock(p) = Some(generation);
+                    if pinned.is_none() {
+                        self.begin_run(owner, generation, &session);
+                    }
                 }
                 return Ok(session);
             }
@@ -323,6 +372,29 @@ impl Renderers {
                 *crate::sync::lock(p) = Some(generation);
             }
             return Ok(session);
+        }
+    }
+
+    /// A run takes over a browser that is already open (perhaps kept from an earlier research): the user's earlier
+    /// part in it no longer counts, and the "kept open" mark goes (the window stops offering to close it meanwhile).
+    fn begin_run(&self, owner: &str, generation: u64, session: &Arc<Session>) {
+        session.begin_run();
+        let mut slots = crate::sync::lock(&self.inner.slots);
+        let kept = matches!(slots.get(owner), Some(Slot::Ready { generation: g, kept: true, .. }) if *g == generation);
+        let l = kept.then(|| {
+            self.inner.set(
+                &mut slots,
+                owner,
+                Slot::Ready {
+                    generation,
+                    session: session.clone(),
+                    kept: false,
+                },
+            )
+        });
+        drop(slots);
+        if let Some(l) = l {
+            self.inner.tell(owner, l);
         }
     }
 
@@ -392,7 +464,7 @@ impl Renderers {
             ..LaunchOptions::default()
         };
         let chromium = Chromium::launch(&exe, &opts).map_err(failed)?;
-        let page = chromium.new_page().map_err(failed)?;
+        let page = chromium.start_page().map_err(failed)?;
         Ok(Arc::new(Session {
             chromium: Mutex::new(chromium),
             page,
@@ -476,10 +548,17 @@ impl Renderers {
         self.end(owner, None)
     }
 
-    /// Research ended: closes the window's browser unless the user took part in it (then it is kept open, marked so).
+    /// Research ended (done, cancelled or failed): closes the window's browser unless the user took part in it (then
+    /// it is kept open and marked so, which the window hears as `kept`). The decision and its reason are logged.
     pub fn finish(&self, owner: &str) -> Finish {
+        let f = self.decide(owner);
+        log::info!("{}", f.describe(owner));
+        f
+    }
+
+    fn decide(&self, owner: &str) -> Finish {
         let Some(s) = self.current(owner) else { return Finish::NotRunning };
-        if s.user_took_part() {
+        if let Some(how) = s.took_part() {
             let mut slots = crate::sync::lock(&self.inner.slots);
             let generation = match slots.get(owner) {
                 Some(Slot::Ready { generation, session, .. }) if Arc::ptr_eq(session, &s) => Some(*generation),
@@ -499,8 +578,9 @@ impl Renderers {
             drop(slots);
             let Some(l) = l else { return Finish::NotRunning };
             self.inner.tell(owner, l);
-            return Finish::KeptOpen;
+            return Finish::KeptOpen(how);
         }
+        drop(s);
         if self.end(owner, Some(CLOSE_GRACE)) {
             Finish::Closed
         } else {

@@ -92,11 +92,8 @@ pub enum BrowserEvent {
     Driving {
         by: Option<AiDriver>,
     },
-    /// Research ended but its browser window stays open because the user took part in it; the window offers to close it
-    /// (`research_browser_close`).
-    ResearchBrowserKept,
     /// The window's AI browser moved in its life cycle (launching, ready, closing, gone and why); `kept` while research
-    /// left it open. A browser the user closed is `gone` (`windowClosed`), and the next research starts a new one.
+    /// left it open because the user took part in it (the window offers to close it: `research_browser_close`). A browser the user closed is `gone` (`windowClosed`), and the next research starts a new one.
     Lifecycle(lifecycle::Lifecycle),
     /// A line of what the AI is doing ("Reading 3 of 5 results"), for the status chip.
     Status {

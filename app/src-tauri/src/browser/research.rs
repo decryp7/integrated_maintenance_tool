@@ -107,8 +107,8 @@ fn spec(owner: &str, req: &ResearchRequest, session: Option<&str>) -> JobSpec {
 /// One research on the job's thread: holds the window's browser for the run (no chat may drive it meanwhile).
 ///
 /// When it ends (done, cancelled or failed) the browser window is closed, unless the user took part in it (a page
-/// needed them, or they used the window): then it stays open, the window is told (`researchBrowserKept`) and the
-/// returned [`Finish`] says so, so the chat can tell the user and offer to close it.
+/// needed them, or they used the window): then it stays open, the window is told (its `lifecycle` event says `kept`)
+/// and the returned [`Finish`] says so, so the chat can tell the user and offer to close it.
 fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchRequest, ctx: &JobCtx) -> AiResult<(ResearchReport, Finish)> {
     let core = crate::ai::commands::core(app)?;
     let assistant = core.assistant(&crate::ai::knowledge::project_of(app, owner), ctx.cancel_flag())?;
@@ -166,10 +166,9 @@ fn run_research<R: Runtime>(app: &AppHandle<R>, owner: &str, req: &ResearchReque
     hub.forget_chat(owner, &key);
     // Finished, failed or cancelled: the browser is the user's again.
     super::driving::refresh(app, owner);
+    // Closed, or kept open because the user took part; the window hears which from the browser's life cycle (`kept`),
+    // whichever way the research started (Research this, or the model's `web_research`).
     let finish = super::renderers(app).map_or(Finish::NotRunning, |r| r.finish(owner));
-    if finish == Finish::KeptOpen {
-        super::emit(app, owner, super::BrowserEvent::ResearchBrowserKept);
-    }
     r.map(|report| (report, finish)).map_err(AiCmdError::from)
 }
 
@@ -288,7 +287,7 @@ pub(crate) fn start<R: Runtime>(
     });
     jobs::spawn(app, spec, controls, move |ctx: &JobCtx| -> AiResult<Done<()>> {
         let (mut report, finish) = run_research(&a, w.label(), &req, ctx)?;
-        if finish == Finish::KeptOpen {
+        if finish.kept() {
             report.answer = format!("{}\n\n{KEPT_OPEN_NOTE}", report.answer);
         }
         let sid = record_in_chat(&a, &w, &emit, session.as_deref(), &req.question, &report)?;

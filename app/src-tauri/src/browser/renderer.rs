@@ -219,7 +219,7 @@ impl PageDriver for ChromiumPage {
 #[cfg(test)]
 mod tests {
     use super::super::lifecycle::{GoneReason, Lifecycle, Phase};
-    use super::super::sessions::{Finish, Sources, QUIT_GRACE};
+    use super::super::sessions::{Finish, Sources, TookPart, QUIT_GRACE};
     use super::*;
     use std::sync::Mutex;
 
@@ -403,6 +403,52 @@ mod tests {
             assert_eq!(r.renderers.finish("main"), Finish::NotRunning);
         }
 
+        /// Regression (1.1.0): a research nobody touched left its browser open. A real browser opens with its start
+        /// page, and the driver opened a second page beside it, so "more than one page" always said the user took part.
+        #[test]
+        fn a_research_nobody_touched_closes_its_browser_when_it_ends() {
+            use crate::health::{hub::Health, model::ServiceState};
+            use tauri::Manager;
+            let app = crate::test_support::test_app(None);
+            let r = rig(Mode::Obey, 1);
+            crate::browser::watch_health(app.handle(), &r.renderers);
+            let health = app.state::<Arc<Health>>().inner().clone();
+            let seen = records(&r);
+            // One research: its reader and driver share a run's lease, as `research::run_research` does.
+            let lease = Lease::run();
+            let (reader, driver) = (page_with(&r, lease.clone()), page_with(&r, lease));
+            driver.navigate(&WebUrl::parse("http://127.0.0.1:9/results").unwrap()).unwrap();
+            driver.navigate(&WebUrl::parse("http://127.0.0.1:9/result-1").unwrap()).unwrap();
+            drop(reader);
+            let s = r.renderers.current("main").unwrap();
+            let dir = crate::sync::lock(&s.chromium).profile_dir().to_path_buf();
+            let pid = s.pid().unwrap();
+            let pages = crate::sync::lock(&s.chromium).page_count().unwrap();
+            assert_eq!(pages, 1, "Debrief drives the start page, not a second one");
+            drop(s);
+            assert_eq!(r.renderers.finish("main"), Finish::Closed);
+            assert!(
+                r.fake.calls().iter().any(|c| c == "Browser.close"),
+                "closed the way a user would first"
+            );
+            assert!(gone(pid), "the browser process ended");
+            assert!(!dir.exists(), "the throwaway profile is gone");
+            let phases: Vec<Phase> = seen.lock().unwrap().iter().map(|l| l.phase).collect();
+            assert_eq!(
+                phases,
+                [
+                    Phase::Launching,
+                    Phase::Ready,
+                    Phase::Closing,
+                    Phase::Gone { reason: GoneReason::Ended }
+                ],
+                "the window hears it closing and gone (ended)"
+            );
+            assert!(!seen.lock().unwrap().iter().any(|l| l.kept), "never marked kept");
+            let browser = health.snapshot().services.into_iter().find(|s| s.service == "browser").unwrap();
+            assert_eq!(browser.state, ServiceState::Ok, "ended by Debrief is not an outage");
+        }
+
         #[test]
         fn a_browser_that_ignores_close_is_killed_after_the_timeout() {
             let r = rig(Mode::IgnoreClose, 1);
@@ -419,7 +465,7 @@ mod tests {
             let r = rig(Mode::Obey, 1);
             let (dir, pid) = research_step(&r);
             r.renderers.current("main").unwrap().handed_off.store(true, Ordering::SeqCst);
-            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen(TookPart::PageNeededThem));
             assert!(chromium_driver::process::process_exists(pid) && dir.exists());
             assert!(r.renderers.close("main"), "the user's Close");
             assert!(gone(pid));
@@ -432,7 +478,7 @@ mod tests {
             let r = rig(Mode::Obey, 1);
             let (dir, _) = research_step(&r);
             std::fs::write(&r.fake.url_file, "https://example.org/the-user-went-here").unwrap();
-            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen(TookPart::Navigated));
             assert!(dir.exists());
             r.renderers.kill_all();
         }
@@ -441,8 +487,51 @@ mod tests {
         fn a_page_the_user_opened_keeps_the_browser_open() {
             let r = rig(Mode::Obey, 2);
             research_step(&r);
-            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen(TookPart::OpenedPages(2)));
             r.renderers.kill_all();
+        }
+
+        #[test]
+        fn the_decision_is_logged_with_its_reason_and_no_address() {
+            let cases = [
+                (Finish::Closed, "closed (nobody used it)"),
+                (Finish::NotRunning, "no browser was running"),
+                (
+                    Finish::KeptOpen(TookPart::PageNeededThem),
+                    "left open because a page needed the user",
+                ),
+                (
+                    Finish::KeptOpen(TookPart::Navigated),
+                    "left open because the user navigated the page",
+                ),
+                (
+                    Finish::KeptOpen(TookPart::OpenedPages(3)),
+                    "left open because the user opened another page (3 pages)",
+                ),
+            ];
+            for (f, says) in cases {
+                let line = f.describe("main");
+                assert!(line.starts_with("Research in main ended: ") && line.contains(says), "{line}");
+                assert_eq!(f.kept(), matches!(f, Finish::KeptOpen(_)));
+            }
+        }
+
+        #[test]
+        fn the_next_research_in_a_kept_browser_starts_afresh_and_closes_it_when_nobody_used_it() {
+            let r = rig(Mode::Obey, 1);
+            let seen = records(&r);
+            let (dir, pid) = research_step(&r);
+            r.renderers.current("main").unwrap().handed_off.store(true, Ordering::SeqCst);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen(TookPart::PageNeededThem));
+            assert!(seen.lock().unwrap().last().unwrap().kept);
+            // A new research takes the kept browser: the earlier part no longer counts, and the offer to close goes.
+            let run = page_with(&r, Lease::run());
+            run.navigate(&WebUrl::parse("http://127.0.0.1:9/again").unwrap()).unwrap();
+            assert_eq!(r.renderers.current("main").unwrap().pid(), Some(pid), "the same browser");
+            let last = *seen.lock().unwrap().last().unwrap();
+            assert_eq!((last.phase, last.kept), (Phase::Ready, false), "the window stops offering Close");
+            assert_eq!(r.renderers.finish("main"), Finish::Closed);
+            assert!(gone(pid) && !dir.exists());
         }
 
         const SEEN: Duration = Duration::from_secs(5);
@@ -520,7 +609,7 @@ mod tests {
             let seen = records(&r);
             let (dir, pid) = research_step(&r);
             r.renderers.current("main").unwrap().handed_off.store(true, Ordering::SeqCst);
-            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen(TookPart::PageNeededThem));
             assert!(r.renderers.lifecycle("main").kept);
             assert!(seen.lock().unwrap().last().unwrap().kept, "the window hears it was kept");
             assert_eq!(user(&r, UserAction::CloseWindow), WINDOW_CLOSED);
@@ -661,7 +750,7 @@ mod tests {
             let r = rig(Mode::Obey, 1);
             let (dir, pid) = research_step(&r);
             r.renderers.current("main").unwrap().handed_off.store(true, Ordering::SeqCst);
-            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen);
+            assert_eq!(r.renderers.finish("main"), Finish::KeptOpen(TookPart::PageNeededThem));
             r.renderers.close_all(QUIT_GRACE);
             assert!(gone(pid));
             assert!(!dir.exists());

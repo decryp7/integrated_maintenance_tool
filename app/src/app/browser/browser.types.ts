@@ -83,9 +83,10 @@ export type BrowserEvent =
   | ({ type: 'chatStatus' } & ChatBrowserStatus)
   /** The AI started (`by`) or stopped (`null`) driving the browser. */
   | { type: 'driving'; by: AiDriver | null }
-  /** Research ended but its browser window stays open because the user took part in it; offer `closeResearchBrowser()`. */
-  | { type: 'researchBrowserKept' }
-  /** The AI browser moved in its life cycle; `kept` while research left it open. Once gone, the next research opens a new one. */
+  /**
+   * The AI browser moved in its life cycle; `kept` while research left it open because the user took part in it (offer
+   * `closeResearchBrowser()`). Once gone, the next research opens a new one.
+   */
   | { type: 'lifecycle'; state: BrowserLifecycleState; reason?: BrowserGoneReason; kept: boolean }
   /** A line like "Reading 3 of 5 results". */
   | { type: 'status'; text: string }

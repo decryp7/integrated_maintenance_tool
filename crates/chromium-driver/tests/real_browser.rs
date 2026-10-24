@@ -56,7 +56,8 @@ fn renders_a_scripted_page_and_leaves_nothing_behind() {
     let prefs = std::fs::read_to_string(dir.join("Default/Preferences")).unwrap();
     assert!(prefs.contains("user_color2"));
 
-    let page = b.new_page().expect("page");
+    let page = b.start_page().expect("page");
+    assert_eq!(b.page_count().unwrap(), 1, "the start page is driven; no second tab");
     page.block_heavy(true).unwrap();
     page.navigate(&format!("http://127.0.0.1:{port}/"), Duration::from_secs(15))
         .expect("navigate");

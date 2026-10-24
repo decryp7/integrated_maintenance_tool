@@ -43,7 +43,15 @@ of "running".
    Research turns that into one plain message with Retry (the job's retry), and stops trying further results.
 5. **Launch outside the lock.** `launching` is a phase, not a held mutex, so Stop, Close and other windows' queries
    are never blocked by a slow start; Stop during `launching` ends the browser as soon as it started.
-6. **Health reads the same state.** `Renderers::lifecycle(owner)`, `snapshot()` and `listen()` are what the service
+6. **The end of a research is decided here too.** `Renderers::finish` runs when a research ends (done, cancelled or
+   failed, from *Research this* or the model's `web_research` alike): it closes the browser (`closing → gone(ended)`:
+   `Browser.close`, then kill, profile removed) unless the user took part in it, and then marks it `kept`. The user took
+   part when a page needed them, the page shows another address than the AI's last navigation, or the browser has more
+   than one page. The driver drives the page the browser opened with (`Chromium::start_page`), so a second page is
+   always the user's. The decision and its reason are logged in one info line (no addresses). The window learns it
+   only from the `lifecycle` event (`kept`); there is no separate "kept" event. A new research in a kept browser starts
+   afresh: the earlier part no longer counts and the `kept` mark goes.
+7. **Health reads the same state.** `Renderers::lifecycle(owner)`, `snapshot()` and `listen()` are what the service
    registry of ADR 0055 reads; it derives nothing from error text.
 
 ## Consequences
@@ -51,7 +59,11 @@ of "running".
 - Closing the window, quitting the browser, a crash or a lost connection are all the same transition, covered by
   tests with the fake browser (`chromium_driver::fake::UserAction`): idle and kept open, between research steps, in
   the middle of a page load, during a challenge wait, and Stop while starting. No real browser and no window.
-- The wire contract gains `{ type: 'lifecycle', state, reason?, kept }` on `debrief://browser`; the chat clears its
-  "kept open" note when the browser is no longer ready.
+- The wire contract gains `{ type: 'lifecycle', state, reason?, kept }` on `debrief://browser`; the chat shows its
+  "left open because you used it" note with Close it / Keep it while the browser is ready and kept, and clears it
+  otherwise. The former `researchBrowserKept` event is removed.
+- 1.1.0 regression: research never closed its browser, because the driver opened a second page beside the browser's
+  start page and "more than one page" therefore always meant "the user took part". The fake browser now starts with
+  its start page and adds one per `Target.createTarget`, as Chrome does, so the tests see that case.
 - Other supervised children (AI worker, plugins, collectors) are checked for the same kind; where they cache a handle,
   they should move to the same shape (one owner, explicit phase, detection by wait + disconnect, fresh start).

@@ -55,11 +55,10 @@ export const ChatBrowserStore = signalStore(
           setStatus(s);
         } else if (e.type === 'sources') {
           setSources(e.sessionId, e.sources);
-        } else if (e.type === 'researchBrowserKept') {
-          patchState(store, { researchBrowserKept: true });
-        } else if (e.type === 'lifecycle' && e.state !== 'ready') {
-          // The kept window is closing or gone (the user may have closed it by hand): nothing is left to offer.
-          patchState(store, { researchBrowserKept: false });
+        } else if (e.type === 'lifecycle') {
+          // The engine decides (ADR 0057): kept while the research browser stays open because the user took part;
+          // closing, gone (the user may have closed it by hand) or taken by the next research: nothing to offer.
+          patchState(store, { researchBrowserKept: e.state === 'ready' && e.kept });
         }
       },
 
