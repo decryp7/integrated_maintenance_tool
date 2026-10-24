@@ -354,5 +354,5 @@ request in that direction, so the ETW collector wrote its file itself (ADR 0022 
 - The elevated process still writes nothing at a path it receives; the one remaining write of the ETW tool is its
   symbol cache, below the user's application-data folders (ADR 0022 §7).
 
-Tested end to end with the host's fake plugin (`debrief-plugin-host/tests/elevated_output.rs`): intact bytes, the limit,
+Tested end to end with the host's fake plugin (`debrief-plugin-host/tests/it/elevated_output.rs`): intact bytes, the limit,
 malicious names, a crash in the middle of a stream, forwarded and capped standard error.

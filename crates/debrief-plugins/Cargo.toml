@@ -37,7 +37,7 @@ debrief-dump = { path = "../debrief-dump" }
 debrief-ipc = { path = "../debrief-ipc" }
 insta.workspace = true
 proptest.workspace = true
-# The real-world EVTX corpus test (tests/evtx_corpus.rs, nightly): downloads a pinned archive and checks its hash.
+# The real-world EVTX corpus test (tests/it/evtx_corpus.rs, nightly): downloads a pinned archive and checks its hash.
 sha2.workspace = true
 ureq = { version = "3", default-features = false, features = ["rustls", "platform-verifier"] }
 zip.workspace = true

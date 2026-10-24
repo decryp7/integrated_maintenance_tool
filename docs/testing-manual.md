@@ -152,7 +152,7 @@ grows). the command palette's *Profile native process…* lists it.
 | 71 | The 32-bit fixture (above), sampling and ETW. | The process shows `x86`; frames are named; the sampling notes mention WOW64. |
 
 ETW automated tests (elevated shell): `set DEBRIEF_ETW_TESTS=1`, then
-`cargo test -p debrief-plugin-native --test real_process -- --ignored --nocapture`.
+`cargo test -p debrief-plugin-native --test it real_process:: -- --ignored --nocapture`.
 
 ## Dumps, projects and third-party plugins
 

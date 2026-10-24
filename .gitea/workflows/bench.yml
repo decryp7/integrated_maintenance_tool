@@ -181,7 +181,7 @@ jobs:
       - name: The worker's memory budgets (20 copies of the samples)
         env:
           DEBRIEF_BENCH_COPIES: "20"
-        run: cargo test --release -p debrief-store-worker --test worker -- --nocapture
+        run: cargo test --release -p debrief-store-worker --test it worker:: -- --nocapture
 
   # Records a fully green scheduled run for this commit; `plan` skips the next scheduled run while main is unchanged.
   # Never runs when anything failed, so a red commit is retried every night.

@@ -444,7 +444,7 @@ builds the workspace fetches it (a skipped test still has to link). Steps:
    `[workspace.dependencies]` (add `duckdb = "=1.10506.1"`, `parquet = "58"`, `tantivy = "0.27"` there).
 3. Bench job: `DEBRIEF_BENCH_EVENTS=10000000 cargo test --release -p debrief-store-duck --test bench -- --nocapture` (about
    4 minutes of import and indexing plus the corpus, generated once into a cached folder via `DEBRIEF_BENCH_DIR`) and
-   `DEBRIEF_BENCH_COPIES=20 cargo test --release -p debrief-store-worker --test worker -- --nocapture` (budgets asserted).
+   `DEBRIEF_BENCH_COPIES=20 cargo test --release -p debrief-store-worker --test it worker:: -- --nocapture` (budgets asserted).
 4. Bundling (6c): ship `duckdb.dll` / `libduckdb.so` / `libduckdb.dylib` and `debrief-store-worker` with the app.
 
 ## Implementation notes (R2c, 2026-10-20)
@@ -812,7 +812,7 @@ below is from interleaved A/B runs, at least two each).
     each rebinding the view over every segment and scanning every row group's `ts` (segments overlap in time,
     so pruning skips little): runs 26-80 s, compare 11-33 s, anomalies 8-40 s, patterns 5-25 s at 10M;
   - anomaly detection's peak (840-990 MB at 10M, `Slim` per event).
-- The worker benchmark (`DEBRIEF_BENCH_COPIES=20 … --test worker`) fails at `summary()` already at 2ba7e00 (DuckDB
+- The worker benchmark (`DEBRIEF_BENCH_COPIES=20 … --test it worker::`) fails at `summary()` already at 2ba7e00 (DuckDB
   out of memory at its 183 MB limit); it now prints the import line before the queries so the import is still
   measured.
 

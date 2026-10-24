@@ -36,9 +36,9 @@ run fails while the committed file is stale:
 
 ```sh
 # windows/WEB02/OrderService.exe.4120.dmp (synthetic minidump builder in tests/support)
-DEBRIEF_REGENERATE_SAMPLES=1 cargo test -p debrief-plugin-windows --test samples -- --ignored
+DEBRIEF_REGENERATE_SAMPLES=1 cargo test -p debrief-plugins --test it windows_samples:: -- --ignored
 # dumps/*.dmp and the dump fuzz seeds (synthetic minidump builder, debrief_plugin_dumps::synth)
-DEBRIEF_REGENERATE_SAMPLES=1 cargo test -p debrief-plugin-dumps --test samples -- --ignored regenerate_
+DEBRIEF_REGENERATE_SAMPLES=1 cargo test -p debrief-plugin-dumps --test it -- --ignored samples::regenerate_
 # profiling/: see docs/profiling.md
 ```
 
@@ -105,16 +105,16 @@ Not generated as samples:
 
 ## Tests
 
-- `crates/debrief-core/tests/samples.rs`: everything the built-in importers read (formats,
+- `crates/debrief-core/tests/it/samples.rs`: everything the built-in importers read (formats,
   timestamps, lanes, charts, archives, runs markers, the clock-skew suggestion, the config
   diff, the project and the bundle).
-- `crates/debrief-core/tests/parsers.rs`: the built-in parsers (ADR 0026) on their samples: the right parser per
+- `crates/debrief-core/tests/it/parsers.rs`: the built-in parsers (ADR 0026) on their samples: the right parser per
   file (also in one mixed folder), timestamps, levels, fields and multi-line events.
-- `crates/debrief-core/tests/importer_snapshots.rs`: insta snapshots per built-in importer.
-- `crates/debrief-plugins/tests/evtx_corpus.rs` (runs only with `DEBRIEF_EVTX_CORPUS=1`; nightly `corpus` workflow): about
+- `crates/debrief-core/tests/it/importer_snapshots.rs`: insta snapshots per built-in importer.
+- `crates/debrief-plugins/tests/it/evtx_corpus.rs` (runs only with `DEBRIEF_EVTX_CORPUS=1`; nightly `corpus` workflow): about
   280 real-world event logs of [EVTX-ATTACK-SAMPLES](https://github.com/sbousseaden/EVTX-ATTACK-SAMPLES)
   (GPL-3.0, `LICENSE.GPL`), downloaded for the run (about 6 MB, pinned by commit and SHA-256, kept in
   `DEBRIEF_CORPUS_CACHE` when set) into a temporary folder and never committed or redistributed.
 - `crates/debrief-plugin-{windows,web,syslog,otel,registry,formats}/tests/samples.rs`: the
   plugin formats, with snapshots in each crate's `tests/snapshots/`.
-- `crates/debrief-plugin-profiling/tests/samples.rs`: the profiler captures.
+- `crates/debrief-plugin-profiling/tests/it/samples.rs`: the profiler captures.

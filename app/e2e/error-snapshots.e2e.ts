@@ -3,8 +3,8 @@ import { CAPTURE_TIMEOUT, openApp, openView } from './app';
 import { openAppWith } from './mock-url';
 
 // Error snapshots: the window is rendered to an image inside the webview (html-to-image), so this runs
-// against the real capture code in every project. Under "prod-csp" the production build is served with
-// the Tauri CSP, which proves the capture needs no blob:, remote or inline-script permission.
+// against the real capture code in every project. The production build is served with the Tauri CSP,
+// which proves the capture needs no blob:, remote or inline-script permission.
 
 const toast = (page: Page) => page.locator('[data-testid=notification][data-cause="diagnostics.snapshot"]');
 
@@ -47,7 +47,7 @@ async function analyse(page: Page, region?: { x: number; y: number; w: number; h
 }
 
 test('an uncaught error saves a snapshot, shows the toast and the notice, and the view lists it', async ({ page }) => {
-  // Capturing must not trip the CSP (relevant in prod-csp, harmless elsewhere).
+  // Capturing must not trip the CSP.
   const violations: string[] = [];
   page.on('console', (m) => /Content Security Policy|Refused to/i.test(m.text()) && violations.push(m.text()));
   await page.addInitScript(() => {

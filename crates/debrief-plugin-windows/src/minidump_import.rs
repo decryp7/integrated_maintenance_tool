@@ -507,7 +507,7 @@ fn clip(s: &str) -> String {
 }
 
 #[cfg(test)]
-#[path = "../tests/support/synth_minidump.rs"]
+#[path = "../tests/it/support/synth_minidump.rs"]
 pub(crate) mod synth;
 
 #[cfg(test)]

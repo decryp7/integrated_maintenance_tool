@@ -1,19 +1,31 @@
-# cargo-nextest settings (CI runs `cargo nextest run --workspace`).
+# cargo-nextest settings. Locally: `cargo nextest run --workspace` (the default profile); CI: `--profile ci`. nextest does
+# not run doc tests: `cargo test --workspace --doc` runs them.
 #
 # Tests that start real child processes and time how a crash, hang or restart is detected (fake workers, fake
-# plugins, the IPC fake child, the built-in plugins' processes) are sensitive to a busy machine. They run one at a time in their own group,
-# and get two retries: nextest reports a test that only passed on a retry as FLAKY, so flakiness stays visible.
+# plugins, the IPC fake child, the built-in plugins' processes) are sensitive to a busy machine. They run one at a time in
+# their own group. Locally they get two retries (nextest reports a test that only passed on a retry as FLAKY, so
+# flakiness stays visible); CI never retries (Paddock rule 5: a flaky test is fixed, not retried).
 # Everything else runs in parallel as usual.
+#
+# Each crate's integration tests are one binary, `it` (tests/it/main.rs, one module per former tests/<name>.rs), so a
+# former binary is a test-name prefix here: `binary(it) & test(/^worker::/)`.
 
 [test-groups]
 child-processes = { max-threads = 1 }
 
+[profile.default]
+# One test per core but one (Paddock rule 13), so a full run leaves the machine usable.
+test-threads = -1
+# A test still running after 30 s is reported as SLOW (and again every 30 s); one still running after five minutes is
+# stopped instead of letting a hang stall the run.
+slow-timeout = { period = "30s", terminate-after = 10 }
+
 [[profile.default.overrides]]
 filter = '''
-    (package(debrief-ai) & binary(worker))
-    | (package(debrief-ai-worker) & binary(server_backend))
-    | (package(debrief-ipc) & (binary(launch) | binary(child_log)))
-    | (package(debrief-plugin-host) & binary(remote))
+    (package(debrief-ai) & binary(it) & test(/^worker::/))
+    | (package(debrief-ai-worker) & binary(it) & test(/^server_backend::/))
+    | (package(debrief-ipc) & binary(it) & (test(/^launch::/) | test(/^child_log::/)))
+    | (package(debrief-plugin-host) & binary(it) & test(/^remote::/))
     | (package(debrief-plugins) & kind(test))
     | (package(debrief-plugin-windows) & test(eventlog::follower::))
     | (package(debrief-plugin-test) & kind(test))
@@ -23,6 +35,20 @@ filter = '''
 test-group = 'child-processes'
 retries = 2
 
-[profile.default]
-# Report a test that runs over a minute (and stop one after five) instead of letting a hang stall the run.
-slow-timeout = { period = "60s", terminate-after = 5 }
+# CI (.gitea/workflows/build.yml): every failure reported, no retries, a JUnit report.
+[profile.ci]
+fail-fast = false
+retries = 0
+failure-output = "immediate-final"
+# A CI job has its runner to itself.
+test-threads = "num-cpus"
+
+[profile.ci.junit]
+# Written to <target>/nextest/ci/junit.xml.
+path = "junit.xml"
+
+# A profile's own overrides are matched before the default profile's, so this one wins over `retries = 2` above (the
+# group and timeouts still apply).
+[[profile.ci.overrides]]
+filter = 'all()'
+retries = 0

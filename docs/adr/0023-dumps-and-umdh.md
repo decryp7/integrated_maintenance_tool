@@ -128,5 +128,5 @@ Debrief, and the answers must lead with the problem (what crashed and where; wha
   fuzz targets (`fuzz_dump_minidump`, `fuzz_dump_umdh`, `fuzz_dump_wire`), synthetic minidumps (x86/x64, mini and
   full, hang and crash) from `debrief_plugin_dumps::synth`, UMDH samples from `samples/generate.py`, a Windows-only test
   that writes real dumps of a child process with `MiniDumpWriteDump` and names their frames from the test binary's
-  own PDB, end-to-end tests through the real plugin processes (`debrief-plugins/tests/dumps.rs`), and a Playwright spec
+  own PDB, end-to-end tests through the real plugin processes (`debrief-plugins/tests/it/dumps.rs`), and a Playwright spec
   with the mock backend.

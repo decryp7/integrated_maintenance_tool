@@ -47,6 +47,6 @@ the relative order, so a fresh import numbers the files identically.
 ## Consequences
 
 Time to the first imported event on 100,000 small files plus three large ones fell from about 3.5 s (gather first) to
-under 10 ms; total time is unchanged within noise (`crates/debrief-core/tests/stream_bench.rs`). Files are no longer
+under 10 ms; total time is unchanged within noise (`crates/debrief-core/tests/it/stream_bench.rs`). Files are no longer
 read largest-first, so a very large file found late can finish last. Reload cost grows by one fingerprint pass only
 when a source's file vanished.

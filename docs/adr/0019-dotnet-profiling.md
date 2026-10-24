@@ -119,7 +119,7 @@ use instead of restarting Debrief; a declined prompt is the typed `denied` failu
 processes and exits with Debrief. EventPipe, process listing and `.etl` conversion stay unelevated.
 
 The manual ETW test is unchanged (it exercises the recorder directly):
-`DEBRIEF_ETW_TESTS=1 cargo test -p debrief-plugin-dotnet --test real_runtime -- --ignored --nocapture` from an elevated prompt.
+`DEBRIEF_ETW_TESTS=1 cargo test -p debrief-plugin-dotnet --test it real_runtime:: -- --ignored --nocapture` from an elevated prompt.
 The elevated route itself is tested with the elevated role started as an ordinary process
 (`debrief-plugin-host`'s `the_normal_process_runs_only_declared_elevated_operations_through_the_host`, and the
 `etw-*` operations against a fake recorder in `debrief-plugin-dotnet`); the prompt is a manual check.

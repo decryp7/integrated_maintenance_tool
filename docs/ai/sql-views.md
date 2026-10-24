@@ -2,7 +2,7 @@
 
 The assistant's `run_sql` tool is a guarded fallback for questions the query language cannot express (joins across sources, window functions, percentiles of gaps between events). It runs through the Store pane's SQL console, so the console's guardrails apply unchanged (ADR 0030): exactly one read-only statement from an allow-list, no file, network or extension functions, a 30 s time limit, a 10,000 row cap (the model sees at most 50 rows) and a memory limit. The console's database holds only the views below; the store's internal tables are not in it. The `notes` view exists in the console but stays empty for the assistant.
 
-The tool description the model reads is generated from the same table (`debrief_core::ports::SQL_VIEW_TABLE`), and a test (`crates/debrief-ai/tests/sql_tool.rs`) fails when this page and the table disagree. Columns are stable: added columns keep the version (`SQL_VIEWS_VERSION`), removing or re-typing one bumps it.
+The tool description the model reads is generated from the same table (`debrief_core::ports::SQL_VIEW_TABLE`), and a test (`crates/debrief-ai/tests/it/sql_tool.rs`) fails when this page and the table disagree. Columns are stable: added columns keep the version (`SQL_VIEWS_VERSION`), removing or re-typing one bumps it.
 
 ## events
 

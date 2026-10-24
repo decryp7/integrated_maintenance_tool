@@ -52,6 +52,6 @@ windows = { workspace = true, features = ["Win32_Graphics_Dxgi", "Win32_System_J
 tempfile.workspace = true
 # A real store (the SQL tool and the end-to-end chat tests run over it); an adapter, so tests only.
 debrief-store-duck = { path = "../debrief-store-duck" }
-# A local HTTPS server with a certificate no trust store knows (tests/net_tls.rs).
+# A local HTTPS server with a certificate no trust store knows (tests/it/net_tls.rs).
 rustls = { version = "0.23", default-features = false, features = ["std", "ring", "tls12"] }
 proptest.workspace = true

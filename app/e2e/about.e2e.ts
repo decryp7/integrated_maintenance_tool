@@ -51,11 +51,11 @@ test.describe('About Debrief', () => {
 // included. The third-party notices (about 780 kB of text) are no longer JavaScript: the desktop app gets them from the
 // engine (`legal_text`) when the window asks, and this build shows a short stand-in. It was 1600 kB with the notices
 // bundled as a lazy chunk (2424 kB before the activity observers stopped importing the dock); it is 806 kB now.
-// `npm run check:dialog-weight` bounds the part the desktop app loads (static imports only, 442 kB now). The prod-csp
-// project runs it.
+// `npm run check:dialog-weight` bounds the part the desktop app loads (static imports only, 442 kB now). Chromium runs it
+// (every project tests the production build).
 const ABOUT_WINDOW_JS_BUDGET_KB = 900;
 test('the About window loads only a small slice of the app (JS budget)', async ({ page }, testInfo) => {
-  test.skip(testInfo.project.name !== 'prod-csp', 'the budget is for the minified production build');
+  test.skip(testInfo.project.name !== 'chromium', 'measured once, in Chromium');
   const scripts = new Map<string, number>();
   page.on('response', async (r) => {
     if (!r.url().endsWith('.js')) return;

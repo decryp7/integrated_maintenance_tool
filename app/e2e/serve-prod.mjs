@@ -1,6 +1,6 @@
 // Serves the production build (dist/app/browser) with the exact Content-Security-Policy that the
 // Tauri webview enforces, read from src-tauri/tauri.conf.json so the two can never drift.
-// Used by the "prod-csp" Playwright project. Usage: node e2e/serve-prod.mjs [port]
+// Every Playwright project tests against it (playwright.config.ts). Usage: node e2e/serve-prod.mjs [port]
 import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { dirname, extname, join, normalize, resolve, sep } from 'node:path';

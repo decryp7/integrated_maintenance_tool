@@ -50,7 +50,7 @@ the aliases cannot close, and then as its own ADR.
 
 ## Evaluation
 
-`crates/debrief-core/tests/names_eval.rs` runs a labelled set of invented names (spelling variants, run-together words,
+`crates/debrief-core/tests/it/names_eval.rs` runs a labelled set of invented names (spelling variants, run-together words,
 typos, abbreviations, synonyms, ambiguities, hard phrasings, negatives) against the layers, with fixed alias fixtures in
 place of a model, and asserts the figures (top-1, top-3, false-suggestion rate). `tests/names_perf.rs` (ignored by
 default) times segmentation, grouping, resolution and the alias job at 50,000 names.

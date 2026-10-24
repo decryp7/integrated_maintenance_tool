@@ -8,11 +8,11 @@ unbounded memory. Two layers check this.
 Run with the normal test suite; they are fast (a few seconds) and deterministic per seed.
 
 ```sh
-cargo test -p debrief-core --test properties
-cargo test -p debrief-plugin-registry -p debrief-plugin-windows -p debrief-plugin-web -p debrief-plugin-otel -p debrief-plugin-syslog --test properties
-cargo test -p debrief-core --test properties_files      # parser TOML, .debriefproj, project.toml, .debriefz
-cargo test -p debrief-ipc -p debrief-notes --test properties # IPC frames, notes records
-cargo test -p debrief-ai --test properties_knowledge     # knowledge records and the prompt block
+cargo test -p debrief-core --test it properties::
+cargo test -p debrief-plugin-registry -p debrief-plugin-windows -p debrief-plugin-web -p debrief-plugin-otel -p debrief-plugin-syslog --test it properties::
+cargo test -p debrief-core --test it properties_files::      # parser TOML, .debriefproj, project.toml, .debriefz
+cargo test -p debrief-ipc -p debrief-notes --test it properties:: # IPC frames, notes records
+cargo test -p debrief-ai --test it properties_knowledge::     # knowledge records and the prompt block
 ```
 
 * Default is 256 cases per property. Run harder with `PROPTEST_CASES=10000 cargo test --release ...`.
@@ -21,7 +21,7 @@ cargo test -p debrief-ai --test properties_knowledge     # knowledge records and
 * Inputs are arbitrary bytes/strings, plus mutations (bit flips, inserts, deletes, truncation,
   splices) of `/samples` prefixes, crate fixtures and valid seeds (queries, stack traces,
   timestamps, templates, profile fragments, gzip/zip archives).
-* `debrief-core/tests/properties.rs` also checks invariants: paging partitions the matching ids with
+* `debrief-core/tests/it/properties.rs` also checks invariants: paging partitions the matching ids with
   no duplicates, the timeline histogram total equals the matching records with timestamps,
   CLEF export read back by the JSON importer preserves ts/level/message/fields, and RFC 3339
   timestamps parse back to the same millisecond.

@@ -4,7 +4,7 @@
 //! compressed event headers, interned stacks and sequence points.
 //!
 //! Not part of the importer's API: hidden from the docs, used by
-//! `tests/gen_nettrace.rs` and the property tests.
+//! `tests/it/gen_nettrace.rs` and the property tests.
 
 pub use super::runtime::{ids, RUNDOWN, RUNTIME, SAMPLE_PROFILER};
 

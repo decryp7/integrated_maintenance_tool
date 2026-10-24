@@ -16,7 +16,7 @@ with the rest of the same window.
 port**: it needs only `summary` (candidate fields), `facet` (value counts), `page` (counts and evidence) and
 `check_query`. It is not a new port method, so the store worker protocol and `WIRE_VERSION` do not change, and every
 store (the in-memory `Workspace` and DuckDB) gives the answer from its own aggregates. A differential test
-(`debrief-store-duck/tests/outliers.rs`) runs it on both.
+(`debrief-store-duck/tests/it/outliers.rs`) runs it on both.
 
 - The window is the request's query (a filter without `|` stages); the subset is a filter (`@level >= error` by
   default) applied as a `where` stage; the rest is the window minus the subset.

@@ -74,7 +74,7 @@ npx tauri dev         # the desktop app with the real engine (starts `npm run st
 ```
 
 ```sh
-cargo test -p debrief-core        # engine tests, including end-to-end runs over /samples
+cargo nextest run -p debrief-core        # engine tests, including end-to-end runs over /samples
 ```
 
 Regenerate the samples with `cargo xtask gen-samples` (do not edit them by hand). It runs
@@ -203,7 +203,8 @@ committing, all of these must pass:
 ```sh
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
+cargo nextest run --workspace
+cargo test --workspace --doc
 cargo deny --workspace check
 (cd app && npm audit --omit=dev --audit-level=high && npx ng build && npx ng test --watch=false)
 ```
@@ -220,19 +221,43 @@ cargo deny --workspace check
 - **Desktop rules the build enforces:** child processes start through `debrief_core::process::quiet_command`
   (no console window on Windows; `clippy.toml` disallows `Command::new`), and every Tauri command that
   builds a window is `async` (a window built from a synchronous command stays white on Windows;
-  `app/src-tauri/tests/window_commands.rs`).
+  `app/src-tauri/tests/it/window_commands.rs`).
 - **Commit messages** are checked against Conventional Commits (`node scripts/commit-lint.mjs`).
 - **Real-app smoke tests** drive the built Tauri app with WebdriverIO and `tauri-driver`
   (`cd app && npm run e2e:tauri:build && npm run e2e:tauri`; Windows and Linux). Checks that need a
   real desktop are in [docs/testing-manual.md](testing-manual.md).
 - **Snapshot tests (insta)** pin the records each importer produces for the sample files
-  (`crates/debrief-core/tests/snapshots`).
+  (`crates/debrief-core/tests/it/snapshots`).
 - **Property tests (proptest)** assert that parsers never panic and that invariants hold;
   **fuzzers (cargo-fuzz)** cover every parser and run nightly in CI. See [docs/fuzzing.md](fuzzing.md).
 - **Benchmarks (criterion)** for the engine live in `crates/debrief-core/benches` (`cargo bench -p debrief-core`);
   the plugin tests over the real IPC are in `crates/debrief-plugins/tests`.
 - **Mutation testing (cargo-mutants)** measures how many injected bugs the engine tests catch.
 - **Live search test** of AI research against the real engines: see below. Nightly and manual CI runs only.
+
+### Fast test runs
+
+- **Rust tests run with cargo-nextest** (`.config/nextest.toml`): one test per core but one, a SLOW report after 30 s,
+  the child-process tests serialised in their own group. `--profile ci` (CI) never retries a test (a flaky test is fixed,
+  not retried) and writes `target/nextest/ci/junit.xml`. nextest skips doc tests: `cargo test --workspace --doc`. On a
+  shared machine cap it: `cargo nextest run -j 6`.
+- **One integration-test binary per crate:** `tests/it/main.rs` declares a module per file (`tests/it/<name>.rs`),
+  shared helpers live in `tests/it/common/` (or `support/`). Linking a binary per file cost more than the tests took. A new
+  test file is a new `mod` line in `main.rs`, never a new `tests/<name>.rs`. Run one file's tests with
+  `cargo nextest run -p debrief-core -E 'test(/^samples::/)'` or `cargo test -p debrief-core --test it samples::`. Under
+  `cargo test` all modules share one process, so a test that changes something process-wide serialises it
+  (`common::quiet` for the panic hook) or runs in a child process of its own (`server_backend::ambient_llama_variables_*`
+  re-runs itself with the variable set). The tests that measure the process itself keep their own binaries:
+  debrief-store-duck's `memory`, `bench`, `bench_reads` and `analysis_memory` (mimalloc as global allocator, resident
+  size).
+- **sccache** caches dependency builds across worktrees (`RUSTC_WRAPPER=sccache`, cache on the big volume): see Paddock's
+  [dev-setup.md](https://dev.decryptology.net/decryp7/paddock/src/branch/main/docs/dev-setup.md).
+- **Linux linker:** CI's Linux test and smoke jobs link with mold (`CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS`);
+  on a Linux machine set it up as in Paddock's dev-setup.md. macOS keeps the default linker.
+- **Playwright** builds the production bundle once per run and every project (Chromium, WebKit) tests it under the Tauri
+  CSP. `DEBRIEF_E2E_PREBUILT=1` serves an existing `dist/` instead of building (CI builds in its own step). CI runs the full
+  suite in two shards (`--shard=1/2`, `--shard=2/2`); a branch runs only the related specs in Chromium:
+  `npx playwright test --project=chromium e2e/<spec>.e2e.ts`.
 
 ### Live search test
 
@@ -307,7 +332,7 @@ Gitea Actions workflows live in [`.gitea/workflows/`](../.gitea/workflows/):
 
 - **`build.yml`** runs on pushes to `main`, pull requests, `v*` tags, nightly (00:30 UTC, on `main`) and on
   demand (`workflow_dispatch`):
-  1. *check* (Linux): `cargo test`, `fmt`, `clippy -D warnings`, `cargo-deny`, the commit-message
+  1. *check* (Linux): `cargo nextest run --profile ci` (and the doc tests), `fmt`, `clippy -D warnings`, `cargo-deny`, the commit-message
      check (pull requests), the Angular build with `npm audit`, the i18n extraction check, `ng lint`,
      unit tests with coverage, the Playwright end-to-end tests, and a check that the generated
      third-party notices are up to date.

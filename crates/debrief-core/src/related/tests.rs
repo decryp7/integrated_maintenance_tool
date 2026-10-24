@@ -1,4 +1,4 @@
-//! Ranking and orchestration over a fake source (the samples end-to-end are in `tests/related.rs`).
+//! Ranking and orchestration over a fake source (the samples end-to-end are in `tests/it/related.rs`).
 
 use super::*;
 use crate::api::{FileKind, SourceInfo};

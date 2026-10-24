@@ -219,7 +219,7 @@ tell products apart (or `@source` after routing); there are no per-product profi
 - New samples (`cargo xtask gen-samples`): `linux/logserver01/apps-20261014.log` (Checkout in Serilog text,
   Inventory in log4net, Payments as CLEF lines, haproxy lines no default format reads, five process ids) with
   `profiles/logserver.debriefprofile.toml` (an extractor and two routes), and `linux/logserver01/syslog-20261014.log`
-  (RFC 5424 from three hosts, four apps, six processes). Tests: `crates/debrief-core/tests/mixed_sources.rs`, the
+  (RFC 5424 from three hosts, four apps, six processes). Tests: `crates/debrief-core/tests/it/mixed_sources.rs`, the
   syslog plugin's samples test, property tests for the line parser and routes.
 
 ## Note (R3, ADR 0017)

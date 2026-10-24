@@ -38,8 +38,8 @@ the time zone of the machine) in [`samples/real-libraries/README.md`](../../samp
 and run the engine tests over the files:
 
 ```sh
-cargo test -p debrief-core --test real_libraries
-cargo test -p debrief-plugins --test real_libraries
+cargo test -p debrief-core --test it real_libraries::
+cargo test -p debrief-plugins --test it real_libraries::
 ```
 
 To try newer library versions, change them in `DotnetSampleGen.csproj` (or `dotnet add package <name>`).

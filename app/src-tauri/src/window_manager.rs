@@ -121,7 +121,7 @@ pub fn changed<R: Runtime>(app: &AppHandle<R>) {
 ///
 /// Commands that call it must be `async`: a window built from a synchronous command never finishes
 /// loading on Windows (WebView2 waits for the main thread the command blocks; the window stays white).
-/// `tests/window_commands.rs` enforces this.
+/// `tests/it/window_commands.rs` enforces this.
 pub fn open_new<R: Runtime>(app: &AppHandle<R>, pending: Vec<String>) -> anyhow::Result<String> {
     let windows = app
         .try_state::<Windows>()

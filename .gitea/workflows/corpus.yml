@@ -1,7 +1,7 @@
 # Nightly: real-world files that cannot be committed, downloaded at test time into a temporary folder.
 # EVTX-ATTACK-SAMPLES (GPL-3.0, LICENSE.GPL; downloaded for the run, never committed; pinned commit and SHA-256) through the Windows plugin's EVTX importer over the
 # real IPC: no panic, no plugin crash or memory-cap stop, events with timestamps. Failures name the file only.
-# See crates/debrief-plugins/tests/evtx_corpus.rs. Never runs on push: it needs the network and takes minutes.
+# See crates/debrief-plugins/tests/it/evtx_corpus.rs. Never runs on push: it needs the network and takes minutes.
 
 name: corpus
 
@@ -81,7 +81,7 @@ jobs:
           key: evtx-attack-samples-4ceed2f4706daf601c212a8f91c113dd85349a2c
 
       - name: EVTX-ATTACK-SAMPLES through the EVTX importer
-        run: cargo test -p debrief-plugins --test evtx_corpus
+        run: cargo test -p debrief-plugins --test it evtx_corpus::
 
   # Records a fully green scheduled run for this commit; `plan` skips the next scheduled run while main is unchanged.
   # Never runs when anything failed, so a red commit is retried every night.

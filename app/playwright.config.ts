@@ -1,24 +1,18 @@
 import { defineConfig, devices } from '@playwright/test';
 
-// Ports and the production-build server can be overridden so several runs can share a machine.
+// End-to-end tests run against the browser build, where the app injects the in-memory MockBackend. Every project uses
+// the one production build, served with the Tauri CSP header (e2e/serve-prod.mjs): one build per run (and per CI shard)
+// instead of a dev server plus a production build, and every spec runs under the CSP the desktop app enforces.
 const CI = !!process.env['CI'];
-const SKIP_PROD = !!process.env['DEBRIEF_E2E_SKIP_PROD'];
-// CI must name its ports (a fixed default could collide with another job on the host); locally 4300/4301 are the defaults.
-if (CI && !process.env['DEBRIEF_E2E_PORT']) throw new Error('CI: set DEBRIEF_E2E_PORT (the port of the ng serve dev server)');
-if (CI && !SKIP_PROD && !process.env['DEBRIEF_E2E_PROD_PORT']) throw new Error('CI: set DEBRIEF_E2E_PROD_PORT (the port of the production-build server) or DEBRIEF_E2E_SKIP_PROD');
+// CI must name its port (a fixed default could collide with another job on the host); locally 4300 is the default.
+if (CI && !process.env['DEBRIEF_E2E_PORT']) throw new Error('CI: set DEBRIEF_E2E_PORT (the port of the production-build server)');
 const PORT = Number(process.env['DEBRIEF_E2E_PORT'] ?? 4300);
-const PROD_PORT = Number(process.env['DEBRIEF_E2E_PROD_PORT'] ?? 4301);
+// DEBRIEF_E2E_PREBUILT=1 serves the dist/app/browser an earlier `npx ng build` left (CI builds once before the tests);
+// otherwise the run builds first, so it never tests a stale build.
+const PREBUILT = !!process.env['DEBRIEF_E2E_PREBUILT'];
+// The CSP guard spec runs in Chromium only.
 const PROD_CSP = '**/prod-csp.e2e.ts';
-// These also run against the production build with the Tauri CSP (no extra permissions needed).
-const ERROR_SNAPSHOTS = '**/error-snapshots.e2e.ts';
-const SETTINGS = '**/settings.e2e.ts';
-const WINDOWING = '**/windowing.e2e.ts';
-const ABOUT = '**/about.e2e.ts';
-const DOCKING = ['**/popout*.e2e.ts', '**/dock*.e2e.ts'];
-const MENUS = '**/menus*.e2e.ts';
 
-// End-to-end tests run against the browser build, where the app injects the in-memory MockBackend.
-// The "prod-csp" project runs against the production build served with the Tauri CSP header.
 export default defineConfig({
   testDir: 'e2e',
   testMatch: '**/*.e2e.ts',
@@ -36,36 +30,14 @@ export default defineConfig({
     viewport: { width: 1440, height: 900 },
   },
   projects: [
-    { name: 'chromium', testIgnore: PROD_CSP, use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
+    { name: 'chromium', use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 } } },
     { name: 'webkit', testIgnore: PROD_CSP, use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } } },
-    ...(SKIP_PROD
-      ? []
-      : [
-          {
-            name: 'prod-csp',
-            testMatch: [PROD_CSP, ERROR_SNAPSHOTS, SETTINGS, WINDOWING, ABOUT, MENUS, ...DOCKING, '**/live-*.e2e.ts', '**/share-*.e2e.ts', '**/profiling-*.e2e.ts', '**/ux-*.e2e.ts', '**/ai-*.e2e.ts', '**/i18n-*.e2e.ts'],
-            use: { ...devices['Desktop Chrome'], viewport: { width: 1440, height: 900 }, baseURL: `http://localhost:${PROD_PORT}` },
-          },
-        ]),
   ],
-  webServer: [
-    {
-      // No file watching: an edit made while the suite runs (another terminal, another agent) would reload every
-      // open page through HMR mid-test and fail whatever was running. Tests run against the build they started with.
-      command: `npx ng serve --port ${PORT} --watch=false`,
-      url: `http://localhost:${PORT}`,
-      // Never reuse whatever listens on the port: a stale server would test the wrong build.
-      reuseExistingServer: false,
-      timeout: 180_000,
-    },
-    ...(SKIP_PROD
-      ? []
-      : [{
-      // Always rebuild so the guard tests the current production configuration.
-      command: `npx ng build && node e2e/serve-prod.mjs ${PROD_PORT}`,
-      url: `http://localhost:${PROD_PORT}`,
-      reuseExistingServer: false,
-      timeout: 300_000,
-    }]),
-  ],
+  webServer: {
+    command: PREBUILT ? `node e2e/serve-prod.mjs ${PORT}` : `npx ng build && node e2e/serve-prod.mjs ${PORT}`,
+    url: `http://localhost:${PORT}`,
+    // Never reuse whatever listens on the port: a stale server would test the wrong build.
+    reuseExistingServer: false,
+    timeout: 300_000,
+  },
 });

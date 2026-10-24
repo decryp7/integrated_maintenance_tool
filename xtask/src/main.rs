@@ -42,7 +42,7 @@ impl Step {
 /// Microsoft Store stub, which fails `--version`, so `python` and the `py -3` launcher follow.
 const PYTHONS: &[&[&str]] = &[&["python3"], &["python"], &["py", "-3"]];
 
-/// The Rust tests that write samples, as (crate, extra cargo args, test target).
+/// The Rust tests that write samples, as (crate, extra cargo args, module of the crate's `it` test binary).
 const RUST_GENERATORS: &[(&str, &[&str], &str)] = &[
     ("debrief-plugin-profiling", &["--no-default-features"], "gen_json_samples"),
     ("debrief-plugin-profiling", &["--no-default-features"], "gen_nettrace"),
@@ -57,11 +57,12 @@ fn gen_samples_plan(python: &[&str], root: &Path) -> Vec<Step> {
     let mut py_args: Vec<&str> = python[1..].to_vec();
     py_args.push(&script);
     let mut steps = vec![Step::new(python[0], &py_args)];
-    for (krate, extra, test) in RUST_GENERATORS {
+    for (krate, extra, module) in RUST_GENERATORS {
         let mut args = vec!["test", "-p", krate];
         args.extend_from_slice(extra);
-        // Only the ignored `regenerate_*` tests write files; the rest of the target runs in the normal test suite.
-        args.extend_from_slice(&["--test", test, "--", "--ignored", "regenerate_"]);
+        // Only the ignored `regenerate_*` tests write files; the rest of the module runs in the normal test suite.
+        let filter = format!("{module}::regenerate_");
+        args.extend_from_slice(&["--test", "it", "--", "--ignored", &filter]);
         steps.push(Step::new("cargo", &args).with_env("DEBRIEF_REGENERATE_SAMPLES", "1"));
     }
     steps
@@ -166,8 +167,12 @@ mod tests {
         for step in &plan[1..] {
             assert_eq!(step.program, "cargo");
             assert_eq!(step.env, vec![("DEBRIEF_REGENERATE_SAMPLES".to_owned(), "1".to_owned())]);
-            assert!(step.args.ends_with(&["--".into(), "--ignored".into(), "regenerate_".into()]));
+            assert!(step.args.windows(2).any(|w| w == ["--test", "it"]), "{:?}", step.args);
+            let filter = step.args.last().unwrap();
+            assert!(filter.ends_with("::regenerate_"), "{filter}");
+            assert_eq!(step.args[step.args.len() - 3..step.args.len() - 1], ["--", "--ignored"]);
         }
+        assert_eq!(plan.last().map(|s| s.args.last().unwrap().as_str()), Some("samples::regenerate_"));
         assert!(plan[1]
             .display()
             .starts_with("DEBRIEF_REGENERATE_SAMPLES=1 cargo test -p debrief-plugin-profiling --no-default-features"));

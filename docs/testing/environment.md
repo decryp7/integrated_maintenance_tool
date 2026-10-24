@@ -12,7 +12,7 @@ precondition is missing, and they pass in CI.
   need it say so (`cargo build -p debrief-plugins`).
 - **libduckdb**: workers find `libduckdb` through `DYLD_LIBRARY_PATH` (macOS) or `LD_LIBRARY_PATH` (Linux), set to the folder
   `DUCKDB_LIB_DIR` points at.
-- **Memory budgets** (`debrief-store-worker/tests/worker.rs`): macOS reports a larger resident size than Linux for the
+- **Memory budgets** (`debrief-store-worker/tests/it/worker.rs`): macOS reports a larger resident size than Linux for the
   same work, so the idle and query budget is higher there (see the constant's comment).
 - **Time zones**: UI specs that assert wall-clock text pin the zone through the workspace setting; run `ng test` with
   `TZ=Pacific/Auckland` to check that none depends on the host zone.
