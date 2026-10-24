@@ -279,6 +279,31 @@ fn a_command_that_returns_its_job_id_passes_however_slowly_the_machine_runs() {
     assert_eq!(again, 8);
 }
 
+/// Regression: `returns_fast` judged commands by a wall-clock bound (250 ms, then 5 s), which a loaded machine broke. Now
+/// no job starts while the command runs: a slow command that returns its id passes, and its job runs afterwards.
+#[test]
+fn returns_fast_holds_job_starts_while_the_command_runs_and_not_after() {
+    let app = test_app_with_commands(None);
+    let jobs = jobs(&app).clone();
+    let (spawned, rx) = std::sync::mpsc::channel();
+    let out = crate::test_support::returns_fast(app.handle(), "slow start", async {
+        let id = crate::jobs::spawn(
+            app.handle(),
+            JobSpec::new(JobKind::Export, "held").window("main"),
+            crate::jobs::Controls::default(),
+            |_ctx: &crate::jobs::JobCtx| -> Result<crate::jobs::Done<()>, String> { Ok(crate::jobs::Done::new(())) },
+        )
+        .expect("accepted");
+        tokio::time::sleep(std::time::Duration::from_millis(300)).await;
+        let _ = spawned.send(jobs.state_of(id));
+        id
+    });
+    assert_eq!(rx.recv().unwrap(), Some(JobState::Queued), "held while the command ran");
+    wait_until("the held job to run once the command returned", || {
+        matches!(jobs.state_of(out), Some(JobState::Done) | None)
+    });
+}
+
 #[test]
 fn a_window_acts_only_on_its_own_and_app_wide_jobs() {
     let app = test_app_with_commands(None);

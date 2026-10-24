@@ -620,6 +620,7 @@ fn local_models_are_added_activated_and_deleted() {
     std::fs::write(&src, model_bytes()).unwrap();
     // The check of the file is a job: the command returns its id at once and the model is the job's value.
     let started = crate::test_support::returns_fast(
+        app.handle(),
         "ai_model_add_local",
         super::commands::ai_model_add_local(
             app.handle().clone(),

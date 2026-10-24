@@ -356,6 +356,7 @@ mod tests {
         assert!(refused.message.contains("at least one"));
         let out = dir.0.join("shared.debriefz");
         let started = crate::test_support::returns_fast(
+            app.handle(),
             "export_redacted_copy",
             export_redacted_copy(
                 app.handle().clone(),

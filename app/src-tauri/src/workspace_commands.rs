@@ -933,7 +933,7 @@ mod tests {
         let st = || main_window(&app);
         crate::paths::allow_under(app.handle(), "main", &samples());
         let files = vec![samples().join("serilog-clef").to_string_lossy().into_owned()];
-        let started = crate::test_support::returns_fast("open_paths", open_paths(app.handle().clone(), st(), files));
+        let started = crate::test_support::returns_fast(app.handle(), "open_paths", open_paths(app.handle().clone(), st(), files));
         let end = crate::test_support::job_end(&app, started.unwrap());
         assert_eq!(end.state, crate::jobs::JobState::Done, "{end:?}");
         let Some(crate::jobs::JobResult::Workspace { detail: Some(summary) }) = end.result else {
@@ -943,7 +943,7 @@ mod tests {
         assert!(!summary["sources"].as_array().unwrap().is_empty());
         assert!(!st().is_pristine(), "the post-processing ran inside the job");
 
-        let started = crate::test_support::returns_fast("reload_workspace", reload_workspace(app.handle().clone(), st()));
+        let started = crate::test_support::returns_fast(app.handle(), "reload_workspace", reload_workspace(app.handle().clone(), st()));
         let reloaded = crate::test_support::job_value(&app, started.unwrap()).unwrap();
         assert_eq!(reloaded["total"], summary["total"]);
     }
@@ -964,6 +964,7 @@ mod tests {
         for name in ["bad.debriefz", "bad.debriefproj"] {
             let w2 = crate::windows::CurrentWindow::of(app.handle(), "w-2").unwrap();
             let started = crate::test_support::returns_fast(
+                app.handle(),
                 "open_project",
                 open_project(
                     app.handle().clone(),
@@ -1009,7 +1010,7 @@ mod tests {
 
         let open = |name: &str| {
             let files = vec![samples().join(name).to_string_lossy().into_owned()];
-            crate::test_support::returns_fast("open_paths", open_paths(app.handle().clone(), st(), files)).unwrap()
+            crate::test_support::returns_fast(app.handle(), "open_paths", open_paths(app.handle().clone(), st(), files)).unwrap()
         };
         let (cancelled, kept) = (open("csv"), open("log4net"));
         let jobs = app.state::<Jobs>();
@@ -1206,8 +1207,12 @@ mod tests {
 
         let out = dir.0.join("events.clef");
         let req: ExportRequest = serde_json::from_value(json!({"format": "clef", "path": out.to_string_lossy()})).unwrap();
-        let job =
-            crate::test_support::returns_fast("export_events", export_events(app.handle().clone(), st(), OpId::default(), req)).unwrap();
+        let job = crate::test_support::returns_fast(
+            app.handle(),
+            "export_events",
+            export_events(app.handle().clone(), st(), OpId::default(), req),
+        )
+        .unwrap();
         assert_eq!(
             crate::test_support::job_done(&app, job),
             format!("Exported {} events.", summary["total"])
@@ -1232,6 +1237,7 @@ mod tests {
     ) -> CmdResult<crate::services::project::SavedProject> {
         let st = crate::windows::CurrentWindow::of(app.handle(), label).unwrap();
         let started = crate::test_support::returns_fast(
+            app.handle(),
             "save_project",
             save_project(
                 app.handle().clone(),

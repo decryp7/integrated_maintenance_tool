@@ -105,6 +105,7 @@ mod tests {
         let summary = crate::test_support::finished(
             &app,
             crate::test_support::returns_fast(
+                app.handle(),
                 "paste_log",
                 paste_log(
                     app.handle().clone(),

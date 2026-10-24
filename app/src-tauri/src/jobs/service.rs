@@ -265,6 +265,9 @@ struct Shared {
     retry: Mutex<HashMap<JobKind, RetryFn>>,
     ticking: AtomicBool,
     tick: Duration,
+    /// Tests: no job starts while set (see `hold_starts`).
+    #[cfg(test)]
+    held: AtomicBool,
 }
 
 /// The service. Cheap to clone (one shared state); managed as Tauri state.
@@ -298,6 +301,8 @@ impl Jobs {
             retry: Mutex::new(HashMap::new()),
             ticking: AtomicBool::new(false),
             tick,
+            #[cfg(test)]
+            held: AtomicBool::new(false),
         }))
     }
 
@@ -311,6 +316,26 @@ impl Jobs {
 
     pub fn subscribe(&self, f: impl Fn(&JobsEvent<'_>) + Send + Sync + 'static) {
         lock(&self.0.listeners).push(Arc::new(f));
+    }
+
+    /// Tests: while `held`, queued jobs do not start (they start when it is released). A command that waits for its own job
+    /// then never returns, which is how `test_support::returns_fast` tells, without a wall-clock bound.
+    #[cfg(test)]
+    pub fn hold_starts(&self, held: bool) {
+        self.0.held.store(held, Ordering::SeqCst);
+        if !held {
+            self.pump();
+        }
+    }
+
+    #[cfg(test)]
+    fn starts_held(&self) -> bool {
+        self.0.held.load(Ordering::SeqCst)
+    }
+
+    #[cfg(not(test))]
+    fn starts_held(&self) -> bool {
+        false
     }
 
     /// Lets `gate` pause and resume `kind`'s queue (checked before jobs of that kind start).
@@ -416,6 +441,7 @@ impl Jobs {
         // Gates run outside the lock: they may ask other services (the AI's health).
         let verdicts: Vec<(JobKind, Option<String>)> = gates.into_iter().map(|(k, g)| (k, guarded_gate(&g))).collect();
         let now = self.now();
+        let held = self.starts_held();
         let mut paused = Vec::new();
         let (start, changed) = {
             let mut inner = self.lock();
@@ -436,7 +462,7 @@ impl Jobs {
                 }
             }
             let mut start = Vec::new();
-            for id in inner.queue.startable() {
+            for id in if held { Vec::new() } else { inner.queue.startable() } {
                 if inner.queue.start(id, now).is_err() {
                     continue;
                 }

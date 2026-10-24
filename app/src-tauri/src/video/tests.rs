@@ -330,6 +330,7 @@ fn the_video_can_be_copied_into_the_project_and_the_copy_dropped() {
     let v = finished_as::<VideoView>(
         &app,
         crate::test_support::returns_fast(
+            app.handle(),
             "video_include",
             video_include(
                 h.clone(),

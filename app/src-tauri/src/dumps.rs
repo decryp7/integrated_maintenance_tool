@@ -878,12 +878,19 @@ mod tests {
         w: &tauri::WebviewWindow<tauri::test::MockRuntime>,
         path: &str,
     ) -> Result<serde_json::Value, String> {
-        let started = std::time::Instant::now();
-        let id = ipc(w, "dumps_open", serde_json::json!({ "path": path })).map_err(|e| e["message"].to_string())?;
-        assert!(
-            started.elapsed() < crate::test_support::FAST_RETURN,
-            "dumps_open must return its job at once"
-        );
+        // No job starts until it returned: a command that waited for its job would never return (no wall-clock bound).
+        let jobs = tauri::Manager::state::<crate::jobs::Jobs>(app).inner().clone();
+        jobs.hold_starts(true);
+        let (tx, rx) = std::sync::mpsc::channel();
+        let (w2, body) = (w.clone(), serde_json::json!({ "path": path }));
+        std::thread::spawn(move || {
+            let _ = tx.send(ipc(&w2, "dumps_open", body));
+        });
+        let reply = rx
+            .recv_timeout(std::time::Duration::from_secs(120))
+            .expect("dumps_open waited for its job instead of returning its id");
+        jobs.hold_starts(false);
+        let id = reply.map_err(|e| e["message"].to_string())?;
         crate::test_support::job_value(app, id.as_u64().expect("a job id"))
     }
 

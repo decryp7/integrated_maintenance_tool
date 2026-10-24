@@ -905,18 +905,19 @@ pub(crate) mod test_support {
         finished(app, started).map(|v| serde_json::from_value(v).expect("the job's value has the command's type"))
     }
 
-    /// Asserts that a command's future returns within `FAST_RETURN` and hands back its output. A command that does long work
-    /// must start a job and return its id: this is the check (the bound is generous so a loaded machine never trips it), applied to the commands that used to await their jobs.
-    pub const FAST_RETURN: std::time::Duration = std::time::Duration::from_secs(5);
-
-    pub fn returns_fast<F: std::future::Future>(what: &str, f: F) -> F::Output {
-        let started = std::time::Instant::now();
-        let out = block(f);
-        let took = started.elapsed();
-        assert!(
-            took < FAST_RETURN,
-            "{what} took {took:?} to return: long work belongs in a job, not in the command"
-        );
+    /// Runs a command that must only start a job and hands back its output. While it runs no job starts (the test app's job
+    /// service holds them), so a command that waited for its job instead of returning its id would never return: the hang
+    /// detector, not a time bound, ends the test. Deterministic: no wall-clock threshold, so a loaded machine cannot fail
+    /// it (Paddock rule 5). The held jobs start once it returned.
+    pub fn returns_fast<F: std::future::Future>(app: &tauri::AppHandle<MockRuntime>, what: &str, f: F) -> F::Output {
+        let jobs = app.state::<jobs::Jobs>().inner().clone();
+        jobs.hold_starts(true);
+        let out = block(async {
+            tokio::time::timeout(std::time::Duration::from_secs(120), f)
+                .await
+                .unwrap_or_else(|_| panic!("{what} waited for its job instead of returning its id: long work belongs in a job"))
+        });
+        jobs.hold_starts(false);
         out
     }
 

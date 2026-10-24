@@ -663,6 +663,7 @@ mod tests {
         let opened = crate::test_support::finished(
             &app,
             crate::test_support::returns_fast(
+                app.handle(),
                 "open_bundle",
                 open_bundle(
                     app.handle().clone(),
