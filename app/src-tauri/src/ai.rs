@@ -19,6 +19,7 @@ pub(crate) mod folder_setup;
 pub(crate) mod knowledge;
 pub(crate) mod manual;
 pub(crate) mod parser_job;
+pub(crate) mod pitwall;
 pub(crate) mod requests;
 pub(crate) mod runtime_commands;
 mod runtimes;
@@ -29,7 +30,7 @@ pub(crate) mod update_commands;
 pub(crate) mod updates;
 pub(crate) mod vision;
 
-pub use self::core::{AiCore, AiDeps, EngineStateDto};
+pub use self::core::{AiCore, AiDeps, AiStatus, EngineStateDto};
 pub use chats::WindowChats;
 pub use settings_section::AiSettingsSection;
 
@@ -101,10 +102,16 @@ pub fn init<R: Runtime>(app: &AppHandle<R>, safe_mode: bool) {
         }
         None => AiDeps::system(debrief_ai::worker::default_worker_path(), &data),
     };
+    // Pitwall is looked for unless this is a safe-mode run (ADR 0059).
+    let deps = AiDeps {
+        pitwall: (!safe_mode).then(pitwall::system),
+        ..deps
+    };
     let core = Arc::new(AiCore::new(dir, models, safe_mode, deps));
     manage(app, core.clone());
     update_commands::init(app, core.clone());
-    core.autoload();
+    // Looks at Pitwall in the background first; the built-in model loads afterwards only when it is the engine.
+    pitwall::start(app, core.clone());
     match core.status() {
         s if s.available => log::info!(State = format!("{:?}", s.state).as_str(); "AI assistant ready to use"),
         s => log::info!("AI assistant unavailable: {}", s.reason.unwrap_or_default()),

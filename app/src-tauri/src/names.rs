@@ -243,7 +243,7 @@ pub fn schedule_alias_job<R: Runtime>(app: &AppHandle<R>, label: &str, win: &Win
         let spec = JobSpec::new(JobKind::Maintenance, "Learning human names").window(label).quiet();
         let (worker, service) = (win.clone(), jobs.clone());
         jobs.submit_work(spec, crate::jobs::Controls::default(), move |ctx| {
-            let end = match core.provider() {
+            let end = match core.background_provider() {
                 Ok(provider) => {
                     let model = LocalAliasModel::new(provider, ctx.cancel_flag());
                     run_alias_job(&worker, Some(&model), Some(service), ctx, &AliasJobConfig::default())

@@ -198,6 +198,7 @@ impl Fixture {
             download_backoff: Duration::from_millis(1),
             runtimes: test_runtimes_with(&self.tmp, self.host_delay, self.build_tests.clone()),
             settings: Arc::default(),
+            pitwall: None,
         }
     }
 
@@ -2135,6 +2136,7 @@ fn a_runtime_is_installed_from_archives_downloaded_by_hand() {
 }
 
 mod knowledge;
+mod pitwall;
 mod update_checks;
 mod vision;
 

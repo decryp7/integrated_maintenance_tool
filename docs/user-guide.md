@@ -553,6 +553,29 @@ sign-in failures). A run steps through the playbook: queries, filters, views to 
 each with the engine's result; add a note to any step. Runs are saved with the project. Playbooks are JSON files you
 can import, export and share; see [playbooks.md](playbooks.md).
 
+## Pitwall as the AI engine
+
+If [Pitwall](https://dev.decryptology.net/decryp7/pitwall), the family's local model server, runs on this computer,
+Debrief can use it instead of its own engine: one model in memory serves all your apps, and Debrief does not download a
+second copy. Debrief's built-in engine stays as the fallback. Everything stays on this computer either way; Debrief only
+talks to Pitwall on `127.0.0.1`.
+
+- **Connect once.** In *Set up AI assistant* choose **Use Pitwall** (or *Settings ▸ AI ▸ Connect to Pitwall…*).
+  Debrief shows a six-digit code; Pitwall shows a request with the same code in *Apps & keys*. Check they match and
+  choose **Approve**. Debrief keeps its key in the system's credential store (macOS Keychain, Windows Credential
+  Manager); *Forget Pitwall* deletes it. Debrief never connects by itself.
+- **AI engine** (*Settings ▸ AI*): **Automatic** uses Pitwall when it is running and connected, otherwise the built-in
+  engine; **Pitwall** uses only Pitwall; **Built-in** uses only Debrief's own engine and models.
+- **Which model.** Pitwall picks a chat model that fits Debrief's context length. To decide yourself, create a preset
+  named `debrief` in Pitwall; Debrief uses it when it exists. *Settings ▸ AI* shows the model Pitwall chose.
+- **If Pitwall stops** (it quits, pauses, or the key is revoked), the request that was running fails with a plain
+  message and the status bar shows the AI as limited. Debrief never switches engines in the middle of your work by
+  itself: choose **Use the fallback** to continue with the built-in engine for this session, or open Pitwall again.
+- **No second copy.** While Pitwall is the engine, Debrief does not download or update its own runtime and models and
+  does not load its own model; models you already downloaded stay until you delete them in *Manage models*.
+- Debrief speaks Pitwall's connection version 1 (Pitwall 1.0.4 and later). If Pitwall reports another version,
+  *Settings ▸ AI* says which app to update and Debrief uses its built-in engine.
+
 ## AI runtime and model updates
 
 Debrief checks for newer **inference runtimes** (the llama.cpp builds that run the model) and newer revisions or

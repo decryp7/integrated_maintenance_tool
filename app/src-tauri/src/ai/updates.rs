@@ -435,7 +435,8 @@ impl AiUpdates {
 
     /// The scheduler's beat (every minute): due checks, waiting automatic installs, builds to retire.
     pub fn tick(&self) {
-        if self.core.availability().is_err() {
+        // While Pitwall answers, the built-in engine's runtime and models are not updated (no second copy, ADR 0059).
+        if self.core.availability().is_err() || self.core.uses_pitwall() {
             return;
         }
         let s = self.core.settings();

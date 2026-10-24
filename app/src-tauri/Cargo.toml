@@ -35,6 +35,8 @@ debrief-plugin-host = { path = "../../crates/debrief-plugin-host" }
 debrief-plugin-api = { path = "../../crates/debrief-plugin-api" }
 debrief-plugin-package = { path = "../../crates/debrief-plugin-package" }
 debrief-ai = { path = "../../crates/debrief-ai" }
+# Debrief's Pitwall key in the OS credential store (ADR 0059): macOS Keychain, Windows Credential Manager, Secret Service.
+keyring = "4.2"
 debrief-collect = { path = "../../crates/debrief-collect" }
 # Child-process logs (`debrief_ipc::child_log`) for problem reports.
 debrief-ipc = { path = "../../crates/debrief-ipc" }

@@ -119,6 +119,6 @@ describe('service health types', () => {
   });
 
   it('every repair action has a button label', () => {
-    for (const a of ['restart', 'reset', 'liftQuarantine', 'install', 'retry'] as const) expect(repairLabel(a).length).toBeGreaterThan(0);
+    for (const a of ['restart', 'reset', 'liftQuarantine', 'install', 'retry', 'useFallback'] as const) expect(repairLabel(a).length).toBeGreaterThan(0);
   });
 });

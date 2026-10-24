@@ -1,7 +1,9 @@
-import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import { formatBytes } from '../ai-format';
+import { AiBackend, toAiError } from '../ai-backend';
 import { AiLauncher } from '../ai-launcher';
 import { AiStatusStore } from '../ai-status.store';
+import { engineLines, groupCode } from '../pitwall-format';
 import { AiUpdatesPanel } from '../updates/ai-updates-panel';
 
 /** Settings → AI, above the fields: set-up and model buttons, the engine status and the update checks. */
@@ -15,6 +17,34 @@ import { AiUpdatesPanel } from '../updates/ai-updates-panel';
         <button type="button" class="btn" data-testid="ai-settings-setup" (click)="launcher.openSetup()" i18n="@@ai.settings.setup">Set up AI assistant…</button>
         <button type="button" class="btn" data-testid="ai-settings-models" (click)="launcher.openModels()" i18n="@@ai.settings.models">Manage models…</button>
       </div>
+      @if (engine(); as e) {
+        <section class="engine" aria-label="AI engine" i18n-aria-label="@@ai.settings.engine">
+          @for (line of lines(); track $index) {
+            <p [attr.data-testid]="$index === 0 ? 'ai-engine-status' : null" [class.muted]="$index > 0">{{ line }}</p>
+          }
+          @if (e.pitwall.pairing; as pairing) {
+            <p class="code" data-testid="ai-pitwall-code" aria-label="Pairing code" i18n-aria-label="@@ai.settings.pitwall.codeLabel">{{ group(pairing.code) }}</p>
+            <p class="muted" i18n="@@ai.settings.pitwall.approve">Approve Debrief in Pitwall ▸ Apps & keys and check it shows this code.</p>
+          }
+          <div class="actions">
+            @if (e.pitwall.found === 'running' && !e.pitwall.paired && !e.pitwall.pairing) {
+              <button type="button" class="btn" data-testid="ai-pitwall-connect" [disabled]="busy()" (click)="connect()" i18n="@@ai.settings.pitwall.connect">Connect to Pitwall…</button>
+            }
+            @if (e.pitwall.pairing) {
+              <button type="button" class="btn" data-testid="ai-pitwall-cancel" [disabled]="busy()" (click)="cancel()" i18n="@@ai.settings.pitwall.cancel">Cancel</button>
+            }
+            @if (e.pitwall.paired) {
+              <button type="button" class="btn" data-testid="ai-pitwall-forget" [disabled]="busy()" (click)="forget()" i18n="@@ai.settings.pitwall.forget">Forget Pitwall</button>
+            }
+            @if (e.active === null) {
+              <button type="button" class="btn" data-testid="ai-use-built-in" [disabled]="busy()" (click)="useBuiltIn()" i18n="@@ai.settings.pitwall.useBuiltIn">Use the built-in engine</button>
+            }
+          </div>
+          @if (engineError(); as err) {
+            <p class="err" role="alert" data-testid="ai-engine-error">{{ err }}</p>
+          }
+        </section>
+      }
       <p class="muted" data-testid="ai-settings-status">{{ statusLine() }}</p>
       @if (serverLine(); as line) {
         <p class="muted" data-testid="ai-settings-server">{{ line }}</p>
@@ -31,11 +61,50 @@ import { AiUpdatesPanel } from '../updates/ai-updates-panel';
     p { margin: 0; }
     .actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     .note { color: var(--muted); }
+    .engine { display: flex; flex-direction: column; gap: 6px; }
+    .code { font-size: var(--fs-lg, 1.5em); font-weight: 600; letter-spacing: 0.15em; font-variant-numeric: tabular-nums; }
+    .err { color: var(--danger-text, var(--lvl-error)); }
   `,
 })
 export class AiSettingsExtras {
   protected readonly launcher = inject(AiLauncher);
   protected readonly status = inject(AiStatusStore);
+  private readonly backend = inject(AiBackend);
+
+  protected readonly engine = computed(() => this.status.status()?.engine ?? null);
+  protected readonly lines = computed(() => {
+    const e = this.engine();
+    return e ? engineLines(e) : [];
+  });
+  protected readonly group = groupCode;
+  protected readonly busy = signal(false);
+  protected readonly engineError = signal<string | null>(null);
+
+  connect(): Promise<void> {
+    return this.act(async () => void (await this.backend.pitwallConnect(false)));
+  }
+  cancel(): Promise<void> {
+    return this.act(async () => void (await this.backend.pitwallCancel()));
+  }
+  forget(): Promise<void> {
+    return this.act(async () => void (await this.backend.pitwallForget()));
+  }
+  useBuiltIn(): Promise<void> {
+    return this.act(async () => void (await this.backend.useBuiltInEngine()));
+  }
+
+  /** Runs one Pitwall command; the new status arrives on the status event, a rejection is shown inline. */
+  private async act(run: () => Promise<void>): Promise<void> {
+    this.busy.set(true);
+    this.engineError.set(null);
+    try {
+      await run();
+    } catch (e) {
+      this.engineError.set(toAiError(e).message);
+    } finally {
+      this.busy.set(false);
+    }
+  }
 
   protected readonly reason = computed(() => this.status.status()?.reason ?? this.status.error() ?? '');
   protected readonly unavailableText = computed(() => {

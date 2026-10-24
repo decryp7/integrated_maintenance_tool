@@ -37,6 +37,8 @@ fn label_of(option: &str) -> String {
         "automatic" => "Automatic: download and install in the background".into(),
         "ask" => "Ask before updating".into(),
         "manual" => "Manual: only when I choose Check now".into(),
+        "pitwall" => "Pitwall".into(),
+        "builtIn" => "Built-in (Debrief's own engine)".into(),
         n if n.parse::<u32>().is_ok() => format!("{n} layers on the GPU"),
         other => other.into(),
     }
@@ -196,6 +198,9 @@ pub fn to_settings(values: &ValidValues, base: &AiSettings) -> AiSettings {
     if let Some(p) = values.text("model_updates").and_then(UpdatePolicy::parse) {
         s.model_updates = p;
     }
+    if let Some(e) = values.text("engine") {
+        s.engine = debrief_ai::engine::EngineChoice::parse(e);
+    }
     s.update_check_hours = int("update_check_hours", i64::from(s.update_check_hours)).clamp(1, 720) as u32;
     s.clamp()
 }
@@ -271,7 +276,7 @@ mod tests {
                 "download_proxy": "http://p:3128", "max_download_gb": 9, "download_connections": 6, "models_dir": models,
                 "inference_build": "vulkan", "llama_server_path": server,
                 "runtime_updates": "automatic", "model_updates": "manual", "update_check_hours": 6,
-                "name_aliases": false
+                "name_aliases": false, "engine": "builtIn"
             }),
         );
         assert!(errors.is_empty(), "{errors:?}");
@@ -301,7 +306,9 @@ mod tests {
             (a.runtime_updates, a.model_updates, a.update_check_hours),
             (UpdatePolicy::Automatic, UpdatePolicy::Manual, 6)
         );
+        assert_eq!(a.engine, debrief_ai::engine::EngineChoice::BuiltIn);
         assert_eq!(label_of("ask"), "Ask before updating");
+        assert_eq!(label_of("builtIn"), "Built-in (Debrief's own engine)");
         for (word, expected) in [
             ("8", GpuOffload::Layers(8)),
             ("0", GpuOffload::Layers(0)),

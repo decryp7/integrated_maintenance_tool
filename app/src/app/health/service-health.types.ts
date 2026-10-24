@@ -7,7 +7,7 @@
 export type ServiceState = 'ok' | 'starting' | 'degraded' | 'down' | 'quarantined' | 'repairing';
 
 /** What the shell can do to bring a service back; it never goes through the service itself. */
-export type RepairAction = 'restart' | 'reset' | 'liftQuarantine' | 'install' | 'retry';
+export type RepairAction = 'restart' | 'reset' | 'liftQuarantine' | 'install' | 'retry' | 'useFallback';
 
 /** A memory cap stopped the process: the user can raise it (the UI opens the setting with this value). */
 export interface RaiseCap {
@@ -73,6 +73,8 @@ export function repairLabel(action: RepairAction): string {
       return $localize`:@@health.repair.liftQuarantine:Allow again`;
     case 'install':
       return $localize`:@@health.repair.install:Install`;
+    case 'useFallback':
+      return $localize`:@@health.repair.useFallback:Use the fallback`;
     case 'reset':
     case 'retry':
       return $localize`:@@health.repair.tryAgain:Try again`;

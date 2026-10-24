@@ -48,6 +48,8 @@ pub enum AiHealth {
     Switched,
     /// The last model load failed.
     LoadFailed,
+    /// The chosen engine (Pitwall) is not usable or went away mid-session; `reason` says why (ADR 0059).
+    EngineLost,
 }
 
 pub struct Health {
@@ -165,6 +167,13 @@ impl Health {
                     .detail(reason);
                 self.registry
                     .set(AI, ServiceState::Quarantined, Some(cause), Some(RepairAction::Reset));
+            }
+            AiHealth::EngineLost => {
+                let cause = Cause::new("Pitwall is not answering Debrief.")
+                    .hint("Open Pitwall to use it again, or choose Use the fallback to continue with Debrief's built-in engine.")
+                    .detail(reason);
+                self.registry
+                    .set(AI, ServiceState::Degraded, Some(cause), Some(RepairAction::UseFallback));
             }
             AiHealth::LoadFailed => {
                 let cause = Cause::new("The AI model could not be loaded.")
