@@ -1434,6 +1434,21 @@ mod phase_tests {
     use super::*;
 
     #[test]
+    fn finding_counts_up_without_a_total_and_reading_never_exceeds_its_total() {
+        let p = ImportProgress::default();
+        p.stream_begin();
+        p.discovered(1, 10, Path::new("/a"));
+        p.discovered(1, 10, Path::new("/a"));
+        let s = p.snapshot();
+        // Nothing is read yet: the files found so far are a count on the finding scale, with no total.
+        assert_eq!((s.phase, s.done, s.total), (ImportPhase::Finding, 2, 0));
+        p.reading(Path::new("/a/1"));
+        p.file_done(10);
+        let s = p.snapshot();
+        assert_eq!((s.phase, s.done, s.total), (ImportPhase::Importing, 1, 2));
+    }
+
+    #[test]
     fn every_stored_phase_number_reads_back_and_unknown_ones_are_idle() {
         let phases = [
             ImportPhase::Idle,

@@ -22,6 +22,14 @@ fn spec(args: &[&str]) -> ChildSpec {
 
 const T: Option<Duration> = Some(Duration::from_secs(10));
 
+/// Like [`ask`] for a call that touches hundreds of MB: an upper bound for a loaded, memory-limited CI container (page
+/// faults there are throttled), not a delay; the answer returns as soon as it is ready.
+fn ask_big(c: &Child, text: &str) -> Result<String, IpcError> {
+    c.peer()
+        .call(text.as_bytes().to_vec(), Some(Duration::from_secs(120)))
+        .map(|b| String::from_utf8_lossy(&b).into_owned())
+}
+
 fn ask(c: &Child, text: &str) -> Result<String, IpcError> {
     c.peer()
         .call(text.as_bytes().to_vec(), T)
@@ -374,12 +382,12 @@ fn the_memory_cap_stops_a_child_over_it_but_not_a_busy_one() {
         ..debrief_ipc::sandbox::SandboxSpec::unrestricted()
     };
     let open = launch(&spec(&[]), Arc::new(NoCalls)).unwrap();
-    assert!(ask(&open, "alloc 400000000").unwrap().starts_with("ok"));
+    assert!(ask_big(&open, "alloc 400000000").unwrap().starts_with("ok"));
     let c = launch(&spec(&[]).sandbox(capped), Arc::new(NoCalls)).unwrap();
     // Many calls at once (handler threads, each a malloc arena that reserves address space) stay well within a
     // 256 MiB cap of the memory used, which an address-space or data rlimit did not.
     let answers: Vec<_> = std::thread::scope(|s| {
-        let calls: Vec<_> = (0..32).map(|_| s.spawn(|| ask(&c, "alloc 2000000"))).collect();
+        let calls: Vec<_> = (0..32).map(|_| s.spawn(|| ask_big(&c, "alloc 2000000"))).collect();
         calls.into_iter().map(|h| h.join().unwrap()).collect()
     });
     assert!(
