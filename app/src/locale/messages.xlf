@@ -6743,84 +6743,84 @@
         <source>Run the query (Enter or <x id="key" equiv-text="this.runKey"/>)</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">207</context>
+          <context context-type="linenumber">208</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.regexPlaceholder" datatype="html">
         <source>Regular expression</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">218</context>
+          <context context-type="linenumber">219</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryField.placeholder" datatype="html">
         <source>Search or query…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">218</context>
+          <context context-type="linenumber">219</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.partialOne" datatype="html">
         <source><x id="count" equiv-text="n"/> more partial match added: the text appears inside a word</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">245</context>
+          <context context-type="linenumber">246</context>
         </context-group>
       </trans-unit>
       <trans-unit id="workspace.filterBar.partialMany" datatype="html">
         <source><x id="count" equiv-text="n"/> more partial matches added: the text appears inside words</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">246</context>
+          <context context-type="linenumber">247</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryField.saved" datatype="html">
         <source>Saved as &quot;<x id="name" equiv-text="name"/>&quot;</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">401</context>
+          <context context-type="linenumber">402</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryField.savedShow" datatype="html">
         <source>Show saved queries</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">402</context>
+          <context context-type="linenumber">403</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.progress" datatype="html">
         <source>Query progress</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">438</context>
+          <context context-type="linenumber">439</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.cancelled" datatype="html">
         <source>Query cancelled.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">447,448</context>
+          <context context-type="linenumber">448,449</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.filtering" datatype="html">
         <source>Filtering with <x id="START_TAG_CODE" ctype="x-code" equiv-text="&lt;code class=&quot;mono&quot;&gt;"/><x id="INTERPOLATION" equiv-text="{{ ql }}"/><x id="CLOSE_TAG_CODE" ctype="x-code" equiv-text="&lt;/code&gt;"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">449</context>
+          <context context-type="linenumber">450</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.matched" datatype="html">
         <source> · <x id="INTERPOLATION" equiv-text="{{ session.matched() }}"/> events </source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">449</context>
+          <context context-type="linenumber">450</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.clear" datatype="html">
         <source>Clear</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">450,456</context>
+          <context context-type="linenumber">451,457</context>
         </context-group>
         <note priority="1" from="description">Button</note>
         <note priority="1" from="meaning">Remove the applied query</note>
@@ -6829,21 +6829,21 @@
         <source>Cancelling…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">472</context>
+          <context context-type="linenumber">473</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.running" datatype="html">
         <source>Running…</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">473</context>
+          <context context-type="linenumber">474</context>
         </context-group>
       </trans-unit>
       <trans-unit id="analysis.queryView.errorAt" datatype="html">
         <source><x id="message" equiv-text="message"/> at column <x id="column" equiv-text="column"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/analysis/query-field.ts</context>
-          <context context-type="linenumber">481</context>
+          <context context-type="linenumber">482</context>
         </context-group>
       </trans-unit>
       <trans-unit id="964189146601526420" datatype="html">
@@ -10931,21 +10931,21 @@
         <source>Some panes were tabbed to fit this window</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-layout.ts</context>
-          <context context-type="linenumber">349</context>
+          <context context-type="linenumber">362</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.layout.fit.body" datatype="html">
         <source>Your saved layout is kept; it returns when the window is large enough.</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-layout.ts</context>
-          <context context-type="linenumber">350</context>
+          <context context-type="linenumber">363</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.layout.fit.undo" datatype="html">
         <source>Undo</source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/dock/dock-layout.ts</context>
-          <context context-type="linenumber">351</context>
+          <context context-type="linenumber">364</context>
         </context-group>
       </trans-unit>
       <trans-unit id="dock.autoHide.toLeft" datatype="html">
@@ -34138,14 +34138,14 @@
         <source>Could not read the profile: <x id="error" equiv-text="errorMessage(e)"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/redaction/redaction-dialog.ts</context>
-          <context context-type="linenumber">154</context>
+          <context context-type="linenumber">159</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.redactionDialog.removeRuleAria" datatype="html">
         <source>Remove rule <x id="rule" equiv-text="name || i + 1"/></source>
         <context-group purpose="location">
           <context context-type="sourcefile">src/app/share/redaction/redaction-dialog.ts</context>
-          <context context-type="linenumber">180</context>
+          <context context-type="linenumber">185</context>
         </context-group>
       </trans-unit>
       <trans-unit id="share.redactionSummary.changed" datatype="html">
