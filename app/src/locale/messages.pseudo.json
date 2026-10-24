@@ -2093,6 +2093,8 @@
     "lifecycle.commands.restartElevated": "⟦Ŕééšţááŕţ ááš áðɱîîñîîšţŕááţöŕ⟧",
     "lifecycle.commands.restartNormally": "⟦Ŕééšţááŕţ ñööŕɱáļļý⟧",
     "lifecycle.commands.restartSafeMode": "⟦Ŕééšţááŕţ îîñ šáƒéé ɱööðéé⟧",
+    "lifecycle.recovered.terminated": "⟦Ţĥéé ŵîîñðööŵ'š çöñţééñţ šţööþþééð ûñééẋþééçţééðļý áñð ŵááš ŕééļööáðééð. Ýööûûŕ öþééñ ƒîîļééš áŕéé ķééþţ.⟧",
+    "lifecycle.recovered.unresponsive": "⟦Ţĥéé ŵîîñðööŵ ðîð ñööţ ƒîîñîîšĥ šţáŕţîîñĝ ááñð ŵááš ŕéļööááðééð. Ýöûûŕ ööþééñ ƒîļééš ááŕéé ķéþţ.⟧",
     "lifecycle.service.elevatedFailed": "⟦Çööûûļð ñööţ ŕéšţááŕţ ááš ááðɱîñîîšţŕááţööŕ: {$error}⟧",
     "lifecycle.service.noSession": "⟦Ţĥééŕéé îîš ñö šááṽééð šééššîööñ ţöö ŕééšţöŕéé⟧",
     "lifecycle.service.reopenFailed": "⟦Çööûûļð ñööţ ŕéööþééñ ţĥéé öţĥééŕ ŵîîñðööŵš: {$error}⟧",

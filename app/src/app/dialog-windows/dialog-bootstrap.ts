@@ -10,6 +10,7 @@ import { provideDebriefIcons } from '../shared/material/debrief-icons';
 import { DialogFeature } from './dialog-def';
 import { HOST_COMMAND_FORWARD } from './host-commands';
 import { dialogDef } from './dialog-registry';
+import { provideStartupContract } from '../core/startup/startup-contract';
 
 type Providers = (Provider | EnvironmentProviders)[];
 
@@ -71,6 +72,8 @@ export function dialogBaseProviders(): Providers {
     provideActivity(),
     provideDebriefIcons(),
     provideAppInitializer(() => inject(ThemeService).start()),
+    // Reports ready after the first paint (ADR 0057).
+    provideStartupContract(),
     // Commands act on the window that opened the dialog.
     { provide: HOST_COMMAND_FORWARD, useFactory: () => { const injector = inject(Injector); return (id: string) => injector.get(UiSync).runInHost('dialogRun', id); } },
   ];

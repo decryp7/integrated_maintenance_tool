@@ -44,6 +44,8 @@ import { provideIncident } from './investigate/incident/provide-incident';
 import { provideKnownIssues } from './investigate/known-issues/provide-known-issues';
 import { providePlaybooks } from './investigate/playbooks/provide-playbooks';
 import { provideStorePane } from './store-pane/provide-store-pane';
+import { provideStartupContract } from './core/startup/startup-contract';
+import { provideRecoveryNotice } from './lifecycle/recovery-notice';
 
 export const appConfig: ApplicationConfig = {
   providers: [
@@ -93,5 +95,8 @@ export const appConfig: ApplicationConfig = {
     provideIncident(),
     providePlaybooks(),
     provideStorePane(),
+    // Reports ready after the first paint; Rust's watchdog recovers a window that never does (ADR 0057).
+    provideStartupContract(),
+    provideRecoveryNotice(),
   ],
 };

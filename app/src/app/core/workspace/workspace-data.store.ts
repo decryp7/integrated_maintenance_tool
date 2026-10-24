@@ -1,3 +1,4 @@
+import { retryUntilAnswered, STARTUP_RETRY } from '../startup/startup-contract';
 import { computed, inject } from '@angular/core';
 import { patchState, signalStore, withComputed, withHooks, withMethods, withState } from '@ngrx/signals';
 import { MarkerKind, WorkspaceSummary } from '../api.types';
@@ -167,7 +168,12 @@ export const WorkspaceDataStore = signalStore(
           );
         },
         async init() {
-          await run({ kind: 'op', label: $localize`:@@core.workspace.busy.loading:Loading workspace…` }, () => backend.workspaceSummary(), 'loaded');
+          // A start-up read: retried when an attempt goes unanswered (a fresh or paused webview, ADR 0057).
+          await run(
+            { kind: 'op', label: $localize`:@@core.workspace.busy.loading:Loading workspace…` },
+            () => retryUntilAnswered(() => backend.workspaceSummary(), STARTUP_RETRY),
+            'loaded',
+          );
         },
         /**
          * Fetches the summary again after the engine changed the data underneath (live tail, or the host window of a
