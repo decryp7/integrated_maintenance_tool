@@ -728,8 +728,9 @@ impl Writer {
 
     fn write(&mut self, batch: &mut Vec<Item>) -> Result<()> {
         let records: Vec<Record> = batch.iter().map(|i| i.record.clone()).collect();
-        self.sink.write(&records)?;
+        // The counts change with the file under one lock: a status never reports fewer events than were written.
         let mut s = self.shared.stats();
+        self.sink.write(&records)?;
         s.events += batch.len() as u64;
         for item in batch.drain(..) {
             if let Some(c) = s.channels.get_mut(item.channel) {
